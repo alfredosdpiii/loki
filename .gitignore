@@ -1,0 +1,23 @@
+.coverage
+.mutmut-cache/
+.pytest_cache/
+.venv/
+mutants/
+__pycache__/
+.ruff_cache/
+node_modules/
+
+# Local agent installations, session state, and working notes.
+/.agents/
+/.claude/
+/.completion-loop/
+/handoff.md
+/research.md
+/research-addendum.md
+/skills-lock.json
+/artifacts/tmp/
+
+# Local credentials.
+.env
+.env.*
+!.env.example

@@ -1,0 +1,202 @@
+{
+  "scope": "real hosts, isolated homes, loopback stub; no provider credentials",
+  "engine_sha256": "31b3d118979612760f1209b58eb7acfb8818b842ef911186880c93b25b976b18",
+  "adapter_sha256": {
+    "loki.ts": "348d398f08194f3f0d36e108859677fcc4d55eb04c20fce922b327ab40c9485d",
+    "loki-omp.ts": "084e824e932a07e0c50b1f411f47ae3fcbf15b59c4da78567ed2d71ecf473ee1"
+  },
+  "results": [
+    {
+      "host": "pi",
+      "enabled": false,
+      "version": "",
+      "exit": 1,
+      "completed_stub_reply": false,
+      "context_delivered": false,
+      "requests": [],
+      "expectation_met": false,
+      "elapsed_ms": 1000.98,
+      "diagnostic": "Error: supervisor_generation_stale\n"
+    },
+    {
+      "host": "pi",
+      "enabled": true,
+      "version": "",
+      "exit": 1,
+      "completed_stub_reply": false,
+      "context_delivered": false,
+      "requests": [],
+      "expectation_met": false,
+      "elapsed_ms": 1001.0,
+      "diagnostic": "Error: supervisor_generation_stale\n"
+    },
+    {
+      "host": "omp",
+      "enabled": false,
+      "version": "omp/18.2.6",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 1212
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1691.24,
+      "diagnostic": "Working...\n"
+    },
+    {
+      "host": "omp",
+      "enabled": true,
+      "version": "omp/18.2.6",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 1631
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1689.8,
+      "diagnostic": "Working...\n"
+    },
+    {
+      "host": "claude",
+      "enabled": false,
+      "version": "2.1.258 (Claude Code)",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/messages?beta=true",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 1374
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 727.45,
+      "diagnostic": ""
+    },
+    {
+      "host": "claude",
+      "enabled": true,
+      "version": "2.1.258 (Claude Code)",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/messages?beta=true",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 1896
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 835.51,
+      "diagnostic": ""
+    },
+    {
+      "host": "codex",
+      "enabled": false,
+      "version": "codex-cli 0.152.1",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/responses",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 39689
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 680.29,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/loki-codex-context-1xltnbdl/home/.codex\"))\nReading additional input from stdin...\nOpenAI Codex v0.152.1\n--------\nworkdir: /tmp/loki-codex-context-1xltnbdl/project\nmodel: fixture\nprovider: loki-fixture\napproval: never\nsandbox: read-only\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a0be4c-c09d-7ed3-85d7-03c370d3328b\n--------\nuser\nReply exactly fixture-ok. Do not use tools.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: Model metadata for `fixture` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\ncodex\nfixture-ok\ntokens used\n2\n"
+    },
+    {
+      "host": "codex",
+      "enabled": true,
+      "version": "codex-cli 0.152.1",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/responses",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 40234
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 754.53,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/loki-codex-context-cfu2n3n3/home/.codex\"))\nReading additional input from stdin...\nOpenAI Codex v0.152.1\n--------\nworkdir: /tmp/loki-codex-context-cfu2n3n3/project\nmodel: fixture\nprovider: loki-fixture\napproval: never\nsandbox: read-only\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a0be4c-c392-7ee2-b5b0-3475f12f8f68\n--------\nuser\nReply exactly fixture-ok. Do not use tools.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: Model metadata for `fixture` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\nhook: SessionStart\nhook: SessionStart Completed\ncodex\nfixture-ok\ntokens used\n2\n"
+    },
+    {
+      "host": "factory",
+      "enabled": false,
+      "version": "0.223.0",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 7706
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1779.81,
+      "diagnostic": ""
+    },
+    {
+      "host": "factory",
+      "enabled": true,
+      "version": "0.223.0",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 8150
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1855.3,
+      "diagnostic": ""
+    }
+  ]
+}

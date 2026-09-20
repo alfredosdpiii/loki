@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.loki/loki.py\" protect --harness claude || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.loki/loki.py\" context --root \"$(git rev-parse --show-toplevel)\" --event UserPromptSubmit || { printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.loki/loki.py\" hook --harness claude || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

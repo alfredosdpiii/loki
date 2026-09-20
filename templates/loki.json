@@ -1,0 +1,12 @@
+{
+  "approved_dependencies": null,
+  "rule_packs": ["core", "python", "typescript", "phoenix", "shell"],
+  "elixir_security": {"sobelow": {"block": "high", "warn": "medium"}},
+  "shell_commands": [],
+  "commands": {
+    "contract": [],
+    "property": [],
+    "differential": [],
+    "mutation": []
+  }
+}

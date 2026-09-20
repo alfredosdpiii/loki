@@ -1,0 +1,65 @@
+[
+  {
+    "phase": "defect",
+    "exit": 1,
+    "expectation_met": true,
+    "report": {
+      "diagnostics": [
+        {
+          "message": "Promise executor functions should not be `async`.",
+          "code": "eslint(no-async-promise-executor)",
+          "severity": "error",
+          "url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-async-promise-executor.html",
+          "help": "Remove the `async` keyword from the Promise executor function.",
+          "filename": "source.ts",
+          "labels": [
+            {
+              "span": {
+                "offset": 41,
+                "length": 5,
+                "line": 1,
+                "column": 42
+              }
+            }
+          ]
+        },
+        {
+          "message": "Async function has no `await` expression.",
+          "code": "eslint(require-await)",
+          "severity": "warning",
+          "url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/require-await.html",
+          "help": "Consider removing the `async` keyword.",
+          "filename": "source.ts",
+          "labels": [
+            {
+              "span": {
+                "offset": 41,
+                "length": 34,
+                "line": 1,
+                "column": 42
+              }
+            }
+          ]
+        }
+      ],
+      "number_of_files": 1,
+      "number_of_rules": 263,
+      "threads_count": 16,
+      "start_time": 0.13787686
+    },
+    "stderr": ""
+  },
+  {
+    "phase": "repair",
+    "exit": 0,
+    "expectation_met": true,
+    "report": {
+      "diagnostics": [],
+      "number_of_files": 1,
+      "number_of_rules": 263,
+      "threads_count": 16,
+      "start_time": 0.125851762
+    },
+    "stderr": ""
+  }
+]

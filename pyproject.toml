@@ -1,0 +1,36 @@
+[project]
+name = "loki-guardrails"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "coverage==7.15.4",
+  "mutmut==3.7.0",
+  "pytest==9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+include = ["loki.py"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = false
+exclude_also = [
+  "if __name__ == .__main__.:",
+]
+
+
+[tool.mutmut]
+source_paths = ["loki.py"]
+also_copy = ["templates", "shim", "vendor"]
+pytest_add_cli_args = ["-q"]
+pytest_add_cli_args_test_selection = ["tests"]
+mutate_only_covered_lines = true
+on_dependency_change = "rerun"

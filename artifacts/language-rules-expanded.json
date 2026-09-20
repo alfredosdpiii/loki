@@ -1,0 +1,417 @@
+{
+  "scope": "shipped rules on isolated defects and repairs; no fixture code executed",
+  "engine_sha256": "f024cd238d652417d9f0cba46bfa3bcff8e1237f362b8db37a40fd7ce823e1e5",
+  "policy_sha256": {
+    ".ruff.toml": "410343e24be5028a82bc5067adb752eb35c518eade591f3c2b154e2c7b5d76a9",
+    ".oxlintrc.json": "e6465b210e4c3badd8b97fdeb7e9444e2e36b4d36408f90be9ca929e6fcf6a7b",
+    ".golangci.yml": "4321831294d4b223e7553796513577a6e307907546e5695f6eea1b812bd5be10",
+    ".credo.exs": "46191e8af593a4e08b1192b5a72855101bb6441ad0442032fce47359c582c7f4"
+  },
+  "results": [
+    {
+      "language": "python",
+      "case": "dangling task",
+      "phase": "defect",
+      "rule": "RUF006",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "[\n  {\n    \"cell\": null,\n    \"code\": \"RUF006\",\n    \"end_location\": {\n      \"column\": 31,\n      \"row\": 8\n    },\n    \"filename\": \"/tmp/loki-rules-python-tbxbpcrk/app.py\",\n    \"fix\": null,\n    \"location\": {\n      \"column\": 5,\n      \"row\": 8\n    },\n    \"message\": \"Store a reference to the return value of `asyncio.create_task`\",\n    \"noqa_row\": 8,\n    \"url\": \"https://docs.astral.sh/ruff/rules/asyncio-dangling-task\"\n  }\n]"
+    },
+    {
+      "language": "python",
+      "case": "dangling task",
+      "phase": "repair",
+      "rule": "RUF006",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "[]"
+    },
+    {
+      "language": "python",
+      "case": "direct logger construction",
+      "phase": "defect",
+      "rule": "LOG001",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "[\n  {\n    \"cell\": null,\n    \"code\": \"LOG001\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/loki-rules-python-tbxbpcrk/app.py\",\n    \"fix\": {\n      \"applicability\": \"unsafe\",\n      \"edits\": [\n        {\n          \"content\": \"import logging\",\n          \"end_location\": {\n            \"column\": 15,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        },\n        {\n          \"content\": \"logging.getLogger\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 3\n          },\n          \"location\": {\n            \"column\": 10,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Replace with `logging.getLogger()`\"\n    },\n    \"location\": {\n      \"column\": 10,\n      \"row\": 3\n    },\n    \"message\": \"Use `logging.getLogger()` to instantiate loggers\",\n    \"noqa_row\": 3,\n    \"url\": \"https://docs.astral.sh/ruff/rules/direct-logger-instantiation\"\n  }\n]"
+    },
+    {
+      "language": "python",
+      "case": "direct logger construction",
+      "phase": "repair",
+      "rule": "LOG001",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "[]"
+    },
+    {
+      "language": "python",
+      "case": "stale suppression",
+      "phase": "defect",
+      "rule": "RUF100",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "[\n  {\n    \"cell\": null,\n    \"code\": \"RUF100\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/loki-rules-python-tbxbpcrk/app.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 10,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unused `noqa` directive\"\n    },\n    \"location\": {\n      \"column\": 12,\n      \"row\": 1\n    },\n    \"message\": \"Unused `noqa` directive (unused: `F821`)\",\n    \"noqa_row\": 1,\n    \"url\": \"https://docs.astral.sh/ruff/rules/unused-noqa\"\n  }\n]"
+    },
+    {
+      "language": "python",
+      "case": "stale suppression",
+      "phase": "repair",
+      "rule": "RUF100",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "[]"
+    },
+    {
+      "language": "python",
+      "case": "logging format mismatch",
+      "phase": "defect",
+      "rule": "PLE1205",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "[\n  {\n    \"cell\": null,\n    \"code\": \"PLE1205\",\n    \"end_location\": {\n      \"column\": 12,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/loki-rules-python-tbxbpcrk/app.py\",\n    \"fix\": null,\n    \"location\": {\n      \"column\": 1,\n      \"row\": 4\n    },\n    \"message\": \"Too many arguments for `logging` format string\",\n    \"noqa_row\": 4,\n    \"url\": \"https://docs.astral.sh/ruff/rules/logging-too-many-args\"\n  }\n]"
+    },
+    {
+      "language": "python",
+      "case": "logging format mismatch",
+      "phase": "repair",
+      "rule": "PLE1205",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "[]"
+    },
+    {
+      "language": "typescript",
+      "case": "async Promise executor",
+      "phase": "defect",
+      "rule": "no-async-promise-executor",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: eslint(no-async-promise-executor): Promise executor functions should not be `async`."
+    },
+    {
+      "language": "typescript",
+      "case": "async Promise executor",
+      "phase": "repair",
+      "rule": "no-async-promise-executor",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "typescript",
+      "case": "ignored Promise executor return",
+      "phase": "defect",
+      "rule": "no-promise-executor-return",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: eslint(no-promise-executor-return): Return statement should not be used in Promise executor."
+    },
+    {
+      "language": "typescript",
+      "case": "ignored Promise executor return",
+      "phase": "repair",
+      "rule": "no-promise-executor-return",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "typescript",
+      "case": "finally overrides failure",
+      "phase": "defect",
+      "rule": "no-unsafe-finally",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: eslint(no-unsafe-finally): Unsafe `finally` block."
+    },
+    {
+      "language": "typescript",
+      "case": "finally overrides failure",
+      "phase": "repair",
+      "rule": "no-unsafe-finally",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "typescript",
+      "case": "unsafe optional chaining",
+      "phase": "defect",
+      "rule": "no-unsafe-optional-chaining",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: eslint(no-unsafe-optional-chaining): Unsafe usage of optional chaining"
+    },
+    {
+      "language": "typescript",
+      "case": "unsafe optional chaining",
+      "phase": "repair",
+      "rule": "no-unsafe-optional-chaining",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "typescript",
+      "case": "constant nullish condition",
+      "phase": "defect",
+      "rule": "no-constant-binary-expression",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: eslint(no-constant-binary-expression): Unexpected constant nullishness on the left-hand side of a \"??\" expression"
+    },
+    {
+      "language": "typescript",
+      "case": "constant nullish condition",
+      "phase": "repair",
+      "rule": "no-constant-binary-expression",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "typescript",
+      "case": "debugger statement",
+      "phase": "defect",
+      "rule": "no-debugger",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: eslint(no-debugger): `debugger` statement is not allowed"
+    },
+    {
+      "language": "typescript",
+      "case": "debugger statement",
+      "phase": "repair",
+      "rule": "no-debugger",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "typescript",
+      "case": "focused test",
+      "phase": "defect",
+      "rule": "no-focused-tests",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "source.test.ts:1: jest(no-focused-tests): Unexpected focused test.\nsource.test.ts:1: vitest(no-focused-tests): Unexpected focused test."
+    },
+    {
+      "language": "typescript",
+      "case": "focused test",
+      "phase": "repair",
+      "rule": "no-focused-tests",
+      "exit": 0,
+      "expectation_met": true,
+      "output": ""
+    },
+    {
+      "language": "go",
+      "case": "explicitly discarded error",
+      "phase": "defect",
+      "rule": "errcheck",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "../../../../../../tmp/loki-rules-go-2549dxok/main.go:4:15: Error return value of `os.Remove` is not checked (errcheck)\nfunc main() { _ = os.Remove(\"missing\") }\n              ^\n1 issues:\n* errcheck: 1\n"
+    },
+    {
+      "language": "go",
+      "case": "explicitly discarded error",
+      "phase": "repair",
+      "rule": "errcheck",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "0 issues.\n"
+    },
+    {
+      "language": "go",
+      "case": "unchecked type assertion",
+      "phase": "defect",
+      "rule": "errcheck",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "../../../../../../tmp/loki-rules-go-2549dxok/main.go:3:34: Error return value is not checked (errcheck)\nfunc read(v any) string { return v.(string) }\n                                 ^\n1 issues:\n* errcheck: 1\n"
+    },
+    {
+      "language": "go",
+      "case": "unchecked type assertion",
+      "phase": "repair",
+      "rule": "errcheck",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "0 issues.\n"
+    },
+    {
+      "language": "go",
+      "case": "wrapped error comparison",
+      "phase": "defect",
+      "rule": "errorlint",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "../../../../../../tmp/loki-rules-go-2549dxok/main.go:4:36: comparing with == will fail on wrapped errors. Use errors.Is to check for a specific error (errorlint)\nfunc done(err error) bool { return err == io.ErrUnexpectedEOF }\n                                   ^\n1 issues:\n* errorlint: 1\n"
+    },
+    {
+      "language": "go",
+      "case": "wrapped error comparison",
+      "phase": "repair",
+      "rule": "errorlint",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "0 issues.\n"
+    },
+    {
+      "language": "go",
+      "case": "discarded nonnil error",
+      "phase": "defect",
+      "rule": "nilerr",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "../../../../../../tmp/loki-rules-go-2549dxok/main.go:3:47: error is not nil (line 3) but it returns nil (nilerr)\nfunc check(err error) error { if err != nil { return nil }; return nil }\n                                              ^\n1 issues:\n* nilerr: 1\n"
+    },
+    {
+      "language": "go",
+      "case": "discarded nonnil error",
+      "phase": "repair",
+      "rule": "nilerr",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "0 issues.\n"
+    },
+    {
+      "language": "go",
+      "case": "duration multiplied by duration",
+      "phase": "defect",
+      "rule": "durationcheck",
+      "exit": 1,
+      "expectation_met": true,
+      "output": "../../../../../../tmp/loki-rules-go-2549dxok/main.go:4:56: Multiplication of durations: `delay * time.Millisecond` (durationcheck)\nfunc scale(delay time.Duration) time.Duration { return delay * time.Millisecond }\n                                                       ^\n1 issues:\n* durationcheck: 1\n"
+    },
+    {
+      "language": "go",
+      "case": "duration multiplied by duration",
+      "phase": "repair",
+      "rule": "durationcheck",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "0 issues.\n"
+    },
+    {
+      "language": "rust",
+      "case": "ignored Result",
+      "phase": "defect",
+      "rule": "unused_must_use",
+      "exit": 101,
+      "expectation_met": true,
+      "output": "{\"reason\":\"compiler-message\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"message\":{\"rendered\":\"error: unused `std::result::Result` that must be used\\n --> src/lib.rs:1:16\\n  |\\n1 | pub fn run() { std::fs::read_to_string(\\\"input\\\"); }\\n  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  |\\n  = note: this `Result` may be an `Err` variant, which should be handled\\n  = note: `-D unused-must-use` implied by `-D warnings`\\n  = help: to override `-D warnings` add `#[allow(unused_must_use)]`\\nhelp: use `let _ = ...` to ignore the resulting value\\n  |\\n1 | pub fn run() { let _ = std::fs::read_to_string(\\\"input\\\"); }\\n  |                +++++++\\n\\n\",\"$message_type\":\"diagnostic\",\"children\":[{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"this `Result` may be an `Err` variant, which should be handled\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"`-D unused-must-use` implied by `-D warnings`\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"help\",\"message\":\"to override `-D warnings` add `#[allow(unused_must_use)]`\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"help\",\"message\":\"use `let _ = ...` to ignore the resulting value\",\"rendered\":null,\"spans\":[{\"byte_end\":15,\"byte_start\":15,\"column_end\":16,\"column_start\":16,\"expansion\":null,\"file_name\":\"src/lib.rs\",\"is_primary\":true,\"label\":null,\"line_end\":1,\"line_start\":1,\"suggested_replacement\":\"let _ = \",\"suggestion_applicability\":\"MaybeIncorrect\",\"text\":[{\"highlight_end\":16,\"highlight_start\":16,\"text\":\"pub fn run() { std::fs::read_to_string(\\\"input\\\"); }\"}]}]}],\"level\":\"error\",\"message\":\"unused `std::result::Result` that must be used\",\"spans\":[{\"byte_end\":47,\"byte_start\":15,\"column_end\":48,\"column_start\":16,\"expansion\":null,\"file_name\":\"src/lib.rs\",\"is_primary\":true,\"label\":null,\"line_end\":1,\"line_start\":1,\"suggested_replacement\":null,\"suggestion_applicability\":null,\"text\":[{\"highlight_end\":48,\"highlight_start\":16,\"text\":\"pub fn run() { std::fs::read_to_string(\\\"input\\\"); }\"}]}],\"code\":{\"code\":\"unused_must_use\",\"explanation\":null}}}\n{\"reason\":\"compiler-message\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"message\":{\"rendered\":\"error: unused `std::result::Result` that must be used\\n --> src/lib.rs:1:16\\n  |\\n1 | pub fn run() { std::fs::read_to_string(\\\"input\\\"); }\\n  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  |\\n  = note: this `Result` may be an `Err` variant, which should be handled\\n  = note: `-D unused-must-use` implied by `-D warnings`\\n  = help: to override `-D warnings` add `#[allow(unused_must_use)]`\\nhelp: use `let _ = ...` to ignore the resulting value\\n  |\\n1 | pub fn run() { let _ = std::fs::read_to_string(\\\"input\\\"); }\\n  |                +++++++\\n\\n\",\"$message_type\":\"diagnostic\",\"children\":[{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"this `Result` may be an `Err` variant, which should be handled\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"`-D unused-must-use` implied by `-D warnings`\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"help\",\"message\":\"to override `-D warnings` add `#[allow(unused_must_use)]`\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"help\",\"message\":\"use `let _ = ...` to ignore the resulting value\",\"rendered\":null,\"spans\":[{\"byte_end\":15,\"byte_start\":15,\"column_end\":16,\"column_start\":16,\"expansion\":null,\"file_name\":\"src/lib.rs\",\"is_primary\":true,\"label\":null,\"line_end\":1,\"line_start\":1,\"suggested_replacement\":\"let _ = \",\"suggestion_applicability\":\"MaybeIncorrect\",\"text\":[{\"highlight_end\":16,\"highlight_start\":16,\"text\":\"pub fn run() { std::fs::read_to_string(\\\"input\\\"); }\"}]}]}],\"level\":\"error\",\"message\":\"unused `std::result::Result` that must be used\",\"spans\":[{\"byte_end\":47,\"byte_start\":15,\"column_end\":48,\"column_start\":16,\"expansion\":null,\"file_name\":\"src/lib.rs\",\"is_primary\":true,\"label\":null,\"line_end\":1,\"line_start\":1,\"suggested_replacement\":null,\"suggestion_applicability\":null,\"text\":[{\"highlight_end\":48,\"highlight_start\":16,\"text\":\"pub fn run() { std::fs::read_to_string(\\\"input\\\"); }\"}]}],\"code\":{\"code\":\"unused_must_use\",\"explanation\":null}}}\n{\"reason\":\"build-finished\",\"success\":false}\n    Checking loki_rule_fixture v0.1.0 (/tmp/loki-rules-rust-0jagyy82)\nerror: could not compile `loki_rule_fixture` (lib) due to 1 previous error\nwarning: build failed, waiting for other jobs to finish...\nerror: could not compile `loki_rule_fixture` (lib test) due to 1 previous error\n"
+    },
+    {
+      "language": "rust",
+      "case": "ignored Result",
+      "phase": "repair",
+      "rule": "unused_must_use",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "{\"reason\":\"compiler-artifact\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/tmp/loki-rules-rust-0jagyy82/target/debug/deps/libloki_rule_fixture-1ffe5c3cce7438ca.rmeta\"],\"executable\":null,\"fresh\":false}\n{\"reason\":\"compiler-artifact\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":true},\"features\":[],\"filenames\":[\"/tmp/loki-rules-rust-0jagyy82/target/debug/deps/libloki_rule_fixture-2a33544fbc463590.rmeta\"],\"executable\":null,\"fresh\":false}\n{\"reason\":\"build-finished\",\"success\":true}\n    Checking loki_rule_fixture v0.1.0 (/tmp/loki-rules-rust-0jagyy82)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s\n"
+    },
+    {
+      "language": "rust",
+      "case": "panic through expect",
+      "phase": "defect",
+      "rule": "clippy::expect_used",
+      "exit": 101,
+      "expectation_met": true,
+      "output": "{\"reason\":\"compiler-message\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"message\":{\"rendered\":\"error: used `expect()` on an `Option` value\\n --> src/lib.rs:1:41\\n  |\\n1 | pub fn value(input: Option<u8>) -> u8 { input.expect(\\\"missing\\\") }\\n  |                                         ^^^^^^^^^^^^^^^^^^^^^^^\\n  |\\n  = note: if this value is `None`, it will panic\\n  = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#expect_used\\n  = note: requested on the command line with `-D clippy::expect-used`\\n\\n\",\"$message_type\":\"diagnostic\",\"children\":[{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"if this value is `None`, it will panic\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"help\",\"message\":\"for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#expect_used\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"requested on the command line with `-D clippy::expect-used`\",\"rendered\":null,\"spans\":[]}],\"level\":\"error\",\"message\":\"used `expect()` on an `Option` value\",\"spans\":[{\"byte_end\":63,\"byte_start\":40,\"column_end\":64,\"column_start\":41,\"expansion\":null,\"file_name\":\"src/lib.rs\",\"is_primary\":true,\"label\":null,\"line_end\":1,\"line_start\":1,\"suggested_replacement\":null,\"suggestion_applicability\":null,\"text\":[{\"highlight_end\":64,\"highlight_start\":41,\"text\":\"pub fn value(input: Option<u8>) -> u8 { input.expect(\\\"missing\\\") }\"}]}],\"code\":{\"code\":\"clippy::expect_used\",\"explanation\":null}}}\n{\"reason\":\"compiler-message\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"message\":{\"rendered\":\"error: used `expect()` on an `Option` value\\n --> src/lib.rs:1:41\\n  |\\n1 | pub fn value(input: Option<u8>) -> u8 { input.expect(\\\"missing\\\") }\\n  |                                         ^^^^^^^^^^^^^^^^^^^^^^^\\n  |\\n  = note: if this value is `None`, it will panic\\n  = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#expect_used\\n  = note: requested on the command line with `-D clippy::expect-used`\\n\\n\",\"$message_type\":\"diagnostic\",\"children\":[{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"if this value is `None`, it will panic\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"help\",\"message\":\"for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#expect_used\",\"rendered\":null,\"spans\":[]},{\"children\":[],\"code\":null,\"level\":\"note\",\"message\":\"requested on the command line with `-D clippy::expect-used`\",\"rendered\":null,\"spans\":[]}],\"level\":\"error\",\"message\":\"used `expect()` on an `Option` value\",\"spans\":[{\"byte_end\":63,\"byte_start\":40,\"column_end\":64,\"column_start\":41,\"expansion\":null,\"file_name\":\"src/lib.rs\",\"is_primary\":true,\"label\":null,\"line_end\":1,\"line_start\":1,\"suggested_replacement\":null,\"suggestion_applicability\":null,\"text\":[{\"highlight_end\":64,\"highlight_start\":41,\"text\":\"pub fn value(input: Option<u8>) -> u8 { input.expect(\\\"missing\\\") }\"}]}],\"code\":{\"code\":\"clippy::expect_used\",\"explanation\":null}}}\n{\"reason\":\"build-finished\",\"success\":false}\n    Checking loki_rule_fixture v0.1.0 (/tmp/loki-rules-rust-0jagyy82)\nerror: could not compile `loki_rule_fixture` (lib) due to 1 previous error\nwarning: build failed, waiting for other jobs to finish...\nerror: could not compile `loki_rule_fixture` (lib test) due to 1 previous error\n"
+    },
+    {
+      "language": "rust",
+      "case": "panic through expect",
+      "phase": "repair",
+      "rule": "clippy::expect_used",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "{\"reason\":\"compiler-artifact\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/tmp/loki-rules-rust-0jagyy82/target/debug/deps/libloki_rule_fixture-1ffe5c3cce7438ca.rmeta\"],\"executable\":null,\"fresh\":false}\n{\"reason\":\"compiler-artifact\",\"package_id\":\"path+file:///tmp/loki-rules-rust-0jagyy82#loki_rule_fixture@0.1.0\",\"manifest_path\":\"/tmp/loki-rules-rust-0jagyy82/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"loki_rule_fixture\",\"src_path\":\"/tmp/loki-rules-rust-0jagyy82/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":true},\"features\":[],\"filenames\":[\"/tmp/loki-rules-rust-0jagyy82/target/debug/deps/libloki_rule_fixture-2a33544fbc463590.rmeta\"],\"executable\":null,\"fresh\":false}\n{\"reason\":\"build-finished\",\"success\":true}\n    Checking loki_rule_fixture v0.1.0 (/tmp/loki-rules-rust-0jagyy82)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s\n"
+    },
+    {
+      "language": "elixir",
+      "case": "runtime atom creation",
+      "phase": "defect",
+      "rule": "UnsafeToAtom",
+      "exit": 16,
+      "expectation_met": true,
+      "output": "{\n  \"issues\": [\n    {\n      \"category\": \"warning\",\n      \"check\": \"Credo.Check.Warning.UnsafeToAtom\",\n      \"column\": 25,\n      \"column_end\": 39,\n      \"filename\": \"lib/rule_fixture.ex\",\n      \"line_no\": 3,\n      \"message\": \"Prefer String.to_existing_atom/1 over String.to_atom/1 to avoid creating atoms at runtime.\",\n      \"priority\": 12,\n      \"scope\": \"RuleFixture.value\",\n      \"trigger\": \"String.to_atom\"\n    }\n  ]\n}\n"
+    },
+    {
+      "language": "elixir",
+      "case": "runtime atom creation",
+      "phase": "repair",
+      "rule": "UnsafeToAtom",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "{\n  \"issues\": []\n}\n"
+    },
+    {
+      "language": "elixir",
+      "case": "shell execution API",
+      "phase": "defect",
+      "rule": "UnsafeExec",
+      "exit": 16,
+      "expectation_met": true,
+      "output": "{\n  \"issues\": [\n    {\n      \"category\": \"warning\",\n      \"check\": \"Credo.Check.Warning.UnsafeExec\",\n      \"column\": 25,\n      \"column_end\": 32,\n      \"filename\": \"lib/rule_fixture.ex\",\n      \"line_no\": 3,\n      \"message\": \"Prefer System.cmd/2,3 over :os.cmd/1 to prevent command injection.\",\n      \"priority\": 12,\n      \"scope\": \"RuleFixture.value\",\n      \"trigger\": \":os.cmd\"\n    }\n  ]\n}\n"
+    },
+    {
+      "language": "elixir",
+      "case": "shell execution API",
+      "phase": "repair",
+      "rule": "UnsafeExec",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "{\n  \"issues\": []\n}\n"
+    },
+    {
+      "language": "elixir",
+      "case": "discarded immutable result",
+      "phase": "defect",
+      "rule": "UnusedEnumOperation",
+      "exit": 16,
+      "expectation_met": true,
+      "output": "{\n  \"issues\": [\n    {\n      \"category\": \"warning\",\n      \"check\": \"Credo.Check.Warning.UnusedEnumOperation\",\n      \"column\": 5,\n      \"column_end\": 13,\n      \"filename\": \"lib/rule_fixture.ex\",\n      \"line_no\": 4,\n      \"message\": \"There should be no unused return values for Enum functions.\",\n      \"priority\": 12,\n      \"scope\": \"RuleFixture.value\",\n      \"trigger\": \"Enum.map\"\n    }\n  ]\n}\n"
+    },
+    {
+      "language": "elixir",
+      "case": "discarded immutable result",
+      "phase": "repair",
+      "rule": "UnusedEnumOperation",
+      "exit": 0,
+      "expectation_met": true,
+      "output": "{\n  \"issues\": []\n}\n"
+    }
+  ],
+  "versions": {
+    "ruff": {
+      "exit": 0,
+      "output": "ruff 0.15.2"
+    },
+    "go": {
+      "exit": 0,
+      "output": "go version go1.25.6 linux/amd64"
+    },
+    "clippy": {
+      "exit": 0,
+      "output": "clippy 0.1.92 (6501e64fcb 2025-10-23)"
+    },
+    "elixir": {
+      "exit": 0,
+      "output": "Erlang/OTP 27 [erts-15.2.7.8] [source] [64-bit] [smp:16:16] [ds:16:16:10] [async-threads:1] [jit:ns]\n\nElixir 1.17.3 (compiled with Erlang/OTP 27)"
+    },
+    "oxlint": {
+      "exit": 0,
+      "output": "Version: 1.83.0"
+    },
+    "golangci": {
+      "exit": 0,
+      "output": "golangci-lint has version 2.6.2 built with go1.25.6 from (unknown, modified: ?, mod sum: \"h1:jkMSVv36JmyTENcEertckvimvjPcD5qxNM7W7qhECvI=\") on (unknown)"
+    }
+  },
+  "credo_lock_sha256": "e7da3bd18e446611cc85c501d27cebf44207da4abd290cf4b1a336b1ca517649"
+}

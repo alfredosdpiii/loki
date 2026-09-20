@@ -1,0 +1,272 @@
+{
+  "scope": "real hosts, isolated homes, loopback stub; no provider credentials",
+  "engine_sha256": "386b7faee7ea1d552586fe59458405b44a2f0f461549211fdadc037f427c4ba9",
+  "results": [
+    {
+      "host": "factory",
+      "enabled": false,
+      "version": "0.223.0",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/api/sessions/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": true,
+          "request_bytes": 304
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 605
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/droid-status",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 50
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 607
+        },
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 7706
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/message/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": false,
+          "request_bytes": 2365
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/message/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": true,
+          "request_bytes": 287
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-title",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": true,
+          "request_bytes": 55
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 612
+        },
+        {
+          "endpoint": "/api/llm/custom/usage",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 275
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/message/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 317
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/droid-status",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 44
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 708
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 784
+        },
+        {
+          "endpoint": "/api/sessions/088cdc7a-acde-45a8-ab92-7f67c0c25e64/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 785
+        }
+      ],
+      "expectation_met": false,
+      "elapsed_ms": 1805.9,
+      "diagnostic": ""
+    },
+    {
+      "host": "factory",
+      "enabled": true,
+      "version": "0.223.0",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/api/sessions/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": true,
+          "request_bytes": 304
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 605
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 607
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/droid-status",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 50
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 612
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 708
+        },
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 8150
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/message/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": false,
+          "request_bytes": 2365
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-title",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": true,
+          "request_bytes": 55
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/message/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": true,
+          "request_bytes": 287
+        },
+        {
+          "endpoint": "/api/llm/custom/usage",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 275
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 784
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/message/create",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 317
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/droid-status",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 44
+        },
+        {
+          "endpoint": "/api/sessions/20a231a7-82d1-417b-9eee-4abb5c548aad/update-settings",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": false,
+          "prompt_present": false,
+          "request_bytes": 785
+        }
+      ],
+      "expectation_met": false,
+      "elapsed_ms": 1886.26,
+      "diagnostic": ""
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "scope": "real hosts, isolated homes, loopback stub; no provider credentials",
+  "engine_sha256": "3c95fbf137e8abc4f87849bbb618a36ba2e08b9ba1ea900509eddf62679a9f96",
+  "results": [
+    {
+      "host": "pi",
+      "enabled": false,
+      "version": "0.84.4",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "prompt_present": true,
+          "request_bytes": 1892
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1090.81,
+      "diagnostic": ""
+    },
+    {
+      "host": "pi",
+      "enabled": true,
+      "version": "0.84.4",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "prompt_present": true,
+          "request_bytes": 2311
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1195.45,
+      "diagnostic": ""
+    },
+    {
+      "host": "omp",
+      "enabled": false,
+      "version": "omp/18.2.6",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "prompt_present": true,
+          "request_bytes": 9986
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1656.69,
+      "diagnostic": "Working...\n"
+    },
+    {
+      "host": "omp",
+      "enabled": true,
+      "version": "omp/18.2.6",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/chat/completions",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "prompt_present": true,
+          "request_bytes": 870
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1634.88,
+      "diagnostic": "Working...\n"
+    },
+    {
+      "host": "claude",
+      "enabled": false,
+      "version": "2.1.258 (Claude Code)",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/messages?beta=true",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "prompt_present": true,
+          "request_bytes": 28833
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 762.63,
+      "diagnostic": ""
+    },
+    {
+      "host": "claude",
+      "enabled": true,
+      "version": "2.1.258 (Claude Code)",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/messages?beta=true",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "prompt_present": true,
+          "request_bytes": 29355
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 813.26,
+      "diagnostic": ""
+    },
+    {
+      "host": "codex",
+      "enabled": false,
+      "version": "codex-cli 0.152.1",
+      "exit": 1,
+      "completed_stub_reply": false,
+      "context_delivered": false,
+      "requests": [],
+      "expectation_met": false,
+      "elapsed_ms": 500.52,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: CODEX_HOME points to \"/tmp/loki-codex-context-1lq3hrga/home/.codex\", but that path does not exist\nError finding codex home: CODEX_HOME points to \"/tmp/loki-codex-context-1lq3hrga/home/.codex\", but that path does not exist\n"
+    },
+    {
+      "host": "codex",
+      "enabled": true,
+      "version": "codex-cli 0.152.1",
+      "exit": 1,
+      "completed_stub_reply": false,
+      "context_delivered": false,
+      "requests": [],
+      "expectation_met": false,
+      "elapsed_ms": 500.57,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: CODEX_HOME points to \"/tmp/loki-codex-context-l38tn58r/home/.codex\", but that path does not exist\nError finding codex home: CODEX_HOME points to \"/tmp/loki-codex-context-l38tn58r/home/.codex\", but that path does not exist\n"
+    }
+  ]
+}

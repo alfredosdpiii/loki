@@ -1,0 +1,72 @@
+{
+  "scope": "real hosts, isolated homes, loopback stub; no provider credentials",
+  "engine_sha256": "386b7faee7ea1d552586fe59458405b44a2f0f461549211fdadc037f427c4ba9",
+  "results": [
+    {
+      "host": "codex",
+      "enabled": false,
+      "version": "codex-cli 0.152.1",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": false,
+      "requests": [
+        {
+          "endpoint": "/v1/responses",
+          "policy_present": false,
+          "python_guidance_present": false,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 39689
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 715.17,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/loki-codex-context-ud0jwxx2/home/.codex\"))\nReading additional input from stdin...\nOpenAI Codex v0.152.1\n--------\nworkdir: /tmp/loki-codex-context-ud0jwxx2/project\nmodel: fixture\nprovider: loki-fixture\napproval: never\nsandbox: read-only\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a0be45-dc43-72e3-ada4-72194d64bdde\n--------\nuser\nReply exactly fixture-ok. Do not use tools.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: Model metadata for `fixture` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\ncodex\nfixture-ok\ntokens used\n2\n"
+    },
+    {
+      "host": "codex",
+      "enabled": true,
+      "version": "codex-cli 0.152.1",
+      "exit": 0,
+      "completed_stub_reply": true,
+      "context_delivered": true,
+      "requests": [
+        {
+          "endpoint": "/v1/responses",
+          "policy_present": true,
+          "python_guidance_present": true,
+          "base_prompt_preserved": true,
+          "prompt_present": true,
+          "request_bytes": 40234
+        }
+      ],
+      "expectation_met": true,
+      "elapsed_ms": 1293.47,
+      "diagnostic": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/loki-codex-context-ult11v2u/home/.codex\"))\nReading additional input from stdin...\nOpenAI Codex v0.152.1\n--------\nworkdir: /tmp/loki-codex-context-ult11v2u/project\nmodel: fixture\nprovider: loki-fixture\napproval: never\nsandbox: read-only\nreasoning effort: none\nreasoning summaries: none\nsession id: 01a0be45-df64-7fa2-b09c-cecdf7fbba28\n--------\nuser\nReply exactly fixture-ok. Do not use tools.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.\nwarning: Model metadata for `fixture` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\nhook: SessionStart\nhook: SessionStart Completed\ncodex\nfixture-ok\ntokens used\n2\n"
+    },
+    {
+      "host": "factory",
+      "enabled": false,
+      "version": "0.223.0",
+      "exit": 1,
+      "completed_stub_reply": false,
+      "context_delivered": false,
+      "requests": [],
+      "expectation_met": false,
+      "elapsed_ms": 1671.43,
+      "diagnostic": "Invalid model: custom:fixture-0\n\nAvailable built-in models:\n  claude-fable-5.1, claude-fable-5, claude-opus-5, claude-opus-5-fast, claude-opus-4-8, claude-opus-4-8-fast, claude-opus-4-7, claude-opus-4-7-fast, claude-opus-4-6, claude-opus-4-6-fast, claude-opus-4-5-20251101, claude-sonnet-5, claude-sonnet-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001, gpt-6-astra, gpt-5.6-sol, gpt-5.6-sol-fast, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.5-fast, gpt-5.5-pro, gpt-5.4, gpt-5.4-fast, gpt-5.4-mini, gpt-5.4-mini-fast, gpt-5.3-codex, gpt-5.3-codex-fast, gpt-5.2, gemini-3.1-pro-preview, gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3-flash-preview, inkling, glm-5.3-flash, glm-5.3, glm-5.2, kimi-k3, kimi-k2.6, nemotron-3-ultra, deepseek-v4-flash-0731, deepseek-v4-pro, grok-4.6, grok-4.5, minimax-m2.7, kimi-k2.5, gpt-5.2-codex, glm-5.1, glm-5, glm-4.7, gpt-5.1-codex-max\n\nAvailable custom models:\n  custom:Fixture-0 (Fixture)\n\nNote: Custom models are loaded from ~/.factory/settings.json\nInvalid model: custom:fixture-0\n\nAvailable built-in models:\n  claude-fable-5.1, claude-fable-5, claude-opus-5, claude-opus-5-fast, claude-opus-4-8, claude-opus-4-8-fast, claude-opus-4-7, claude-opus-4-7-fast, claude-opus-4-6, claude-opus-4-6-fast, claude-opus-4-5-20251101, claude-sonnet-5, claude-sonnet-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001, gpt-6-astra, gpt-5.6-sol, gpt-5.6-sol-fast, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.5-fast, gpt-5.5-pro, gpt-5.4, gpt-5.4-fast, gpt-5.4-mini, gpt-5.4-mini-fast, gpt-5.3-codex, gpt-5.3-codex-fast, gpt-5.2, gemini-3.1-pro-preview, gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3-flash-preview, inkling, glm-5.3-flash, glm-5.3, glm-5.2, kimi-k3, kimi-k2.6, nemotron-3-ultra, deepseek-v4-flash-0731, deepseek-v4-pro, grok-4.6, grok-4.5, minimax-m2.7, kimi-k2.5, gpt-5.2-codex, glm-5.1, glm-5, glm-4.7, gpt-5.1-codex-max\n\nAvailable custom models:\n  custom:Fixture-0 (Fixture)\n\nNote: Custom models are loaded from ~/.factory/settings.json\n"
+    },
+    {
+      "host": "factory",
+      "enabled": true,
+      "version": "0.223.0",
+      "exit": 1,
+      "completed_stub_reply": false,
+      "context_delivered": false,
+      "requests": [],
+      "expectation_met": false,
+      "elapsed_ms": 1658.21,
+      "diagnostic": "Invalid model: custom:fixture-0\n\nAvailable built-in models:\n  claude-fable-5.1, claude-fable-5, claude-opus-5, claude-opus-5-fast, claude-opus-4-8, claude-opus-4-8-fast, claude-opus-4-7, claude-opus-4-7-fast, claude-opus-4-6, claude-opus-4-6-fast, claude-opus-4-5-20251101, claude-sonnet-5, claude-sonnet-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001, gpt-6-astra, gpt-5.6-sol, gpt-5.6-sol-fast, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.5-fast, gpt-5.5-pro, gpt-5.4, gpt-5.4-fast, gpt-5.4-mini, gpt-5.4-mini-fast, gpt-5.3-codex, gpt-5.3-codex-fast, gpt-5.2, gemini-3.1-pro-preview, gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3-flash-preview, inkling, glm-5.3-flash, glm-5.3, glm-5.2, kimi-k3, kimi-k2.6, nemotron-3-ultra, deepseek-v4-flash-0731, deepseek-v4-pro, grok-4.6, grok-4.5, minimax-m2.7, kimi-k2.5, gpt-5.2-codex, glm-5.1, glm-5, glm-4.7, gpt-5.1-codex-max\n\nAvailable custom models:\n  custom:Fixture-0 (Fixture)\n\nNote: Custom models are loaded from ~/.factory/settings.json\nInvalid model: custom:fixture-0\n\nAvailable built-in models:\n  claude-fable-5.1, claude-fable-5, claude-opus-5, claude-opus-5-fast, claude-opus-4-8, claude-opus-4-8-fast, claude-opus-4-7, claude-opus-4-7-fast, claude-opus-4-6, claude-opus-4-6-fast, claude-opus-4-5-20251101, claude-sonnet-5, claude-sonnet-4-6, claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001, gpt-6-astra, gpt-5.6-sol, gpt-5.6-sol-fast, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.5-fast, gpt-5.5-pro, gpt-5.4, gpt-5.4-fast, gpt-5.4-mini, gpt-5.4-mini-fast, gpt-5.3-codex, gpt-5.3-codex-fast, gpt-5.2, gemini-3.1-pro-preview, gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3-flash-preview, inkling, glm-5.3-flash, glm-5.3, glm-5.2, kimi-k3, kimi-k2.6, nemotron-3-ultra, deepseek-v4-flash-0731, deepseek-v4-pro, grok-4.6, grok-4.5, minimax-m2.7, kimi-k2.5, gpt-5.2-codex, glm-5.1, glm-5, glm-4.7, gpt-5.1-codex-max\n\nAvailable custom models:\n  custom:Fixture-0 (Fixture)\n\nNote: Custom models are loaded from ~/.factory/settings.json\n"
+    }
+  ]
+}

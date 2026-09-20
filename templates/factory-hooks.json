@@ -1,0 +1,37 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "Create|Edit|ApplyPatch",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" protect --harness factory || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+          "timeout": 30
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" context --root \"$FACTORY_PROJECT_DIR\" --event SessionStart || { printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
+          "timeout": 5
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Create|Edit|ApplyPatch",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" hook --harness factory || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOKI — Deterministic guardrails for AI coding agents</title>
+<meta name="description" content="Loki enforces deterministic rules for AI coding agents: pre-write blocks and post-write language checks. Zero runtime dependencies, Python 3.11+.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"}}</script>
+<style>
+:root{
+  --void:#060907;
+  --bone:#EAE4D6;
+  --gold:#D9A441;
+  --gold-bright:#F0C568;
+  --emerald:#2EE59D;
+  --blood:#C4453C;
+  --mist:#7A8478;
+  --display:"Cinzel","Noto Serif",serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --maxw:1200px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+html.smooth-scroll{scroll-behavior:auto}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:var(--mono);
+  font-weight:400;
+  font-size:1rem;
+  line-height:1.65;
+  overflow-x:hidden;
+}
+::selection{background:var(--gold);color:var(--void)}
+a{color:var(--gold-bright);text-underline-offset:.2em}
+code{font-family:var(--mono);color:var(--gold-bright);font-size:.92em}
+h1,h2,h3{font-family:var(--display);font-weight:900;line-height:1.05;color:var(--bone)}
+
+/* ---------- cursor (JS-only enhancement, hidden by default) ---------- */
+.cursor{display:none;position:fixed;top:0;left:0;width:28px;height:28px;pointer-events:none;z-index:9999;
+  will-change:transform}
+.cursor svg{display:block;width:100%;height:100%;overflow:visible}
+html.cursor-on .cursor{display:block}
+@media (pointer:coarse){html.cursor-on .cursor{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100vh;display:grid;place-items:center;overflow:hidden}
+#swarm{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-fallback{position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(46,229,157,.20) 0 60px, rgba(46,229,157,.05) 61px 120px, transparent 121px),
+    radial-gradient(circle at 50% 52%, transparent 0 150px, rgba(217,164,65,.5) 151px 153px, transparent 154px 210px, rgba(217,164,65,.38) 211px 213px, transparent 214px 270px, rgba(217,164,65,.26) 271px 273px, transparent 274px),
+    radial-gradient(circle at 50% 52%, rgba(6,9,7,0) 0%, var(--void) 92%);
+}
+html.webgl .hero-fallback{display:none}
+.hero-content{position:relative;z-index:2;text-align:center;padding:0 1.5rem 5.5rem}
+.hero h1{font-size:clamp(6rem,18vw,14rem);letter-spacing:.08em;color:var(--gold);
+  text-shadow:0 0 60px rgba(217,164,65,.35)}
+.hero .sub{max-width:44rem;margin:1.5rem auto 0;font-size:clamp(.95rem,1.4vw,1.15rem);color:var(--bone)}
+.hero .meta{margin-top:2.25rem;font-size:.72rem;letter-spacing:.28em;color:var(--mist)}
+.scroll-cue{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);z-index:2;
+  font-size:.68rem;letter-spacing:.3em;color:var(--mist);text-transform:uppercase}
+.scroll-cue::after{content:"";display:block;width:1px;height:2.4rem;margin:.8rem auto 0;
+  background:linear-gradient(var(--gold),transparent)}
+
+/* ---------- shared section chrome ---------- */
+section{padding:8rem 1.5rem}
+.section-inner{max-width:var(--maxw);margin:0 auto}
+.eyebrow{font-size:.7rem;letter-spacing:.32em;color:var(--gold);text-transform:uppercase;margin-bottom:1.4rem}
+h2{font-size:clamp(2.4rem,6vw,4.6rem);letter-spacing:.04em;margin-bottom:2rem}
+.lede{max-width:46rem;color:var(--bone);font-size:1.02rem}
+.lede + .lede{margin-top:1.2rem}
+.fine{margin-top:2.5rem;font-size:.82rem;color:var(--mist);max-width:44rem}
+
+/* ---------- problem ---------- */
+.pullquote{margin:4rem 0 0;padding-left:1.6rem;border-left:2px solid var(--gold);
+  font-family:var(--display);font-weight:700;font-size:clamp(1.4rem,3vw,2.1rem);
+  line-height:1.3;color:var(--gold-bright);max-width:36rem}
+
+/* ---------- binding columns ---------- */
+.bind-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:3.5rem}
+.bind-col{border:1px solid rgba(122,132,120,.25);padding:2.2rem 2rem;background:rgba(255,255,255,.015)}
+.bind-col h3{font-size:1.25rem;letter-spacing:.06em;margin-bottom:1.4rem}
+.bind-col ul{list-style:none}
+.bind-col li{padding:.55rem 0 .55rem 1.4rem;position:relative;font-size:.9rem;color:var(--bone)}
+.bind-col li::before{content:"";position:absolute;left:0;top:1.05rem;width:.55rem;height:1px;background:currentColor}
+.bind-before{border-color:rgba(196,69,60,.4)}
+.bind-before h3{color:var(--blood)}
+.bind-before li::before{color:var(--blood)}
+.bind-after{border-color:rgba(46,229,157,.35)}
+.bind-after h3{color:var(--emerald)}
+.bind-after li::before{color:var(--emerald)}
+.bypass{margin-top:1.6rem;font-size:.82rem;color:var(--mist)}
+.lang{margin-top:1.6rem;font-size:.82rem;color:var(--mist)}
+.lang b{color:var(--bone);font-weight:700}
+
+
+/* ---------- agents ---------- */
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1.5rem;margin-top:3.5rem}
+.agent{border:1px solid rgba(122,132,120,.3);padding:1.8rem 1.6rem;background:rgba(255,255,255,.015);
+  transition:border-color .3s}
+.agent:hover{border-color:var(--gold)}
+.agent h3{font-size:1.1rem;letter-spacing:.05em;margin-bottom:.9rem;color:var(--gold-bright)}
+.agent code{font-size:.78rem;color:var(--bone);word-break:break-all}
+
+/* ---------- incantation ---------- */
+.terminal{margin-top:3.5rem;border:1px solid rgba(217,164,65,.3);background:#04060480;
+  box-shadow:0 0 60px rgba(217,164,65,.07)}
+.term-bar{display:flex;align-items:center;gap:.5rem;padding:.7rem 1.1rem;border-bottom:1px solid rgba(122,132,120,.25)}
+.term-bar i{width:.6rem;height:.6rem;border-radius:50%;background:var(--mist);opacity:.5}
+.term-bar i:first-child{background:var(--gold);opacity:.9}
+.term-bar span{margin-left:.6rem;font-size:.68rem;letter-spacing:.25em;color:var(--mist);text-transform:uppercase}
+.term-body{padding:1.4rem 0}
+.cmd-block{position:relative;padding:.9rem 4.5rem .9rem 1.6rem;border-left:2px solid transparent}
+.cmd-block + .cmd-block{border-top:1px solid rgba(122,132,120,.12)}
+.cmd-block pre{white-space:pre-wrap;word-break:break-word;font-size:.86rem;line-height:1.8}
+.cmd-block .comment{color:var(--mist)}
+.cmd-block .prompt{color:var(--gold);font-weight:700}
+.cmd-block .cmd{color:var(--bone)}
+.cmd-block .out{color:var(--emerald)}
+.copy-btn{position:absolute;top:.7rem;right:.8rem;font-family:var(--mono);font-size:.66rem;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--gold);background:none;
+  border:1px solid rgba(217,164,65,.45);padding:.3rem .7rem;cursor:pointer;transition:all .25s}
+.copy-btn:hover{background:var(--gold);color:var(--void)}
+.copy-btn.ok{border-color:var(--emerald);color:var(--emerald)}
+.term-cursor{display:inline-block;width:.55em;height:1.05em;background:var(--gold);vertical-align:text-bottom;
+  animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- policy ---------- */
+.policy{margin-top:3.5rem;border:1px solid rgba(46,229,157,.28);background:rgba(0,0,0,.35);padding:2rem;overflow-x:auto}
+.policy pre{font-size:.92rem;line-height:1.9}
+.policy .k{color:var(--emerald)}
+.policy .p{color:var(--mist)}
+
+/* ---------- footer ---------- */
+footer{padding:8rem 1.5rem 5rem;text-align:center;border-top:1px solid rgba(122,132,120,.18)}
+footer .motto{font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,3.4vw,2.4rem);color:var(--gold)}
+footer .cmdline{margin-top:1.6rem;font-size:.85rem;color:var(--bone)}
+footer .note{margin-top:1rem;font-size:.75rem;letter-spacing:.2em;color:var(--mist);text-transform:uppercase}
+
+/* ---------- responsive ---------- */
+@media (max-width:767px){
+  section{padding:5rem 1.25rem}
+  .bind-grid{grid-template-columns:1fr}
+  .hero h1{font-size:clamp(4.5rem,22vw,7rem)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .term-cursor{animation:none}
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" aria-hidden="true">
+  <svg viewBox="0 0 28 28" fill="none" stroke="#F0C568" stroke-width="1.4">
+    <circle cx="14" cy="14" r="12.5" opacity=".9"/>
+    <circle cx="14" cy="14" r="8.5" opacity=".45"/>
+    <path d="M14 5.5 V22.5 M14 5.5 L20.5 10.5" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<header class="hero" id="hero">
+  <canvas id="swarm" aria-hidden="true"></canvas>
+  <div class="hero-fallback" aria-hidden="true"></div>
+  <div class="hero-content">
+    <p class="eyebrow">Deterministic guardrails for AI coding agents</p>
+    <h1>LOKI</h1>
+    <p class="sub">Every agent is a trickster. Loki binds it — before the write, after the write, in CI.</p>
+    <p class="meta">ZERO RUNTIME DEPENDENCIES · PYTHON 3.11+</p>
+  </div>
+  <p class="scroll-cue">scroll to begin the binding</p>
+</header>
+
+<main>
+
+<section id="problem">
+  <div class="section-inner">
+    <p class="eyebrow">I — The Problem</p>
+    <h2 class="scramble" data-text="EVERY AGENT IS A TRICKSTER">EVERY AGENT IS A TRICKSTER</h2>
+    <p class="lede">Agents write fast, reason fluently, and talk their way out of review. Left alone they
+    rewrite the rules they were given, touch the files that judge them, and leave a chat transcript
+    as the only record — a transcript that evaporates.</p>
+    <p class="lede">Loki puts deterministic checks around them. It blocks edits to its own policy files before
+    they happen, checks source files after each write, and runs repository-wide checks in CI.</p>
+    <blockquote class="pullquote">Schema-valid ≠ correct.</blockquote>
+  </div>
+</section>
+
+<section id="binding">
+  <div class="section-inner">
+    <p class="eyebrow">II — What runs on every write</p>
+    <h2 class="scramble" data-text="THE BINDING">THE BINDING</h2>
+    <p class="lede">Two gates on every change: one before the write lands, one after.</p>
+    <div class="bind-grid">
+      <div class="bind-col bind-before">
+        <h3>BEFORE THE WRITE</h3>
+        <ul>
+          <li>Writes to <code>.loki/**</code> are rejected outright.</li>
+          <li>Agent hook files are rejected.</li>
+          <li>CI policy files are rejected.</li>
+          <li>Configured quality files are rejected.</li>
+        </ul>
+        <p class="bypass"><code>LOKI_ALLOW_PROTECTED=1</code> is the only bypass — reserved for an
+        intentional policy change that will receive separate review.</p>
+      </div>
+      <div class="bind-col bind-after">
+        <h3>AFTER THE WRITE</h3>
+        <ul>
+          <li><b>Python</b> — Ruff plus import and AST checks</li>
+          <li><b>JavaScript / TypeScript</b> — Oxlint</li>
+          <li><b>Go</b> — golangci-lint and <code>go test</code></li>
+          <li><b>Rust</b> — Clippy</li>
+          <li><b>Elixir</b> — Credo and compilation with warnings as errors</li>
+        </ul>
+        <p class="lang">Repository scans also detect removed tests, deleted assertions, new skips,
+        dependency manifest drift, undeclared Python imports, suspicious package names, and configured
+        contract, property, differential, or mutation commands.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="agents">
+  <div class="section-inner">
+    <p class="eyebrow">IV — Supported agents</p>
+    <h2 class="scramble" data-text="THE AGENTS">THE AGENTS</h2>
+    <p class="lede">One binding, five tricksters. The task commands are ordinary Python commands, so every
+    agent reads and writes the same task directory.</p>
+    <div class="agent-grid">
+      <div class="agent"><h3>Claude Code</h3><code>.claude/settings.json</code></div>
+      <div class="agent"><h3>Codex</h3><code>.codex/hooks.json</code></div>
+      <div class="agent"><h3>Factory Droid</h3><code>.factory/hooks.json</code></div>
+      <div class="agent"><h3>Pi</h3><code>.pi/extensions/loki.ts</code></div>
+      <div class="agent"><h3>OMP</h3><code>.omp/extensions/loki.ts</code></div>
+    </div>
+  </div>
+</section>
+
+<section id="incantation">
+  <div class="section-inner">
+    <p class="eyebrow">V — Install &amp; daily use</p>
+    <h2 class="scramble" data-text="THE INCANTATION">THE INCANTATION</h2>
+    <p class="lede">Run the installer from a Loki checkout and point it at a Git repository. It copies Loki
+    into <code>.loki/</code>, adds the agent adapters, and installs starter configuration for Ruff, Oxlint,
+    golangci-lint, and GitHub Actions.</p>
+    <div class="terminal" id="terminal">
+      <div class="term-bar"><i></i><i></i><i></i><span>the binding, spoken aloud</span></div>
+      <div class="term-body">
+        <div class="cmd-block">
+          <pre><span class="comment"># bind a repository</span>
+<span class="prompt">$ </span><span class="cmd" data-type="python3 /path/to/loki/loki.py init --dir /path/to/repository">python3 /path/to/loki/loki.py init --dir /path/to/repository</span>
+<span class="out">loki copied to .loki/ — agent adapters and starter configuration installed</span></pre>
+          <button class="copy-btn" type="button">copy</button>
+        </div>
+        <div class="cmd-block">
+          <pre><span class="comment"># check the installation</span>
+<span class="prompt">$ </span><span class="cmd" data-type="python3 .loki/loki.py scan">python3 .loki/loki.py scan</span>
+<span class="out">repository scan complete</span></pre>
+          <button class="copy-btn" type="button">copy</button>
+        </div>
+        <div class="cmd-block">
+          <pre><span class="comment"># in CI, a missing compiler or linter fails the job</span>
+<span class="prompt">$ </span><span class="cmd" data-type="python3 .loki/loki.py scan --strict --base origin/main">python3 .loki/loki.py scan --strict --base origin/main</span></pre>
+          <button class="copy-btn" type="button">copy</button>
+        </div>
+      </div>
+    </div>
+    <p class="fine">After installation: Codex — run <code>/hooks</code> and approve the project hooks.
+    Pi — accept the project trust prompt. Factory Droid loads <code>.factory/hooks.json</code>; Claude Code
+    and OMP need no extra Loki approval. Add <code>--online</code> to check package names against their
+    public registries.</p>
+  </div>
+</section>
+
+<section id="policy">
+  <div class="section-inner">
+    <p class="eyebrow">VI — Project policy</p>
+    <h2 class="scramble" data-text="THE POLICY">THE POLICY</h2>
+    <p class="lede">Policy lives in <code>.loki/loki.json</code>. The installer starts with:</p>
+    <div class="policy">
+<pre><span class="p">{</span>
+  <span class="k">"approved_dependencies"</span><span class="p">:</span> <span class="p">[],</span>
+  <span class="k">"commands"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="k">"contract"</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="k">"property"</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="k">"differential"</span><span class="p">:</span> <span class="p">[],</span>
+    <span class="k">"mutation"</span><span class="p">:</span> <span class="p">[]</span>
+  <span class="p">}</span>
+<span class="p">}</span></pre>
+    </div>
+    <p class="fine">Add repository-owned commands as arrays of arguments. Loki runs them during a repository
+    scan and reports their output under the command group.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p class="motto">LOKI — the god who binds gods.</p>
+  <p class="cmdline"><span class="prompt" style="color:var(--gold);font-weight:700">$ </span>python3 .loki/loki.py scan --strict</p>
+  <p class="note">one file · no runtime dependencies · python 3.11+</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+
+<script type="module">
+/* Step 2 — WebGL hero: the swarm and the rings. */
+const docEl = document.documentElement;
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('swarm');
+
+try {
+  if (!window.WebGLRenderingContext) throw new Error('webgl unsupported');
+  const THREE = await import('three');
+
+  const VOID = new THREE.Color('#060907');
+  const GOLD = new THREE.Color('#F0C568');
+  const EMERALD = new THREE.Color('#2EE59D');
+  const HOT = new THREE.Color('#D8FFEE');
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  scene.background = VOID.clone();
+  scene.fog = new THREE.FogExp2(new THREE.Color('#0b1710'), 0.055);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 60);
+  camera.position.set(0, 0, 8);
+
+  /* --- swarm ------------------------------------------------------- */
+  const COUNT = 4000;
+  const pos = new Float32Array(COUNT * 3);
+  for (let i = 0; i < COUNT; i++) {
+    // uniform-ish point in a sphere of radius 3.2
+    const r = 3.2 * Math.cbrt(Math.random());
+    const th = Math.random() * Math.PI * 2;
+    const ph = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+    pos[i * 3 + 2] = r * Math.cos(ph) * 0.7;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const uniforms = {
+    uTime: { value: 0 },
+    uPointer: { value: new THREE.Vector3(999, 999, 0) },
+    uContract: { value: 0 },
+    uSize: { value: 2.4 * renderer.getPixelRatio() },
+    uColor: { value: EMERALD },
+    uColorHot: { value: HOT },
+    uOpacity: { value: 0.9 },
+  };
+  const swarmMat = new THREE.ShaderMaterial({
+    uniforms,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: /* glsl */`
+      uniform float uTime, uContract, uSize;
+      uniform vec3 uPointer;
+      varying float vGlow;
+      void main(){
+        vec3 p = position;
+        float t = uTime * 0.25;
+        p.x += sin(p.y * 1.7 + t) * 0.35 + cos(p.z * 1.3 + t * 1.1) * 0.25;
+        p.y += sin(p.z * 1.9 + t * 0.8) * 0.35 + cos(p.x * 1.1 + t) * 0.25;
+        p.z += sin(p.x * 1.5 + t * 1.2) * 0.35 + cos(p.y * 1.4 + t * 0.9) * 0.25;
+        vec3 toP = p - uPointer;
+        float d = length(toP);
+        float rep = smoothstep(1.5, 0.0, d);
+        p += (toP / max(d, 0.001)) * rep * 0.9;
+        p *= mix(1.0, 0.16, uContract);
+        vGlow = uContract + rep * 0.4;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = uSize * (1.0 + uContract * 1.8) * (8.0 / -mv.z);
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uColor, uColorHot;
+      uniform float uOpacity;
+      varying float vGlow;
+      void main(){
+        float d = length(gl_PointCoord - 0.5);
+        if (d > 0.5) discard;
+        float a = smoothstep(0.5, 0.04, d);
+        vec3 col = mix(uColor, uColorHot, clamp(vGlow, 0.0, 1.0));
+        gl_FragColor = vec4(col, a * uOpacity);
+      }`,
+  });
+  scene.add(new THREE.Points(geo, swarmMat));
+
+  /* --- procedural rune glyphs -------------------------------------- */
+  // each rune: array of polylines in a 0..100 × 0..140 box (y down)
+  const RUNES = [
+    [[[50,0],[50,140]],[[50,20],[95,45]],[[50,55],[90,78]]],              // fehu
+    [[[50,0],[50,140]],[[50,0],[92,60]]],                                 // uruz
+    [[[50,0],[50,140]],[[50,35],[92,60],[50,85]]],                        // thurisaz
+    [[[50,0],[50,140]],[[50,15],[95,38]],[[50,50],[90,70]]],              // ansuz
+    [[[50,0],[50,140]],[[50,0],[88,8],[88,55],[50,62]],[[50,62],[92,140]]],// raidho
+    [[[50,0],[50,140]],[[92,45],[50,72]]],                                // kaunan
+    [[[15,25],[85,115]],[[85,25],[15,115]]],                              // gebo
+    [[[30,0],[30,140]],[[70,0],[70,140]],[[30,60],[70,60]]],              // hagalaz
+    [[[50,0],[50,140]],[[25,45],[75,95]]],                                // naudiz
+    [[[50,0],[50,140]]],                                                  // isa
+    [[[75,0],[30,55],[72,85],[28,140]]],                                  // sowilo
+    [[[50,0],[50,140]],[[50,0],[12,42]],[[50,0],[88,42]]],                // tiwaz
+    [[[50,0],[50,140]],[[50,0],[88,15],[88,60],[50,68]],[[50,68],[88,80],[88,128],[50,140]]], // berkana
+    [[[30,0],[30,140]],[[70,0],[70,140]],[[30,25],[70,55]]],              // ehwaz
+    [[[30,0],[30,140]],[[70,0],[70,140]],[[30,20],[70,60]],[[70,20],[30,60]]], // mannaz
+    [[[50,0],[50,140]],[[50,0],[90,48]]],                                 // laguz
+    [[[50,60],[15,0]],[[50,60],[85,0]],[[50,60],[20,140]],[[50,60],[80,140]]], // othala
+    [[[15,0],[85,140]],[[85,0],[15,140]],[[15,0],[85,0]],[[15,140],[85,140]]], // dagaz
+  ];
+  const runeTextures = RUNES.map((glyph) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.strokeStyle = '#F0C568';
+    ctx.lineWidth = 11;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const line of glyph) {
+      ctx.beginPath();
+      line.forEach(([x, y], i) => {
+        const px = 14 + (x / 100) * 100;
+        const py = 10 + (y / 140) * 108;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      });
+      ctx.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    return tex;
+  });
+
+  /* --- rings -------------------------------------------------------- */
+  const RING_DEFS = [
+    { r: 2.2, runes: 18, tilt: [0.35, 0.1, 0], dir: 1 },
+    { r: 2.9, runes: 22, tilt: [-0.5, 0.35, 0], dir: -1 },
+    { r: 3.6, runes: 26, tilt: [0.2, -0.4, 0.15], dir: 1 },
+  ];
+  const ringsRoot = new THREE.Group();
+  scene.add(ringsRoot);
+  const rings = RING_DEFS.map((def, ri) => {
+    const g = new THREE.Group();
+    g.rotation.set(...def.tilt);
+    const torus = new THREE.Mesh(
+      new THREE.TorusGeometry(def.r, 0.012, 8, 220),
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    g.add(torus);
+    for (let i = 0; i < def.runes; i++) {
+      const a = (i / def.runes) * Math.PI * 2;
+      const tex = runeTextures[(i * 2 + ri * 5) % runeTextures.length];
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.17, 0.17),
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+      );
+      m.position.set(Math.cos(a) * def.r, Math.sin(a) * def.r, 0);
+      m.rotation.z = a + Math.PI / 2;
+      g.add(m);
+    }
+    ringsRoot.add(g);
+    return g;
+  });
+
+  /* --- interaction + the binding ------------------------------------ */
+  const bind = { p: 0 };
+  const heroContent = document.querySelector('.hero-content');
+  const scrollCue = document.querySelector('.scroll-cue');
+  const pointer = new THREE.Vector2(0, 0);
+  const pointerWorld = new THREE.Vector3(999, 999, 0);
+  const camDrift = { x: 0, y: 0 };
+  const raycaster = new THREE.Raycaster();
+  const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const hit = new THREE.Vector3();
+
+  window.addEventListener('pointermove', (e) => {
+    pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    if (raycaster.ray.intersectPlane(planeZ, hit)) pointerWorld.copy(hit);
+  }, { passive: true });
+
+  function size() {
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  size();
+  window.addEventListener('resize', () => { size(); if (REDUCED) render(0); });
+
+  function applyBind() {
+    const p = bind.p;
+    uniforms.uContract.value = p;
+    ringsRoot.scale.setScalar(1 - p * 0.78);          // rings contract onto the core
+    scene.fog.density = 0.055 + p * 0.11;
+    scene.fog.color.set('#0b1710').lerp(VOID, p);
+    renderer.setClearColor(scene.fog.color);
+    camera.position.z = 8 - p * 1.1;
+    if (!REDUCED) {
+      heroContent.style.opacity = String(1 - Math.max(0, (p - 0.55) / 0.45) * 0.9);
+      scrollCue.style.opacity = String(1 - Math.min(p / 0.2, 1));
+    }
+  }
+
+  const clock = new THREE.Clock();
+  function render(dt) {
+    rings.forEach((g, i) => { g.rotation.z += dt * RING_DEFS[i].dir * (0.06 + bind.p * 0.6); });
+    uniforms.uTime.value += dt;
+    uniforms.uPointer.value.lerp(pointerWorld, 0.12);
+    camDrift.x += (pointer.x * 0.35 - camDrift.x) * 0.04;
+    camDrift.y += (pointer.y * 0.25 - camDrift.y) * 0.04;
+    camera.position.x = camDrift.x;
+    camera.position.y = camDrift.y;
+    camera.lookAt(0, 0, 0);
+    applyBind();
+    renderer.render(scene, camera);
+  }
+
+  docEl.classList.add('webgl');
+
+  if (REDUCED) {
+    bind.p = 1;                                        // rings statically contracted
+    uniforms.uOpacity.value = 0.35;                    // keep the caption readable over the core
+    render(0);
+  } else {
+    (function loop() {
+      render(Math.min(clock.getDelta(), 0.05));
+      requestAnimationFrame(loop);
+    })();
+    if (window.gsap && window.ScrollTrigger) {
+      gsap.registerPlugin(ScrollTrigger);
+      gsap.to(bind, {
+        p: 1,
+        ease: 'none',
+        scrollTrigger: { trigger: '#hero', start: 'top top', end: '+=250%', pin: true, scrub: 0.6, refreshPriority: 2 },
+      });
+    }
+  }
+} catch (err) {
+  docEl.classList.add('no-webgl');
+}
+</script>
+<script>
+/* Step 3 — scroll & text choreography. Every enhancement is optional; the page reads without it. */
+(function () {
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hasGsap = !!(window.gsap && window.ScrollTrigger);
+  if (hasGsap) gsap.registerPlugin(window.ScrollTrigger);
+  if (hasGsap && document.fonts && document.fonts.ready) document.fonts.ready.then(function () { window.ScrollTrigger.refresh(); });
+
+  /* --- Lenis smooth scroll ------------------------------------------ */
+  if (!reduced && hasGsap && window.Lenis) {
+    document.documentElement.classList.add('smooth-scroll');
+    var lenis = new Lenis({ lerp: 0.09 });
+    lenis.on('scroll', window.ScrollTrigger.update);
+    gsap.ticker.add(function (t) { lenis.raf(t * 1000); });
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  /* --- scramble / decrypt headers ------------------------------------ */
+  var RUNE_CHARS = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛈᛉᛊᛏᛒᛖᛗᛚᛟᛞ';
+  function scramble(el) {
+    if (el._done) return;
+    el._done = true;
+    var text = el.dataset.text, frame = 0, total = text.length;
+    var iv = setInterval(function () {
+      frame++;
+      var resolved = Math.floor((frame * total) / 20), out = '';
+      for (var i = 0; i < total; i++) {
+        var ch = text[i];
+        out += (ch === ' ' || i < resolved) ? ch : RUNE_CHARS[(Math.random() * RUNE_CHARS.length) | 0];
+      }
+      el.textContent = out;
+      if (resolved >= total) { el.textContent = text; clearInterval(iv); }
+    }, 40);
+  }
+  var headers = document.querySelectorAll('h2.scramble');
+  if (!reduced && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { scramble(en.target); io.unobserve(en.target); } });
+    }, { threshold: 0.4 });
+    headers.forEach(function (h) { io.observe(h); });
+  }
+
+  /* --- section reveals ------------------------------------------------ */
+  if (!reduced && hasGsap) {
+    gsap.utils.toArray('.section-inner > *, footer > *').forEach(function (el) {
+      gsap.from(el, {
+        y: 40, opacity: 0, duration: 0.9, ease: 'power2.out',
+        scrollTrigger: { trigger: el, start: 'top 88%', once: true },
+      });
+    });
+  }
+
+
+  /* --- custom cursor (additive; pointer:fine only) -------------------- */
+  if (!reduced && !window.matchMedia('(pointer: coarse)').matches) {
+    document.documentElement.classList.add('cursor-on');
+    var cur = document.querySelector('.cursor');
+    var svg = cur.querySelector('svg');
+    svg.style.transformOrigin = '50% 50%';
+    var cx = -60, cy = -60, tx = -60, ty = -60, rot = 0, sc = 1;
+    var hot = false;
+    window.addEventListener('pointermove', function (e) { tx = e.clientX; ty = e.clientY; }, { passive: true });
+    document.addEventListener('pointerover', function (e) {
+      hot = !!(e.target.closest && e.target.closest('a, button, pre, .agent'));
+    }, { passive: true });
+    (function frame() {
+      cx += (tx - cx) * 0.16; cy += (ty - cy) * 0.16;
+      rot += ((hot ? 90 : 0) - rot) * 0.12;
+      sc += ((hot ? 1.55 : 1) - sc) * 0.14;
+      cur.style.transform = 'translate(' + (cx - 14) + 'px,' + (cy - 14) + 'px) scale(' + sc.toFixed(3) + ')';
+      svg.style.transform = 'rotate(' + rot.toFixed(1) + 'deg)';
+      requestAnimationFrame(frame);
+    })();
+  }
+})();
+</script>
+<script>
+/* Step 4 — terminal typing & copy buttons. */
+(function () {
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var terminal = document.getElementById('terminal');
+
+  /* --- typewriter ------------------------------------------------------ */
+  if (terminal && !reduced && 'IntersectionObserver' in window) {
+    var cmds = Array.prototype.slice.call(terminal.querySelectorAll('.cmd'));
+    var outs = Array.prototype.slice.call(terminal.querySelectorAll('.out'));
+    var caret = document.createElement('span');
+    caret.className = 'term-cursor';
+    var full = cmds.map(function (c) { return c.dataset.type; });
+    var started = false;
+
+    function typeAll() {
+      if (started) return;
+      started = true;
+      cmds.forEach(function (c) { c.textContent = ''; });
+      outs.forEach(function (o) { o.style.visibility = 'hidden'; });
+      var bi = 0, blockStart = 0;
+      var iv = setInterval(function () {
+        if (bi >= cmds.length) { clearInterval(iv); return; }
+        var now = performance.now();
+        if (!blockStart) blockStart = now;
+        var cmd = cmds[bi], text = full[bi];
+        var ci = Math.min(text.length, Math.floor((now - blockStart) / 16));
+        cmd.textContent = text.slice(0, ci);
+        cmd.appendChild(caret);
+        if (ci >= text.length) {
+          var block = cmd.closest('.cmd-block');
+          var out = block && block.querySelector('.out');
+          if (out) out.style.visibility = 'visible';
+          bi++; blockStart = 0;
+        }
+      }, 24);
+    }
+    var tio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { typeAll(); tio.disconnect(); } });
+    }, { threshold: 0.2 });
+    tio.observe(terminal);
+  }
+
+  /* --- copy buttons ----------------------------------------------------- */
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var cmd = btn.parentElement.querySelector('.cmd');
+      var text = cmd ? cmd.dataset.type : '';
+      function flash(label, ok) {
+        btn.textContent = label;
+        btn.classList.toggle('ok', !!ok);
+        setTimeout(function () { btn.textContent = 'copy'; btn.classList.remove('ok'); }, 1500);
+      }
+      function fallback() {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          var ok = document.execCommand('copy');
+          ta.remove();
+          flash(ok ? 'copied' : 'select + ctrl+c', ok);
+        } catch (e) { flash('select + ctrl+c', false); }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { flash('copied', true); }, fallback);
+      } else fallback();
+    });
+  });
+})();
+</script>
+</body>
+</html>

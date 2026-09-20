@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.loki/loki.py\" protect --harness codex || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.loki/loki.py\" context --root \"$(git rev-parse --show-toplevel)\" --event SessionStart || { printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
+            "timeout": 5,
+            "additionalContextLimit": 2000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.loki/loki.py\" hook --harness codex || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
