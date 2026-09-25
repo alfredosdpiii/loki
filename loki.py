@@ -5999,8 +5999,10 @@ class CheckerWorker:
         return line
 
     def request(self, arguments: list[str], deadline: float | None) -> Any:
-        if self.process.poll() is not None or self.process.stdin is None:
-            raise ValueError("checker worker exited")
+        # No poll(): request children are forks and cannot wait on the worker.
+        # A dead worker shows up as a broken pipe or end of output instead.
+        if self.process.stdin is None:
+            raise ValueError("checker worker has no pipes")
         self.sequence += 1
         identity = f"{os.getpid()}-{self.sequence}"
         message = json.dumps({"id": identity, "args": arguments}) + "\n"
@@ -6162,6 +6164,7 @@ def daemon_command(action: str, root: Path) -> int:
 
 
 def daemon_serve(root: Path) -> int:
+    import contextlib
     import socket
 
     paths = daemon_paths(root)
@@ -6175,7 +6178,15 @@ def daemon_serve(root: Path) -> int:
         return 1
     engine = engine_digest()
     try:
+        started = time.monotonic()
         prewarm(root)
+        print(
+            f"loki daemon: warmed in {time.monotonic() - started:.1f}s; "
+            f"TypeScript workers {len(TYPESCRIPT_WORKERS)}, "
+            f"dmypy {'on' if MYPY_DAEMON else 'off'}",
+            file=sys.stderr,
+            flush=True,
+        )
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         socket_path.unlink(missing_ok=True)
         server.bind(str(socket_path))
@@ -6201,7 +6212,8 @@ def daemon_serve(root: Path) -> int:
                 except (OSError, ValueError):
                     continue
                 if request.get("engine") != engine:
-                    connection.sendall(b'{"stale": true}')
+                    with contextlib.suppress(OSError):
+                        connection.sendall(b'{"stale": true}')
                     break
                 daemon_dispatch(connection, request)
     finally:

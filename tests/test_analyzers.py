@@ -739,6 +739,28 @@ class CheckerWorkerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "bad"):
             worker.request(["fail"], None)
 
+    def test_forked_children_can_use_the_parent_worker(self):
+        script = (
+            "import json, sys\n"
+            "for line in sys.stdin:\n"
+            "    request = json.loads(line)\n"
+            "    print(json.dumps({'id': request['id'], 'result': request['args']}),"
+            " flush=True)\n"
+        )
+        worker = self.worker(script)
+        reader, writer = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                os.write(writer, json.dumps(worker.request(["child"], None)).encode())
+            finally:
+                os._exit(0)
+        os.close(writer)
+        os.waitpid(pid, 0)
+        with os.fdopen(reader) as stream:
+            self.assertEqual(["child"], json.loads(stream.read()))
+        self.assertEqual(["parent"], worker.request(["parent"], None))
+
     def test_exits_and_timeouts_raise(self):
         worker = self.worker("import time; time.sleep(5)")
         with self.assertRaises(subprocess.TimeoutExpired):
