@@ -1949,30 +1949,42 @@ def check_file(
             else:
                 print(message, file=sys.stderr)
             return []
-        violations.extend(
-            run_command(
+        from concurrent.futures import ThreadPoolExecutor
+
+        key = (language, project)
+        reused = checked_projects is not None and key in checked_projects
+        analyzers = [] if reused else ["Credo"]
+        if not reused and "phoenix" in rule_packs(config):
+            analyzers.append("Sobelow")
+        notices: dict[str, list[str]] = {name: [] for name in analyzers}
+        # Format, Credo and Sobelow each start a BEAM; run them side by side.
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            formatting = pool.submit(
+                run_command,
                 ["mix", "format", "--check-formatted", str(path)],
                 project,
                 "mix format",
                 deadline=deadline,
             )
-        )
-        key = (language, project)
-        if checked_projects is not None and key in checked_projects:
-            return violations[:MAX_VIOLATIONS]
-        for analyzer in ("Credo", "Sobelow"):
-            if analyzer == "Sobelow" and "phoenix" not in rule_packs(config):
-                continue
-            try:
-                notices: list[str] = []
-                violations.extend(
-                    credo_new_violations(project, deadline=deadline)
-                    if analyzer == "Credo"
-                    else sobelow_new_violations(
-                        project, config, deadline=deadline, warnings=notices
-                    )
+            jobs = {
+                name: pool.submit(credo_new_violations, project, deadline=deadline)
+                if name == "Credo"
+                else pool.submit(
+                    sobelow_new_violations,
+                    project,
+                    config,
+                    deadline=deadline,
+                    warnings=notices[name],
                 )
-                for notice in notices:
+                for name in analyzers
+            }
+        violations.extend(formatting.result())
+        if reused:
+            return violations[:MAX_VIOLATIONS]
+        for analyzer, job in jobs.items():
+            try:
+                violations.extend(job.result())
+                for notice in notices[analyzer]:
                     if strict and notice.startswith("NOT CHECKED"):
                         violations.append(notice)
                     elif warnings is not None:
