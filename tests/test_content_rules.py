@@ -597,3 +597,58 @@ class ScanContentTests(unittest.TestCase):
         )
         self.assertEqual(1, len(findings))
         self.assertIn("a.ts:1: loki/unsanitized-html", findings[0])
+
+
+class ShellTimingOriginRuleTests(unittest.TestCase):
+    CASES = [
+        ("a.py", "import subprocess\nsubprocess.run(['sh', '-c', cmd])\n", 1),
+        ("a.py", "subprocess.check_output(['bash', '-c', f'x {y}'])\n", 1),
+        ("a.py", "subprocess.run(['sh', '-c', 'ls -la'])\n", 0),
+        ("a.py", "subprocess.run(['tar', '-c', path])\n", 0),
+        ("a.py", "subprocess.run(args)\n", 0),
+        ("a.py", "if hmac.new(k, m, sha256).hexdigest() == sig:\n    pass\n", 1),
+        ("a.py", "if expected_signature == provided:\n    pass\n", 1),
+        ("a.py", "e = h.hexdigest()\np = x\nok = e == p\n", 1),
+        ("a.py", "if signature == '':\n    pass\n", 0),
+        ("a.py", "if len(digest) == 64:\n    pass\n", 0),
+        ("a.py", "x = compute()\nif x == y:\n    pass\n", 0),
+        ("a.py", "if a < signature:\n    pass\n", 0),
+        ("a.js", "if (sig === expectedSignature) {}", 1),
+        ("a.js", "if (hmac.digest('hex') !== header) {}", 1),
+        ("a.js", "if (signature === undefined) {}", 0),
+        ("a.js", "if (signature.length === 64) {}", 0),
+        (
+            "a.ts",
+            "window.addEventListener('message', (e) => {\n"
+            "  if (e.origin !== ORIGIN) return;\n  go(e.data);\n});",
+            0,
+        ),
+        ("a.ts", "window.addEventListener('message', (e) => go(e.data));", 1),
+        ("a.ts", "addEventListener('message', ({ data, origin }) => ok(origin));", 0),
+        ("a.ts", "el.addEventListener('click', () => go());", 0),
+        (
+            "a.js",
+            'import { exec } from "node:child_process";\n'
+            "const run = util.promisify(exec);\nrun(`convert ${a}`);",
+            1,
+        ),
+        (
+            "a.rs",
+            'let o = Command::new("sh").arg("-c").arg(format!("convert {}", p));',
+            1,
+        ),
+        ("a.rs", 'let o = Command::new("bash").args(["-c"]).arg(cmd);', 1),
+        ("a.rs", 'let o = Command::new("convert").arg(p).output();', 0),
+        ("a.rs", 'let o = Command::new("sh").arg("-c").arg("ls -la").output();', 0),
+        ("a.ex", 'System.cmd("sh", ["-c", "convert #{path}"])', 1),
+        ("a.ex", 'System.cmd("sh", ["-c", command])', 1),
+        ("a.ex", 'System.cmd("convert", [path, "-resize", "10"])', 0),
+        ("a.ex", 'System.cmd("sh", ["-c", "uptime"])', 0),
+        ("a.ex", ':os.cmd(~c"uptime")', 0),
+        ("a.ex", ":os.cmd(String.to_charlist(cmd))", 1),
+    ]
+
+    def test_cases(self):
+        for path, text, expected in self.CASES:
+            with self.subTest(text=text):
+                self.assertEqual(expected, len(rules(path, text)), rules(path, text))

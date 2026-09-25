@@ -111,6 +111,9 @@ previews before the write and again on the written file against its committed te
 | Elixir | Privilege-named `params` in comparisons or conditions, and `"admin" => true` in function heads |
 | Elixir | HTTP client calls whose arguments use request parameters bound in the function head (SSRF) |
 | Rust | `todo!()` and `unimplemented!()` placeholders |
+| Python, Rust, Elixir, JavaScript | A shell run with `-c` and a command built from variables (`["sh", "-c", f"..."]`, `Command::new("sh").arg("-c").arg(format!(...))`, `System.cmd("sh", ["-c", "#{...}"])`, `:os.cmd` with a non-literal, promisified `exec`) |
+| Python, JavaScript/TypeScript | Signatures or digests compared with `==` instead of a constant-time comparison |
+| JavaScript/TypeScript | `message` event listeners that never read `origin` |
 | Any text file | Hardcoded credentials: AWS, GitHub, Slack, Stripe live, npm, Google and model-provider keys, private keys. Low-entropy and placeholder values are skipped |
 | Any text file | Unresolved merge conflict markers |
 | GitHub workflows and actions | Untrusted `github.event` fields or `github.head_ref` interpolated into `run:` scripts |
@@ -161,7 +164,7 @@ debt and line shifts pass:
   reported only when `go vet` passes. The template enables gosec (SQL string
   building, variable request URLs, tainted subprocesses, disabled TLS
   verification) with its noisiest checks (G104, G301, G302, G304, G306, G404)
-  excluded. errcheck skips conventionally ignored deferred closes (`io.Closer`,
+  excluded. gocritic's `deferInLoop` is enabled. errcheck skips conventionally ignored deferred closes (`io.Closer`,
   `*os.File`, `*os.Root`, `*sql.Rows`) and `http.ResponseWriter.Write`.
 - **Clippy** runs `cargo clippy --offline --all-targets` with the Loki restriction
   lints as warnings. Findings are matched against a materialized base crate that

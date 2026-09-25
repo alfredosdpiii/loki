@@ -24,6 +24,9 @@ linters:
         - (*os.Root).Close
         - (*database/sql.Rows).Close
         - (net/http.ResponseWriter).Write
+    gocritic:
+      enabled-checks:
+        - deferInLoop
     errorlint:
       errorf: true
       asserts: true

@@ -1010,8 +1010,14 @@ def javascript_rules(text: str) -> list[Finding]:
         ):
             findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
     shell = re.search(r"child_process|(['\"])node:child_process\1", text)
+    aliases = re.findall(
+        r"\b([\w$]+)\s*=\s*(?:util\s*\.\s*)?promisify\s*\(\s*"
+        r"(?:child_process\s*\.\s*)?exec\s*\)",
+        masked,
+    )
+    runners = "|".join(["exec", "execSync", *map(re.escape, aliases)])
     for match in re.finditer(
-        r"(?:(?<![\w$.])|\bchild_process\s*\.\s*)(exec|execSync)\s*\(", masked
+        rf"(?:(?<![\w$.])|\bchild_process\s*\.\s*)({runners})\s*\(", masked
     ):
         arguments = split_arguments(masked, match.end() - 1)
         if (
@@ -1041,6 +1047,43 @@ def javascript_rules(text: str) -> list[Finding]:
                     "loki/sql-injection",
                     "SQL injection: query text built by concatenation or "
                     "interpolation; use parameterized placeholders",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(
+        r"([\w$.]+(?:\([^()]*\))?)\s*(?:===?|!==?)\s*([\w$.]+(?:\([^()]*\))?)",
+        masked,
+    ):
+        sides = [match.group(1), match.group(2)]
+        secret = [
+            side
+            for side in sides
+            if re.search(r"\.digest\(|(?:signature|hmac|digest)[\w$]*$", side, re.I)
+            and not re.search(r"\.length$", side)
+        ]
+        if secret and not any(
+            re.fullmatch(r"null|undefined|true|false|\d+|[\w$.]*\.length", side)
+            for side in sides
+        ):
+            findings.append(
+                (
+                    "loki/timing-compare",
+                    "timing attack: signature or digest compared with ==; use "
+                    "crypto.timingSafeEqual",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(r"\baddEventListener\s*\(\s*(['\"`])", masked):
+        quote = masked.index(match.group(1), match.start())
+        if not text.startswith("message", quote + 1):
+            continue
+        handler = masked[match.end() : matching_close(masked, match.end() - 2)]
+        if not re.search(r"\.\s*origin\b|\borigin\s*[,}=]", handler):
+            findings.append(
+                (
+                    "loki/postmessage-origin",
+                    "message event handler never checks event.origin; any window "
+                    "can post to it",
                     match.start(),
                 )
             )
@@ -1240,6 +1283,27 @@ def python_ssrf(tree: ast.AST) -> list[ast.Call]:
     return list({id(call): call for call in calls}.values())
 
 
+def secret_value(node: ast.AST, derived: set[str] = frozenset()) -> bool:
+    """A MAC, digest or signature value: by call, by name, or assigned from one."""
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+        return node.func.attr in {"digest", "hexdigest"}
+    name = node.attr if isinstance(node, ast.Attribute) else getattr(node, "id", "")
+    return name in derived or bool(re.search(r"(?:signature|hmac|digest)$", name, re.I))
+
+
+def secret_names(tree: ast.AST) -> set[str]:
+    """Names assigned from digest calls or signature-named values."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+            secret_value(item) for item in ast.walk(node.value)
+        ):
+            names.update(
+                target.id for target in node.targets if isinstance(target, ast.Name)
+            )
+    return names
+
+
 def python_rules(text: str) -> list[Finding]:
     try:
         tree = ast.parse(text)
@@ -1269,6 +1333,47 @@ def python_rules(text: str) -> list[Finding]:
                         f'field "{key}"; derive privilege from the authenticated '
                         "server-side identity",
                         offsets[operand.lineno - 1] + operand.col_offset,
+                    )
+                )
+    derived = secret_names(tree)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func).split(".")[-1]
+            in {"run", "call", "Popen", "check_call", "check_output"}
+            and node.args
+            and isinstance(node.args[0], ast.List)
+        ):
+            items = node.args[0].elts
+            constant = [
+                item.value if isinstance(item, ast.Constant) else None for item in items
+            ]
+            if (
+                constant[:1]
+                and constant[0] in SHELLS
+                and "-c" in constant
+                and any(value is None for value in constant[constant.index("-c") :])
+            ):
+                findings.append(
+                    (
+                        "loki/command-injection",
+                        SHELL_COMMAND,
+                        offsets[node.lineno - 1] + node.col_offset,
+                    )
+                )
+        if isinstance(node, ast.Compare) and all(
+            isinstance(op, ast.Eq | ast.NotEq) for op in node.ops
+        ):
+            operands = [node.left, *node.comparators]
+            if any(secret_value(item, derived) for item in operands) and not any(
+                isinstance(item, ast.Constant) for item in operands
+            ):
+                findings.append(
+                    (
+                        "loki/timing-compare",
+                        "timing attack: signature or digest compared with ==; use "
+                        "hmac.compare_digest",
+                        offsets[node.lineno - 1] + node.col_offset,
                     )
                 )
     for call in python_ssrf(tree):
@@ -1327,6 +1432,22 @@ def elixir_rules(text: str) -> list[Finding]:
                         start,
                     )
                 )
+    for call in re.finditer(r"\bSystem\.cmd\s*\(\s*\"", masked):
+        program = text[call.end() : closing_quote(text, call.end(), '"', False)]
+        arguments = text[call.end() : matching_close(masked, call.end() - 2)]
+        if (
+            program in SHELLS
+            and '"-c"' in arguments
+            and (
+                "#{" in arguments
+                or re.search(r",\s*(?![\"\s])[a-z_]\w*\s*[\]<]", arguments)
+            )
+        ):
+            findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
+    for call in re.finditer(r"(?<![\w.]):os\.cmd\s*\(", masked):
+        arguments = text[call.end() : matching_close(masked, call.end() - 1) - 1]
+        if "#{" in arguments or not re.fullmatch(r"\s*~c?[\"'].*[\"']\s*", arguments):
+            findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
     for call in ELIXIR_HTTP_CALL_RE.finditer(masked):
         arguments = masked[call.end() : matching_close(masked, call.end() - 1) - 1]
         words = set(re.findall(r"(?<![\w.:])([a-z]\w*)\b", arguments))
@@ -1343,17 +1464,31 @@ def elixir_rules(text: str) -> list[Finding]:
     return findings
 
 
+SHELLS = {"sh", "bash", "zsh", "dash", "/bin/sh", "/bin/bash", "/usr/bin/env"}
+SHELL_COMMAND = (
+    "shell command injection: command string built from variables runs through "
+    "a shell with -c; pass the program and arguments separately"
+)
+
+
 def rust_rules(text: str) -> list[Finding]:
-    return [
+    masked = mask_rust(text)
+    findings: list[Finding] = [
         (
             "loki/placeholder",
             f"{match.group(1)}!() placeholder left in code panics at runtime",
             match.start(),
         )
-        for match in re.finditer(
-            r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]", mask_rust(text)
-        )
+        for match in re.finditer(r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]", masked)
     ]
+    for match in re.finditer(r"\bCommand\s*::\s*new\s*\(\s*\"", masked):
+        program = text[match.end() : closing_quote(text, match.end(), '"', False)]
+        end = masked.find(";", match.end())
+        chain = text[match.end() : len(text) if end < 0 else end]
+        dynamic = re.search(r"format!|\.args?\s*\(\s*(?![\"\[\s])", chain)
+        if program in SHELLS and '"-c"' in chain and dynamic:
+            findings.append(("loki/command-injection", SHELL_COMMAND, match.start()))
+    return findings
 
 
 SECRET_PATTERNS = (
