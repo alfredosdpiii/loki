@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/deep-merge-prototype-pollution/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/deep-merge-prototype-pollution",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    240.584
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "7a6c2325c67d831a86684f0123b40db8712373bfd7b80c7c8bb03d14baecd1d8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 545.666,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 545.666
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 313.543,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x anti-slop(no-unsafe-dictionary-type): This dictionary's unknown value type gives callers no concrete value contract. Use an owner/schema-derived value type; parse external payloads before insertion.\noxlint: ,-[src/merge.ts:1:27]\noxlint: 1 | export type PlainObject = { [key: string]: unknown };\noxlint: :                           ^^^^^^^^^^^^^^^^^^^^^^^^^^\noxlint: 2 |\noxlint: `----\noxlint: x anti-slop(no-unknown-parameters): Parameter `value` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function.\noxlint: ,-[src/merge.ts:3:31]\noxlint: 2 |\noxlint: 3 | function isPlainObject(value: unknown): value is PlainObject {\noxlint: :                               ^^^^^^^\noxlint: 4 |   return typeof value === \"object\" && value !== null && !Array.isArray(value);\noxlint: `----\noxlint: x anti-slop(no-runtime-typeof): A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value.\noxlint: ,-[src/merge.ts:4:10]\noxlint: 3 | function isPlainObject(value: unknown): value is PlainObject {\noxlint: 4 |   return typeof value === \"object\" && value !== null && !Array.isArray(value);\noxlint: :          ^^^^^^^^^^^^\noxlint: 5 | }\noxlint: `----\noxlint: x anti-slop(require-safety-comment-for-type-assertion): This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement.\noxlint: ,-[src/merge.ts:21:30]\noxlint: 20 | export function applyUserSettings(defaults: PlainObject, json: string): PlainObject {\noxlint: 21 |   return deepMerge(defaults, JSON.parse(json) as PlainObject);\noxlint: :                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\noxlint: 22 | }\noxlint: `----\noxlint: Found 0 warnings and 4 errors.\noxlint: Finished in 121ms on 1 file with 263 rules using 16 threads.\noxlint: (node:23) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:23) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-99mzuyze/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\noxlint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.\noxlint: To eliminate this warning, add \"type\": \"module\" to /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-99mzuyze/project/package.json.\nloki: hook command failed\n",
+            "ms": 313.543
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

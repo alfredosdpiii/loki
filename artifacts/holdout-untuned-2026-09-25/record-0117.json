@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/subprocess-shell-backup/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/subprocess-shell-backup",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    206.165
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "613fc36894c27598eae6b7a5b039e8fd060249ff8e45d0cefc26835821dbae69",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 116.664,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "archive.py: S607: Starting a process with a partial executable path\nloki: hook command failed\n",
+            "ms": 116.664
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

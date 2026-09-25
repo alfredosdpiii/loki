@@ -1,0 +1,165 @@
+{
+  "case": "exact-edit/typescript/assignment-type/control",
+  "language": "typescript",
+  "family": "exact-edit",
+  "pair": "exact-edit/typescript/assignment-type",
+  "product": "interlinked",
+  "profile": "missing-js",
+  "setup_ms": [
+    497.556,
+    696.493,
+    690.753
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4745b32b0fe4ffe9c15b708c46662f1da5a3d7ca8319acea0e33e6044681273b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 115.129,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:new_export_without_importer] /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:new_export_without_importer] /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-cd5hu3tq/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 115.129
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 10498.91,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'attempts' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to main.ts, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'attempts' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to main.ts, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.",
+            "ms": 10498.91
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4745b32b0fe4ffe9c15b708c46662f1da5a3d7ca8319acea0e33e6044681273b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 105.02,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:new_export_without_importer] /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:new_export_without_importer] /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-oyvphm6w/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 105.02
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 10497.088,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'attempts' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to main.ts, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'attempts' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to main.ts, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.",
+            "ms": 10497.088
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4745b32b0fe4ffe9c15b708c46662f1da5a3d7ca8319acea0e33e6044681273b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 97.709,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:new_export_without_importer] /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:new_export_without_importer] /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yrbhwgk1/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 97.709
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 10486.335,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'attempts' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to main.ts, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'attempts' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to main.ts, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.",
+            "ms": 10486.335
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 104.891
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 79.745
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 105.643
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 79.519
+    }
+  ]
+}

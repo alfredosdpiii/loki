@@ -1,0 +1,56 @@
+{
+  "case": "holdout/python/upload-path-traversal/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/upload-path-traversal",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    503.471
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "d78224fcbc2f4d01f1588169fca011234e69538ef7da32d04db8cb7d7b7dfd55",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 144.408,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:tdd] new source file \\\"/home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-c_0tqqmo/project/downloads.py\\\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-c_0tqqmo/project/test_downloads.py first with a failing test, then write the implementation. (Searched: test_downloads.py, tests/test_downloads.py, __tests__/test_downloads.py, downloads_test.py, tests/downloads_test.py, __tests__/downloads_test.py, test/test_downloads.py, test/downloads_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \\\"# interlinked-tdd: exempt\\\" as the first line. (test_first_mode \\\"warn\\\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-c_0tqqmo/project/downloads.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-c_0tqqmo/project/downloads.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-c_0tqqmo/project/test_downloads.py first with a failing test, then write the implementation. (Searched: test_downloads.py, tests/test_downloads.py, __tests__/test_downloads.py, downloads_test.py, tests/downloads_test.py, __tests__/downloads_test.py, test/test_downloads.py, test/downloads_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-c_0tqqmo/project/downloads.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 144.408
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 180.381,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] downloads.py: 1 fns, max read_upload=60 (\u0394+60), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for downloads.py\\nno test file found (checked: downloads.test.py, downloads.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] downloads.py: 1 fns, max read_upload=60 (\u0394+60), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for downloads.py\nno test file found (checked: downloads.test.py, downloads.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 180.381
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

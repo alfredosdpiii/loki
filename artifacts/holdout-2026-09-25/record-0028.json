@@ -1,0 +1,165 @@
+{
+  "case": "holdout/typescript/nullish-port-type-mismatch/control",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout/typescript/nullish-port-type-mismatch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    276.534,
+    487.441,
+    494.58
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "0004428d5e2aee3d174f12888267c2e48c695d8d8e7455b3a7bef2ec75382541",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 587.228,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 587.228
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 417.335,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/config.ts:9:22: Prefer `Math.trunc(Number(params.get(\\\"port\\\") ?? \\\"\\\"))`. [Warning/unicorn(prefer-number-coercion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/config.ts:9:22: Prefer `Math.trunc(Number(params.get(\"port\") ?? \"\"))`. [Warning/unicorn(prefer-number-coercion)]\n",
+            "ms": 417.335
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "0004428d5e2aee3d174f12888267c2e48c695d8d8e7455b3a7bef2ec75382541",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 661.688,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 661.688
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 439.556,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/config.ts:9:22: Prefer `Math.trunc(Number(params.get(\\\"port\\\") ?? \\\"\\\"))`. [Warning/unicorn(prefer-number-coercion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/config.ts:9:22: Prefer `Math.trunc(Number(params.get(\"port\") ?? \"\"))`. [Warning/unicorn(prefer-number-coercion)]\n",
+            "ms": 439.556
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "0004428d5e2aee3d174f12888267c2e48c695d8d8e7455b3a7bef2ec75382541",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 626.423,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 626.423
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 380.019,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/config.ts:9:22: Prefer `Math.trunc(Number(params.get(\\\"port\\\") ?? \\\"\\\"))`. [Warning/unicorn(prefer-number-coercion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/config.ts:9:22: Prefer `Math.trunc(Number(params.get(\"port\") ?? \"\"))`. [Warning/unicorn(prefer-number-coercion)]\n",
+            "ms": 380.019
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 121.204
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 106.837
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 105.402
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 112.466
+    }
+  ]
+}

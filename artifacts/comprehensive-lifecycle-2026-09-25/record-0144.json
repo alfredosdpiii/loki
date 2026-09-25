@@ -1,0 +1,165 @@
+{
+  "case": "javascript/disabled-suite/control",
+  "language": "javascript",
+  "family": "tests",
+  "pair": "javascript/disabled-suite",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    209.413,
+    380.29,
+    392.533
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 268.296,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 268.296
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 439.495,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                          ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-4m74nu_2/project/tsconfig.json'. Specified 'include' paths w\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-4m74nu_2/project/tsconfig.json'. Specified 'include' paths w\n",
+            "ms": 439.495
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 271.617,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 271.617
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 443.845,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                          ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-hb89u1cc/project/tsconfig.json'. Specified 'include' paths w\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-hb89u1cc/project/tsconfig.json'. Specified 'include' paths w\n",
+            "ms": 443.845
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 270.21,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 270.21
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 438.079,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                          ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-9pwq0ylw/project/tsconfig.json'. Specified 'include' paths w\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-9pwq0ylw/project/tsconfig.json'. Specified 'include' paths w\n",
+            "ms": 438.079
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 85.746
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.675
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 89.288
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 83.838
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/sprintf-sql-query/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout/go/sprintf-sql-query",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    216.731
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "a7574706cc031830efe587409b6d500fafa81046d3cf13e4d8564069555d71dd",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 91.309,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 91.309
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 3673.939,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:22:18: Error return value of `rows.Close` is not checked (errcheck)\nloki: hook command failed\n",
+            "ms": 3673.939
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

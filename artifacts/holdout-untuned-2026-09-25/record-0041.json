@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/pickle-session-cookie/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/pickle-session-cookie",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    228.196
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "e0ee39eec646674fea914a07fe0899c891932670ff4496bc37a97680ee68b7ef",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 101.179,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "session.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 101.179
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

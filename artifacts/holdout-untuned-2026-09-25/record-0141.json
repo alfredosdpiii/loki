@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/defer-close-in-loop/defect",
+  "language": "go",
+  "family": "resource",
+  "pair": "holdout/go/defer-close-in-loop",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    253.95
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "9abfd7dfcf7cb088550bda2acf8c575ff7460adfa31c6b754f75a5db6cf76b57",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 99.52,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 99.52
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 3404.503,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:17:16: Error return value of `f.Close` is not checked (errcheck)\ngolangci-lint: main.go:13:13: G304: Potential file inclusion via variable (gosec)\nloki: hook command failed\n",
+            "ms": 3404.503
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

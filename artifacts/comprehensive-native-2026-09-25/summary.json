@@ -1,0 +1,39 @@
+{
+  "identity_unchanged": true,
+  "groups": {
+    "shared/interlinked": {
+      "outcomes": {
+        "admitted": 26,
+        "prevented": 1,
+        "detected_after_write": 12,
+        "missed": 12
+      },
+      "steps": 51,
+      "errors": [],
+      "coverage_warning_steps": 17,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 368.504,
+        "p95": 1784.984,
+        "max": 2864.71
+      }
+    },
+    "shared/loki": {
+      "outcomes": {
+        "admitted": 26,
+        "detected_after_write": 11,
+        "prevented": 14
+      },
+      "steps": 51,
+      "errors": [],
+      "coverage_warning_steps": 1,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 295.446,
+        "p95": 3964.067,
+        "max": 6109.4439999999995
+      }
+    }
+  },
+  "corpus_sha256": "4648d3277a8453fd45f1b6834b38cba26e207891528d8755a7447284c49aada3"
+}

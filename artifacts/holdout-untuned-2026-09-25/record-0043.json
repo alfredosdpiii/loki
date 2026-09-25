@@ -1,0 +1,56 @@
+{
+  "case": "holdout/javascript/link-preview-ssrf/control",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout/javascript/link-preview-ssrf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    221.85
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "8a08ecaa527a99ef0c85afc5ba468c745716c99d7a3952c2da7f801022e4d4b3",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 287.403,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 287.403
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 497.806,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                          ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-119i6krj/project/tsconfig.json'. Specified 'include' paths w\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-119i6krj/project/tsconfig.json'. Specified 'include' paths w\n",
+            "ms": 497.806
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

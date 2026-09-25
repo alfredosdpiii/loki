@@ -1,0 +1,56 @@
+{
+  "case": "holdout/rust/usize-to-u32-return/control",
+  "language": "rust",
+  "family": "type-error",
+  "pair": "holdout/rust/usize-to-u32-return",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    239.868
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "42e2d1bd09061d9fa8676ddc94886e6724c2b5e627f3897ffc154009ec2f3270",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 96.953,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 96.953
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 248.905,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 248.905
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

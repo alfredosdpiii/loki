@@ -1,0 +1,56 @@
+{
+  "case": "holdout/rust/use-after-move-orders/defect",
+  "language": "rust",
+  "family": "type-error",
+  "pair": "holdout/rust/use-after-move-orders",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    246.501
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "8d61ffc70d731e4fb9eb9a8cc1ede278b6b6509e052e57ff401cda5d21690ceb",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 95.964,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 95.964
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 343.687,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:9: E0382: borrow of moved value: `orders`\nsrc/lib.rs:9: E0382: borrow of moved value: `orders`\nloki: hook command failed\n",
+            "ms": 343.687
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

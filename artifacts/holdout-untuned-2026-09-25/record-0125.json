@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/sql-fstring-like-query/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/sql-fstring-like-query",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    218.191
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "72d75134325860c1ce9dd781b70c68386e03851b1270a786ba8dd335b640de48",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 104.203,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "repository.py: E501: Line too long (95 > 88)\nloki: hook command failed\n",
+            "ms": 104.203
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

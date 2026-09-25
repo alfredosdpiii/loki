@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/sprintf-sql-query/defect",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout/go/sprintf-sql-query",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    218.031
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "0f3c46078a6d70b351387c8b3f526a52a94e5e8e8da0aec0fb3723e79506caf7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 85.53,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 85.53
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 3726.991,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:23:18: Error return value of `rows.Close` is not checked (errcheck)\ngolangci-lint: main.go:18:11: G201: SQL string formatting (gosec)\nloki: hook command failed\n",
+            "ms": 3726.991
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout/python/tautological-discount-test/defect",
+  "language": "python",
+  "family": "test-integrity",
+  "pair": "holdout/python/tautological-discount-test",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    579.186
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "411b353bdaa76d7ac1b7ab6c9dfc7919efb6d2e671c83e60b2220d3de04e5931",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 107.512,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-fzr8r9o3/project/tests/test_pricing.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-fzr8r9o3/project/tests/test_pricing.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 107.512
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 127.473,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-contract-review] [heuristic] tests/test_pricing.py: Ground new test expectations in a supplied requirement or public example, independently of the implementation. Record concrete examples with interlinked tests contracts; a passing self-authored assertion is not contract validation.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-contract-review] [heuristic] tests/test_pricing.py: Ground new test expectations in a supplied requirement or public example, independently of the implementation. Record concrete examples with interlinked tests contracts; a passing self-authored assertion is not contract validation.",
+            "ms": 127.473
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,42 @@
+{
+  "case": "holdout/javascript/assertion-free-currency-test/defect",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout/javascript/assertion-free-currency-test",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    572.378
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1ef1ddc934b26dd5ac93855b9752f3cac997435d01f678a28581d7a325d9eabf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 107.162,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [assertion_free_test]. This edit INTRODUCES 1 violation(s) at L10 in /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-_l_3yacb/project/currency.test.js. Fix the introduced line(s), then retry.\\nThis test block invokes no assertion. A test without assertions passes no matter what the code does \u2014 it's coverage theatre. Add at least one expect()/assert call that verifies the behavior.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: assertion_free_test \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 107.162
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,123 @@
+{
+  "case": "holdout/python/webhook-signature-eq/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/webhook-signature-eq",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    234.974,
+    424.872,
+    463.947
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1b82f05ab973159ea6e083d7e5e2620dfbf9eaaff214c67a9bc26de4355f1311",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 113.036,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "webhooks.py:11: loki/timing-compare: timing attack: signature or digest compared with ==; use hmac.compare_digest\nloki: hook command failed\n",
+            "ms": 113.036
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1b82f05ab973159ea6e083d7e5e2620dfbf9eaaff214c67a9bc26de4355f1311",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 113.477,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "webhooks.py:11: loki/timing-compare: timing attack: signature or digest compared with ==; use hmac.compare_digest\nloki: hook command failed\n",
+            "ms": 113.477
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1b82f05ab973159ea6e083d7e5e2620dfbf9eaaff214c67a9bc26de4355f1311",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 113.598,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "webhooks.py:11: loki/timing-compare: timing attack: signature or digest compared with ==; use hmac.compare_digest\nloki: hook command failed\n",
+            "ms": 113.598
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.061
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 104.537
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 109.499
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 105.159
+    }
+  ]
+}

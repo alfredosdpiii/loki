@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/deep-merge-prototype-pollution/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/deep-merge-prototype-pollution",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    216.043
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "768f63f8c4f8313ce81e5265299f45ee2407b9e9980320de3fbff9fcb2574e31",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 512.579,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 512.579
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 311.44,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x anti-slop(no-unsafe-dictionary-type): This dictionary's unknown value type gives callers no concrete value contract. Use an owner/schema-derived value type; parse external payloads before insertion.\noxlint: ,-[src/merge.ts:1:27]\noxlint: 1 | export type PlainObject = { [key: string]: unknown };\noxlint: :                           ^^^^^^^^^^^^^^^^^^^^^^^^^^\noxlint: 2 |\noxlint: `----\noxlint: x anti-slop(no-unknown-parameters): Parameter `value` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function.\noxlint: ,-[src/merge.ts:5:31]\noxlint: 4 |\noxlint: 5 | function isPlainObject(value: unknown): value is PlainObject {\noxlint: :                               ^^^^^^^\noxlint: 6 |   return typeof value === \"object\" && value !== null && !Array.isArray(value);\noxlint: `----\noxlint: x anti-slop(no-runtime-typeof): A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value.\noxlint: ,-[src/merge.ts:6:10]\noxlint: 5 | function isPlainObject(value: unknown): value is PlainObject {\noxlint: 6 |   return typeof value === \"object\" && value !== null && !Array.isArray(value);\noxlint: :          ^^^^^^^^^^^^\noxlint: 7 | }\noxlint: `----\noxlint: Found 0 warnings and 3 errors.\noxlint: Finished in 121ms on 1 file with 263 rules using 16 threads.\noxlint: (node:23) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:23) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-fw5osepl/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\noxlint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.\noxlint: To eliminate this warning, add \"type\": \"module\" to /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-fw5osepl/project/package.json.\nloki: hook command failed\n",
+            "ms": 311.44
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

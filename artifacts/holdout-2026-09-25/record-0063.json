@@ -1,0 +1,123 @@
+{
+  "case": "holdout/rust/sh-c-image-resize/defect",
+  "language": "rust",
+  "family": "security",
+  "pair": "holdout/rust/sh-c-image-resize",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    234.805,
+    428.175,
+    424.663
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a9fdab8578f59e524efb3b297feadca9bf209f2b1c6acb6af309020e0f1d24e1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 97.477,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:5: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 97.477
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a9fdab8578f59e524efb3b297feadca9bf209f2b1c6acb6af309020e0f1d24e1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 96.185,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:5: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 96.185
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a9fdab8578f59e524efb3b297feadca9bf209f2b1c6acb6af309020e0f1d24e1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 103.99,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:5: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 103.99
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 101.29
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 97.596
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 93.669
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 99.139
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout/javascript/assertion-free-currency-test/defect",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout/javascript/assertion-free-currency-test",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    240.892,
+    395.056,
+    384.348
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1ef1ddc934b26dd5ac93855b9752f3cac997435d01f678a28581d7a325d9eabf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 312.476,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 312.476
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 460.629,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/jest(valid-expect)]\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/vitest(valid-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/jest(expect-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/vitest(expect-expect)]\nNOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-jnyhdm1u/project/tsconfig.json'. Specified 'include' paths w\nloki: hook command failed\n",
+            "ms": 460.629
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1ef1ddc934b26dd5ac93855b9752f3cac997435d01f678a28581d7a325d9eabf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 277.469,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 277.469
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 434.567,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/jest(valid-expect)]\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/vitest(valid-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/jest(expect-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/vitest(expect-expect)]\nNOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-dy34eqc2/project/tsconfig.json'. Specified 'include' paths w\nloki: hook command failed\n",
+            "ms": 434.567
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1ef1ddc934b26dd5ac93855b9752f3cac997435d01f678a28581d7a325d9eabf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 272.666,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 272.666
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 452.573,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/jest(valid-expect)]\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/vitest(valid-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/jest(expect-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/vitest(expect-expect)]\nNOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-yxja7m3m/project/tsconfig.json'. Specified 'include' paths w\nloki: hook command failed\n",
+            "ms": 452.573
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 88.807
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 90.369
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.627
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.193
+    }
+  ]
+}

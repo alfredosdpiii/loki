@@ -1,0 +1,123 @@
+{
+  "case": "holdout/python/md5-password-hash/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/md5-password-hash",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    567.19,
+    870.546,
+    989.101
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2256fe28bdc394c4caec424dfe796a91c2790bbad636404aa4ca7d9c13780d54",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 108.03,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_weak_hash]. This edit INTRODUCES 2 violation(s) at L10, L17 in /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-kmsz2lxz/project/auth.py. Fix the introduced line(s), then retry.\\nMD5 and SHA-1 are broken for collision resistance and must not back signatures, password hashing, or anything else the security model relies on. Use SHA-256 / SHA-3 / BLAKE3, or a password-grade KDF (bcrypt / scrypt / argon2) for credentials. If the hash is a non-security cache key, leave a comment to that effect so the next reader knows why MD5 stayed.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_weak_hash \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-kmsz2lxz/project/auth.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-kmsz2lxz/project/test_auth.py first with a failing test, then write the implementation. (Searched: test_auth.py, tests/test_auth.py, __tests__/test_auth.py, auth_test.py, tests/auth_test.py, __tests__/auth_test.py, test/test_auth.py, test/auth_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 108.03
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2256fe28bdc394c4caec424dfe796a91c2790bbad636404aa4ca7d9c13780d54",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 101.678,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_weak_hash]. This edit INTRODUCES 2 violation(s) at L10, L17 in /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-acnov4l0/project/auth.py. Fix the introduced line(s), then retry.\\nMD5 and SHA-1 are broken for collision resistance and must not back signatures, password hashing, or anything else the security model relies on. Use SHA-256 / SHA-3 / BLAKE3, or a password-grade KDF (bcrypt / scrypt / argon2) for credentials. If the hash is a non-security cache key, leave a comment to that effect so the next reader knows why MD5 stayed.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_weak_hash \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-acnov4l0/project/auth.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-acnov4l0/project/test_auth.py first with a failing test, then write the implementation. (Searched: test_auth.py, tests/test_auth.py, __tests__/test_auth.py, auth_test.py, tests/auth_test.py, __tests__/auth_test.py, test/test_auth.py, test/auth_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 101.678
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2256fe28bdc394c4caec424dfe796a91c2790bbad636404aa4ca7d9c13780d54",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 100.463,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_weak_hash]. This edit INTRODUCES 2 violation(s) at L10, L17 in /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-suel7dlu/project/auth.py. Fix the introduced line(s), then retry.\\nMD5 and SHA-1 are broken for collision resistance and must not back signatures, password hashing, or anything else the security model relies on. Use SHA-256 / SHA-3 / BLAKE3, or a password-grade KDF (bcrypt / scrypt / argon2) for credentials. If the hash is a non-security cache key, leave a comment to that effect so the next reader knows why MD5 stayed.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_weak_hash \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-suel7dlu/project/auth.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final/artifacts/tmp/b/b-suel7dlu/project/test_auth.py first with a failing test, then write the implementation. (Searched: test_auth.py, tests/test_auth.py, __tests__/test_auth.py, auth_test.py, tests/auth_test.py, __tests__/auth_test.py, test/test_auth.py, test/auth_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 100.463
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 146.422
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 95.989
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 218.967
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 124.264
+    }
+  ]
+}

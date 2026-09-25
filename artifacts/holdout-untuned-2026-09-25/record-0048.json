@@ -1,0 +1,56 @@
+{
+  "case": "holdout/rust/usize-to-u32-return/defect",
+  "language": "rust",
+  "family": "type-error",
+  "pair": "holdout/rust/usize-to-u32-return",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    223.79
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "977f74f3a76872e88969ea1940694b0f69e439ff7d6d026abbd3056aa635b244",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 92.755,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 92.755
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 343.978,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:12: E0308: mismatched types\nsrc/lib.rs:12: E0308: mismatched types\nloki: hook command failed\n",
+            "ms": 343.978
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

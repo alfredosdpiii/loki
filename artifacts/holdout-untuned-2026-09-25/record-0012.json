@@ -1,0 +1,56 @@
+{
+  "case": "holdout/javascript/assertion-free-currency-test/defect",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout/javascript/assertion-free-currency-test",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    214.075
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1ef1ddc934b26dd5ac93855b9752f3cac997435d01f678a28581d7a325d9eabf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 279.169,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 279.169
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 440.914,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x jest(valid-expect): Expect must have a corresponding matcher call.\noxlint: ,-[currency.test.js:7:5]\noxlint: 6 |     const formatted = formatCents(123456);\noxlint: 7 |     expect(formatted);\noxlint: :     ^^^^^^^^^^^^^^^^^\noxlint: 8 |   });\noxlint: `----\noxlint: help: Did you forget to add a matcher, e.g. `toBe`, `toBeDefined`\noxlint: x vitest(valid-expect): Expect must have a corresponding matcher call.\noxlint: ,-[currency.test.js:7:5]\noxlint: 6 |     const formatted = formatCents(123456);\noxlint: 7 |     expect(formatted);\noxlint: :     ^^^^^^^^^^^^^^^^^\noxlint: 8 |   });\noxlint: `----\noxlint: help: Did you forget to add a matcher, e.g. `toBe`, `toBeDefined`\noxlint: x jest(expect-expect): Test has no assertions\noxlint: ,-[currency.test.js:10:3]\noxlint: 9 |\noxlint: 10 |   it(\"handles zero\", () => {\noxlint: :   ^^\noxlint: 11 |     formatCents(0);\noxlint: `----\noxlint: help: Add assertion(s) in this Test\noxlint: x vitest(expect-expect): Test has no assertions\noxlint: ,-[currency.test.js:10:3]\noxlint: 9 |\noxlint: 10 |   it(\"handles zero\", () => {\noxlint: :   ^^\noxlint: 11 |     formatCents(0);\noxlint: `----\noxlint: help: Add assertion(s) in this Test\noxlint: Found 0 warnings and 4 errors.\noxlint: Finished in 118ms on 1 file with 263 rules using 16 threads.\noxlint: (node:30) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:30) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-flnv3msa/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\noxlint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.\noxlint: To eliminate this warning, add \"type\": \"module\" to /home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-flnv3msa/project/package.json.\nNOT CHECKED typescript types: typescript: checker unavailable: [eval]:22\nif (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                          ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-flnv3msa/project/tsconfig.json'. Specified 'include' paths w\nloki: hook command failed\n",
+            "ms": 440.914
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

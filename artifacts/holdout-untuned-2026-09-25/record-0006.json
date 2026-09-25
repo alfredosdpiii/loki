@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/postmessage-missing-origin-check/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/postmessage-missing-origin-check",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    212.474
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "f2638821a5719428c44c0c59de6b7384b2fc33344a957752414179bc4a269866",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 523.903,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 523.903
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 305.726,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x anti-slop(no-unknown-parameters): Parameter `data` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function.\noxlint: ,-[src/bridge.ts:8:30]\noxlint: 7 |\noxlint: 8 | function isAuthMessage(data: unknown): data is AuthMessage {\noxlint: :                              ^^^^^^^\noxlint: 9 |   return (\noxlint: `----\noxlint: x anti-slop(no-runtime-typeof): A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value.\noxlint: ,-[src/bridge.ts:10:5]\noxlint: 9 |   return (\noxlint: 10 |     typeof data === \"object\" &&\noxlint: :     ^^^^^^^^^^^\noxlint: 11 |     data !== null &&\noxlint: `----\noxlint: x anti-slop(require-safety-comment-for-type-assertion): This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement.\noxlint: ,-[src/bridge.ts:12:6]\noxlint: 11 |     data !== null &&\noxlint: 12 |     (data as { type?: unknown }).type === \"auth\" &&\noxlint: :      ^^^^^^^^^^^^^^^^^^^^^^^^^^\noxlint: 13 |     typeof (data as { token?: unknown }).token === \"string\"\noxlint: `----\noxlint: x anti-slop(no-runtime-typeof): A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value.\noxlint: ,-[src/bridge.ts:13:5]\noxlint: 12 |     (data as { type?: unknown }).type === \"auth\" &&\noxlint: 13 |     typeof (data as { token?: unknown }).token === \"string\"\noxlint: :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\noxlint: 14 |   );\noxlint: `----\noxlint: x anti-slop(require-safety-comment-for-type-assertion): This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement.\noxlint: ,-[src/bridge.ts:13:13]\noxlint: 12 |     (data as { type?: unknown }).type === \"auth\" &&\noxlint: 13 |     typeof (data as { token?: unknown }).token === \"string\"\noxlint: :             ^^^^^^^^^^^^^^^^^^^^^^^^^^^\noxlint: 14 |   );\noxlint: `----\noxlint: Found 0 warnings and 5 errors.\noxlint: Finished in 116ms on 1 file with 263 rules using 16 threads.\noxlint: (node:23) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:23) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/.cache/loki-bench/loki-hold1/artifacts/tmp/b/b-1eremtl6/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\nloki: hook command failed\n",
+            "ms": 305.726
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

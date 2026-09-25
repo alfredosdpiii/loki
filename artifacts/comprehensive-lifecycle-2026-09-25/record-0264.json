@@ -1,0 +1,132 @@
+{
+  "case": "rust/placeholder/defect",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/placeholder",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    234.531,
+    422.955,
+    433.535
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8d3b0a7e04dce95b7ec9efa620f34a66eecb2ed0702457b9b0112c84b04825b7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 96.965,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:2: loki/placeholder: todo!() placeholder left in code panics at runtime\nloki: hook command failed\n",
+            "ms": 96.965
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8d3b0a7e04dce95b7ec9efa620f34a66eecb2ed0702457b9b0112c84b04825b7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 97.128,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:2: loki/placeholder: todo!() placeholder left in code panics at runtime\nloki: hook command failed\n",
+            "ms": 97.128
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8d3b0a7e04dce95b7ec9efa620f34a66eecb2ed0702457b9b0112c84b04825b7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 98.315,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:2: loki/placeholder: todo!() placeholder left in code panics at runtime\nloki: hook command failed\n",
+            "ms": 98.315
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "src/lib.rs:2: loki/placeholder: todo!() placeholder left in code panics at runtime\n",
+      "stderr": "",
+      "ms": 111.988,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 94.855
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.733
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 96.749
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 99.075
+    }
+  ]
+}

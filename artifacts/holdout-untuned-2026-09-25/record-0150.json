@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/nullish-port-type-mismatch/control",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout/typescript/nullish-port-type-mismatch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    211.314
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "0004428d5e2aee3d174f12888267c2e48c695d8d8e7455b3a7bef2ec75382541",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 520.096,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 520.096
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 330.6,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 330.6
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

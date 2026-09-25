@@ -1,0 +1,4927 @@
+{
+  "groups": {
+    "shared/interlinked": {
+      "counts": {
+        "defects": 25,
+        "caught": 12,
+        "prevented": 1,
+        "controls": 26,
+        "false_blocks": 0,
+        "control_feedback": 26,
+        "coverage_warning": 17,
+        "errors": 0,
+        "inconsistent": 0
+      },
+      "latency": {
+        "first-invocation": {
+          "pre_ms": {
+            "n": 51,
+            "median": 127.65,
+            "p95": 193.41,
+            "max": 239.3
+          },
+          "post_ms": {
+            "n": 50,
+            "median": 235.64,
+            "p95": 1779.37,
+            "max": 2667.16
+          },
+          "total_ms": {
+            "n": 51,
+            "median": 354.54,
+            "p95": 1937.16,
+            "max": 2864.71
+          }
+        },
+        "startup-warmed": {
+          "pre_ms": {
+            "n": 102,
+            "median": 126.51,
+            "p95": 164.85,
+            "max": 474.05
+          },
+          "post_ms": {
+            "n": 100,
+            "median": 243.32,
+            "p95": 1420.77,
+            "max": 1870.83
+          },
+          "total_ms": {
+            "n": 102,
+            "median": 368.69,
+            "p95": 1576.37,
+            "max": 2254.04
+          }
+        }
+      }
+    },
+    "shared/loki": {
+      "counts": {
+        "defects": 25,
+        "caught": 25,
+        "prevented": 14,
+        "controls": 26,
+        "false_blocks": 0,
+        "control_feedback": 0,
+        "coverage_warning": 1,
+        "errors": 0,
+        "inconsistent": 0
+      },
+      "latency": {
+        "first-invocation": {
+          "pre_ms": {
+            "n": 51,
+            "median": 109.34,
+            "p95": 156.2,
+            "max": 359.59
+          },
+          "post_ms": {
+            "n": 37,
+            "median": 492.64,
+            "p95": 4473.14,
+            "max": 5092.0
+          },
+          "total_ms": {
+            "n": 51,
+            "median": 299.15,
+            "p95": 3932.06,
+            "max": 5220.41
+          }
+        },
+        "startup-warmed": {
+          "pre_ms": {
+            "n": 102,
+            "median": 109.71,
+            "p95": 157.26,
+            "max": 385.15
+          },
+          "post_ms": {
+            "n": 74,
+            "median": 429.17,
+            "p95": 4291.19,
+            "max": 5724.3
+          },
+          "total_ms": {
+            "n": 102,
+            "median": 282.57,
+            "p95": 3964.07,
+            "max": 6109.44
+          }
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "case": "elixir/decode-untrusted-term/control",
+      "step": 0,
+      "pair": "elixir/decode-untrusted-term",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 112.824,
+          "post_ms": 115.718,
+          "total_ms": 228.542
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.678,
+          "post_ms": 135.198,
+          "total_ms": 235.876
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 92.44,
+          "post_ms": 114.181,
+          "total_ms": 206.62099999999998
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/shell-interpolation/defect",
+      "step": 0,
+      "pair": "python/shell-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 118.326,
+          "post_ms": null,
+          "total_ms": 118.326
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 91.072,
+          "post_ms": null,
+          "total_ms": 91.072
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 124.759,
+          "post_ms": null,
+          "total_ms": 124.759
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/sql-interpolation/defect",
+      "step": 0,
+      "pair": "python/sql-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 161.785,
+          "post_ms": 1529.032,
+          "total_ms": 1690.817
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 138.029,
+          "post_ms": 1224.83,
+          "total_ms": 1362.859
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 176.682,
+          "post_ms": 1608.302,
+          "total_ms": 1784.984
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/undefined-name/control",
+      "step": 0,
+      "pair": "go/undefined-name",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 99.924,
+          "post_ms": 3320.643,
+          "total_ms": 3420.567
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 123.452,
+          "post_ms": 3382.982,
+          "total_ms": 3506.434
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 131.833,
+          "post_ms": 3237.658,
+          "total_ms": 3369.491
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/use-after-move/defect",
+      "step": 0,
+      "pair": "rust/use-after-move",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 156.204,
+          "post_ms": 492.643,
+          "total_ms": 648.847
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 111.452,
+          "post_ms": 381.202,
+          "total_ms": 492.654
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 163.169,
+          "post_ms": 445.786,
+          "total_ms": 608.955
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/type-mismatch/control",
+      "step": 0,
+      "pair": "rust/type-mismatch",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 164.731,
+          "post_ms": 241.183,
+          "total_ms": 405.914
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 112.742,
+          "post_ms": 229.498,
+          "total_ms": 342.24
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 93.298,
+          "post_ms": 205.547,
+          "total_ms": 298.845
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/sql-interpolation/control",
+      "step": 0,
+      "pair": "python/sql-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 193.408,
+          "post_ms": 1360.434,
+          "total_ms": 1553.8419999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 163.423,
+          "post_ms": 1287.708,
+          "total_ms": 1451.131
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 164.855,
+          "post_ms": 1715.469,
+          "total_ms": 1880.324
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/duration-square/defect",
+      "step": 0,
+      "pair": "go/duration-square",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 128.415,
+          "post_ms": 5091.998,
+          "total_ms": 5220.413
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.763,
+          "post_ms": 4570.906,
+          "total_ms": 4689.669
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.363,
+          "post_ms": 3912.395,
+          "total_ms": 4046.758
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/discarded-error/defect",
+      "step": 0,
+      "pair": "go/discarded-error",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [
+        {
+          "repetition": 0,
+          "from": "detected_after_write",
+          "to": "missed"
+        },
+        {
+          "repetition": 1,
+          "from": "detected_after_write",
+          "to": "missed"
+        },
+        {
+          "repetition": 2,
+          "from": "detected_after_write",
+          "to": "missed"
+        }
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 124.457,
+          "post_ms": 230.088,
+          "total_ms": 354.54499999999996
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.367,
+          "post_ms": 209.727,
+          "total_ms": 317.094
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.315,
+          "post_ms": 240.699,
+          "total_ms": 346.014
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/request-authorization/defect",
+      "step": 0,
+      "pair": "elixir/request-authorization",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 113.294,
+          "post_ms": 111.797,
+          "total_ms": 225.091
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 101.92,
+          "post_ms": 117.53,
+          "total_ms": 219.45
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.467,
+          "post_ms": 110.083,
+          "total_ms": 206.55
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/broad-exception-loss/control",
+      "step": 0,
+      "pair": "python/broad-exception-loss",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 125.609,
+          "post_ms": 158.342,
+          "total_ms": 283.951
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 119.579,
+          "post_ms": 156.561,
+          "total_ms": 276.14
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.187,
+          "post_ms": 152.092,
+          "total_ms": 277.279
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/type-mismatch/defect",
+      "step": 0,
+      "pair": "rust/type-mismatch",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 120.832,
+          "post_ms": 395.488,
+          "total_ms": 516.3199999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 117.033,
+          "post_ms": 412.563,
+          "total_ms": 529.596
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 119.216,
+          "post_ms": 366.922,
+          "total_ms": 486.13800000000003
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/shell-interpolation/defect",
+      "step": 0,
+      "pair": "python/shell-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 132.438,
+          "post_ms": null,
+          "total_ms": 132.438
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 111.157,
+          "post_ms": null,
+          "total_ms": 111.157
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.67,
+          "post_ms": null,
+          "total_ms": 128.67
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/atom-from-request/defect",
+      "step": 0,
+      "pair": "elixir/atom-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 120.975,
+          "post_ms": 117.568,
+          "total_ms": 238.543
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 102.646,
+          "post_ms": 125.109,
+          "total_ms": 227.755
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.247,
+          "post_ms": 133.344,
+          "total_ms": 238.591
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/authorization-from-request/control",
+      "step": 0,
+      "pair": "python/authorization-from-request",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 118.562,
+          "post_ms": 150.481,
+          "total_ms": 269.043
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.156,
+          "post_ms": 153.118,
+          "total_ms": 260.274
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.709,
+          "post_ms": 142.284,
+          "total_ms": 270.993
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/python/undefined-return/defect",
+      "step": 0,
+      "pair": "exact-edit/python/undefined-return",
+      "family": "exact-edit",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 114.084,
+          "post_ms": null,
+          "total_ms": 114.084
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 116.458,
+          "post_ms": null,
+          "total_ms": 116.458
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 157.265,
+          "post_ms": null,
+          "total_ms": 157.265
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/placeholder/defect",
+      "step": 0,
+      "pair": "rust/placeholder",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 106.097,
+          "post_ms": null,
+          "total_ms": 106.097
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 102.712,
+          "post_ms": null,
+          "total_ms": 102.712
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.923,
+          "post_ms": null,
+          "total_ms": 109.923
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/request-authorization/control",
+      "step": 0,
+      "pair": "elixir/request-authorization",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 111.334,
+          "post_ms": 1046.054,
+          "total_ms": 1157.3880000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.908,
+          "post_ms": 957.926,
+          "total_ms": 1064.834
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.639,
+          "post_ms": 882.163,
+          "total_ms": 982.802
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/unsafe-deserialization/defect",
+      "step": 0,
+      "pair": "python/unsafe-deserialization",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 129.045,
+          "post_ms": null,
+          "total_ms": 129.045
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.514,
+          "post_ms": null,
+          "total_ms": 125.514
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 132.81,
+          "post_ms": null,
+          "total_ms": 132.81
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/undefined-name/defect",
+      "step": 0,
+      "pair": "go/undefined-name",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 104.203,
+          "post_ms": 2840.45,
+          "total_ms": 2944.653
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.772,
+          "post_ms": 2622.466,
+          "total_ms": 2723.238
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 92.972,
+          "post_ms": 2498.314,
+          "total_ms": 2591.286
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/authorization-from-request/defect",
+      "step": 0,
+      "pair": "python/authorization-from-request",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 108.513,
+          "post_ms": null,
+          "total_ms": 108.513
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 110.204,
+          "post_ms": null,
+          "total_ms": 110.204
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.058,
+          "post_ms": null,
+          "total_ms": 106.058
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/python/undefined-return/control",
+      "step": 0,
+      "pair": "exact-edit/python/undefined-return",
+      "family": "exact-edit",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 120.85,
+          "post_ms": 170.766,
+          "total_ms": 291.616
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.042,
+          "post_ms": 124.796,
+          "total_ms": 230.83800000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.708,
+          "post_ms": 119.932,
+          "total_ms": 226.64
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/use-after-move/defect",
+      "step": 0,
+      "pair": "rust/use-after-move",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 95.844,
+          "post_ms": 179.747,
+          "total_ms": 275.591
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 87.965,
+          "post_ms": 186.637,
+          "total_ms": 274.602
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 78.797,
+          "post_ms": 188.043,
+          "total_ms": 266.84000000000003
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/unsafe-deserialization/defect",
+      "step": 0,
+      "pair": "python/unsafe-deserialization",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 155.15,
+          "post_ms": 1174.333,
+          "total_ms": 1329.4830000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 132.131,
+          "post_ms": 1027.893,
+          "total_ms": 1160.0240000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 129.182,
+          "post_ms": 1043.44,
+          "total_ms": 1172.622
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/decode-untrusted-term/defect",
+      "step": 0,
+      "pair": "elixir/decode-untrusted-term",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 96.176,
+          "post_ms": 98.396,
+          "total_ms": 194.572
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 89.032,
+          "post_ms": 105.021,
+          "total_ms": 194.053
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 88.763,
+          "post_ms": 111.134,
+          "total_ms": 199.897
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/atom-from-request/defect",
+      "step": 0,
+      "pair": "elixir/atom-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 107.895,
+          "post_ms": 793.954,
+          "total_ms": 901.8489999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 97.606,
+          "post_ms": 790.943,
+          "total_ms": 888.549
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.308,
+          "post_ms": 865.696,
+          "total_ms": 973.004
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/mutable-default/control",
+      "step": 0,
+      "pair": "python/mutable-default",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 128.456,
+          "post_ms": 151.506,
+          "total_ms": 279.962
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 113.652,
+          "post_ms": 142.902,
+          "total_ms": 256.554
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.472,
+          "post_ms": 138.28,
+          "total_ms": 243.752
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/placeholder/defect",
+      "step": 0,
+      "pair": "rust/placeholder",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 105.007,
+          "post_ms": 182.472,
+          "total_ms": 287.47900000000004
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 83.288,
+          "post_ms": 181.945,
+          "total_ms": 265.233
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 89.122,
+          "post_ms": 189.422,
+          "total_ms": 278.544
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/undefined-name/defect",
+      "step": 0,
+      "pair": "go/undefined-name",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 107.648,
+          "post_ms": 202.338,
+          "total_ms": 309.986
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 98.335,
+          "post_ms": 198.526,
+          "total_ms": 296.861
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 85.384,
+          "post_ms": 207.331,
+          "total_ms": 292.715
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/discarded-error/control",
+      "step": 0,
+      "pair": "go/discarded-error",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 102.411,
+          "post_ms": 194.59,
+          "total_ms": 297.001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 83.378,
+          "post_ms": 189.428,
+          "total_ms": 272.806
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 88.034,
+          "post_ms": 190.976,
+          "total_ms": 279.01
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/unsafe-deserialization/control",
+      "step": 0,
+      "pair": "python/unsafe-deserialization",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 105.479,
+          "post_ms": 141.527,
+          "total_ms": 247.00599999999997
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 114.225,
+          "post_ms": 149.918,
+          "total_ms": 264.14300000000003
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 104.444,
+          "post_ms": 137.752,
+          "total_ms": 242.19600000000003
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/authorization-from-request/control",
+      "step": 0,
+      "pair": "python/authorization-from-request",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 161.321,
+          "post_ms": 1220.507,
+          "total_ms": 1381.828
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 154.435,
+          "post_ms": 1214.81,
+          "total_ms": 1369.245
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 157.918,
+          "post_ms": 1870.825,
+          "total_ms": 2028.743
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/atom-from-request/control",
+      "step": 0,
+      "pair": "elixir/atom-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 127.448,
+          "post_ms": 132.819,
+          "total_ms": 260.267
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 151.341,
+          "post_ms": 217.529,
+          "total_ms": 368.87
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 158.275,
+          "post_ms": 181.356,
+          "total_ms": 339.631
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/ssrf/control",
+      "step": 0,
+      "pair": "elixir/ssrf",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 150.203,
+          "post_ms": 140.809,
+          "total_ms": 291.012
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 167.417,
+          "post_ms": 169.944,
+          "total_ms": 337.361
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 110.931,
+          "post_ms": 118.831,
+          "total_ms": 229.762
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/mutable-default/control",
+      "step": 0,
+      "pair": "python/mutable-default",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 174.216,
+          "post_ms": 1273.539,
+          "total_ms": 1447.755
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 159.996,
+          "post_ms": 1269.555,
+          "total_ms": 1429.5510000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 146.355,
+          "post_ms": 1257.126,
+          "total_ms": 1403.481
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/ssrf/defect",
+      "step": 0,
+      "pair": "elixir/ssrf",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 114.157,
+          "post_ms": 112.493,
+          "total_ms": 226.64999999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 97.448,
+          "post_ms": 125.778,
+          "total_ms": 223.226
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 99.953,
+          "post_ms": 145.875,
+          "total_ms": 245.828
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/placeholder/control",
+      "step": 0,
+      "pair": "rust/placeholder",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 115.186,
+          "post_ms": 262.127,
+          "total_ms": 377.313
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.822,
+          "post_ms": 249.089,
+          "total_ms": 357.911
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 110.992,
+          "post_ms": 274.757,
+          "total_ms": 385.749
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/undefined-return/control",
+      "step": 0,
+      "pair": "python/undefined-return",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 145.193,
+          "post_ms": 150.253,
+          "total_ms": 295.446
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 131.287,
+          "post_ms": 156.568,
+          "total_ms": 287.855
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 121.121,
+          "post_ms": 141.349,
+          "total_ms": 262.46999999999997
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/undefined-return/control",
+      "step": 0,
+      "pair": "python/undefined-return",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 155.671,
+          "post_ms": 1143.731,
+          "total_ms": 1299.402
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 139.315,
+          "post_ms": 1179.072,
+          "total_ms": 1318.387
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 160.943,
+          "post_ms": 1163.089,
+          "total_ms": 1324.032
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/format-type/defect",
+      "step": 0,
+      "pair": "go/format-type",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 106.459,
+          "post_ms": 3825.605,
+          "total_ms": 3932.064
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.678,
+          "post_ms": 3622.42,
+          "total_ms": 3732.098
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.739,
+          "post_ms": 3525.963,
+          "total_ms": 3629.702
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/syntax/control",
+      "step": 0,
+      "pair": "python/syntax",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 106.919,
+          "post_ms": 142.352,
+          "total_ms": 249.27100000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.045,
+          "post_ms": 148.46,
+          "total_ms": 256.505
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.152,
+          "post_ms": 136.887,
+          "total_ms": 243.039
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/return-type/control",
+      "step": 0,
+      "pair": "python/return-type",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 150.452,
+          "post_ms": 1064.102,
+          "total_ms": 1214.554
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 129.14,
+          "post_ms": 1263.15,
+          "total_ms": 1392.29
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 171.941,
+          "post_ms": 1208.864,
+          "total_ms": 1380.805
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/undefined-name/control",
+      "step": 0,
+      "pair": "go/undefined-name",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 116.788,
+          "post_ms": 211.795,
+          "total_ms": 328.58299999999997
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.551,
+          "post_ms": 237.637,
+          "total_ms": 358.188
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 87.743,
+          "post_ms": 230.145,
+          "total_ms": 317.88800000000003
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/syntax/control",
+      "step": 0,
+      "pair": "python/syntax",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 157.793,
+          "post_ms": 1779.37,
+          "total_ms": 1937.163
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 130.207,
+          "post_ms": 1115.386,
+          "total_ms": 1245.5929999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.196,
+          "post_ms": 1101.006,
+          "total_ms": 1235.202
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/ignored-result/control",
+      "step": 0,
+      "pair": "rust/ignored-result",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 101.834,
+          "post_ms": 188.063,
+          "total_ms": 289.897
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 132.487,
+          "post_ms": 236.017,
+          "total_ms": 368.504
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.741,
+          "post_ms": 245.95,
+          "total_ms": 374.69100000000003
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/discarded-error/defect",
+      "step": 0,
+      "pair": "go/discarded-error",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 131.832,
+          "post_ms": 3779.094,
+          "total_ms": 3910.926
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 136.463,
+          "post_ms": 4291.191,
+          "total_ms": 4427.6539999999995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 385.146,
+          "post_ms": 5724.298,
+          "total_ms": 6109.4439999999995
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/eval-input/defect",
+      "step": 0,
+      "pair": "python/eval-input",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 179.366,
+          "post_ms": null,
+          "total_ms": 179.366
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.544,
+          "post_ms": null,
+          "total_ms": 125.544
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 122.185,
+          "post_ms": null,
+          "total_ms": 122.185
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/unsafe-deserialization/control",
+      "step": 0,
+      "pair": "python/unsafe-deserialization",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 182.292,
+          "post_ms": 1839.903,
+          "total_ms": 2022.195
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 309.738,
+          "post_ms": 1543.53,
+          "total_ms": 1853.268
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 155.6,
+          "post_ms": 1420.773,
+          "total_ms": 1576.3729999999998
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/broad-exception-loss/control",
+      "step": 0,
+      "pair": "python/broad-exception-loss",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 170.73,
+          "post_ms": 1394.245,
+          "total_ms": 1564.975
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 474.054,
+          "post_ms": 1779.982,
+          "total_ms": 2254.036
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 139.949,
+          "post_ms": 1333.466,
+          "total_ms": 1473.415
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/placeholder/control",
+      "step": 0,
+      "pair": "rust/placeholder",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 101.738,
+          "post_ms": 189.204,
+          "total_ms": 290.942
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 86.268,
+          "post_ms": 195.389,
+          "total_ms": 281.65700000000004
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 86.247,
+          "post_ms": 201.075,
+          "total_ms": 287.322
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/python/undefined-return/control",
+      "step": 0,
+      "pair": "exact-edit/python/undefined-return",
+      "family": "exact-edit",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 154.621,
+          "post_ms": 1099.317,
+          "total_ms": 1253.938
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.996,
+          "post_ms": 1110.772,
+          "total_ms": 1245.768
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 137.608,
+          "post_ms": 1179.4,
+          "total_ms": 1317.008
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/eval-input/control",
+      "step": 0,
+      "pair": "python/eval-input",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 158.269,
+          "post_ms": 1094.056,
+          "total_ms": 1252.325
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.709,
+          "post_ms": 1085.474,
+          "total_ms": 1220.183
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 136.2,
+          "post_ms": 1176.019,
+          "total_ms": 1312.219
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/python/break-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 147.226,
+          "post_ms": 1125.137,
+          "total_ms": 1272.3629999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.056,
+          "post_ms": 1061.718,
+          "total_ms": 1195.7740000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 131.365,
+          "post_ms": 1128.234,
+          "total_ms": 1259.599
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/python/break-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 132.892,
+          "post_ms": 370.472,
+          "total_ms": 503.364
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 139.701,
+          "post_ms": 419.766,
+          "total_ms": 559.467
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.922,
+          "post_ms": 352.247,
+          "total_ms": 478.169
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/eval-input/defect",
+      "step": 0,
+      "pair": "python/eval-input",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 167.366,
+          "post_ms": 1060.356,
+          "total_ms": 1227.722
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 131.568,
+          "post_ms": 1165.766,
+          "total_ms": 1297.334
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 142.97,
+          "post_ms": 1146.408,
+          "total_ms": 1289.378
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/python/undefined-return/defect",
+      "step": 0,
+      "pair": "exact-edit/python/undefined-return",
+      "family": "exact-edit",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 166.914,
+          "post_ms": 1139.765,
+          "total_ms": 1306.679
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 137.945,
+          "post_ms": 1116.537,
+          "total_ms": 1254.482
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.078,
+          "post_ms": 1076.56,
+          "total_ms": 1204.638
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/sql-interpolation/control",
+      "step": 0,
+      "pair": "python/sql-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 117.491,
+          "post_ms": 143.852,
+          "total_ms": 261.343
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 112.362,
+          "post_ms": 151.512,
+          "total_ms": 263.874
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.283,
+          "post_ms": 151.604,
+          "total_ms": 271.887
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/request-authorization/defect",
+      "step": 0,
+      "pair": "elixir/request-authorization",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 106.673,
+          "post_ms": null,
+          "total_ms": 106.673
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 94.938,
+          "post_ms": null,
+          "total_ms": 94.938
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 95.659,
+          "post_ms": null,
+          "total_ms": 95.659
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/mutable-default/defect",
+      "step": 0,
+      "pair": "python/mutable-default",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 154.133,
+          "post_ms": 1058.455,
+          "total_ms": 1212.588
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 127.1,
+          "post_ms": 1015.92,
+          "total_ms": 1143.02
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 129.94,
+          "post_ms": 1070.959,
+          "total_ms": 1200.8990000000001
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/code-from-request/control",
+      "step": 0,
+      "pair": "elixir/code-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 102.078,
+          "post_ms": 107.459,
+          "total_ms": 209.537
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 91.636,
+          "post_ms": 109.6,
+          "total_ms": 201.236
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 85.191,
+          "post_ms": 105.996,
+          "total_ms": 191.187
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/mutable-default/defect",
+      "step": 0,
+      "pair": "python/mutable-default",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 102.182,
+          "post_ms": null,
+          "total_ms": 102.182
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 111.907,
+          "post_ms": null,
+          "total_ms": 111.907
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.538,
+          "post_ms": null,
+          "total_ms": 109.538
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/atom-from-request/control",
+      "step": 0,
+      "pair": "elixir/atom-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 112.245,
+          "post_ms": 853.108,
+          "total_ms": 965.353
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 91.437,
+          "post_ms": 752.115,
+          "total_ms": 843.552
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.213,
+          "post_ms": 770.277,
+          "total_ms": 866.49
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/code-from-request/defect",
+      "step": 0,
+      "pair": "elixir/code-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 106.867,
+          "post_ms": 102.972,
+          "total_ms": 209.839
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.568,
+          "post_ms": 124.061,
+          "total_ms": 220.62900000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 93.352,
+          "post_ms": 111.229,
+          "total_ms": 204.58100000000002
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/type-mismatch/defect",
+      "step": 0,
+      "pair": "rust/type-mismatch",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 105.756,
+          "post_ms": 180.92,
+          "total_ms": 286.676
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 90.028,
+          "post_ms": 187.756,
+          "total_ms": 277.784
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 97.065,
+          "post_ms": 207.514,
+          "total_ms": 304.579
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/use-after-move/control",
+      "step": 0,
+      "pair": "rust/use-after-move",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 103.953,
+          "post_ms": 198.111,
+          "total_ms": 302.06399999999996
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 84.091,
+          "post_ms": 183.965,
+          "total_ms": 268.056
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.405,
+          "post_ms": 198.261,
+          "total_ms": 294.666
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/duration-square/control",
+      "step": 0,
+      "pair": "go/duration-square",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 102.544,
+          "post_ms": 3170.118,
+          "total_ms": 3272.662
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 159.473,
+          "post_ms": 5523.104,
+          "total_ms": 5682.577
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 166.822,
+          "post_ms": 3729.464,
+          "total_ms": 3896.286
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/ssrf/control",
+      "step": 0,
+      "pair": "elixir/ssrf",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 359.588,
+          "post_ms": 2844.004,
+          "total_ms": 3203.592
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 147.474,
+          "post_ms": 1354.704,
+          "total_ms": 1502.1779999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 102.373,
+          "post_ms": 1006.6,
+          "total_ms": 1108.973
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/return-type/defect",
+      "step": 0,
+      "pair": "python/return-type",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 197.547,
+          "post_ms": 2667.163,
+          "total_ms": 2864.71
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 158.22,
+          "post_ms": 1303.427,
+          "total_ms": 1461.647
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 138.257,
+          "post_ms": 1193.53,
+          "total_ms": 1331.787
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/broad-exception-loss/defect",
+      "step": 0,
+      "pair": "python/broad-exception-loss",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 159.077,
+          "post_ms": 1100.882,
+          "total_ms": 1259.959
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 137.724,
+          "post_ms": 1078.921,
+          "total_ms": 1216.645
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 133.488,
+          "post_ms": 1061.942,
+          "total_ms": 1195.43
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/format-type/defect",
+      "step": 0,
+      "pair": "go/format-type",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 95.532,
+          "post_ms": 180.059,
+          "total_ms": 275.591
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 80.437,
+          "post_ms": 180.882,
+          "total_ms": 261.319
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 80.85,
+          "post_ms": 185.083,
+          "total_ms": 265.933
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/duration-square/defect",
+      "step": 0,
+      "pair": "go/duration-square",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 105.486,
+          "post_ms": 181.491,
+          "total_ms": 286.97700000000003
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 86.631,
+          "post_ms": 198.791,
+          "total_ms": 285.422
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 92.396,
+          "post_ms": 208.168,
+          "total_ms": 300.564
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/syntax/defect",
+      "step": 0,
+      "pair": "python/syntax",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 107.965,
+          "post_ms": null,
+          "total_ms": 107.965
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.916,
+          "post_ms": null,
+          "total_ms": 109.916
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.302,
+          "post_ms": null,
+          "total_ms": 108.302
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/ignored-result/defect",
+      "step": 0,
+      "pair": "rust/ignored-result",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 100.268,
+          "post_ms": 346.42,
+          "total_ms": 446.688
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 95.498,
+          "post_ms": 337.397,
+          "total_ms": 432.895
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 97.418,
+          "post_ms": 343.561,
+          "total_ms": 440.979
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/broad-exception-loss/defect",
+      "step": 0,
+      "pair": "python/broad-exception-loss",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 108.398,
+          "post_ms": null,
+          "total_ms": 108.398
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.978,
+          "post_ms": null,
+          "total_ms": 106.978
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.593,
+          "post_ms": null,
+          "total_ms": 118.593
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/shell-interpolation/control",
+      "step": 0,
+      "pair": "python/shell-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 119.819,
+          "post_ms": 151.947,
+          "total_ms": 271.766
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.748,
+          "post_ms": 142.373,
+          "total_ms": 252.12099999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 99.847,
+          "post_ms": 133.89,
+          "total_ms": 233.73699999999997
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/undefined-return/defect",
+      "step": 0,
+      "pair": "python/undefined-return",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 105.73,
+          "post_ms": null,
+          "total_ms": 105.73
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.239,
+          "post_ms": null,
+          "total_ms": 100.239
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.553,
+          "post_ms": null,
+          "total_ms": 103.553
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/decode-untrusted-term/control",
+      "step": 0,
+      "pair": "elixir/decode-untrusted-term",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 88.277,
+          "post_ms": 840.661,
+          "total_ms": 928.938
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 102.817,
+          "post_ms": 968.681,
+          "total_ms": 1071.498
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.452,
+          "post_ms": 924.401,
+          "total_ms": 1032.853
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/type-mismatch/control",
+      "step": 0,
+      "pair": "rust/type-mismatch",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 94.343,
+          "post_ms": 224.049,
+          "total_ms": 318.392
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.079,
+          "post_ms": 282.235,
+          "total_ms": 402.314
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 112.112,
+          "post_ms": 240.649,
+          "total_ms": 352.76099999999997
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/return-type/defect",
+      "step": 0,
+      "pair": "python/return-type",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 117.149,
+          "post_ms": 1250.892,
+          "total_ms": 1368.0410000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 112.938,
+          "post_ms": 1143.995,
+          "total_ms": 1256.933
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 110.865,
+          "post_ms": 1123.864,
+          "total_ms": 1234.729
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/code-from-request/defect",
+      "step": 0,
+      "pair": "elixir/code-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 95.679,
+          "post_ms": 942.101,
+          "total_ms": 1037.78
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.234,
+          "post_ms": 935.041,
+          "total_ms": 1040.275
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.049,
+          "post_ms": 804.564,
+          "total_ms": 904.6129999999999
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "debt/python/shift",
+      "step": 0,
+      "pair": null,
+      "family": "existing-debt",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 112.092,
+          "post_ms": 142.142,
+          "total_ms": 254.23399999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 111.61,
+          "post_ms": 155.657,
+          "total_ms": 267.267
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 122.635,
+          "post_ms": 153.046,
+          "total_ms": 275.681
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/request-authorization/control",
+      "step": 0,
+      "pair": "elixir/request-authorization",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 98.354,
+          "post_ms": 102.056,
+          "total_ms": 200.41
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 85.424,
+          "post_ms": 103.414,
+          "total_ms": 188.83800000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 89.881,
+          "post_ms": 108.317,
+          "total_ms": 198.19799999999998
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/format-type/control",
+      "step": 0,
+      "pair": "go/format-type",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 102.111,
+          "post_ms": 204.274,
+          "total_ms": 306.385
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 101.528,
+          "post_ms": 205.127,
+          "total_ms": 306.65500000000003
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 86.715,
+          "post_ms": 189.402,
+          "total_ms": 276.11699999999996
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "debt/python/shift",
+      "step": 0,
+      "pair": null,
+      "family": "existing-debt",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 147.406,
+          "post_ms": 1086.546,
+          "total_ms": 1233.952
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 137.544,
+          "post_ms": 1097.06,
+          "total_ms": 1234.604
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 142.741,
+          "post_ms": 1075.547,
+          "total_ms": 1218.288
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/authorization-from-request/defect",
+      "step": 0,
+      "pair": "python/authorization-from-request",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 148.832,
+          "post_ms": 1098.193,
+          "total_ms": 1247.025
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 143.578,
+          "post_ms": 1103.705,
+          "total_ms": 1247.283
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 155.504,
+          "post_ms": 1149.194,
+          "total_ms": 1304.6979999999999
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/undefined-return/defect",
+      "step": 0,
+      "pair": "python/undefined-return",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 158.713,
+          "post_ms": 1164.888,
+          "total_ms": 1323.6009999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 140.283,
+          "post_ms": 1213.691,
+          "total_ms": 1353.974
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 132.02,
+          "post_ms": 1089.02,
+          "total_ms": 1221.04
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/syntax/defect",
+      "step": 0,
+      "pair": "python/syntax",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 127.65,
+          "post_ms": 506.533,
+          "total_ms": 634.183
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.192,
+          "post_ms": 517.867,
+          "total_ms": 646.059
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.128,
+          "post_ms": 543.856,
+          "total_ms": 663.984
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/ignored-result/control",
+      "step": 0,
+      "pair": "rust/ignored-result",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 100.952,
+          "post_ms": 245.775,
+          "total_ms": 346.727
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.925,
+          "post_ms": 246.739,
+          "total_ms": 352.664
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 133.132,
+          "post_ms": 262.645,
+          "total_ms": 395.777
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/eval-input/control",
+      "step": 0,
+      "pair": "python/eval-input",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 128.108,
+          "post_ms": 171.04,
+          "total_ms": 299.148
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 117.764,
+          "post_ms": 147.572,
+          "total_ms": 265.336
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 113.758,
+          "post_ms": 148.881,
+          "total_ms": 262.639
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/discarded-error/control",
+      "step": 0,
+      "pair": "go/discarded-error",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 112.744,
+          "post_ms": 4473.144,
+          "total_ms": 4585.888
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.857,
+          "post_ms": 3568.154,
+          "total_ms": 3677.011
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 98.206,
+          "post_ms": 3865.861,
+          "total_ms": 3964.067
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/use-after-move/control",
+      "step": 0,
+      "pair": "rust/use-after-move",
+      "family": "bug",
+      "language": "rust",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 91.77,
+          "post_ms": 216.04,
+          "total_ms": 307.81
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 91.422,
+          "post_ms": 213.162,
+          "total_ms": 304.584
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 97.264,
+          "post_ms": 225.51,
+          "total_ms": 322.774
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/python/break-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 99.643,
+          "post_ms": null,
+          "total_ms": 99.643
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.906,
+          "post_ms": null,
+          "total_ms": 103.906
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.509,
+          "post_ms": null,
+          "total_ms": 106.509
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/python/break-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 102.454,
+          "post_ms": 137.308,
+          "total_ms": 239.762
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.479,
+          "post_ms": 133.839,
+          "total_ms": 239.31799999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.512,
+          "post_ms": 134.942,
+          "total_ms": 235.454
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/return-type/control",
+      "step": 0,
+      "pair": "python/return-type",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 108.136,
+          "post_ms": 983.053,
+          "total_ms": 1091.189
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 115.269,
+          "post_ms": 959.895,
+          "total_ms": 1075.164
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 116.956,
+          "post_ms": 915.588,
+          "total_ms": 1032.5439999999999
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/code-from-request/control",
+      "step": 0,
+      "pair": "elixir/code-from-request",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 109.345,
+          "post_ms": 819.983,
+          "total_ms": 929.328
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 101.286,
+          "post_ms": 917.266,
+          "total_ms": 1018.5519999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.568,
+          "post_ms": 900.893,
+          "total_ms": 1009.461
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/ssrf/defect",
+      "step": 0,
+      "pair": "elixir/ssrf",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 104.015,
+          "post_ms": null,
+          "total_ms": 104.015
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.723,
+          "post_ms": null,
+          "total_ms": 103.723
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 150.227,
+          "post_ms": null,
+          "total_ms": 150.227
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "elixir/decode-untrusted-term/defect",
+      "step": 0,
+      "pair": "elixir/decode-untrusted-term",
+      "family": "phoenix-security",
+      "language": "elixir",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 129.238,
+          "post_ms": 1285.558,
+          "total_ms": 1414.796
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.021,
+          "post_ms": 792.191,
+          "total_ms": 901.212
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 167.634,
+          "post_ms": 1415.852,
+          "total_ms": 1583.486
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/duration-square/control",
+      "step": 0,
+      "pair": "go/duration-square",
+      "family": "bug",
+      "language": "go",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 127.479,
+          "post_ms": 201.79,
+          "total_ms": 329.269
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 119.792,
+          "post_ms": 251.436,
+          "total_ms": 371.228
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 116.32,
+          "post_ms": 238.258,
+          "total_ms": 354.578
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/shell-interpolation/control",
+      "step": 0,
+      "pair": "python/shell-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 239.301,
+          "post_ms": 1295.988,
+          "total_ms": 1535.289
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 132.552,
+          "post_ms": 1099.537,
+          "total_ms": 1232.089
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 130.864,
+          "post_ms": 1144.26,
+          "total_ms": 1275.124
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "rust/ignored-result/defect",
+      "step": 0,
+      "pair": "rust/ignored-result",
+      "family": "bug",
+      "language": "rust",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 116.589,
+          "post_ms": 207.678,
+          "total_ms": 324.267
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 88.843,
+          "post_ms": 205.57,
+          "total_ms": 294.413
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 85.025,
+          "post_ms": 185.887,
+          "total_ms": 270.91200000000003
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "python/sql-interpolation/defect",
+      "step": 0,
+      "pair": "python/sql-interpolation",
+      "family": "bug",
+      "language": "python",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 131.753,
+          "post_ms": null,
+          "total_ms": 131.753
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.624,
+          "post_ms": null,
+          "total_ms": 107.624
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.515,
+          "post_ms": null,
+          "total_ms": 118.515
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "go/format-type/control",
+      "step": 0,
+      "pair": "go/format-type",
+      "family": "bug",
+      "language": "go",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 101.201,
+          "post_ms": 3666.854,
+          "total_ms": 3768.055
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 94.991,
+          "post_ms": 3609.766,
+          "total_ms": 3704.757
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.424,
+          "post_ms": 3515.494,
+          "total_ms": 3624.918
+        }
+      ],
+      "scans": []
+    }
+  ],
+  "reporter_sha256": "9d514fb73572fa1f8b85bfca8ada17ca7899c414e3e4bb7dcb51298a9fa4281b"
+}

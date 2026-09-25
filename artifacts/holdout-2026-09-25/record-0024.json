@@ -1,0 +1,123 @@
+{
+  "case": "holdout/typescript/postmessage-missing-origin-check/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/postmessage-missing-origin-check",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    240.729,
+    432.811,
+    412.995
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "42622d4858131efdcb6b5666237778daafc96e599ae596e5cad65997159a49f1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 136.149,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/bridge.ts:16: loki/postmessage-origin: message event handler never checks event.origin; any window can post to it\nloki: hook command failed\n",
+            "ms": 136.149
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "42622d4858131efdcb6b5666237778daafc96e599ae596e5cad65997159a49f1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 146.405,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/bridge.ts:16: loki/postmessage-origin: message event handler never checks event.origin; any window can post to it\nloki: hook command failed\n",
+            "ms": 146.405
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "42622d4858131efdcb6b5666237778daafc96e599ae596e5cad65997159a49f1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 135.543,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/bridge.ts:16: loki/postmessage-origin: message event handler never checks event.origin; any window can post to it\nloki: hook command failed\n",
+            "ms": 135.543
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 100.987
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 100.76
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 96.227
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 90.631
+    }
+  ]
+}

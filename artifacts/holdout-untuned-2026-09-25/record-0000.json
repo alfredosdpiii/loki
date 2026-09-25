@@ -1,0 +1,56 @@
+{
+  "case": "holdout/python/optional-profile-attr/defect",
+  "language": "python",
+  "family": "type-error",
+  "pair": "holdout/python/optional-profile-attr",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    256.623
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "317161d50bcb9836b9de819119b415a80f572e73ba6fb13886e31dd9debc5335",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 115.896,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 115.896
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1338.006,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nprofiles.py:15: mypy[union-attr]: Item \"None\" of \"Profile | None\" has no attribute \"display_name\"\nprofiles.py:15: mypy[union-attr]: Item \"None\" of \"str | Any | None\" has no attribute \"strip\"\nloki: hook command failed\n",
+            "ms": 1338.006
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

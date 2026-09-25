@@ -1,0 +1,123 @@
+{
+  "case": "elixir/ssrf/defect",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/ssrf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    402.573,
+    617.506,
+    622.093
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "369a9776d58915880c76c715cb994492f5262e5eda7fc39ccb1a980c262a69d6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 104.015,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture_web/input_controller.ex:5: loki/ssrf: server-side request forgery (SSRF): outbound request to an untrusted URL from request parameters; validate the host against an allowlist\nloki: hook command failed\n",
+            "ms": 104.015
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "369a9776d58915880c76c715cb994492f5262e5eda7fc39ccb1a980c262a69d6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 103.723,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture_web/input_controller.ex:5: loki/ssrf: server-side request forgery (SSRF): outbound request to an untrusted URL from request parameters; validate the host against an allowlist\nloki: hook command failed\n",
+            "ms": 103.723
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "369a9776d58915880c76c715cb994492f5262e5eda7fc39ccb1a980c262a69d6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 150.227,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture_web/input_controller.ex:5: loki/ssrf: server-side request forgery (SSRF): outbound request to an untrusted URL from request parameters; validate the host against an allowlist\nloki: hook command failed\n",
+            "ms": 150.227
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 107.619
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 104.158
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 112.842
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 113.497
+    }
+  ]
+}

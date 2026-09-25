@@ -1,0 +1,123 @@
+{
+  "case": "holdout/typescript/new-function-formula/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/new-function-formula",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    210.189,
+    418.078,
+    419.791
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "877b6c3a5a4e890ff35383828f85790a8b632286493a04b91cb65c12cc402d36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 127.451,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/formula.ts:5: loki/code-eval: dynamic code execution: non-literal source passed to new Function\nloki: hook command failed\n",
+            "ms": 127.451
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "877b6c3a5a4e890ff35383828f85790a8b632286493a04b91cb65c12cc402d36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 135.339,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/formula.ts:5: loki/code-eval: dynamic code execution: non-literal source passed to new Function\nloki: hook command failed\n",
+            "ms": 135.339
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "877b6c3a5a4e890ff35383828f85790a8b632286493a04b91cb65c12cc402d36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 124.933,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/formula.ts:5: loki/code-eval: dynamic code execution: non-literal source passed to new Function\nloki: hook command failed\n",
+            "ms": 124.933
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 99.555
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.521
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 92.018
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 88.856
+    }
+  ]
+}

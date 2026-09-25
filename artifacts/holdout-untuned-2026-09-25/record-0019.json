@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/defer-close-in-loop/control",
+  "language": "go",
+  "family": "resource",
+  "pair": "holdout/go/defer-close-in-loop",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    214.176
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "2878fdaeccd1b1d9a45e95b5138ea19de8fef8dcb94dbe5c1115618b08775f31",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 91.921,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 91.921
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3401.296,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:11:12: G304: Potential file inclusion via variable (gosec)\nloki: hook command failed\n",
+            "ms": 3401.296
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,42 @@
+{
+  "case": "holdout/typescript/login-open-redirect/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/login-open-redirect",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    214.742
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b1eacab1d38d1945cc71575cb2303146083a330b30136b6b2d92e9c5f37290f8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 140.894,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/login.ts:4: loki/open-redirect: open redirect: unvalidated navigation target; check it against an allowlist of paths or origins\nloki: hook command failed\n",
+            "ms": 140.894
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout/typescript/numeric-sort-without-comparator/defect",
+  "language": "typescript",
+  "family": "semantic",
+  "pair": "holdout/typescript/numeric-sort-without-comparator",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    215.984,
+    437.988,
+    929.843
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "6833164ebc6de7ff9e31be241db13b9b01f3604dd3be45a8407da9dd881d399b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 528.574,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 528.574
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 312.116,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: src/leaderboard.ts:8:24: Use `Array#toReversed()` instead of `Array#reverse()`. [Error/unicorn(no-array-reverse)]\noxlint advisory (not blocking):\nsrc/leaderboard.ts:8:17: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\nloki: hook command failed\n",
+            "ms": 312.116
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "6833164ebc6de7ff9e31be241db13b9b01f3604dd3be45a8407da9dd881d399b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 550.192,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 550.192
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 339.236,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: src/leaderboard.ts:8:24: Use `Array#toReversed()` instead of `Array#reverse()`. [Error/unicorn(no-array-reverse)]\noxlint advisory (not blocking):\nsrc/leaderboard.ts:8:17: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\nloki: hook command failed\n",
+            "ms": 339.236
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "6833164ebc6de7ff9e31be241db13b9b01f3604dd3be45a8407da9dd881d399b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 558.044,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 558.044
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 305.845,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: src/leaderboard.ts:8:24: Use `Array#toReversed()` instead of `Array#reverse()`. [Error/unicorn(no-array-reverse)]\noxlint advisory (not blocking):\nsrc/leaderboard.ts:8:17: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\nloki: hook command failed\n",
+            "ms": 305.845
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.781
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 93.717
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 102.104
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 109.734
+    }
+  ]
+}
