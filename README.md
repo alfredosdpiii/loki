@@ -175,6 +175,45 @@ debt and line shifts pass:
 Missing optional analyzers are skipped; analyzer failures and timeouts are
 `NOT CHECKED`, and strict mode fails them.
 
+### Warm daemon
+
+Hooks for `protect`, `hook` and `shell` start a per-repository daemon the first
+time they run and use it from then on. The first invocation still runs
+in-process. The daemon listens on `~/.cache/loki/d/<repository hash>`, a Unix
+socket with mode 0600 in a 0700 directory; peer credentials are checked where
+the platform supports it. Each request runs in a forked copy of an
+already-imported engine, so the daemon changes speed, not decisions:
+
+- It must report the same engine digest as the calling hook. A different digest
+  makes it exit, and the hook runs in-process.
+- Any connection failure, missing reply or oversized socket path also falls back
+  to the in-process path.
+- It exits after 30 idle minutes, when the repository disappears or when the
+  engine file changes.
+
+Before accepting requests it warms what is available:
+
+- a long-lived TypeScript checker that keeps parsed files, including the
+  standard library declarations, between checks;
+- `dmypy` with Loki's fixed mypy flags;
+- one `go vet`/golangci-lint pass, or one Clippy build, to fill build caches.
+
+Set `LOKI_DAEMON=0` to disable it. `loki.py daemon status|start|stop` manage it,
+and `daemon serve` runs it in the foreground.
+
+Net-new comparisons for mypy, TypeScript and Clippy skip the second, base-side
+analysis when no finding's source line appears in the committed file. The line
+text is part of every fingerprint, so such findings cannot be existing debt.
+
+### Type-aware TypeScript checks
+
+The TypeScript check also reports two findings that need type information:
+
+- `loki/floating-promise`: a Promise-typed call used as a statement without
+  `await`, `return`, `void`, `.catch` or a two-argument `.then`.
+- `loki/numeric-sort`: `.sort()` without a comparator on a `number[]` or
+  `bigint[]`, which orders values as strings.
+
 Scans compare actual base bytes and modes with the working tree, including staged
 and nonignored untracked files. The default base is HEAD. Explicit invalid bases,
 unmerged indexes and inspection failures fail. Non-strict scans outside Git

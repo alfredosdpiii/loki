@@ -161,8 +161,8 @@ def handlers(root, tool):
     ]
 
 
-def wait_for_socket(path, process):
-    deadline = time.monotonic() + 15
+def wait_for_socket(path, process, seconds=15):
+    deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if process.poll() is not None:
             raise RuntimeError("competitor daemon exited before readiness")

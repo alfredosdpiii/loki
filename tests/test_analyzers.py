@@ -2,6 +2,8 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -712,3 +714,137 @@ class RealNewTypescriptFileTests(unittest.TestCase):
                 ) as compile_:
                     loki.typescript_findings(root, {})
                 compile_.assert_called()
+
+
+class CheckerWorkerTests(unittest.TestCase):
+    def worker(self, script):
+        worker = loki.CheckerWorker([sys.executable, "-c", script], Path.cwd())
+        self.addCleanup(worker.close)
+        return worker
+
+    def test_replies_are_matched_by_request_id(self):
+        script = (
+            "import json, sys\n"
+            "for line in sys.stdin:\n"
+            "    request = json.loads(line)\n"
+            "    print(json.dumps({'id': 'stale', 'result': 0}), flush=True)\n"
+            "    args = request['args']\n"
+            "    reply = {'id': request['id']}\n"
+            "    reply.update({'error': 'bad'} if args == ['fail'] else {'result': args})\n"
+            "    print(json.dumps(reply), flush=True)\n"
+        )
+        worker = self.worker(script)
+        self.assertEqual(["a"], worker.request(["a"], None))
+        self.assertEqual(["b"], worker.request(["b"], None))
+        with self.assertRaisesRegex(ValueError, "bad"):
+            worker.request(["fail"], None)
+
+    def test_exits_and_timeouts_raise(self):
+        worker = self.worker("import time; time.sleep(5)")
+        with self.assertRaises(subprocess.TimeoutExpired):
+            worker.request([], time.monotonic() + 0.2)
+        worker.close()
+        with self.assertRaisesRegex(ValueError, "exited"):
+            worker.request([], None)
+        quiet = self.worker("import sys; sys.stdin.readline()")
+        with self.assertRaisesRegex(ValueError, "exited"):
+            quiet.request([], None)
+
+
+@unittest.skipUnless(TSC.is_file() and shutil.which("node"), "TypeScript unavailable")
+class WarmTypescriptWorkerTests(unittest.TestCase):
+    def test_prewarmed_worker_serves_checks_with_same_results(self):
+        with temporary_root() as root, temporary_root() as home:
+            commit(
+                root,
+                {
+                    "tsconfig.json": json.dumps(
+                        {"compilerOptions": {"strict": True, "noEmit": True}}
+                    ),
+                    "src/main.ts": "export const value: number = 1;\n",
+                },
+            )
+            write_file(root, "src/main.ts", 'export const value: number = "1";\n')
+            env = {
+                "HOME": str(home),
+                "PATH": f"{Path(TSC).parent}:{os.environ['PATH']}",
+            }
+            with (
+                patch.object(loki.shutil, "which", return_value=str(TSC)),
+                patch.dict(os.environ, env),
+            ):
+                cold = loki.typescript_findings(root, {})
+                self.addCleanup(loki.daemon_stop_workers)
+                loki.prewarm(root)
+                self.assertEqual(1, len(loki.TYPESCRIPT_WORKERS))
+                with patch.object(loki.subprocess, "run", wraps=subprocess.run) as run:
+                    warm = loki.preview_typescript(
+                        root,
+                        {},
+                        [("src/main.ts", "", 'export const value: number = "1";\n')],
+                        deadline=None,
+                    )
+            self.assertEqual(cold, warm)
+            self.assertIn("TS2322", warm[0])
+            self.assertNotIn("node", [call.args[0][0] for call in run.call_args_list])
+
+
+@unittest.skipUnless(TSC.is_file() and shutil.which("node"), "TypeScript unavailable")
+class TypeAwareTypescriptTests(unittest.TestCase):
+    def findings(self, content):
+        with temporary_root() as root, temporary_root() as home:
+            commit(
+                root,
+                {
+                    "tsconfig.json": json.dumps(
+                        {
+                            "compilerOptions": {
+                                "strict": True,
+                                "noEmit": True,
+                                "target": "ES2022",
+                            }
+                        }
+                    ),
+                    "src/main.ts": "export const value = 1;\n",
+                },
+            )
+            write_file(root, "src/main.ts", content)
+            env = {
+                "HOME": str(home),
+                "PATH": f"{Path(TSC).parent}:{os.environ['PATH']}",
+            }
+            with (
+                patch.object(loki.shutil, "which", return_value=str(TSC)),
+                patch.dict(os.environ, env),
+            ):
+                return [
+                    item.split(": ")[1] for item in loki.typescript_findings(root, {})
+                ]
+
+    def test_floating_promises(self):
+        remove = "async function remove(id: string): Promise<void> {}\n"
+        self.assertEqual(
+            ["loki/floating-promise"],
+            self.findings(remove + "export function run() { remove('a'); }\n"),
+        )
+        for handled in (
+            "export async function run() { await remove('a'); }\n",
+            "export function run() { void remove('a'); }\n",
+            "export function run() { remove('a').catch(() => undefined); }\n",
+            "export function run() { remove('a').then(() => 1, () => 2); }\n",
+            "export function run() { return remove('a'); }\n",
+        ):
+            with self.subTest(handled=handled):
+                self.assertEqual([], self.findings(remove + handled))
+
+    def test_numeric_sort_without_comparator(self):
+        self.assertEqual(
+            ["loki/numeric-sort"],
+            self.findings("export const top = (xs: number[]) => xs.sort();\n"),
+        )
+        for control in (
+            "export const top = (xs: number[]) => xs.sort((a, b) => a - b);\n",
+            "export const top = (xs: string[]) => xs.sort();\n",
+        ):
+            with self.subTest(control=control):
+                self.assertEqual([], self.findings(control))

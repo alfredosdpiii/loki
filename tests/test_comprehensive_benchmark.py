@@ -167,6 +167,7 @@ class ComprehensiveBenchmarkTests(unittest.TestCase):
                 erlang_bin=Path("/chosen/erlang/bin"),
                 golangci=Path("/chosen/go/golangci-lint"),
                 python_tools=Path("/chosen/python/bin"),
+                loki_daemon=False,
             )
             with patch.dict(
                 "os.environ",
@@ -175,6 +176,7 @@ class ComprehensiveBenchmarkTests(unittest.TestCase):
             ):
                 sandbox = comprehensive.Sandbox(root, args)
             self.assertNotIn("AUTH_TOKEN", sandbox.env)
+            self.assertEqual("0", sandbox.env["LOKI_DAEMON"])
             paths = sandbox.env["PATH"].split(":")
             self.assertLess(paths.index("/chosen/erlang/bin"), paths.index("/usr/bin"))
 

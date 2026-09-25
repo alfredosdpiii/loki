@@ -7,6 +7,7 @@ import argparse
 import ast
 import difflib
 import fnmatch
+import io
 import json
 import os
 import re
@@ -1722,89 +1723,150 @@ def annotated_python(text: str) -> bool:
     return False
 
 
+def possibly_existing(keys: Iterable[tuple], texts: dict[str, str]) -> bool:
+    """Whether any finding's source line also appears in its committed text.
+
+    Fingerprints include the line text, so a finding on a line absent from the
+    base cannot be old debt; only otherwise is a base analysis run needed.
+    """
+    lines: dict[str, set[str]] = {}
+    for key in keys:
+        path, text = key[0], key[-1]
+        if not text:
+            return True
+        if path not in lines:
+            lines[path] = {line.strip() for line in texts.get(path, "").splitlines()}
+        if text in lines[path]:
+            return True
+    return False
+
+
+def mypy_binary(root: Path) -> str | None:
+    local = root / ".venv/bin/mypy"
+    return str(local) if local.is_file() else shutil.which("mypy")
+
+
+def mypy_state(root: Path) -> Path:
+    import hashlib
+
+    identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
+    state = Path.home() / ".cache/loki/mypy" / identity
+    state.mkdir(parents=True, exist_ok=True)
+    config = state / "mypy.ini"
+    if not config.is_file():
+        config.write_text("[mypy]\n", encoding="utf-8")
+    return state
+
+
+def mypy_flags(state: Path, *, daemon: bool = False) -> list[str]:
+    """Fixed flags: the project cannot weaken this check from the working tree."""
+    return [
+        "--config-file",
+        str(state / "mypy.ini"),
+        "--cache-dir",
+        str(state / "cache"),
+        "--no-error-summary",
+        "--show-error-codes",
+        "--no-color-output",
+        "--hide-error-context",
+        "--no-pretty",
+        "--ignore-missing-imports",
+        # dmypy cannot follow imports silently; its extra reports are filtered.
+        f"--follow-imports={'normal' if daemon else 'silent'}",
+        "--explicit-package-bases",
+    ]
+
+
+def mypy_run(
+    root: Path,
+    paths: list[str],
+    *,
+    deadline: float | None,
+    shadows: list[str] | None = None,
+) -> str:
+    """mypy output for paths: the warm daemon when available, else a cold run."""
+    if MYPY_DAEMON is not None and not shadows:
+        command = [MYPY_DAEMON[0], "--status-file", str(MYPY_DAEMON[1]), "check"]
+        result = subprocess.run(
+            [*command, *paths],
+            cwd=root,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=command_timeout(deadline),
+            check=False,
+        )
+        if result.returncode in (0, 1):
+            return result.stdout
+    mypy = mypy_binary(root)
+    if mypy is None:
+        raise ValueError("mypy unavailable")
+    result = subprocess.run(
+        [mypy, *mypy_flags(mypy_state(root)), *(shadows or []), *paths],
+        cwd=root,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    if result.returncode not in (0, 1):
+        reason = (result.stderr or result.stdout).strip()
+        raise ValueError(reason or f"mypy exited {result.returncode}")
+    return result.stdout
+
+
+def mypy_errors(
+    output: str, contents: dict[str, str]
+) -> tuple[Counter[tuple], dict[tuple, int]]:
+    found: Counter[tuple] = Counter()
+    lines: dict[tuple, int] = {}
+    for line in output.splitlines():
+        if (match := MYPY_LINE_RE.match(line)) and match["path"] in contents:
+            number = int(match["line"])
+            key = (
+                match["path"],
+                match["code"] or "misc",
+                match["message"],
+                line_text(contents[match["path"]], number),
+            )
+            found[key] += 1
+            lines.setdefault(key, number)
+    return found, lines
+
+
 def mypy_violations(
     root: Path, paths: list[str], *, deadline: float | None = None
 ) -> list[str]:
     """Net-new mypy errors in written files, against their committed text."""
-    import hashlib
     import tempfile
 
-    local = root / ".venv/bin/mypy"
-    mypy = str(local) if local.is_file() else shutil.which("mypy")
-    if not mypy or not paths:
+    if not paths or mypy_binary(root) is None:
         return []
     after = {name: (root / name).read_text(encoding="utf-8") for name in paths}
     # Unannotated code is mostly skipped by mypy's defaults; avoid a cold start.
     if not any(annotated_python(text) for text in after.values()):
         return []
-    identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
-    with tempfile.TemporaryDirectory(prefix="loki-mypy-") as directory:
-        work = Path(directory)
-        # Fixed flags: the project cannot weaken this check from the working tree.
-        (work / "mypy.ini").write_text("[mypy]\n", encoding="utf-8")
-        command = [
-            mypy,
-            "--config-file",
-            str(work / "mypy.ini"),
-            "--cache-dir",
-            str(Path.home() / ".cache/loki/mypy" / identity),
-            "--no-error-summary",
-            "--show-error-codes",
-            "--no-color-output",
-            "--hide-error-context",
-            "--no-pretty",
-            "--ignore-missing-imports",
-            "--follow-imports=silent",
-            "--explicit-package-bases",
-        ]
-
-        def errors(
-            extra: list[str], contents: dict[str, str]
-        ) -> tuple[Counter[tuple], dict[tuple, int]]:
-            result = subprocess.run(
-                [*command, *extra, *paths],
-                cwd=root,
-                capture_output=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=command_timeout(deadline),
-                check=False,
-            )
-            if result.returncode not in (0, 1):
-                reason = (result.stderr or result.stdout).strip()
-                raise ValueError(reason or f"mypy exited {result.returncode}")
-            found: Counter[tuple] = Counter()
-            lines: dict[tuple, int] = {}
-            for line in result.stdout.splitlines():
-                if (match := MYPY_LINE_RE.match(line)) and match["path"] in contents:
-                    number = int(match["line"])
-                    key = (
-                        match["path"],
-                        match["code"] or "misc",
-                        match["message"],
-                        line_text(contents[match["path"]], number),
-                    )
-                    found[key] += 1
-                    lines.setdefault(key, number)
-            return found, lines
-
-        current, numbers = errors([], after)
-        if not current:
-            return []
-        before, shadows = {}, []
-        for index, name in enumerate(paths):
-            before[name] = head_text(root, name, deadline=deadline)
-            shadow = work / f"{index}.py"
-            shadow.write_text(before[name], encoding="utf-8")
-            shadows.extend(["--shadow-file", name, str(shadow)])
-        violations = []
-        for key, count in (current - errors(shadows, before)[0]).items():
-            name, code, message, _ = key
-            evidence_finding(f"mypy:{code}", name)
-            violations.extend(
-                [f"{name}:{numbers[key]}: mypy[{code}]: {message}"] * count
-            )
-        return violations[:MAX_VIOLATIONS]
+    current, numbers = mypy_errors(mypy_run(root, paths, deadline=deadline), after)
+    if not current:
+        return []
+    before = {name: head_text(root, name, deadline=deadline) for name in paths}
+    previous: Counter[tuple] = Counter()
+    if possibly_existing(current, before):
+        with tempfile.TemporaryDirectory(prefix="loki-mypy-") as directory:
+            shadows = []
+            for index, name in enumerate(paths):
+                shadow = Path(directory) / f"{index}.py"
+                shadow.write_text(before[name], encoding="utf-8")
+                shadows.extend(["--shadow-file", name, str(shadow)])
+            output = mypy_run(root, paths, deadline=deadline, shadows=shadows)
+            previous = mypy_errors(output, before)[0]
+    violations = []
+    for key, count in (current - previous).items():
+        name, code, message, _ = key
+        evidence_finding(f"mypy:{code}", name)
+        violations.extend([f"{name}:{numbers[key]}: mypy[{code}]: {message}"] * count)
+    return violations[:MAX_VIOLATIONS]
 
 
 def golangci_violations(
@@ -1853,16 +1915,20 @@ def cargo_project(path: Path, root: Path) -> Path | None:
     return None
 
 
-def clippy_diagnostics(
-    crate: Path, target: Path, *, deadline: float | None
-) -> list[tuple[tuple[str, str, str, str], int]]:
-    """Clippy/rustc warnings and errors: (file, code, message, line text), line."""
+def clippy_command(target: Path) -> list[str]:
     command = ["cargo", "clippy", "--offline", "--all-targets"]
     command += ["--message-format=json", "--target-dir", str(target), "--"]
     for lint in RUST_LINTS:
         command.extend(["-W", lint])
+    return command
+
+
+def clippy_diagnostics(
+    crate: Path, target: Path, *, deadline: float | None
+) -> list[tuple[tuple[str, str, str, str], int]]:
+    """Clippy/rustc warnings and errors: (file, code, message, line text), line."""
     result = subprocess.run(
-        command,
+        clippy_command(target),
         cwd=crate,
         capture_output=True,
         encoding="utf-8",
@@ -1908,8 +1974,6 @@ def clippy_violations(
     path: Path, root: Path, *, deadline: float | None = None
 ) -> list[str]:
     """Net-new Clippy and compiler diagnostics for the crate containing path."""
-    import tempfile
-
     crate = cargo_project(path, root)
     if crate is None or not shutil.which("cargo"):
         return []
@@ -1918,17 +1982,13 @@ def clippy_violations(
     if not current:
         return []
     prefix = crate.resolve().relative_to(root.resolve())
-    with tempfile.TemporaryDirectory(prefix="loki-clippy-") as directory:
-        base = Path(directory) / "base"
-        commit = git_output(
-            root, ["rev-parse", "--verify", "HEAD^{commit}"], deadline=deadline
-        )
-        materialize_base(root, commit.decode("ascii").strip(), base, deadline=deadline)
-        previous = (
-            clippy_diagnostics(base / prefix, target, deadline=deadline)
-            if (base / prefix / "Cargo.toml").is_file()
-            else []
-        )
+    texts = {
+        key[0]: head_text(root, (prefix / key[0]).as_posix(), deadline=deadline)
+        for key, _ in current
+    }
+    previous: list[tuple[tuple[str, str, str, str], int]] = []
+    if possibly_existing([key for key, _ in current], texts):
+        previous = clippy_base(root, prefix, target, deadline=deadline)
     # Line numbers shift between snapshots; match on the line's text instead.
     remaining = Counter(key for key, _ in previous)
     violations = []
@@ -1941,6 +2001,25 @@ def clippy_violations(
         evidence_finding(f"clippy:{code}", name)
         violations.append(f"{name}:{line}: {code}: {message}")
     return violations[:MAX_VIOLATIONS]
+
+
+def clippy_base(
+    root: Path, prefix: Path, target: Path, *, deadline: float | None
+) -> list[tuple[tuple[str, str, str, str], int]]:
+    """Diagnostics for the committed crate, built in a materialized snapshot."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="loki-clippy-") as directory:
+        base = Path(directory) / "base"
+        commit = git_output(
+            root, ["rev-parse", "--verify", "HEAD^{commit}"], deadline=deadline
+        )
+        materialize_base(root, commit.decode("ascii").strip(), base, deadline=deadline)
+        return (
+            clippy_diagnostics(base / prefix, target, deadline=deadline)
+            if (base / prefix / "Cargo.toml").is_file()
+            else []
+        )
 
 
 def oxlint_violations(
@@ -4052,6 +4131,8 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("--strict", action="store_true")
     scan_parser.add_argument("--base")
     scan_parser.add_argument("--ruff-new", action="store_true")
+    daemon = subparsers.add_parser("daemon")
+    daemon.add_argument("action", choices=("serve", "start", "stop", "status"))
     init_parser = subparsers.add_parser("init")
     init_parser.add_argument("--force", action="store_true")
     init_parser.add_argument("--dir", default=".")
@@ -4131,6 +4212,8 @@ def dispatch_main() -> int:
         except (OSError, ValueError) as error:
             print(f"loki: Elixir analysis unavailable: {error}", file=sys.stderr)
             return 1
+    if args.command == "daemon":
+        return daemon_command(args.action, (args.root or DEFAULT_ROOT).resolve())
     if args.command == "verify-installation":
         findings = installation_violations(
             [args.engine, *args.registration], args.agent_uid
@@ -4978,84 +5061,162 @@ def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> N
 
 
 TYPESCRIPT_CHECKER = r"""
-const ts = require(process.argv[1]);
 const path = require('node:path');
-const root = process.argv[2];
-const configPath = path.join(root, 'tsconfig.json');
-const trusted = process.argv[3];
-const read = ts.readConfigFile(configPath, file => file === configPath && trusted
-  ? require('node:fs').readFileSync(trusted, 'utf8') : ts.sys.readFile(file));
-if (read.error) throw new Error(
-  ts.flattenDiagnosticMessageText(read.error.messageText, '\n'));
-const confined = file => {
-  const relative = path.relative(root, path.resolve(file));
-  if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative))
-    throw new Error('TypeScript configuration escapes isolated workspace');
-};
-const configHost = {...ts.sys,
-  readFile(file) { confined(file); return ts.sys.readFile(file); },
-  fileExists(file) { confined(file); return ts.sys.fileExists(file); }
-};
-const parsed = ts.parseJsonConfigFileContent(read.config, configHost, root,
-  {noEmit:true, incremental:false}, configPath);
-if (parsed.errors.length) throw new Error(parsed.errors.map(d =>
-  ts.flattenDiagnosticMessageText(d.messageText, '\n')).join('\n'));
-// Default type roots walk up past the repository; keep them inside it.
-if (parsed.options.typeRoots === undefined)
-  parsed.options.typeRoots = [path.join(root, 'node_modules', '@types')];
-const host = ts.createCompilerHost(parsed.options);
-const compilerRoot = path.dirname(path.dirname(path.resolve(process.argv[1])));
-const readable = file => {
-  const full = path.resolve(file);
-  if (full.startsWith(compilerRoot + path.sep)) return;
-  confined(full);
-};
-// Proposed contents for pre-write checks, keyed by absolute path; never written.
-const overrides = process.argv[4]
-  ? JSON.parse(require('node:fs').readFileSync(process.argv[4], 'utf8')) : {};
-const proposed = file => Object.hasOwn(overrides, path.resolve(file));
-const originalRead = host.readFile;
-const originalExists = host.fileExists;
-host.fileExists = file => {
-  if (proposed(file)) return true;
-  try { readable(file); } catch { return false; }
-  return originalExists(file);
-};
-host.readFile = file => {
-  if (proposed(file)) return overrides[path.resolve(file)];
-  readable(file);
-  return originalRead(file);
-};
-host.getSourceFile = (file, version) => {
-  const text = host.readFile(file);
-  return text === undefined ? undefined : ts.createSourceFile(file, text, version);
-};
-// New proposed files: match them against include/exclude from an empty shadow tree.
-const shadow = process.argv[5];
-if (shadow) {
-  try {
-    const extra = ts.parseJsonConfigFileContent(read.config, ts.sys, shadow,
-      {noEmit:true}, path.join(shadow, 'tsconfig.json'));
-    for (const file of extra.fileNames) {
-      const real = path.join(root, path.relative(shadow, file));
-      if (proposed(real) && !parsed.fileNames.includes(real)) parsed.fileNames.push(real);
-    }
-  } catch {
-    // Unmatched new files are reported as uncovered and checked after the write.
-  }
+const fs = require('node:fs');
+const compilers = new Map();
+const parsedFiles = new Map();
+
+function isThenable(checker, type) {
+  return (type.isUnion() ? type.types : [type]).some(part => {
+    const then = part.getProperty('then');
+    return then !== undefined && checker.getTypeOfSymbol(then).getCallSignatures().length > 0;
+  });
 }
-const program = ts.createProgram(parsed.fileNames, parsed.options, host);
-const uncovered = Object.keys(overrides).filter(file =>
-  /\.[cm]?tsx?$/.test(file) && !program.getSourceFile(file));
-const diagnostics = ts.getPreEmitDiagnostics(program).map(d => {
-  const file = d.file ? path.relative(root, d.file.fileName) : '';
-  const line = d.file && d.start !== undefined
-    ? d.file.getLineAndCharacterOfPosition(d.start).line : -1;
-  const text = line >= 0 ? d.file.text.split(/\r?\n/)[line].trim() : '';
-  return [file, d.code, ts.flattenDiagnosticMessageText(d.messageText, '\n'), text,
-    line];
-});
-console.log(JSON.stringify({diagnostics, uncovered}));
+
+// Type-aware findings that plain linters without type information cannot see.
+function semanticFindings(ts, program, root) {
+  const checker = program.getTypeChecker();
+  const found = [];
+  for (const file of program.getSourceFiles()) {
+    const relative = path.relative(root, file.fileName);
+    if (file.isDeclarationFile || relative.startsWith('..') ||
+        relative.split(path.sep).includes('node_modules')) continue;
+    const visit = node => {
+      if (ts.isExpressionStatement(node)) {
+        const expression = node.expression;
+        const callee = ts.isCallExpression(expression) &&
+          ts.isPropertyAccessExpression(expression.expression)
+          ? expression.expression.name.text : '';
+        const handled = callee === 'catch' ||
+          (callee === 'then' && expression.arguments.length > 1);
+        if (!ts.isVoidExpression(expression) && !ts.isAwaitExpression(expression) &&
+            !handled && (ts.isCallExpression(expression) || ts.isNewExpression(expression)) &&
+            isThenable(checker, checker.getTypeAtLocation(expression))) {
+          found.push([file, node, 'loki/floating-promise',
+            'floating promise: this Promise is not awaited, returned, voided or ' +
+            'handled with .catch, so its rejection is lost']);
+        }
+      }
+      if (ts.isCallExpression(node) && node.arguments.length === 0 &&
+          ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.name.text === 'sort') {
+        const receiver = checker.getTypeAtLocation(node.expression.expression);
+        const element = checker.isArrayType(receiver)
+          ? checker.getTypeArguments(receiver)[0] : undefined;
+        if (element && (element.flags & (ts.TypeFlags.NumberLike | ts.TypeFlags.BigIntLike))) {
+          found.push([file, node, 'loki/numeric-sort',
+            'numeric array sorted without a comparator is ordered lexicographically ' +
+            '(10 before 9); pass (a, b) => a - b']);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+  }
+  return found.map(([file, node, code, message]) => {
+    const line = file.getLineAndCharacterOfPosition(node.getStart(file)).line;
+    return [path.relative(root, file.fileName), code, message,
+      file.text.split(/\r?\n/)[line].trim(), line];
+  });
+}
+
+function check(compilerPath, root, trusted, overridesPath, shadow) {
+  if (!compilers.has(compilerPath)) compilers.set(compilerPath, require(compilerPath));
+  const ts = compilers.get(compilerPath);
+  const configPath = path.join(root, 'tsconfig.json');
+  const read = ts.readConfigFile(configPath, file => file === configPath && trusted
+    ? fs.readFileSync(trusted, 'utf8') : ts.sys.readFile(file));
+  if (read.error) throw new Error(
+    ts.flattenDiagnosticMessageText(read.error.messageText, '\n'));
+  const confined = file => {
+    const relative = path.relative(root, path.resolve(file));
+    if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative))
+      throw new Error('TypeScript configuration escapes isolated workspace');
+  };
+  const configHost = {...ts.sys,
+    readFile(file) { confined(file); return ts.sys.readFile(file); },
+    fileExists(file) { confined(file); return ts.sys.fileExists(file); }
+  };
+  const parsed = ts.parseJsonConfigFileContent(read.config, configHost, root,
+    {noEmit:true, incremental:false}, configPath);
+  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>
+    ts.flattenDiagnosticMessageText(d.messageText, '\n')).join('\n'));
+  // Default type roots walk up past the repository; keep them inside it.
+  if (parsed.options.typeRoots === undefined)
+    parsed.options.typeRoots = [path.join(root, 'node_modules', '@types')];
+  const host = ts.createCompilerHost(parsed.options);
+  const compilerRoot = path.dirname(path.dirname(path.resolve(compilerPath)));
+  const readable = file => {
+    const full = path.resolve(file);
+    if (full.startsWith(compilerRoot + path.sep)) return;
+    confined(full);
+  };
+  // Proposed contents for pre-write checks, keyed by absolute path; never written.
+  const overrides = overridesPath ? JSON.parse(fs.readFileSync(overridesPath, 'utf8')) : {};
+  const proposed = file => Object.hasOwn(overrides, path.resolve(file));
+  const originalRead = host.readFile;
+  const originalExists = host.fileExists;
+  host.fileExists = file => {
+    if (proposed(file)) return true;
+    try { readable(file); } catch { return false; }
+    return originalExists(file);
+  };
+  host.readFile = file => {
+    if (proposed(file)) return overrides[path.resolve(file)];
+    readable(file);
+    return originalRead(file);
+  };
+  // A long-lived checker reuses parsed files, including the standard library.
+  host.getSourceFile = (file, version) => {
+    const text = host.readFile(file);
+    if (text === undefined) return undefined;
+    const key = `${version}\0${file}`;
+    const cached = parsedFiles.get(key);
+    if (cached !== undefined && cached.text === text) return cached;
+    if (parsedFiles.size > 20000) parsedFiles.clear();
+    const parsedFile = ts.createSourceFile(file, text, version);
+    parsedFiles.set(key, parsedFile);
+    return parsedFile;
+  };
+  // New proposed files: match them against include/exclude from an empty shadow tree.
+  if (shadow) {
+    try {
+      const extra = ts.parseJsonConfigFileContent(read.config, ts.sys, shadow,
+        {noEmit:true}, path.join(shadow, 'tsconfig.json'));
+      for (const file of extra.fileNames) {
+        const real = path.join(root, path.relative(shadow, file));
+        if (proposed(real) && !parsed.fileNames.includes(real)) parsed.fileNames.push(real);
+      }
+    } catch {
+      // Unmatched new files are reported as uncovered and checked after the write.
+    }
+  }
+  const program = ts.createProgram(parsed.fileNames, parsed.options, host);
+  const uncovered = Object.keys(overrides).filter(file =>
+    /\.[cm]?tsx?$/.test(file) && !program.getSourceFile(file));
+  const diagnostics = ts.getPreEmitDiagnostics(program).map(d => {
+    const file = d.file ? path.relative(root, d.file.fileName) : '';
+    const line = d.file && d.start !== undefined
+      ? d.file.getLineAndCharacterOfPosition(d.start).line : -1;
+    const text = line >= 0 ? d.file.text.split(/\r?\n/)[line].trim() : '';
+    return [file, d.code, ts.flattenDiagnosticMessageText(d.messageText, '\n'), text,
+      line];
+  });
+  return {diagnostics: [...diagnostics, ...semanticFindings(ts, program, root)], uncovered};
+}
+
+if (process.argv[1] === '--serve') {
+  const lines = require('node:readline').createInterface({input: process.stdin});
+  lines.on('line', line => {
+    const {id, args} = JSON.parse(line);
+    let reply;
+    try { reply = {id, result: check(...args)}; }
+    catch (error) { reply = {id, error: String(error && error.message || error)}; }
+    process.stdout.write(JSON.stringify(reply) + '\n');
+  });
+} else {
+  console.log(JSON.stringify(check(...process.argv.slice(1, 6))));
+}
 """
 
 
@@ -5068,11 +5229,16 @@ def typescript_diagnostics(
     shadow: Path | None = None,
 ) -> tuple[Counter[tuple], dict[tuple, int], list[str]]:
     """Diagnostics, their first lines, and proposed TypeScript files not checked."""
-    command = ["node", "-e", TYPESCRIPT_CHECKER, str(compiler.resolve())]
-    command += [str(workspace), str(trusted or ""), str(overrides or "")]
-    command += [str(shadow or "")]
+    arguments = [str(compiler.resolve()), str(workspace), str(trusted or "")]
+    arguments += [str(overrides or ""), str(shadow or "")]
+    worker = TYPESCRIPT_WORKERS.get(arguments[0])
+    if worker is not None:
+        try:
+            return typescript_report(worker.request(arguments, deadline))
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            TYPESCRIPT_WORKERS.pop(arguments[0], None)
     result = subprocess.run(
-        command,
+        ["node", "-e", TYPESCRIPT_CHECKER, *arguments],
         cwd=workspace,
         capture_output=True,
         encoding="utf-8",
@@ -5082,7 +5248,12 @@ def typescript_diagnostics(
     )
     if result.returncode:
         raise ValueError(f"typescript: checker unavailable: {result.stderr.strip()}")
-    report = json.loads(result.stdout)
+    return typescript_report(json.loads(result.stdout))
+
+
+def typescript_report(
+    report: dict[str, Any],
+) -> tuple[Counter[tuple], dict[tuple, int], list[str]]:
     found: Counter[tuple] = Counter()
     lines: dict[tuple, int] = {}
     for file, code, message, text, line in report["diagnostics"]:
@@ -5191,18 +5362,29 @@ def typescript_violations(
                 marker.parent.mkdir(parents=True, exist_ok=True)
                 marker.touch()
             return []
-        before = Path(directory) / "before"
-        materialize_base(root, base, before, deadline=deadline)
-        if (root / "node_modules").is_dir():
-            (before / "node_modules").symlink_to(
-                (root / "node_modules").resolve(), target_is_directory=True
-            )
-        previous, _, _ = typescript_diagnostics(compiler, before, None, deadline)
+        texts = {}
+        for name in {key[0] for key in after if key[0]}:
+            try:
+                texts[name] = git_output(
+                    root, ["show", f"{base}:{name}"], deadline=deadline
+                ).decode("utf-8", errors="replace")
+            except ValueError:
+                texts[name] = ""
+        previous: Counter[tuple] = Counter()
+        if possibly_existing(after, texts):
+            before = Path(directory) / "before"
+            materialize_base(root, base, before, deadline=deadline)
+            if (root / "node_modules").is_dir():
+                (before / "node_modules").symlink_to(
+                    (root / "node_modules").resolve(), target_is_directory=True
+                )
+            previous, _, _ = typescript_diagnostics(compiler, before, None, deadline)
         findings = []
         for key, count in (after - previous).items():
             path, code, message, _ = key
-            evidence_finding(f"typescript:TS{code}", path)
-            findings.extend([f"{path}:{lines[key]}: TS{code}: {message}"] * count)
+            evidence_finding(f"typescript:{code}", path)
+            label = code if isinstance(code, str) else f"TS{code}"
+            findings.extend([f"{path}:{lines[key]}: {label}: {message}"] * count)
         return findings
 
 
@@ -5471,5 +5653,379 @@ def read_events(root: Path, limit: int) -> list[dict[str, Any]]:
         return [json.loads(line) for line in deque(stream, maxlen=limit)]
 
 
+DAEMON_COMMANDS = {"protect", "hook", "shell"}
+DAEMON_IDLE_SECONDS = 30 * 60
+DAEMON_REQUEST_SECONDS = 60
+TYPESCRIPT_WORKERS: dict[str, CheckerWorker] = {}
+MYPY_DAEMON: tuple[str, Path] | None = None
+
+
+def engine_digest() -> str:
+    import hashlib
+
+    return hashlib.sha256(Path(__file__).resolve().read_bytes()).hexdigest()
+
+
+def daemon_paths(root: Path) -> tuple[Path, Path] | None:
+    """Socket and lock paths for a repository, or None when the path is too long."""
+    import hashlib
+
+    identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
+    directory = Path.home() / ".cache/loki/d"
+    socket_path = directory / identity
+    # sockaddr_un holds 108 bytes including the terminating NUL.
+    if len(os.fsencode(socket_path)) > 107:
+        return None
+    return socket_path, directory / f"{identity}.lock"
+
+
+def daemon_root(argv: list[str]) -> Path:
+    if "--root" in argv and argv.index("--root") + 1 < len(argv):
+        return Path(argv[argv.index("--root") + 1]).resolve()
+    return DEFAULT_ROOT.resolve()
+
+
+def daemon_client(argv: list[str]) -> int | None:
+    """Forward a hook to the repository's warm daemon; None means run locally.
+
+    The daemon only changes where the engine runs, never what it decides:
+    it must report the same engine digest, and any failure before a reply
+    falls back to the in-process path.
+    """
+    import socket
+
+    if os.environ.get("LOKI_DAEMON") == "0" or not DAEMON_COMMANDS & set(argv):
+        return None
+    root = daemon_root(argv)
+    paths = daemon_paths(root)
+    if paths is None:
+        return None
+    if not paths[0].exists():
+        daemon_autostart(root, paths)
+        return None
+    raw = sys.stdin.read() if "--harness" in argv or "--preview" in argv else ""
+    sys.stdin = io.StringIO(raw)
+    request = {
+        "engine": engine_digest(),
+        "argv": argv,
+        "stdin": raw,
+        "cwd": os.getcwd(),
+        "env": dict(os.environ),
+    }
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+            connection.settimeout(DAEMON_REQUEST_SECONDS)
+            connection.connect(str(paths[0]))
+            connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
+            connection.shutdown(socket.SHUT_WR)
+            reply = json.loads(receive_all(connection))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(reply, dict) or reply.get("stale") or "exit" not in reply:
+        return None
+    sys.stdout.write(reply["stdout"])
+    sys.stderr.write(reply["stderr"])
+    return int(reply["exit"])
+
+
+def receive_all(connection: Any) -> bytes:
+    chunks = []
+    while chunk := connection.recv(65536):
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def daemon_autostart(root: Path, paths: tuple[Path, Path]) -> None:
+    """Start one detached daemon for this repository; never block the hook."""
+    socket_path, lock = paths
+    try:
+        lock.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        try:
+            descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            if time.time() - lock.stat().st_mtime < 120:
+                return
+            lock.unlink(missing_ok=True)
+            descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(descriptor)
+        subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "--root", str(root)]
+            + ["daemon", "serve"],
+            cwd=root,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
+    except OSError:
+        return
+
+
+class CheckerWorker:
+    """A long-lived line-oriented JSON worker (the TypeScript checker server)."""
+
+    def __init__(self, command: list[str], cwd: Path) -> None:
+        self.process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        self.sequence = 0
+        # Raw reads with our own buffer: select() cannot see buffered file data.
+        self.pending = b""
+
+    def readline(self, deadline: float | None) -> bytes:
+        import select
+
+        if self.process.stdout is None:
+            raise ValueError("checker worker has no pipes")
+        descriptor = self.process.stdout.fileno()
+        while b"\n" not in self.pending:
+            ready, _, _ = select.select([descriptor], [], [], command_timeout(deadline))
+            if not ready:
+                raise subprocess.TimeoutExpired("checker worker", 0)
+            chunk = os.read(descriptor, 1 << 20)
+            if not chunk:
+                raise ValueError("checker worker exited")
+            self.pending += chunk
+        line, self.pending = self.pending.split(b"\n", 1)
+        return line
+
+    def request(self, arguments: list[str], deadline: float | None) -> Any:
+        if self.process.poll() is not None or self.process.stdin is None:
+            raise ValueError("checker worker exited")
+        self.sequence += 1
+        identity = f"{os.getpid()}-{self.sequence}"
+        message = json.dumps({"id": identity, "args": arguments}) + "\n"
+        try:
+            self.process.stdin.write(message.encode("utf-8"))
+            self.process.stdin.flush()
+        except BrokenPipeError as error:
+            raise ValueError("checker worker exited") from error
+        while True:
+            reply = json.loads(self.readline(deadline))
+            # Replies for abandoned requests (a killed request child) are skipped.
+            if reply.get("id") != identity:
+                continue
+            if "error" in reply:
+                raise ValueError(f"typescript: checker unavailable: {reply['error']}")
+            return reply["result"]
+
+    def close(self) -> None:
+        if self.process.poll() is None:
+            self.process.kill()
+            self.process.wait()
+
+
+def prewarm(root: Path) -> None:
+    """Load analyzers and fill build caches before the daemon accepts hooks."""
+    global MYPY_DAEMON
+    deadline = time.monotonic() + 120
+    compiler = typescript_compiler(root)
+    if compiler is not None and (root / "tsconfig.json").is_file():
+        worker = CheckerWorker(
+            ["node", "-e", TYPESCRIPT_CHECKER, "--", "--serve"], root
+        )
+        TYPESCRIPT_WORKERS[str(compiler.resolve())] = worker
+        try:
+            worker.request([str(compiler.resolve()), str(root), "", "", ""], deadline)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            print(
+                f"loki daemon: TypeScript worker unavailable: {error}", file=sys.stderr
+            )
+            worker.close()
+            TYPESCRIPT_WORKERS.clear()
+    local = root / ".venv/bin/mypy"
+    mypy = str(local) if local.is_file() else shutil.which("mypy")
+    dmypy = Path(mypy).with_name("dmypy") if mypy else None
+    if dmypy is not None and dmypy.is_file():
+        state = mypy_state(root)
+        status = state / "dmypy.json"
+        start = [str(dmypy), "--status-file", str(status), "start", "--"]
+        result = subprocess.run(
+            [*start, *mypy_flags(state, daemon=True)],
+            cwd=root,
+            capture_output=True,
+            timeout=command_timeout(deadline),
+            check=False,
+        )
+        if result.returncode:
+            print(f"loki daemon: dmypy unavailable: {result.stderr!r}", file=sys.stderr)
+        else:
+            MYPY_DAEMON = (str(dmypy), status)
+            sources = [
+                path.relative_to(root).as_posix()
+                for path in iter_source_files(root)
+                if path.suffix == ".py"
+            ][:200]
+            if sources:
+                mypy_run(root, sources, deadline=deadline)
+    warmers = []
+    if (root / "go.mod").is_file() and shutil.which("go"):
+        warmers.append(["go", "vet", "./..."])
+        if shutil.which("golangci-lint"):
+            warmers.append(["golangci-lint", "run", "./..."])
+    if (root / "Cargo.toml").is_file() and shutil.which("cargo"):
+        warmers.append(clippy_command(root / "target"))
+    for command in warmers:
+        try:
+            subprocess.run(
+                command,
+                cwd=root,
+                capture_output=True,
+                timeout=command_timeout(deadline),
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            break
+
+
+def daemon_stop_workers() -> None:
+    for worker in TYPESCRIPT_WORKERS.values():
+        worker.close()
+    TYPESCRIPT_WORKERS.clear()
+    if MYPY_DAEMON is not None:
+        subprocess.run(
+            [MYPY_DAEMON[0], "--status-file", str(MYPY_DAEMON[1]), "kill"],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+
+
+def peer_uid(connection: Any) -> int | None:
+    import socket
+    import struct
+
+    option = getattr(socket, "SO_PEERCRED", None)
+    if option is None:
+        return None
+    raw = connection.getsockopt(socket.SOL_SOCKET, option, struct.calcsize("3i"))
+    return struct.unpack("3i", raw)[1]
+
+
+def daemon_request(request: dict[str, Any]) -> dict[str, Any]:
+    """Run one hook invocation in this (forked) process, capturing its output."""
+    import contextlib
+
+    os.chdir(request["cwd"])
+    os.environ.clear()
+    os.environ.update(request["env"])
+    sys.argv = ["loki", *request["argv"]]
+    sys.stdin = io.StringIO(request["stdin"])
+    stdout, stderr = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        try:
+            status = main()
+        except SystemExit as error:
+            status = error.code if isinstance(error.code, int) else 2
+        except Exception as error:
+            print(
+                f"loki: daemon error: {type(error).__name__}: {error}", file=sys.stderr
+            )
+            status = 2
+    return {"exit": status, "stdout": stdout.getvalue(), "stderr": stderr.getvalue()}
+
+
+def daemon_command(action: str, root: Path) -> int:
+    """serve runs in the foreground; start, stop and status manage it."""
+    import socket
+
+    if action == "serve":
+        return daemon_serve(root)
+    paths = daemon_paths(root)
+    if paths is None:
+        print("loki: daemon unavailable: socket path too long", file=sys.stderr)
+        return 1
+    running = False
+    if paths[0].exists():
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+                probe.settimeout(2)
+                probe.connect(str(paths[0]))
+                if action == "stop":
+                    probe.sendall(b'{"engine": "stop"}')
+            running = True
+        except OSError:
+            running = False
+    if action == "start" and not running:
+        daemon_autostart(root, paths)
+    print(f"loki daemon: {'running' if running else 'not running'} ({paths[0]})")
+    return 0
+
+
+def daemon_serve(root: Path) -> int:
+    import socket
+
+    paths = daemon_paths(root)
+    if paths is None:
+        print("loki: daemon socket path too long", file=sys.stderr)
+        return 1
+    socket_path, lock = paths
+    socket_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if socket_path.parent.stat().st_uid != os.getuid():
+        print("loki: daemon directory is not owned by this user", file=sys.stderr)
+        return 1
+    engine = engine_digest()
+    try:
+        prewarm(root)
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        socket_path.unlink(missing_ok=True)
+        server.bind(str(socket_path))
+        socket_path.chmod(0o600)
+        server.listen(16)
+        server.settimeout(30)
+        idle_since = time.monotonic()
+        while root.is_dir() and engine_digest() == engine:
+            try:
+                connection, _ = server.accept()
+            except TimeoutError:
+                if time.monotonic() - idle_since > DAEMON_IDLE_SECONDS:
+                    break
+                continue
+            idle_since = time.monotonic()
+            with connection:
+                connection.settimeout(DAEMON_REQUEST_SECONDS)
+                uid = peer_uid(connection)
+                if uid is not None and uid != os.getuid():
+                    continue
+                try:
+                    request = json.loads(receive_all(connection))
+                except (OSError, ValueError):
+                    continue
+                if request.get("engine") != engine:
+                    connection.sendall(b'{"stale": true}')
+                    break
+                daemon_dispatch(connection, request)
+    finally:
+        daemon_stop_workers()
+        socket_path.unlink(missing_ok=True)
+        lock.unlink(missing_ok=True)
+    return 0
+
+
+def daemon_dispatch(connection: Any, request: dict[str, Any]) -> None:
+    """Serve one request in a forked child; the parent keeps warm state intact."""
+    pid = os.fork()
+    if pid == 0:
+        try:
+            reply = daemon_request(request)
+            connection.sendall(json.dumps(reply).encode("utf-8"))
+        finally:
+            os._exit(0)
+    limit = time.monotonic() + DAEMON_REQUEST_SECONDS
+    while time.monotonic() < limit:
+        done, _ = os.waitpid(pid, os.WNOHANG)
+        if done:
+            return
+        time.sleep(0.002)
+    os.kill(pid, 9)
+    os.waitpid(pid, 0)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    status = daemon_client(sys.argv[1:])
+    raise SystemExit(main() if status is None else status)

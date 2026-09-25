@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE = ROOT / "loki.py"
+
+# Hook subprocesses must not leave per-repository daemons behind;
+# tests/test_daemon.py enables them explicitly.
+os.environ["LOKI_DAEMON"] = "0"
 
 if "loki" not in sys.modules:
     spec = importlib.util.spec_from_file_location("loki", ENGINE)

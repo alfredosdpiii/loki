@@ -197,6 +197,7 @@ class Sandbox:
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
             "INTERLINKED_SYNC_MODE": "local",
+            "LOKI_DAEMON": "1" if args.loki_daemon else "0",
             "CARGO_NET_OFFLINE": "true",
             "CARGO_HOME": os.environ.get("CARGO_HOME", str(Path.home() / ".cargo")),
             "RUSTUP_HOME": os.environ.get("RUSTUP_HOME", str(Path.home() / ".rustup")),
@@ -571,6 +572,32 @@ def evaluate_trial(case, product, profile, args, repetition):
                     start_new_session=True,
                 )
                 compare_hooks.wait_for_socket(sock, daemon)
+            elif args.loki_daemon:
+                # Same treatment as Interlinked: started and warmed during setup.
+                identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
+                sock = parent / "home/.cache/loki/d" / identity
+                daemon = subprocess.Popen(
+                    sandbox.command(
+                        [
+                            sys.executable,
+                            root / ".loki/loki.py",
+                            "--root",
+                            root,
+                            "daemon",
+                            "serve",
+                        ]
+                    ),
+                    cwd=root,
+                    env=sandbox.env,
+                    stdout=log,
+                    stderr=log,
+                    start_new_session=True,
+                )
+                try:
+                    compare_hooks.wait_for_socket(sock, daemon, seconds=180)
+                except RuntimeError as error:
+                    log.seek(0)
+                    raise RuntimeError(f"{error}: {log.read()[-2000:]}") from error
             warmups = []
             if repetition:
                 status_step = corpus.step(
@@ -822,6 +849,11 @@ def main():
         help="Also run independent Go/Rust audit commands",
     )
     parser.add_argument(
+        "--loki-daemon",
+        action="store_true",
+        help="Start Loki's warm daemon during setup, as Interlinked's is started",
+    )
+    parser.add_argument(
         "--competitor-revision",
         default=compare_hooks.PIN,
         help="Expected Interlinked commit; recorded in the manifest",
@@ -893,6 +925,7 @@ def main():
             "seed": args.seed,
             "case_filter": args.case,
             "competitor_revision": revision,
+            "loki_daemon": args.loki_daemon,
             "argv": sys.argv,
             "versions": versions(args),
             "machine": {
