@@ -23,10 +23,15 @@ def main():
     source = Path(__file__).resolve().parents[1] / "loki.py"
     events = []
     started = time.time()
+
+    def require(result, message):
+        if result.returncode != 0:
+            raise RuntimeError(f"{message}: {result.stderr}")
+
     with tempfile.TemporaryDirectory(prefix="loki-dogfood-") as directory:
         root = Path(directory)
-        assert run(["git", "init"], root).returncode == 0
-        assert (
+        require(run(["git", "init"], root), "git init failed")
+        require(
             run(
                 [
                     sys.executable,
@@ -37,23 +42,12 @@ def main():
                     "--shell-guard",
                 ],
                 root,
-            ).returncode
-            == 0
+            ),
+            "loki init failed",
         )
         (root / "app.py").write_text("def answer():\n    return 42\n")
-        assert run(["git", "add", "."], root).returncode == 0
-        assert (
-            run(
-                [
-                    "git",
-                    "commit",
-                    "-m",
-                    "fixture baseline",
-                ],
-                root,
-            ).returncode
-            == 0
-        )
+        require(run(["git", "add", "."], root), "git add failed")
+        require(run(["git", "commit", "-m", "fixture baseline"], root), "commit failed")
         engine = root / ".loki/loki.py"
         for label, content, expected in [
             ("valid change", "def answer():\n    return 43\n", 0),
@@ -63,7 +57,7 @@ def main():
             pre = run(
                 [sys.executable, str(engine), "protect", "--file", "app.py"], root
             )
-            assert pre.returncode == 0
+            require(pre, f"pre-write check failed for {label}")
             (root / "app.py").write_text(content)
             tick = time.monotonic()
             result = run(
@@ -78,7 +72,10 @@ def main():
                     "diagnostic": result.stderr,
                 }
             )
-            assert result.returncode == expected, result.stderr
+            if result.returncode != expected:
+                raise RuntimeError(
+                    f"{label}: exit {result.returncode}: {result.stderr}"
+                )
     report = {
         "started": started,
         "finished": time.time(),

@@ -3342,8 +3342,10 @@ SLOP_EXCLUDED_DIRECTORIES = {
 
 
 def slop_included(path: str) -> bool:
-    """Vendored, generated and build-output code is not the project's own debt."""
+    """Vendored, generated, build-output and Loki-owned code is not project debt."""
     parts = Path(path).parts
+    if any(path_matches(path, pattern) for pattern in PROTECTED_PATHS):
+        return False
     return not SLOP_EXCLUDED_DIRECTORIES & set(parts[:-1]) and not re.search(
         r"\.(?:min|generated|pb|g)\.[\w]+$|_pb2\.py$", path
     )

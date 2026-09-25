@@ -238,6 +238,8 @@ class IndexTests(unittest.TestCase):
                 "src/other.py": repeated("beta"),
                 "tests/test_app.py": branchy("hidden", 30),
                 "vendor/lib.py": branchy("vendored", 30),
+                ".pi/extensions/loki.ts": branchy("adapter", 30, "typescript"),
+                ".loki/loki.py": branchy("engine", 30),
             }
             report = loki.slop_measure(root, files)
         self.assertEqual(1, report["metrics"]["eroded_functions"])
