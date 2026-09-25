@@ -26,7 +26,7 @@ class InstalledHookTests(unittest.TestCase):
             self.assertEqual("Execute", shell[0]["matcher"])
 
     def run_handler(self, command, root, payload=None):
-        return subprocess.run(  # noqa: S603 - installed fixture hook command
+        return subprocess.run(
             ["/bin/sh", "-c", command],
             cwd=root / "nested",
             env={**os.environ, "FACTORY_PROJECT_DIR": str(root)},

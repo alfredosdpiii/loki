@@ -108,7 +108,7 @@ CONTENT_CONTROLS = [
 
 
 def run(command, root, *, env=None, input=None, required=False):
-    result = subprocess.run(  # noqa: S603 - fixture-only commands
+    result = subprocess.run(
         command,
         cwd=root,
         env=env,
@@ -264,7 +264,7 @@ def compare(
         sock.parent.mkdir(exist_ok=True)
         env["INTERLINKED_SOCKET"] = str(sock)
         with (parent / "daemon.log").open("w+") as log:
-            daemon = subprocess.Popen(  # noqa: S603 - built local benchmark daemon
+            daemon = subprocess.Popen(
                 [
                     str(node),
                     str(checkout / "dist/harness/server.js"),

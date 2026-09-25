@@ -384,7 +384,7 @@ def probe(host, binary, enabled):
         root.mkdir()
         home.mkdir()
         (home / "runtime").mkdir(mode=0o700)
-        subprocess.run(  # noqa: S603 - trusted local installer in new fixture
+        subprocess.run(
             [sys.executable, str(SOURCE / "loki.py"), "init", "--dir", str(root)],
             check=True,
             capture_output=True,
@@ -400,7 +400,7 @@ def probe(host, binary, enabled):
         started = time.monotonic()
         version_text = ""
         try:
-            version = subprocess.run(  # noqa: S603 - isolated known host binary
+            version = subprocess.run(
                 [binary, "--version"],
                 cwd=root,
                 env=env,
@@ -410,7 +410,7 @@ def probe(host, binary, enabled):
                 check=False,
             )
             version_text = version.stdout.strip()
-            result = subprocess.run(  # noqa: S603 - isolated host against loopback
+            result = subprocess.run(
                 command,
                 cwd=root,
                 env=env,

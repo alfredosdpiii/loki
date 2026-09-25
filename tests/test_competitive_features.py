@@ -42,7 +42,7 @@ class CompetitiveFeaturesTests(unittest.TestCase):
                     }
                 )
             )
-            result = subprocess.run(  # noqa: S603 - local fixture CLI
+            result = subprocess.run(
                 [
                     sys.executable,
                     str(Path(loki.__file__).resolve()),
@@ -118,7 +118,7 @@ class CompetitiveFeaturesTests(unittest.TestCase):
             base = git(root, "rev-parse", "HEAD").decode().strip()
             (root / ".loki/loki.json").write_text("{}")
             (root / "oracle.txt").write_text("weakened")
-            result = subprocess.run(  # noqa: S603 - local fixture CLI
+            result = subprocess.run(
                 [
                     sys.executable,
                     str(Path(loki.__file__).resolve()),

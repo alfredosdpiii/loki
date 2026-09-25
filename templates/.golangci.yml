@@ -12,6 +12,7 @@ linters:
     - errorlint
     - nilerr
     - durationcheck
+    - gosec
   settings:
     errcheck:
       check-type-assertions: true
@@ -20,3 +21,6 @@ linters:
       errorf: true
       asserts: true
       comparison: true
+    gosec:
+      # Duplicate of errcheck, permission and math/rand checks are too noisy to block.
+      excludes: [G104, G301, G302, G306, G404]

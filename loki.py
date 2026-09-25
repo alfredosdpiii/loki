@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 import tomllib
+from collections import Counter
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
@@ -130,6 +131,7 @@ ECOSYSTEM_MANIFEST = {
 COMMAND_GROUPS = ("contract", "property", "differential", "mutation")
 RULE_PACKS = ("core", "python", "typescript", "phoenix", "shell")
 SECURITY_LEVELS = ("none", "low", "medium", "high")
+TYPESCRIPT_SUFFIXES = {".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"}
 JS_PREVIEW_RULES = (
     "no-empty",
     "no-async-promise-executor",
@@ -508,7 +510,7 @@ def run_command(
     command: list[str], root: Path, label: str, *, deadline: float | None = None
 ) -> list[str]:
     try:
-        result = subprocess.run(  # noqa: S603 - validated policy argv; no shell
+        result = subprocess.run(
             command,
             cwd=root,
             capture_output=True,
@@ -637,12 +639,769 @@ def python_ast_violations(
     return violations[:MAX_VIOLATIONS]
 
 
+JS_REGEX_PRECEDERS = set("(,=:[!&|?{};+-*%<>~^")
+JS_REGEX_KEYWORDS = {
+    "return",
+    "typeof",
+    "instanceof",
+    "in",
+    "of",
+    "new",
+    "delete",
+    "void",
+    "throw",
+    "case",
+    "do",
+    "else",
+    "yield",
+    "await",
+}
+AUTHORIZATION_KEY_RE = re.compile(
+    r"[a-z_]*?(?:admin|superuser|super_user|staff|role|roles|permission|"
+    r"permissions|privilege|privileges|scope|scopes|authorized|authorised)"
+    r"[a-z_?]*",
+    re.I,
+)
+TEST_FRAMEWORKS = {
+    "vitest",
+    "jest",
+    "@jest/globals",
+    "mocha",
+    "node:test",
+    "bun:test",
+    "ava",
+    "tap",
+}
+TEST_FUNCTIONS = ("describe", "it", "test", "suite", "context", "bench")
+REQUEST_NAMES = {"request", "req", "params", "query_params", "form", "cookies"}
+SERVER_ATTRIBUTES = {"user", "session", "auth", "state", "identity", "principal"}
+ELIXIR_HTTP_CALL_RE = re.compile(
+    r"(?<![\w.]):(?:httpc|hackney)\.request\s*\(|"
+    r"(?<![\w.])(?:HTTPoison|Req|Tesla)\.(?:get|post|put|patch|delete|head|"
+    r"options|request|new)!?\s*\(|(?<![\w.])Finch\.build\s*\(|"
+    r"(?<![\w.])Mint\.HTTP\.connect\s*\("
+)
+CONTENT_RULE_LANGUAGES = {"typescript", "python", "elixir", "rust"}
+OPEN_REDIRECT = (
+    "open redirect: unvalidated navigation target; check it against an "
+    "allowlist of paths or origins"
+)
+Finding = tuple[str, str, int]
+
+
+def blank(chars: list[str], start: int, end: int) -> None:
+    for index in range(start, min(end, len(chars))):
+        if chars[index] != "\n":
+            chars[index] = " "
+
+
+def closing_quote(text: str, start: int, quote: str, multiline: bool) -> int:
+    """Index of the closing quote, or where an unterminated literal stops."""
+    index = start
+    while index < len(text):
+        char = text[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == quote or (char == "\n" and not multiline):
+            return index
+        index += 1
+    return len(text)
+
+
+def comment_end(text: str, index: int) -> int | None:
+    """End of a // or /* comment starting at index, if one starts there."""
+    pair = text[index : index + 2]
+    if pair == "//":
+        end = text.find("\n", index)
+        return len(text) if end < 0 else end
+    if pair == "/*":
+        end = text.find("*/", index + 2)
+        return len(text) if end < 0 else end + 2
+    return None
+
+
+def mask_javascript(text: str) -> str:
+    """Blank comments and literal contents; quotes and offsets stay in place."""
+    chars = list(text)
+    index, previous, word = 0, "", ""
+    while index < len(text):
+        char = text[index]
+        if (end := comment_end(text, index)) is not None:
+            blank(chars, index, end)
+            index = end
+            continue
+        if char in "'\"`":
+            end = closing_quote(text, index + 1, char, char == "`")
+            blank(chars, index + 1, end)
+            index, previous, word = end + 1, char, ""
+            continue
+        if char == "/" and (
+            not previous or previous in JS_REGEX_PRECEDERS or word in JS_REGEX_KEYWORDS
+        ):
+            end, in_class = index + 1, False
+            while end < len(text) and text[end] != "\n":
+                if text[end] == "\\":
+                    end += 2
+                    continue
+                if text[end] == "/" and not in_class:
+                    break
+                if text[end] in "[]":
+                    in_class = text[end] == "["
+                end += 1
+            blank(chars, index + 1, end)
+            index, previous, word = end + 1, "/", ""
+            continue
+        if char.isalnum() or char in "_$":
+            word = word + char if previous == "word" else char
+            previous = "word"
+        elif not char.isspace():
+            previous, word = char, ""
+        index += 1
+    return "".join(chars)
+
+
+def mask_elixir(text: str) -> str:
+    chars = list(text)
+    closers = {"(": ")", "[": "]", "{": "}", "<": ">"}
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "#":
+            end = text.find("\n", index)
+            end = len(text) if end < 0 else end
+            blank(chars, index, end)
+            index = end
+            continue
+        if (
+            char == "?"
+            and index + 1 < len(text)
+            and (
+                index == 0
+                or not (text[index - 1].isalnum() or text[index - 1] in "_?!")
+            )
+        ):
+            width = 3 if text[index + 1] == "\\" else 2
+            blank(chars, index + 1, index + width)
+            index += width
+            continue
+        if char == "~" and index + 2 < len(text) and text[index + 1].isalpha():
+            index += 2
+        elif char not in "\"'":
+            index += 1
+            continue
+        opener = text[index]
+        triple = text[index : index + 3]
+        if triple in ('"""', "'''"):
+            end = text.find(triple, index + 3)
+            end = len(text) if end < 0 else end
+            blank(chars, index + 3, end)
+            index = end + 3
+            continue
+        end = closing_quote(text, index + 1, closers.get(opener, opener), True)
+        blank(chars, index + 1, end)
+        index = end + 1
+    return "".join(chars)
+
+
+def mask_rust(text: str) -> str:
+    chars = list(text)
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if text.startswith("/*", index):
+            depth, end = 1, index + 2
+            while end < len(text) and depth:
+                step = text[end : end + 2]
+                depth += {"/*": 1, "*/": -1}.get(step, 0)
+                end += 2 if step in ("/*", "*/") else 1
+            blank(chars, index, end)
+            index = end
+            continue
+        if (end := comment_end(text, index)) is not None:
+            blank(chars, index, end)
+            index = end
+            continue
+        identifier = index and (text[index - 1].isalnum() or text[index - 1] == "_")
+        raw = None if identifier else re.match(r'b?r(#*)"', text[index:])
+        if raw:
+            start = index + raw.end()
+            end = text.find('"' + raw.group(1), start)
+            end = len(text) if end < 0 else end
+            blank(chars, start, end)
+            index = end + 1 + len(raw.group(1))
+            continue
+        if char == '"':
+            end = closing_quote(text, index + 1, '"', True)
+            blank(chars, index + 1, end)
+            index = end + 1
+            continue
+        literal = char == "'" and re.match(
+            r"'(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\\'\n])'", text[index:]
+        )
+        if literal:
+            blank(chars, index + 1, index + literal.end() - 1)
+            index += literal.end()
+            continue
+        index += 1
+    return "".join(chars)
+
+
+def matching_close(masked: str, start: int) -> int:
+    """Index just past the bracket closing masked[start], or the text end."""
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    stack: list[str] = []
+    for index in range(start, len(masked)):
+        char = masked[index]
+        if char in pairs:
+            stack.append(pairs[char])
+        elif stack and char == stack[-1]:
+            stack.pop()
+            if not stack:
+                return index + 1
+    return len(masked)
+
+
+def split_arguments(masked: str, start: int) -> list[tuple[int, int]]:
+    """Top-level argument spans inside the parenthesis at masked[start]."""
+    end = matching_close(masked, start) - 1
+    spans, depth, begin = [], 0, start + 1
+    for index in range(start + 1, end):
+        char = masked[index]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == "," and not depth:
+            spans.append((begin, index))
+            begin = index + 1
+    if masked[begin:end].strip():
+        spans.append((begin, end))
+    return spans
+
+
+def expression_end(masked: str, start: int) -> int:
+    depth = 0
+    for index in range(start, len(masked)):
+        char = masked[index]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            if not depth:
+                return index
+            depth -= 1
+        elif not depth and (char in ";\n," or masked.startswith("=>", index)):
+            return index
+    return len(masked)
+
+
+def javascript_literal(text: str, masked: str, start: int, end: int) -> str | None:
+    """Constant text of a single string-literal expression, else None."""
+    value = masked[start:end].strip()
+    if len(value) < 2 or value[0] not in "'\"`" or value[-1] != value[0]:
+        return None
+    if value[1:-1].strip():
+        return None
+    offset = masked.index(value[0], start)
+    literal = text[offset + 1 : offset + len(value) - 1]
+    return None if value[0] == "`" and "${" in literal else literal
+
+
+def fixed_origin(text: str, masked: str, start: int, end: int) -> bool:
+    """True when a leading literal pins navigation to a same-origin path or host."""
+    if javascript_literal(text, masked, start, end) is not None:
+        return True
+    value = masked[start:end].lstrip()
+    if not value or value[0] not in "'\"`":
+        return False
+    offset = masked.index(value[0], start)
+    prefix = text[offset + 1 : closing_quote(text, offset + 1, value[0], True)]
+    prefix = prefix.split("${", 1)[0]
+    return bool(re.match(r"/(?!/)|[#?]|[a-z][a-z0-9+.-]*://[^/\s]+/", prefix, re.I))
+
+
+def javascript_rules(text: str) -> list[Finding]:
+    masked = mask_javascript(text)
+    findings: list[Finding] = []
+    for match in re.finditer(r"\.\s*(innerHTML|outerHTML)\s*\+?=(?!=)", masked):
+        end = expression_end(masked, match.end())
+        if javascript_literal(text, masked, match.end(), end) is None:
+            findings.append(
+                (
+                    "loki/unsanitized-html",
+                    f"cross-site scripting (XSS): non-literal HTML assigned to "
+                    f"{match.group(1)}; use textContent or a sanitizer",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(
+        r"\.\s*(insertAdjacentHTML)\s*\(|(?<![\w$.])document\s*\.\s*(writeln|write)"
+        r"\s*\(",
+        masked,
+    ):
+        arguments = split_arguments(masked, match.end() - 1)
+        position = 1 if match.group(1) else 0
+        if len(arguments) > position and (
+            javascript_literal(text, masked, *arguments[position]) is None
+        ):
+            sink = match.group(1) or f"document.{match.group(2)}"
+            findings.append(
+                (
+                    "loki/unsanitized-html",
+                    f"cross-site scripting (XSS): non-literal HTML passed to {sink}",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(
+        r"dangerouslySetInnerHTML\s*=\s*\{\s*\{\s*__html\s*:", masked
+    ):
+        end = expression_end(masked, match.end())
+        if javascript_literal(text, masked, match.end(), end) is None:
+            findings.append(
+                (
+                    "loki/unsanitized-html",
+                    "cross-site scripting (XSS): non-literal dangerouslySetInnerHTML",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(
+        r"(?<![\w$.])(?:(?:window|document|self|top)\s*\.\s*)?location"
+        r"(?:\s*\.\s*href)?\s*=(?!=)",
+        masked,
+    ):
+        declaration = re.search(r"\b(?:const|let|var)\s*$", masked[: match.start()])
+        if not declaration and not fixed_origin(
+            text, masked, match.end(), expression_end(masked, match.end())
+        ):
+            findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
+    for match in re.finditer(
+        r"(?<![\w$])location\s*\.\s*(?:assign|replace)\s*\(", masked
+    ):
+        arguments = split_arguments(masked, match.end() - 1)
+        if arguments and not fixed_origin(text, masked, *arguments[0]):
+            findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
+    for match in re.finditer(r"\bres(?:ponse)?\s*\.\s*redirect\s*\(", masked):
+        arguments = split_arguments(masked, match.end() - 1)
+        if arguments and re.search(
+            r"\breq(?:uest)?\s*\.\s*(?:query|body|params|headers|cookies)\b",
+            masked[arguments[-1][0] : arguments[-1][1]],
+        ):
+            findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
+    shell = re.search(r"child_process|(['\"])node:child_process\1", text)
+    for match in re.finditer(
+        r"(?:(?<![\w$.])|\bchild_process\s*\.\s*)(exec|execSync)\s*\(", masked
+    ):
+        arguments = split_arguments(masked, match.end() - 1)
+        if (
+            shell
+            and arguments
+            and javascript_literal(text, masked, *arguments[0]) is None
+        ):
+            findings.append(
+                (
+                    "loki/command-injection",
+                    f"shell command injection: non-literal command passed to "
+                    f"{match.group(1)}; use execFile or spawn with an argument array",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(r"\.\s*(?:query|execute|raw|unsafe|prepare)\s*\(", masked):
+        arguments = split_arguments(masked, match.end() - 1)
+        if not arguments:
+            continue
+        start, end = arguments[0]
+        argument = text[start:end]
+        if re.search(r"\b(?:select|insert|update|delete)\b", argument, re.I) and (
+            "${" in argument or re.search(r"['\"`]\s*\+|\+\s*['\"`]", argument)
+        ):
+            findings.append(
+                (
+                    "loki/sql-injection",
+                    "SQL injection: query text built by concatenation or "
+                    "interpolation; use parameterized placeholders",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(r"(?<![\w$.])(eval|new\s+Function)\s*\(", masked):
+        arguments = split_arguments(masked, match.end() - 1)
+        if arguments and javascript_literal(text, masked, *arguments[-1]) is None:
+            callee = re.sub(r"\s+", " ", match.group(1))
+            findings.append(
+                (
+                    "loki/code-eval",
+                    f"dynamic code execution: non-literal source passed to {callee}",
+                    match.start(),
+                )
+            )
+    return findings
+
+
+def javascript_test_names(relative: str, text: str, masked: str) -> set[str]:
+    """Test-framework bindings in scope: imports, aliases and test-file globals."""
+    names = set(TEST_FUNCTIONS) if TEST_PATH_RE.search(relative) else set()
+    for statement in re.finditer(r"\bimport\s*\{([^}]*)\}\s*from\s*(['\"])", masked):
+        end = closing_quote(text, statement.end(), statement.group(2), False)
+        if text[statement.end() : end] in TEST_FRAMEWORKS:
+            for item in statement.group(1).split(","):
+                parts = item.split()
+                if parts and parts[0] in TEST_FUNCTIONS:
+                    names.add(parts[-1])
+    declared = re.findall(r"\b(?:const|let|var|function|class)\s+([\w$]+)", masked)
+    return names - set(declared)
+
+
+def javascript_fallback_rules(relative: str, text: str) -> list[Finding]:
+    """Parser-free equivalents of the Oxlint preview rules, used only without it."""
+    masked = mask_javascript(text)
+    findings: list[Finding] = []
+    for match in re.finditer(r"\bcatch\s*(?:\([^()]*\))?\s*\{", masked):
+        if not text[match.end() : matching_close(masked, match.end() - 1) - 1].strip():
+            findings.append(
+                ("no-empty", "empty catch block swallows the error", match.start())
+            )
+    for match in re.finditer(r"\bnew\s+Promise\s*\(\s*async\b", masked):
+        findings.append(
+            (
+                "no-async-promise-executor",
+                "async Promise executor functions are not allowed",
+                match.start(),
+            )
+        )
+    for match in re.finditer(r"\bfinally\s*\{", masked):
+        body = masked[match.end() : matching_close(masked, match.end() - 1) - 1]
+        control = re.search(r"\b(return|throw|break|continue)\b", body)
+        if control and not re.search(r"=>|\bfunction\b|\bclass\b", body):
+            findings.append(
+                (
+                    "no-unsafe-finally",
+                    f"unsafe finally: {control.group(1)} in finally overrides "
+                    "try/catch control flow",
+                    match.end() + control.start(),
+                )
+            )
+    for match in re.finditer(r"(?<![\w$.])debugger\b", masked):
+        findings.append(("no-debugger", "debugger statement", match.start()))
+    for name in sorted(javascript_test_names(relative, text, masked)):
+        for match in re.finditer(
+            rf"(?<![\w$.]){re.escape(name)}\s*(?:\.\s*(only|skip)\b|"
+            r"\[\s*(['\"`])\s*\2\s*\])\s*\(",
+            masked,
+        ):
+            kind = match.group(1)
+            if kind is None:
+                quote = masked.index(match.group(2), match.start())
+                kind = text[
+                    quote + 1 : closing_quote(text, quote + 1, text[quote], False)
+                ]
+            if kind == "only":
+                findings.append(
+                    (
+                        "no-focused-tests",
+                        "focused test (.only) silently skips the rest of the suite",
+                        match.start(),
+                    )
+                )
+            elif kind == "skip":
+                findings.append(
+                    (
+                        "no-disabled-tests",
+                        "disabled test (.skip) removes coverage",
+                        match.start(),
+                    )
+                )
+    return findings
+
+
+def request_field(node: ast.AST) -> str | None:
+    """Privilege-looking key read from client-controlled request data."""
+    if isinstance(node, ast.Subscript):
+        key, owner = node.slice, node.value
+    elif (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "get"
+        and node.args
+    ):
+        key, owner = node.args[0], node.func.value
+    else:
+        return None
+    if not (
+        isinstance(key, ast.Constant)
+        and isinstance(key.value, str)
+        and AUTHORIZATION_KEY_RE.fullmatch(key.value)
+    ):
+        return None
+    while isinstance(owner, ast.Attribute):
+        if owner.attr in SERVER_ATTRIBUTES:
+            return None
+        owner = owner.value
+    return (
+        key.value if isinstance(owner, ast.Name) and owner.id in REQUEST_NAMES else None
+    )
+
+
+PYTHON_HTTP_CALLS = {
+    f"{module}.{method}"
+    for module in ("requests", "httpx")
+    for method in ("get", "post", "put", "patch", "delete", "head", "options")
+} | {"requests.request", "httpx.request", "urllib.request.urlopen", "urlopen"}
+
+
+def request_source(node: ast.AST) -> bool:
+    """Any value read from client-controlled request data."""
+    if isinstance(node, ast.Subscript):
+        owner = node.value
+    elif (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"get", "getlist"}
+    ):
+        owner = node.func.value
+    elif isinstance(node, ast.Attribute):
+        owner = node
+    else:
+        return False
+    while isinstance(owner, ast.Attribute):
+        if owner.attr in SERVER_ATTRIBUTES:
+            return False
+        owner = owner.value
+    return isinstance(owner, ast.Name) and owner.id in REQUEST_NAMES
+
+
+def python_ssrf(tree: ast.AST) -> list[ast.Call]:
+    """HTTP client calls whose URL derives from request data, per function."""
+    calls = []
+    scopes = [
+        tree,
+        *(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        ),
+    ]
+    for scope in scopes:
+        tainted: set[str] = set()
+        for _ in range(2):
+            for node in ast.walk(scope):
+                if (
+                    isinstance(node, ast.Assign | ast.AnnAssign)
+                    and node.value
+                    and any(
+                        request_source(item)
+                        or (isinstance(item, ast.Name) and item.id in tainted)
+                        for item in ast.walk(node.value)
+                    )
+                ):
+                    targets = (
+                        node.targets if isinstance(node, ast.Assign) else [node.target]
+                    )
+                    tainted.update(
+                        item.id
+                        for target in targets
+                        for item in ast.walk(target)
+                        if isinstance(item, ast.Name)
+                    )
+        for node in ast.walk(scope):
+            if (
+                not isinstance(node, ast.Call)
+                or ast.unparse(node.func) not in PYTHON_HTTP_CALLS
+            ):
+                continue
+            url = node.args[:1] + [k.value for k in node.keywords if k.arg == "url"]
+            if any(
+                request_source(item)
+                or (isinstance(item, ast.Name) and item.id in tainted)
+                for argument in url
+                for item in ast.walk(argument)
+            ):
+                calls.append(node)
+    return list({id(call): call for call in calls}.values())
+
+
+def python_rules(text: str) -> list[Finding]:
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    offsets = [0]
+    for line in text.splitlines(keepends=True):
+        offsets.append(offsets[-1] + len(line))
+    findings: list[Finding] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare):
+            operands = [node.left, *node.comparators]
+        elif isinstance(node, ast.BoolOp):
+            operands = node.values
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            operands = [node.operand]
+        elif isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
+            operands = [node.test]
+        else:
+            continue
+        for operand in operands:
+            if key := request_field(operand):
+                findings.append(
+                    (
+                        "loki/request-authorization",
+                        f"authorization decision trusts client-controlled request "
+                        f'field "{key}"; derive privilege from the authenticated '
+                        "server-side identity",
+                        offsets[operand.lineno - 1] + operand.col_offset,
+                    )
+                )
+    for call in python_ssrf(tree):
+        findings.append(
+            (
+                "loki/ssrf",
+                "server-side request forgery (SSRF): outbound request URL comes "
+                "from request data; validate the host against an allowlist",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    return findings
+
+
+def elixir_rules(text: str) -> list[Finding]:
+    masked = mask_elixir(text)
+    findings: list[Finding] = []
+    for match in re.finditer(
+        r"(?<![\w.])(?:conn\s*\.\s*)?(?:params|query_params|body_params)\s*\[\s*\"",
+        masked,
+    ):
+        close = closing_quote(text, match.end(), '"', False)
+        key = text[match.end() : close]
+        after = masked[masked.find("]", close) + 1 :]
+        before = masked[: match.start()]
+        if AUTHORIZATION_KEY_RE.fullmatch(key) and (
+            re.match(r"\s*(?:===?|!==?|and\b|or\b|&&|\|\|)", after)
+            or re.search(
+                r"(?:\bif|\bunless|\bnot|!|\bwhen|\band|\bor|&&|\|\|)\s*$", before
+            )
+        ):
+            findings.append(
+                (
+                    "loki/request-authorization",
+                    f"authorization decision trusts client-controlled request "
+                    f'param "{key}"; derive privilege from the authenticated '
+                    "server-side identity (conn.assigns)",
+                    match.start(),
+                )
+            )
+    tainted: set[str] = set()
+    for head in re.finditer(r"\bdefp?\s+[\w?!]+\s*\(", masked):
+        arguments = masked[head.end() : matching_close(masked, head.end() - 1) - 1]
+        tainted.update(re.findall(r"=>\s*([a-z][\w]*)", arguments))
+        tainted.update(re.findall(r"\b([a-z]\w*params)\b", arguments))
+        for pair in re.finditer(r"\"\s*\"\s*=>\s*(true|false)\b", arguments):
+            start = head.end() + pair.start()
+            key = text[start + 1 : closing_quote(text, start + 1, '"', False)]
+            if AUTHORIZATION_KEY_RE.fullmatch(key):
+                findings.append(
+                    (
+                        "loki/request-authorization",
+                        f"authorization decision trusts client-controlled request "
+                        f'param "{key}"; derive privilege from the authenticated '
+                        "server-side identity (conn.assigns)",
+                        start,
+                    )
+                )
+    for call in ELIXIR_HTTP_CALL_RE.finditer(masked):
+        arguments = masked[call.end() : matching_close(masked, call.end() - 1) - 1]
+        words = set(re.findall(r"(?<![\w.:])([a-z]\w*)\b", arguments))
+        if words & tainted or re.search(r"\b(?:query_|body_)?params\b", arguments):
+            findings.append(
+                (
+                    "loki/ssrf",
+                    "server-side request forgery (SSRF): outbound request to an "
+                    "untrusted URL from request parameters; validate the host "
+                    "against an allowlist",
+                    call.start(),
+                )
+            )
+    return findings
+
+
+def rust_rules(text: str) -> list[Finding]:
+    return [
+        (
+            "loki/placeholder",
+            f"{match.group(1)}!() placeholder left in code panics at runtime",
+            match.start(),
+        )
+        for match in re.finditer(
+            r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]", mask_rust(text)
+        )
+    ]
+
+
+def content_rule_findings(
+    relative: str, text: str, *, fallback: bool = False
+) -> list[Finding]:
+    language = LANGUAGE_EXTENSIONS.get(Path(relative).suffix.lower())
+    if fallback:
+        return (
+            javascript_fallback_rules(relative, text)
+            if language == "typescript"
+            else []
+        )
+    rules = {
+        "typescript": javascript_rules,
+        "python": python_rules,
+        "elixir": elixir_rules,
+        "rust": rust_rules,
+    }
+    return rules[language](text) if language in rules else []
+
+
+def content_rule_violations(
+    changes: list[tuple[str, str, str]], *, fallback: bool = False
+) -> list[str]:
+    """Net-new tool-free findings, matched by rule, message and line text."""
+
+    violations: list[str] = []
+    for relative, old, new in changes:
+        counts: list[Counter[tuple[str, str, str]]] = []
+        lines: dict[tuple[str, str, str], int] = {}
+        for side, content in enumerate((old, new)):
+            counter: Counter[tuple[str, str, str]] = Counter()
+            for rule, message, offset in content_rule_findings(
+                relative, content, fallback=fallback
+            ):
+                number = content.count("\n", 0, offset) + 1
+                key = (rule, message, content.splitlines()[number - 1].strip())
+                counter[key] += 1
+                if side:
+                    lines.setdefault(key, number)
+            counts.append(counter)
+        for key, count in (counts[1] - counts[0]).items():
+            rule, message, _ = key
+            evidence_finding(rule, relative)
+            violations.extend([f"{relative}:{lines[key]}: {rule}: {message}"] * count)
+    return violations[:MAX_VIOLATIONS]
+
+
+def resolve_tool(root: Path, name: str) -> str | None:
+    """Prefer the project's pinned Node tool, then the same tool on PATH."""
+    local = root / "node_modules" / ".bin" / name
+    return str(local) if local.is_file() else shutil.which(name)
+
+
+def typescript_compiler(root: Path) -> Path | None:
+    local = root / "node_modules/typescript/lib/typescript.js"
+    if local.is_file():
+        return local
+    if tsc := shutil.which("tsc"):
+        compiler = Path(tsc).resolve().parent.parent / "lib/typescript.js"
+        if compiler.is_file():
+            return compiler
+    return None
+
+
 def missing_tool(language: str, root: Path) -> str | None:
     if language == "python":
         return None if shutil.which("ruff") else "ruff"
     if language == "typescript":
-        oxlint = root / "node_modules" / ".bin" / "oxlint"
-        return None if oxlint.is_file() else "node_modules/.bin/oxlint"
+        return None if resolve_tool(root, "oxlint") else "oxlint"
     if language == "go":
         if not shutil.which("gofmt"):
             return "gofmt"
@@ -652,6 +1411,290 @@ def missing_tool(language: str, root: Path) -> str | None:
     if language == "elixir":
         return None if shutil.which("mix") else "mix"
     return "toolchain"
+
+
+MYPY_LINE_RE = re.compile(
+    r"^(?P<path>[^:\n]+):(?P<line>\d+): error: (?P<message>.*?)"
+    r"(?:  \[(?P<code>[\w-]+)\])?$"
+)
+RUST_LINTS = ("clippy::todo", "clippy::unimplemented")
+RUST_LINTS += ("clippy::unwrap_used", "clippy::expect_used")
+
+
+def head_text(root: Path, relative: str, *, deadline: float | None = None) -> str:
+    """Committed HEAD text, or empty text for a file absent from HEAD."""
+    row = git_output(root, ["ls-tree", "-z", "HEAD", "--", relative], deadline=deadline)
+    if not row:
+        return ""
+    _, kind, oid = row.split(b"\t", 1)[0].decode("ascii").split()
+    if kind != "blob":
+        return ""
+    blob = git_blobs(root, [oid], deadline=deadline)[oid]
+    return blob.decode("utf-8", errors="replace")
+
+
+def written_content_violations(
+    path: Path, root: Path, relative: str, *, fallback: bool, deadline: float | None
+) -> list[str]:
+    try:
+        before = head_text(root, relative, deadline=deadline)
+        change = (relative, before, path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return []
+    violations = content_rule_violations([change])
+    if fallback:
+        violations.extend(content_rule_violations([change], fallback=True))
+    return violations
+
+
+def line_text(content: str, number: int) -> str:
+    lines = content.splitlines()
+    return lines[number - 1].strip() if 0 < number <= len(lines) else ""
+
+
+def annotated_python(text: str) -> bool:
+    """Whether mypy's default mode would check more than module-level code."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign):
+            return True
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+            node.returns is not None
+            or any(
+                argument.annotation is not None
+                for argument in (
+                    *node.args.posonlyargs,
+                    *node.args.args,
+                    *node.args.kwonlyargs,
+                )
+            )
+        ):
+            return True
+    return False
+
+
+def mypy_violations(
+    root: Path, paths: list[str], *, deadline: float | None = None
+) -> list[str]:
+    """Net-new mypy errors in written files, against their committed text."""
+    import hashlib
+    import tempfile
+
+    local = root / ".venv/bin/mypy"
+    mypy = str(local) if local.is_file() else shutil.which("mypy")
+    if not mypy or not paths:
+        return []
+    after = {name: (root / name).read_text(encoding="utf-8") for name in paths}
+    # Unannotated code is mostly skipped by mypy's defaults; avoid a cold start.
+    if not any(annotated_python(text) for text in after.values()):
+        return []
+    identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
+    with tempfile.TemporaryDirectory(prefix="loki-mypy-") as directory:
+        work = Path(directory)
+        # Fixed flags: the project cannot weaken this check from the working tree.
+        (work / "mypy.ini").write_text("[mypy]\n", encoding="utf-8")
+        command = [
+            mypy,
+            "--config-file",
+            str(work / "mypy.ini"),
+            "--cache-dir",
+            str(Path.home() / ".cache/loki/mypy" / identity),
+            "--no-error-summary",
+            "--show-error-codes",
+            "--no-color-output",
+            "--hide-error-context",
+            "--no-pretty",
+            "--ignore-missing-imports",
+            "--follow-imports=silent",
+            "--explicit-package-bases",
+        ]
+
+        def errors(
+            extra: list[str], contents: dict[str, str]
+        ) -> tuple[Counter[tuple], dict[tuple, int]]:
+            result = subprocess.run(
+                [*command, *extra, *paths],
+                cwd=root,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=command_timeout(deadline),
+                check=False,
+            )
+            if result.returncode not in (0, 1):
+                reason = (result.stderr or result.stdout).strip()
+                raise ValueError(reason or f"mypy exited {result.returncode}")
+            found: Counter[tuple] = Counter()
+            lines: dict[tuple, int] = {}
+            for line in result.stdout.splitlines():
+                if (match := MYPY_LINE_RE.match(line)) and match["path"] in contents:
+                    number = int(match["line"])
+                    key = (
+                        match["path"],
+                        match["code"] or "misc",
+                        match["message"],
+                        line_text(contents[match["path"]], number),
+                    )
+                    found[key] += 1
+                    lines.setdefault(key, number)
+            return found, lines
+
+        current, numbers = errors([], after)
+        if not current:
+            return []
+        before, shadows = {}, []
+        for index, name in enumerate(paths):
+            before[name] = head_text(root, name, deadline=deadline)
+            shadow = work / f"{index}.py"
+            shadow.write_text(before[name], encoding="utf-8")
+            shadows.extend(["--shadow-file", name, str(shadow)])
+        violations = []
+        for key, count in (current - errors(shadows, before)[0]).items():
+            name, code, message, _ = key
+            evidence_finding(f"mypy:{code}", name)
+            violations.extend(
+                [f"{name}:{numbers[key]}: mypy[{code}]: {message}"] * count
+            )
+        return violations[:MAX_VIOLATIONS]
+
+
+def golangci_violations(
+    root: Path, package: str, *, deadline: float | None = None
+) -> list[str]:
+    """Issues golangci-lint attributes to lines changed since HEAD."""
+    binary = shutil.which("golangci-lint")
+    if not binary:
+        return []
+    result = subprocess.run(
+        [
+            binary,
+            "run",
+            "--new-from-rev=HEAD",
+            "--output.text.path=stdout",
+            "--output.text.colors=false",
+            "--output.text.print-issued-lines=false",
+            "--show-stats=false",
+            package,
+        ],
+        cwd=root,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    if result.returncode == 0:
+        return []
+    issues = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if result.returncode != 1 or not issues:
+        reason = (result.stderr or result.stdout).strip()
+        raise ValueError(reason or f"golangci-lint exited {result.returncode}")
+    evidence_finding("golangci-lint")
+    return [f"golangci-lint: {issue}" for issue in issues][:MAX_VIOLATIONS]
+
+
+def cargo_project(path: Path, root: Path) -> Path | None:
+    project = path.parent.resolve()
+    while project.is_relative_to(root.resolve()):
+        if (project / "Cargo.toml").is_file():
+            return project
+        if project == root.resolve():
+            break
+        project = project.parent
+    return None
+
+
+def clippy_diagnostics(
+    crate: Path, target: Path, *, deadline: float | None
+) -> list[tuple[tuple[str, str, str, str], int]]:
+    """Clippy/rustc warnings and errors: (file, code, message, line text), line."""
+    command = ["cargo", "clippy", "--offline", "--all-targets"]
+    command += ["--message-format=json", "--target-dir", str(target), "--"]
+    for lint in RUST_LINTS:
+        command.extend(["-W", lint])
+    result = subprocess.run(
+        command,
+        cwd=crate,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    found = []
+    for line in result.stdout.splitlines():
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        message = (
+            item.get("message") if item.get("reason") == "compiler-message" else None
+        )
+        if not isinstance(message, dict) or message.get("level") not in (
+            "error",
+            "warning",
+        ):
+            continue
+        span = next(
+            (span for span in message.get("spans", []) if span.get("is_primary")), None
+        )
+        if span is None:
+            continue
+        source = (crate / span["file_name"]).resolve()
+        if not source.is_relative_to(crate.resolve()):
+            continue
+        relative = source.relative_to(crate.resolve()).as_posix()
+        text = line_text(source.read_text(encoding="utf-8"), span["line_start"])
+        code = (message.get("code") or {}).get("code") or message["level"]
+        found.append(((relative, code, message["message"], text), span["line_start"]))
+    if result.returncode and not found:
+        reason = result.stderr.strip().splitlines()[-1:] or [
+            f"exit {result.returncode}"
+        ]
+        raise ValueError(f"cargo clippy failed: {reason[0]}")
+    return found
+
+
+def clippy_violations(
+    path: Path, root: Path, *, deadline: float | None = None
+) -> list[str]:
+    """Net-new Clippy and compiler diagnostics for the crate containing path."""
+    import tempfile
+
+    crate = cargo_project(path, root)
+    if crate is None or not shutil.which("cargo"):
+        return []
+    target = crate / "target"
+    current = clippy_diagnostics(crate, target, deadline=deadline)
+    if not current:
+        return []
+    prefix = crate.resolve().relative_to(root.resolve())
+    with tempfile.TemporaryDirectory(prefix="loki-clippy-") as directory:
+        base = Path(directory) / "base"
+        commit = git_output(
+            root, ["rev-parse", "--verify", "HEAD^{commit}"], deadline=deadline
+        )
+        materialize_base(root, commit.decode("ascii").strip(), base, deadline=deadline)
+        previous = (
+            clippy_diagnostics(base / prefix, target, deadline=deadline)
+            if (base / prefix / "Cargo.toml").is_file()
+            else []
+        )
+    # Line numbers shift between snapshots; match on the line's text instead.
+    remaining = Counter(key for key, _ in previous)
+    violations = []
+    for key, line in current:
+        if remaining[key]:
+            remaining[key] -= 1
+            continue
+        relative, code, message, _ = key
+        name = (prefix / relative).as_posix()
+        evidence_finding(f"clippy:{code}", name)
+        violations.append(f"{name}:{line}: {code}: {message}")
+    return violations[:MAX_VIOLATIONS]
 
 
 def mix_project(path: Path, root: Path) -> Path | None:
@@ -686,6 +1729,35 @@ def check_file(
     display = relative_display(path, root)
     missing = missing_tool(language, root)
     violations: list[str] = []
+
+    def optional(label: str, check: Any, *arguments: Any) -> None:
+        """Run an analyzer whose absence or failure is reported, never hidden."""
+        try:
+            violations.extend(check(*arguments, deadline=deadline))
+        except (
+            OSError,
+            UnicodeDecodeError,
+            ValueError,
+            subprocess.TimeoutExpired,
+        ) as error:
+            message = f"NOT CHECKED {label}: {str(error).strip()[:300]}"
+            if strict:
+                violations.append(message)
+            elif warnings is not None:
+                warnings.append(message)
+            else:
+                print(message, file=sys.stderr)
+
+    if language in CONTENT_RULE_LANGUAGES:
+        violations.extend(
+            written_content_violations(
+                path,
+                root,
+                display,
+                fallback=language == "typescript" and missing is not None,
+                deadline=deadline,
+            )
+        )
     if missing:
         if strict:
             violations.append(f"{display}: loki: missing {missing}")
@@ -699,25 +1771,25 @@ def check_file(
         key = (language, root)
         if checked_projects is None or key not in checked_projects:
             selected = batch_paths if batch_paths is not None else [path]
-            violations.extend(
-                ruff_new_violations(
-                    root,
-                    None,
-                    paths={
-                        item.relative_to(root).as_posix()
-                        for item in selected
-                        if item.suffix == ".py"
-                    },
-                    deadline=deadline,
-                )
+            names = sorted(
+                item.relative_to(root).as_posix()
+                for item in selected
+                if item.suffix == ".py" and item.is_file()
             )
+            violations.extend(
+                ruff_new_violations(root, None, paths=set(names), deadline=deadline)
+            )
+            if not violations:
+                optional("python types", mypy_violations, root, names)
             if checked_projects is not None:
                 checked_projects.add(key)
     elif language == "typescript":
-        oxlint = root / "node_modules" / ".bin" / "oxlint"
         violations.extend(
             run_command(
-                [str(oxlint), "--fix", str(path)], root, "oxlint", deadline=deadline
+                [str(resolve_tool(root, "oxlint")), "--fix", str(path)],
+                root,
+                "oxlint",
+                deadline=deadline,
             )
         )
     elif language == "go":
@@ -732,10 +1804,21 @@ def check_file(
         violations.extend(
             run_command(["go", "vet", package], root, "go vet", deadline=deadline)
         )
+        key = (language, root / directory)
+        if not violations and (checked_projects is None or key not in checked_projects):
+            optional("golangci-lint", golangci_violations, root, package)
+            if checked_projects is not None:
+                checked_projects.add(key)
     elif language == "rust":
         violations.extend(
             run_command(["rustfmt", str(path)], root, "rustfmt", deadline=deadline)
         )
+        crate = cargo_project(path, root)
+        key = (language, crate or root)
+        if checked_projects is None or key not in checked_projects:
+            optional("clippy", clippy_violations, path, root)
+            if checked_projects is not None:
+                checked_projects.add(key)
     elif language == "elixir":
         project = mix_project(path, root)
         if project is None:
@@ -801,7 +1884,6 @@ def sobelow_new_violations(
     warnings: list[str] | None = None,
 ) -> list[str]:
     import tempfile
-    from collections import Counter
 
     thresholds = security_policy(config)
     project = project.resolve()
@@ -862,7 +1944,7 @@ def sobelow_new_violations(
         reports = []
         notices = set()
         for workspace in (before / relative, after / relative):
-            result = subprocess.run(  # noqa: S603 - fixed compiled analyzer argv
+            result = subprocess.run(
                 command,
                 cwd=workspace,
                 capture_output=True,
@@ -980,7 +2062,6 @@ def iter_source_files(root: Path) -> Iterable[Path]:
 
 def credo_new_violations(project: Path, *, deadline: float | None = None) -> list[str]:
     import tempfile
-    from collections import Counter
 
     project = project.resolve()
     root = Path(
@@ -1031,7 +2112,7 @@ def credo_new_violations(project: Path, *, deadline: float | None = None) -> lis
                 "--config-file",
                 str(before / relative / ".credo.exs"),
             ]
-            result = subprocess.run(  # noqa: S603 - fixed analyzer argv
+            result = subprocess.run(
                 command,
                 cwd=workspace,
                 capture_output=True,
@@ -1121,7 +2202,7 @@ def elixir_analysis(
             output = f"required analyzer dependency missing: {dependency}"
         else:
             try:
-                result = subprocess.run(  # noqa: S603 - explicit Mix analyzer argv
+                result = subprocess.run(
                     command,
                     cwd=project,
                     capture_output=True,
@@ -1192,10 +2273,10 @@ def scan_command(
             ["ruff", "format", "--check", *relative_files],
         ]
     if language == "typescript":
-        oxlint = root / "node_modules" / ".bin" / "oxlint"
-        if not oxlint.is_file():
-            return "node_modules/.bin/oxlint", []
-        return None, [[str(oxlint), *relative_files]]
+        oxlint = resolve_tool(root, "oxlint")
+        if not oxlint:
+            return "oxlint", []
+        return None, [[oxlint, *relative_files]]
     if language == "go":
         if not shutil.which("golangci-lint"):
             return "golangci-lint", []
@@ -1411,7 +2492,7 @@ def git_output(
     input_data: bytes | None = None,
 ) -> bytes:
     try:
-        result = subprocess.run(  # noqa: S603 - Git argv, never shell input
+        result = subprocess.run(
             ["git", "--literal-pathspecs", *arguments],  # noqa: S607 - host Git
             cwd=root,
             capture_output=True,
@@ -1554,7 +2635,7 @@ def git_changes(
             check=False,
         )
         try:
-            commit = subprocess.run(  # noqa: S603 - ref follows --end-of-options
+            commit = subprocess.run(
                 [  # noqa: S607 - host Git
                     "git",
                     "rev-parse",
@@ -1577,7 +2658,7 @@ def git_changes(
                 ):
                     raise ValueError("git: cannot resolve HEAD")
                 options["timeout"] = command_timeout(deadline)
-                exists = subprocess.run(  # noqa: S603 - branch ref returned by Git
+                exists = subprocess.run(
                     [  # noqa: S607 - host Git
                         "git",
                         "show-ref",
@@ -2059,8 +3140,10 @@ def scan(
                 )
                 if len(violations[language]) >= MAX_VIOLATIONS:
                     break
-    if config.get("typescript_check", False) and grouped.get("typescript"):
-        violations.setdefault("typescript", []).extend(typescript_violations(root))
+    if grouped.get("typescript"):
+        violations.setdefault("typescript", []).extend(
+            typescript_findings(root, config)
+        )
 
     if online:
         dependency_issues = slopsquatting_violations(root, config)
@@ -2414,11 +3497,10 @@ def preview_oxlint(
     deadline: float | None,
 ) -> list[str]:
     import tempfile
-    from collections import Counter
 
-    binary = root / "node_modules/.bin/oxlint"
-    if not binary.is_file():
-        raise ValueError("missing node_modules/.bin/oxlint for content preview")
+    binary = resolve_tool(root, "oxlint")
+    if not binary:
+        raise ValueError("missing oxlint for content preview")
     with tempfile.TemporaryDirectory(prefix="loki-preview-") as directory:
         work = Path(directory)
         config = work / "config.json"
@@ -2443,9 +3525,9 @@ def preview_oxlint(
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
                 files[path.relative_to(work).as_posix()] = (side, relative, content)
-        result = subprocess.run(  # noqa: S603 - fixed analyzer argv, isolated config
+        result = subprocess.run(
             [
-                str(binary.resolve()),
+                str(Path(binary).resolve()),
                 "-c",
                 str(config),
                 "--disable-nested-config",
@@ -2541,29 +3623,43 @@ def preview_violations(
     *,
     deadline: float | None,
     warnings: list[str],
+    config: dict[str, Any] | None = None,
 ) -> list[str]:
     if payload is None:
         return []
-    relevant = [
-        path
-        for path in paths
-        if Path(path).suffix.lower()
-        in {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".mts", ".cts"}
-    ]
-    if not relevant:
+    languages = {LANGUAGE_EXTENSIONS.get(Path(path).suffix.lower()) for path in paths}
+    if not languages & CONTENT_RULE_LANGUAGES:
         return []
+    javascript = "typescript" in languages
+    violations: list[str] = []
+    changes = None
     try:
         changes = preview_changes(root, paths, payload, harness, deadline=deadline)
         if changes is None:
             raise ValueError("host operation has no exact content preview")
-        return preview_oxlint(root, changes, deadline=deadline)
+        violations.extend(content_rule_violations(changes))
+        violations.extend(preview_ruff(root, changes, deadline=deadline))
+        if javascript:
+            if config is not None and not violations:
+                violations.extend(
+                    preview_typescript(root, config, changes, deadline=deadline)
+                )
+            try:
+                violations.extend(preview_oxlint(root, changes, deadline=deadline))
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                violations.extend(content_rule_violations(changes, fallback=True))
+                raise
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        # Post-write checks still inspect languages without Oxlint preview rules.
+        if not javascript:
+            return violations
         evidence_finding("preview-unavailable")
-        message = f"NOT CHECKED pre-write content: {error}"
+        suffix = "; built-in fallback rules applied" if changes is not None else ""
+        message = f"NOT CHECKED pre-write content: {error}{suffix}"
         if os.environ.get("LOKI_STRICT") == "1":
-            return [message]
+            return [*violations, message]
         warnings.append(message)
-        return []
+    return violations[:MAX_VIOLATIONS]
 
 
 def selected_paths(
@@ -2837,6 +3933,7 @@ def dispatch_main() -> int:
                     args.harness or args.preview,
                     deadline=deadline,
                     warnings=warnings,
+                    config=config,
                 )
             )
         if args.command == "hook" and not messages:
@@ -2844,15 +3941,14 @@ def dispatch_main() -> int:
             messages.extend(
                 write_guardrail_violations(targets, root, config, deadline=deadline)
             )
-            if (
-                not messages
-                and config.get("typescript_check", False)
-                and any(
-                    target.suffix in {".ts", ".tsx", ".js", ".jsx"}
-                    for target in targets
-                )
+            if not messages and any(
+                target.suffix in TYPESCRIPT_SUFFIXES for target in targets
             ):
-                messages.extend(typescript_violations(root, deadline=deadline))
+                messages.extend(
+                    typescript_findings(
+                        root, config, deadline=deadline, warnings=warnings
+                    )
+                )
             if not messages:
                 checked_projects: set[tuple[str, Path]] = set()
                 for target in targets:
@@ -3230,10 +4326,90 @@ def reviewed_shell_violation(command: str, root: Path, cwd: Path) -> str | None:
     return None
 
 
+TEXT_REDIRECT_SUFFIXES = {".txt", ".md", ".log", ".rst", ".csv", ".tsv", ".adoc"}
+PRINT_COMMANDS = {"echo", "printf"}
+
+
+def shell_redirect(command: str) -> tuple[str, str] | None:
+    """Split `command > target` or `>>`; None unless that is the only operator."""
+    import shlex
+
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    try:
+        tokens = list(lexer)
+    except ValueError:
+        return None
+    operators = [token for token in tokens if set(token) <= set("();<>|&")]
+    if len(tokens) < 3 or operators != [tokens[-2]] or tokens[-2] not in (">", ">>"):
+        return None
+    return shlex.join(tokens[:-2]), tokens[-1]
+
+
+def redirect_violation(target: str, root: Path, cwd: Path) -> str | None:
+    """Printing into project notes is allowed; source and policy writes are not."""
+    path = Path(os.path.abspath(cwd / target))
+    if not path.is_relative_to(root) or path.resolve() != path:
+        evidence_finding("shell-redirect-outside")
+        return "loki: shell redirect target escapes the repository root"
+    if message := protect_path(str(path), root, load_config(root)):
+        return message
+    relative = path.relative_to(root)
+    if (
+        path.suffix.lower() not in TEXT_REDIRECT_SUFFIXES
+        or any(part.startswith(".") for part in relative.parts)
+        or path.is_dir()
+    ):
+        evidence_finding("shell-redirect-write", relative.as_posix())
+        return (
+            f"loki: shell redirect into {relative.as_posix()} bypasses write "
+            "checks; use file edit tools for source and configuration files"
+        )
+    return None
+
+
+def destructive_git(words: list[str]) -> bool:
+    command, options = (words[1] if len(words) > 1 else ""), set(words[2:])
+    if command == "reset":
+        return bool(options & {"--hard", "--merge", "--keep"})
+    if command == "clean":
+        return (
+            any(
+                option.startswith("-") and not option.startswith("--") and "f" in option
+                for option in options
+            )
+            or "--force" in options
+        )
+    if command == "push":
+        return bool(
+            options & {"-f", "--force", "--force-with-lease", "--delete", "--mirror"}
+        ) or any(option.startswith((":", "+")) for option in options)
+    if command == "branch":
+        return "-D" in options or {"--delete", "--force"} <= options
+    if command == "stash":
+        return bool(options & {"drop", "clear"})
+    if command == "checkout":
+        return bool(options & {"--", ".", "-f", "--force"})
+    return command in {"restore", "rebase", "filter-branch", "update-ref"}
+
+
 def shell_violation(
     command: Any, *, root: Path | None = None, cwd: Path | None = None
 ) -> str | None:
     # Exact permissions authorize execution, not its transitive filesystem effects.
+    if isinstance(command, str) and root is not None and cwd is not None:
+        if (redirect := shell_redirect(command)) is not None:
+            printer, target = redirect
+            try:
+                if simple_shell_words(printer)[0] in PRINT_COMMANDS:
+                    return redirect_violation(target, root, cwd)
+            except ValueError:
+                pass
+            evidence_finding("shell-redirect-write")
+            return (
+                "loki: shell redirect from a command other than echo/printf "
+                "requires review; use file edit tools for writes"
+            )
     try:
         words = simple_shell_words(command)
     except ValueError as error:
@@ -3252,6 +4428,14 @@ def shell_violation(
             return "loki: shell Git option requires review"
         return None
     if words[0] in {"pwd", "whoami"} and len(words) == 1:
+        return None
+    if words[0] == "git" and destructive_git(words):
+        evidence_finding("shell-destructive-git")
+        return (
+            f"loki: blocked destructive Git command `{' '.join(words[:4])}`: it can "
+            "discard uncommitted work or rewrite history; ask the user to run it"
+        )
+    if words[0] in PRINT_COMMANDS:
         return None
     if root is not None and cwd is not None and words[0] != "git":
         return reviewed_shell_violation(command, root, cwd)
@@ -3379,8 +4563,10 @@ def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> N
                 config,
                 deadline=deadline,
             )
-            if config.get("typescript_check"):
-                findings.extend(typescript_violations(workspace, deadline=deadline))
+            if any(Path(name).suffix in TYPESCRIPT_SUFFIXES for name in desired):
+                findings.extend(
+                    typescript_findings(workspace, config, deadline=deadline)
+                )
             python_targets = [
                 workspace / name
                 for name, content in desired.items()
@@ -3465,44 +4651,14 @@ def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> N
     print(f"Applied {len(desired)} targets; not an OS-atomic multi-file commit")
 
 
-def typescript_violations(root: Path, *, deadline: float | None = None) -> list[str]:
-    import tempfile
-    from collections import Counter
-
-    compiler = root / "node_modules/typescript/lib/typescript.js"
-    if not compiler.is_file():
-        return ["typescript: required local TypeScript compiler is missing"]
-    base, changes = git_changes(root, None, deadline=deadline)
-    if base is None:
-        return ["typescript: committed base required"]
-    policy = base_policy(root, base, deadline=deadline) or {}
-    findings = protected_change_violations(changes, policy)
-    if findings:
-        return findings
-    for change in changes:
-        if change.path.endswith(".json"):
-            return [f"{change.path}: JSON/config change requires separate review"]
-        if change.path.startswith("node_modules/"):
-            return ["typescript: dependency changes require separate review"]
-    with tempfile.TemporaryDirectory(prefix="loki-typescript-") as directory:
-        before = Path(directory) / "before"
-        after = Path(directory) / "after"
-        materialize_base(root, base, before, deadline=deadline)
-        if not (before / "tsconfig.json").is_file():
-            return ["typescript: committed tsconfig.json required"]
-        shutil.copytree(before, after)
-        for change in changes:
-            apply_snapshot_change(after, change)
-        for workspace in (before, after):
-            (workspace / "node_modules").symlink_to(
-                (root / "node_modules").resolve(), target_is_directory=True
-            )
-        program = r"""
+TYPESCRIPT_CHECKER = r"""
 const ts = require(process.argv[1]);
 const path = require('node:path');
 const root = process.argv[2];
 const configPath = path.join(root, 'tsconfig.json');
-const read = ts.readConfigFile(configPath, ts.sys.readFile);
+const trusted = process.argv[3];
+const read = ts.readConfigFile(configPath, file => file === configPath && trusted
+  ? require('node:fs').readFileSync(trusted, 'utf8') : ts.sys.readFile(file));
 if (read.error) throw new Error(
   ts.flattenDiagnosticMessageText(read.error.messageText, '\n'));
 const confined = file => {
@@ -3518,6 +4674,9 @@ const parsed = ts.parseJsonConfigFileContent(read.config, configHost, root,
   {noEmit:true, incremental:false}, configPath);
 if (parsed.errors.length) throw new Error(parsed.errors.map(d =>
   ts.flattenDiagnosticMessageText(d.messageText, '\n')).join('\n'));
+// Default type roots walk up past the repository; keep them inside it.
+if (parsed.options.typeRoots === undefined)
+  parsed.options.typeRoots = [path.join(root, 'node_modules', '@types')];
 const host = ts.createCompilerHost(parsed.options);
 const compilerRoot = path.dirname(path.dirname(path.resolve(process.argv[1])));
 const readable = file => {
@@ -3525,13 +4684,22 @@ const readable = file => {
   if (full.startsWith(compilerRoot + path.sep)) return;
   confined(full);
 };
+// Proposed contents for pre-write checks, keyed by absolute path; never written.
+const overrides = process.argv[4]
+  ? JSON.parse(require('node:fs').readFileSync(process.argv[4], 'utf8')) : {};
+const proposed = file => Object.hasOwn(overrides, path.resolve(file));
 const originalRead = host.readFile;
 const originalExists = host.fileExists;
 host.fileExists = file => {
+  if (proposed(file)) return true;
   try { readable(file); } catch { return false; }
   return originalExists(file);
 };
-host.readFile = file => { readable(file); return originalRead(file); };
+host.readFile = file => {
+  if (proposed(file)) return overrides[path.resolve(file)];
+  readable(file);
+  return originalRead(file);
+};
 host.getSourceFile = (file, version) => {
   const text = host.readFile(file);
   return text === undefined ? undefined : ts.createSourceFile(file, text, version);
@@ -3542,32 +4710,200 @@ const diagnostics = ts.getPreEmitDiagnostics(program).map(d => {
   const line = d.file && d.start !== undefined
     ? d.file.getLineAndCharacterOfPosition(d.start).line : -1;
   const text = line >= 0 ? d.file.text.split(/\r?\n/)[line].trim() : '';
-  return [file, d.code, ts.flattenDiagnosticMessageText(d.messageText, '\n'), text];
+  return [file, d.code, ts.flattenDiagnosticMessageText(d.messageText, '\n'), text,
+    line];
 });
 console.log(JSON.stringify(diagnostics));
 """
-        counts = []
-        for workspace in (before, after):
-            result = subprocess.run(  # noqa: S603 - fixed checker program, no shell
-                ["node", "-e", program, str(compiler.resolve()), str(workspace)],  # noqa: S607
-                cwd=workspace,
-                capture_output=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=command_timeout(deadline),
-                check=False,
-            )
-            if result.returncode:
-                raise ValueError(
-                    f"typescript: checker unavailable: {result.stderr.strip()}"
-                )
-            diagnostics = json.loads(result.stdout)
-            counts.append(Counter(tuple(item) for item in diagnostics))
-        findings = []
-        for (path, code, message, _), count in (counts[1] - counts[0]).items():
-            evidence_finding(f"typescript:TS{code}", path)
-            findings.extend([f"{path}: TS{code}: {message}"] * count)
+
+
+def typescript_diagnostics(
+    compiler: Path,
+    workspace: Path,
+    trusted: Path | None,
+    deadline: float | None,
+    overrides: Path | None = None,
+) -> tuple[Counter[tuple], dict[tuple, int]]:
+    command = ["node", "-e", TYPESCRIPT_CHECKER, str(compiler.resolve())]
+    command += [str(workspace), str(trusted or ""), str(overrides or "")]
+    result = subprocess.run(
+        command,
+        cwd=workspace,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    if result.returncode:
+        raise ValueError(f"typescript: checker unavailable: {result.stderr.strip()}")
+    found: Counter[tuple] = Counter()
+    lines: dict[tuple, int] = {}
+    for file, code, message, text, line in json.loads(result.stdout):
+        found[(file, code, message, text)] += 1
+        lines.setdefault((file, code, message, text), line + 1)
+    return found, lines
+
+
+def typescript_state(
+    root: Path,
+    base: str,
+    config: bytes,
+    changes: list[FileChange],
+    overrides: dict[str, str] | None,
+) -> Path:
+    """Marker path naming one exact candidate tree: base, config and changes."""
+    import hashlib
+
+    files = {change.path: change.after for change in changes}
+    files.update(
+        {name: text.encode("utf-8") for name, text in (overrides or {}).items()}
+    )
+    digest = hashlib.sha256(f"{base}\0".encode() + hashlib.sha256(config).digest())
+    for name in sorted(files):
+        content = files[name]
+        digest.update(hashlib.sha256(os.fsencode(name)).digest())
+        digest.update(b"-" if content is None else hashlib.sha256(content).digest())
+    identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
+    return Path.home() / ".cache/loki/typescript" / identity / digest.hexdigest()
+
+
+def typescript_violations(
+    root: Path,
+    *,
+    deadline: float | None = None,
+    notices: list[str] | None = None,
+    overrides: dict[str, str] | None = None,
+) -> list[str]:
+    """Net-new project type errors, using the committed tsconfig.json.
+
+    Setup problems are findings when the check is explicitly enabled, and
+    notices when it runs by default. Overrides check proposed contents before
+    a write; a clean result marks that exact tree, so the post-write hook for
+    the same bytes does not compile it again.
+    """
+    import tempfile
+
+    def setup(message: str) -> list[str]:
+        if notices is None:
+            return [message]
+        notices.append(message)
+        return []
+
+    compiler = typescript_compiler(root)
+    if compiler is None:
+        return setup("typescript: required TypeScript compiler is missing")
+    base, changes = git_changes(root, None, deadline=deadline)
+    if base is None:
+        return setup("typescript: committed base required")
+    policy = base_policy(root, base, deadline=deadline) or {}
+    findings = protected_change_violations(changes, policy)
+    if findings:
         return findings
+    for name in [*(change.path for change in changes), *(overrides or {})]:
+        if name.endswith(".json"):
+            return setup(f"{name}: JSON/config change requires separate review")
+        if name.startswith("node_modules/"):
+            return setup("typescript: dependency changes require separate review")
+    try:
+        raw = git_output(root, ["show", f"{base}:tsconfig.json"], deadline=deadline)
+    except ValueError:
+        return setup("typescript: committed tsconfig.json required")
+    evidence_policy("base", "tsconfig.json", raw, base=base)
+    marker = typescript_state(root, base, raw, changes, overrides)
+    if overrides is None and marker.is_file():
+        return []
+    with tempfile.TemporaryDirectory(prefix="loki-typescript-") as directory:
+        trusted = Path(directory) / "tsconfig.json"
+        trusted.write_bytes(raw)
+        proposed = None
+        if overrides is not None:
+            proposed = Path(directory) / "overrides.json"
+            proposed.write_text(
+                json.dumps(
+                    {str(root / name): text for name, text in overrides.items()}
+                ),
+                encoding="utf-8",
+            )
+        # Most edits are clean: build the base snapshot only when errors appear.
+        after, lines = typescript_diagnostics(
+            compiler, root, trusted, deadline, proposed
+        )
+        if not after:
+            if overrides is not None:
+                marker.parent.mkdir(parents=True, exist_ok=True)
+                marker.touch()
+            return []
+        before = Path(directory) / "before"
+        materialize_base(root, base, before, deadline=deadline)
+        if (root / "node_modules").is_dir():
+            (before / "node_modules").symlink_to(
+                (root / "node_modules").resolve(), target_is_directory=True
+            )
+        previous, _ = typescript_diagnostics(compiler, before, None, deadline)
+        findings = []
+        for key, count in (after - previous).items():
+            path, code, message, _ = key
+            evidence_finding(f"typescript:TS{code}", path)
+            findings.extend([f"{path}:{lines[key]}: TS{code}: {message}"] * count)
+        return findings
+
+
+def preview_typescript(
+    root: Path,
+    config: dict[str, Any],
+    changes: list[tuple[str, str, str]],
+    *,
+    deadline: float | None,
+) -> list[str]:
+    """Type-check proposed TypeScript before it lands; post-write reports gaps."""
+    if (
+        config.get("typescript_check") is False
+        or not (root / "tsconfig.json").is_file()
+    ):
+        return []
+    overrides = {
+        name: new
+        for name, _, new in changes
+        if Path(name).suffix.lower() in TYPESCRIPT_SUFFIXES
+    }
+    if not overrides:
+        return []
+    try:
+        return typescript_violations(
+            root, deadline=deadline, notices=[], overrides=overrides
+        )
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+
+
+def typescript_findings(
+    root: Path,
+    config: dict[str, Any],
+    *,
+    deadline: float | None = None,
+    warnings: list[str] | None = None,
+) -> list[str]:
+    """Explicit true/false wins; by default, check committed TypeScript projects."""
+    setting = config.get("typescript_check")
+    if setting is not None:
+        return typescript_violations(root, deadline=deadline) if setting else []
+    if not (root / "tsconfig.json").is_file():
+        return []
+    notices: list[str] = []
+    try:
+        findings = typescript_violations(root, deadline=deadline, notices=notices)
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        findings, notices = [], [*notices, str(error).strip()[:300]]
+    messages = [f"NOT CHECKED typescript types: {notice}" for notice in notices]
+    if os.environ.get("LOKI_STRICT") == "1":
+        return [*findings, *messages]
+    if warnings is None:
+        for message in messages:
+            print(message, file=sys.stderr)
+    else:
+        warnings.extend(messages)
+    return findings
 
 
 def materialize_base(
@@ -3614,25 +4950,12 @@ def apply_snapshot_change(root: Path, change: FileChange) -> None:
         raise ValueError(f"isolated checks: unsupported candidate entry: {change.path}")
 
 
-def ruff_new_violations(
-    root: Path,
-    reference: str | None,
-    *,
-    paths: set[str] | None = None,
-    deadline: float | None = None,
+def ruff_delta(
+    raw: bytes, pairs: list[tuple[str, bytes, bytes]], *, deadline: float | None
 ) -> list[str]:
+    """Ruff findings present in each candidate but not its base, by line text."""
     import tempfile
-    from collections import Counter
 
-    base, changes = git_changes(root, reference, deadline=deadline)
-    if base is None:
-        raise ValueError("net-new Ruff requires a committed base")
-    policy = base_policy(root, base, deadline=deadline)
-    protected = protected_change_violations(changes, policy or {})
-    if protected:
-        return protected
-    raw = git_output(root, ["show", f"{base}:.ruff.toml"], deadline=deadline)
-    evidence_policy("base", ".ruff.toml", raw, base=base)
     config = tomllib.loads(raw.decode("utf-8"))
     if "extend" in config:
         raise ValueError("net-new Ruff requires self-contained base .ruff.toml")
@@ -3640,15 +4963,11 @@ def ruff_new_violations(
         trusted = Path(directory) / "ruff.toml"
         trusted.write_bytes(raw)
         violations = []
-        for change in changes:
-            if paths is not None and change.path not in paths:
-                continue
-            if not change.path.endswith(".py") or change.after is None:
-                continue
+        for path, before, after in pairs:
             counts = []
-            for content in (change.before or b"", change.after):
-                result = subprocess.run(  # noqa: S603 - trusted config, stdin source
-                    [  # noqa: S607 - installed Ruff executable
+            for content in (before, after):
+                result = subprocess.run(
+                    [  # noqa: S607 - host Git
                         "ruff",
                         "check",
                         "--no-cache",
@@ -3658,7 +4977,7 @@ def ruff_new_violations(
                         "--output-format",
                         "json",
                         "--stdin-filename",
-                        change.path,
+                        path,
                         "-",
                     ],
                     input=content,
@@ -3687,9 +5006,54 @@ def ruff_new_violations(
                     )
                 )
             for (code, message, _), count in (counts[1] - counts[0]).items():
-                evidence_finding(f"ruff:{code}", change.path)
-                violations.extend([f"{change.path}: {code}: {message}"] * count)
+                evidence_finding(f"ruff:{code}", path)
+                violations.extend([f"{path}: {code}: {message}"] * count)
         return violations
+
+
+def ruff_new_violations(
+    root: Path,
+    reference: str | None,
+    *,
+    paths: set[str] | None = None,
+    deadline: float | None = None,
+) -> list[str]:
+    base, changes = git_changes(root, reference, deadline=deadline)
+    if base is None:
+        raise ValueError("net-new Ruff requires a committed base")
+    policy = base_policy(root, base, deadline=deadline)
+    protected = protected_change_violations(changes, policy or {})
+    if protected:
+        return protected
+    raw = git_output(root, ["show", f"{base}:.ruff.toml"], deadline=deadline)
+    evidence_policy("base", ".ruff.toml", raw, base=base)
+    pairs = [
+        (change.path, change.before or b"", change.after)
+        for change in changes
+        if (paths is None or change.path in paths)
+        and change.path.endswith(".py")
+        and change.after is not None
+    ]
+    return ruff_delta(raw, pairs, deadline=deadline)
+
+
+def preview_ruff(
+    root: Path, changes: list[tuple[str, str, str]], *, deadline: float | None
+) -> list[str]:
+    """Pre-write net-new Ruff with the committed config; post-write reports gaps."""
+    pairs = [
+        (path, old.encode("utf-8"), new.encode("utf-8"))
+        for path, old, new in changes
+        if path.endswith(".py")
+    ]
+    if not pairs or not shutil.which("ruff"):
+        return []
+    try:
+        raw = git_output(root, ["show", "HEAD:.ruff.toml"], deadline=deadline)
+        evidence_policy("base", ".ruff.toml", raw, base="HEAD")
+        return ruff_delta(raw, pairs, deadline=deadline)
+    except (OSError, ValueError, subprocess.TimeoutExpired, tomllib.TOMLDecodeError):
+        return []
 
 
 def event_path(root: Path) -> Path:

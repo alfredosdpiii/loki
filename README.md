@@ -86,16 +86,40 @@ protection only, never root confinement or repository integrity checks.
 JavaScript/TypeScript writes with an exact content preview also get parser-backed
 pre-write checks for empty blocks, disabled/focused tests, async Promise executors,
 ignored executor returns, unsafe `finally` and optional chaining, constant binary
-conditions, and debugger statements. These use the
-existing `node_modules/.bin/oxlint` dependency, verified with version 1.83.0.
+conditions, and debugger statements. These use the project's
+`node_modules/.bin/oxlint`, or `oxlint` on PATH, verified with version 1.83.0.
 They run against temporary before/after copies with fixed rules, no candidate
 config and neutralized inline lint directives. No project file is changed.
 Oxlint permits commented empty blocks; Loki does not judge whether the explanation
-is truthful.
+is truthful. Without Oxlint, Loki applies parser-free equivalents of those rules
+(empty catch, async executor, unsafe `finally`, debugger, focused and disabled tests
+bound to a test framework) and still reports `NOT CHECKED` for the missing analyzer.
+
+Loki also has tool-free content rules that need no analyzer. They run on exact
+previews before the write and again on the written file against its committed text:
+
+| Language | Built-in rule |
+| --- | --- |
+| JavaScript/TypeScript | Non-literal HTML reaching `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `dangerouslySetInnerHTML` (XSS) |
+| JavaScript/TypeScript | Navigation to a target not pinned by a same-origin or fixed-host literal (open redirect) |
+| JavaScript/TypeScript | `eval` or `new Function` with non-literal source |
+| JavaScript/TypeScript | `res.redirect(...)` with `req.query`, `req.body`, `req.params`, headers or cookies (open redirect) |
+| JavaScript/TypeScript | `child_process` `exec`/`execSync` with a non-literal command (command injection) |
+| JavaScript/TypeScript | `.query`/`.execute`/`.raw`/`.unsafe`/`.prepare` with SQL built by `${}` or `+` (SQL injection) |
+| Python | Privilege-named request fields (`request["is_admin"]`, `request.args.get("role")`) in comparisons or conditions |
+| Python | `requests`, `httpx` or `urlopen` URLs derived from request data within a function (SSRF) |
+| Elixir | Privilege-named `params` in comparisons or conditions, and `"admin" => true` in function heads |
+| Elixir | HTTP client calls whose arguments use request parameters bound in the function head (SSRF) |
+| Rust | `todo!()` and `unimplemented!()` placeholders |
+
+Strings and comments are masked before matching, and findings compare by rule and
+source-line text, so moved existing findings pass. These are narrow heuristics.
+The authorization rules catch the direct pattern, not authorization logic in general.
 
 Supported previews are Claude Write/Edit/MultiEdit, Factory Create/Edit,
 Pi write/exact edit, and OMP write. Ambiguous replacements, Codex patches and OMP
-native edit formats report `NOT CHECKED` for content preview. Their path checks
+native edit formats report `NOT CHECKED` for JavaScript/TypeScript content preview;
+other languages rely on their post-write checks. Their path checks
 remain active. Missing analyzers and incomplete reports also produce `NOT CHECKED`;
 set `LOKI_STRICT=1` to deny those writes. `protect --file` alone remains a path check.
 
@@ -112,11 +136,34 @@ A single 20-second deadline covers the hook batch. Missing optional tools emit
 
 | Language | Write-time checks | Repository checks |
 | --- | --- | --- |
-| Python | Net-new Ruff, import and AST checks; no automatic rewriting | Ruff, import and AST checks |
-| JavaScript/TypeScript | Pre-write preview where supported; post-write Oxlint fixes and optional project type check | Oxlint; optional project type check |
-| Go | gofmt, go vet | golangci-lint |
-| Rust | rustfmt | Clippy |
+| Python | Net-new Ruff, import and AST checks; net-new mypy errors when mypy is installed; no automatic rewriting | Ruff, import and AST checks |
+| JavaScript/TypeScript | Pre-write preview where supported; post-write Oxlint fixes; net-new project type errors when a committed `tsconfig.json` and compiler exist | Oxlint; project type check |
+| Go | gofmt, go vet; golangci-lint issues on changed lines when installed | golangci-lint |
+| Rust | rustfmt; net-new Clippy and compiler diagnostics for the enclosing crate | Clippy |
 | Elixir/HEEx | Enclosing Mix project: format, net-new Credo; net-new Sobelow with the default Phoenix pack | Project tier per enclosing Mix project |
+
+The added write-time analyzers compare against the committed base, so existing
+debt and line shifts pass:
+
+- **mypy** runs on the written Python files with fixed flags and an empty config
+  file (`--ignore-missing-imports --follow-imports=silent`), so a working-tree
+  config cannot weaken it. The committed text is supplied with `--shadow-file`,
+  and that second run happens only when the first reports errors. It uses the
+  project's `.venv/bin/mypy` or `mypy` on PATH, with a per-repository cache under
+  `~/.cache/loki/mypy`.
+- **golangci-lint** runs `--new-from-rev=HEAD` on the written file's package with
+  the protected `.golangci.yml`, only after `go vet` passes. The template now
+  enables gosec (SQL string building, variable request URLs, tainted subprocesses,
+  disabled TLS verification) with its noisiest checks (G104, G301, G302, G306,
+  G404) excluded.
+- **Clippy** runs `cargo clippy --offline --all-targets` with the Loki restriction
+  lints as warnings. Findings are matched against a materialized base crate that
+  shares the project's `target` directory, built only when the candidate has
+  findings. Clippy restriction lints and compiler errors such as `E0308` and
+  `E0382` are reported.
+
+Missing optional analyzers are skipped; analyzer failures and timeouts are
+`NOT CHECKED`, and strict mode fails them.
 
 Scans compare actual base bytes and modes with the working tree, including staged
 and nonignored untracked files. The default base is HEAD. Explicit invalid bases,
@@ -133,6 +180,10 @@ report repository checks as `NOT CHECKED`; strict scans require Git.
 | Rust | Compiler/Clippy warnings fail; `expect` joins the existing `unwrap`, `todo`, and `unimplemented` restrictions | Clippy repository scans, all targets |
 | Elixir | Unsafe shell APIs, runtime atom creation, discarded immutable results, constant operations and rescue mistakes | Credo hooks and project checks after policy adoption |
 
+The Ruff template ignores S603, which flags every `subprocess` call including
+shell-free argument lists. `shell=True` and shell-string execution are still
+caught by S602, S604 and S605.
+
 The installer preserves existing `.ruff.toml`, `.golangci.yml` and `.credo.exs`,
 including during `init --force`. Reconcile them with the templates and independently
 review/commit the changes before relying on the stronger base-owned policy.
@@ -148,8 +199,9 @@ thresholds and compilation/Dialyzer tiers are unchanged.
 These are policy restrictions, not proof that every flagged use is a bug.
 Credo's atom rule also flags deliberate runtime atom/module construction, and
 Rust's `expect` restriction includes tests. Those cases need policy review.
-Go/Rust project checks are not new write-time checks. SSRF and application-specific
-authorization are still not generally covered.
+Go and Rust now run golangci-lint and Clippy at write time as described above.
+SSRF and application-specific authorization are covered only by the narrow
+built-in patterns listed earlier.
 
 Run paired defects and repairs across all five languages:
 
@@ -384,13 +436,21 @@ Ordinary Python hooks now use this trusted-config net-new Ruff comparison for th
 touched file. They require a committed, self-contained `.ruff.toml` and do not run
 automatic Ruff fixes or formatting. Import/AST checks remain whole-file checks.
 
-Set `"typescript_check": true` to compare project-wide TypeScript diagnostics in
-isolated base and candidate trees using the same installed compiler and base config.
-Unchanged diagnostic fingerprints pass; new consumer-file errors fail. The local
-TypeScript package and committed root tsconfig are required. Isolated checks reject
-symlink/gitlink base entries, oversized snapshots and JSON changes requiring separate
-configuration review. Dependency storage is shared, not independently authenticated.
-This remains opt-in and does not replace Oxlint.
+Project-wide TypeScript diagnostics are compared between the committed base and
+the working tree, using the same compiler and the committed root `tsconfig.json`.
+The working tree is checked first; the base snapshot is materialized only when the
+candidate has diagnostics. Unchanged diagnostic fingerprints pass; new errors fail,
+including errors in consumer files that did not change. The compiler comes from
+`node_modules/typescript`, or from the TypeScript package behind `tsc` on PATH.
+Base snapshots reject symlink/gitlink entries and oversized trees, and JSON changes
+require separate configuration review. Dependency storage is shared, not
+independently authenticated. This does not replace Oxlint.
+
+By default (`typescript_check` unset) the check runs whenever a root `tsconfig.json`
+exists. Setup problems, such as a missing compiler, an uncommitted JSON change or
+an unsupported base entry, are then reported as `NOT CHECKED` rather than blocking;
+strict mode fails them. `"typescript_check": true` makes the same setup problems
+block, and `false` turns the check off.
 
 `init --dir /repo --managed-dir /outside/repo/engines` installs a content-addressed
 engine outside the candidate tree and points generated hooks/adapters at it.
@@ -425,9 +485,15 @@ compare-and-swap, so uncooperative writers can still race during recovery.
 ## Shell gate and evidence
 
 `init --shell-guard` opts into conservative shell interception for Claude `Bash`,
-Factory `Execute`, and Pi/OMP `tool_call` adapters. Simple Git status/diff/log/show and
-pwd/whoami are allowed. Redirects, substitutions, expansions and compound commands
-are rejected. Other commands require explicit permissions. Codex shell payloads
+Factory `Execute`, and Pi/OMP `tool_call` adapters. Simple Git status/diff/log/show,
+pwd/whoami and plain `echo`/`printf` are allowed. An `echo` or `printf` may redirect
+with `>` or `>>` into a `.txt`, `.md`, `.log`, `.rst`, `.csv`, `.tsv` or `.adoc` file
+inside the repository that is not protected, symlinked, or under a dot-directory.
+A redirect into source, configuration or any other file is denied as a write-check
+bypass. Other redirects, substitutions, expansions and compound commands are rejected.
+Destructive Git commands (`reset --hard`, forced `clean`/`push`, `branch -D`,
+`stash drop`/`clear`, `checkout --`, `restore`, `rebase` and similar) are denied with
+a message naming them. Other commands require explicit permissions. Codex shell payloads
 and Pi user-entered shell events are unsupported.
 
 An operator can review and commit exact commands in `.loki/loki.json`:
@@ -484,6 +550,11 @@ the operator; this command does not install a sandbox or establish those control
 
 ## Development
 
+The broader comparison protocol is in [benchmarks/README.md](benchmarks/README.md).
+It separates pre-write prevention, post-write detection, explicit audits,
+configuration sensitivity, and live-host activation. Synthetic cases are not a
+production security guarantee or an independent product ranking.
+
 Run the tests:
 
 ```bash
@@ -500,8 +571,12 @@ Check formatting and lint:
 ```bash
 ruff check --config templates/.ruff.toml loki.py tests \
   benchmarks/phoenix.py benchmarks/host_context.py benchmarks/compare_hooks.py \
-  benchmarks/language_rules.py
+  benchmarks/language_rules.py benchmarks/recheck.py benchmarks/corpus.py \
+  benchmarks/comprehensive.py benchmarks/configured.py benchmarks/native_projects.py \
+  benchmarks/report_comprehensive.py
 ruff format --check loki.py tests \
   benchmarks/phoenix.py benchmarks/host_context.py benchmarks/compare_hooks.py \
-  benchmarks/language_rules.py
+  benchmarks/language_rules.py benchmarks/recheck.py benchmarks/corpus.py \
+  benchmarks/comprehensive.py benchmarks/configured.py benchmarks/native_projects.py \
+  benchmarks/report_comprehensive.py
 ```

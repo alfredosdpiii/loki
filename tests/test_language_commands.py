@@ -12,15 +12,13 @@ class MissingToolTests(unittest.TestCase):
         with temporary_root() as root:
             with patch.object(loki.shutil, "which", return_value=None) as which:
                 self.assertEqual("ruff", loki.missing_tool("python", root))
-                self.assertEqual(
-                    "node_modules/.bin/oxlint", loki.missing_tool("typescript", root)
-                )
+                self.assertEqual("oxlint", loki.missing_tool("typescript", root))
                 self.assertEqual("gofmt", loki.missing_tool("go", root))
                 self.assertEqual("rustfmt", loki.missing_tool("rust", root))
                 self.assertEqual("mix", loki.missing_tool("elixir", root))
                 self.assertEqual("toolchain", loki.missing_tool("unknown", root))
                 self.assertEqual(
-                    ["ruff", "gofmt", "rustfmt", "mix"],
+                    ["ruff", "oxlint", "gofmt", "rustfmt", "mix"],
                     [call.args[0] for call in which.call_args_list],
                 )
             (root / "node_modules/.bin").mkdir(parents=True)
@@ -209,7 +207,7 @@ class ScanCommandTests(unittest.TestCase):
                     )
             (root / "node_modules/.bin/oxlint").unlink()
             self.assertEqual(
-                ("node_modules/.bin/oxlint", []),
+                ("oxlint", []),
                 loki.scan_command("typescript", files, root),
             )
             self.assertEqual(

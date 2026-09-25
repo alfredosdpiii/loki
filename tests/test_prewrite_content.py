@@ -23,16 +23,31 @@ class PreviewContractTests(unittest.TestCase):
             return capture_output(loki.main)
 
     def test_unavailable_analyzer_never_looks_like_a_clean_check(self):
-        with temporary_root() as root:
-            data = {"file_path": "new.ts", "content": "try {run()} catch {}"}
+        with (
+            temporary_root() as root,
+            patch.object(loki.shutil, "which", return_value=None),
+        ):
+            data = {"file_path": "new.ts", "content": "export const value = 1;\n"}
             status, output, diagnostic = self.check(root, "Write", data)
             self.assertEqual(0, status)
             self.assertIn("NOT CHECKED", diagnostic)
+            self.assertIn("built-in fallback rules applied", diagnostic)
             self.assertEqual(
                 "PreToolUse", json.loads(output)["hookSpecificOutput"]["hookEventName"]
             )
             self.assertEqual(2, self.check(root, "Write", data, strict=True)[0])
             self.assertFalse((root / "new.ts").exists())
+
+    def test_fallback_rules_still_deny_without_oxlint(self):
+        with (
+            temporary_root() as root,
+            patch.object(loki.shutil, "which", return_value=None),
+        ):
+            data = {"file_path": "new.ts", "content": "try {run()} catch {}"}
+            status, _, diagnostic = self.check(root, "Write", data)
+            self.assertEqual(2, status)
+            self.assertIn("no-empty: empty catch block", diagnostic)
+            self.assertIn("NOT CHECKED pre-write content", diagnostic)
 
     def test_multiedit_reconstructs_sequentially_without_writing(self):
         with temporary_root() as root:
@@ -295,7 +310,7 @@ class RealPreviewTests(PreviewContractTests):
                     ("try {run()} catch {}", 2),
                     ("try {run()} catch (error) {throw error}", 0),
                 ):
-                    result = subprocess.run(  # noqa: S603 - installed fixture command
+                    result = subprocess.run(
                         ["/bin/sh", "-c", handler],
                         cwd=root,
                         env={**os.environ, "FACTORY_PROJECT_DIR": str(root)},

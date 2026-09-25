@@ -245,7 +245,7 @@ class ShellPermissionTests(unittest.TestCase):
                         if " shell --harness " in hook["command"]
                     )
                     for directory, expected in ((root, 0), (root / "nested", 2)):
-                        result = subprocess.run(  # noqa: S603 - installed fixture hook
+                        result = subprocess.run(
                             ["/bin/sh", "-c", handler],
                             cwd=root / "nested",
                             capture_output=True,

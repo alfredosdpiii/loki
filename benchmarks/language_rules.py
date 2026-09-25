@@ -166,7 +166,7 @@ CASES = {
 
 
 def run(command, root):
-    return subprocess.run(  # noqa: S603 - fixed analyzer commands in disposable fixtures
+    return subprocess.run(
         command,
         cwd=root,
         capture_output=True,

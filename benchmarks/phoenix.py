@@ -19,7 +19,7 @@ COMPONENT = "lib/loki_phoenix_fixture_web/components.ex"
 
 
 def run(command, root, *, input=None, timeout=60, required=False):
-    result = subprocess.run(  # noqa: S603 - controlled fixture commands
+    result = subprocess.run(
         command,
         cwd=root,
         input=input,
