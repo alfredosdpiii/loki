@@ -789,3 +789,117 @@ class FlowRuleTests(unittest.TestCase):
         for path, text, expected in self.CASES:
             with self.subTest(text=text):
                 self.assertEqual(expected, rules(path, text))
+
+
+class HoldoutTwoRuleTests(unittest.TestCase):
+    PATTERNS = {
+        r"(a+)+": True,
+        r"(\w+\s?)+$": True,
+        r"(.*a){2,}": True,
+        r"([a-z]+)*": True,
+        r"^([a-z0-9]+-?)+$": True,
+        r"(a|a+)+": True,
+        r"([a-z,]+,)*": True,
+        r"(\S+ )+": True,
+        r"(?:-[a-z-]+)*": True,
+        r"(?:-[a-z]+)*": False,
+        r"^(\d+,)*\d+$": False,
+        r"([^,]+,)*": False,
+        r"(ab|cd)+": False,
+        r"(?:a|b)+c": False,
+        r"[(]+x": False,
+        "(": False,
+    }
+    CASES = [
+        ("a.ts", "const TAGS = /^([a-z0-9]+-?)+$/i;", ["loki/redos"]),
+        ("a.ts", 'const R = new RegExp("(a+)+$");', ["loki/redos"]),
+        ("a.ts", "const TAG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i; const x = a / b / c;", []),
+        ("a.py", "import re\nPATTERN = re.compile(r'(\\w+\\s?)+$')\n", ["loki/redos"]),
+        ("a.py", "import re\nPATTERN = re.compile(r'^(\\d+,)*\\d+$')\n", []),
+        ("a.ts", "setInterval(poll, 1000);", ["loki/timer-leak"]),
+        ("a.ts", "const t = setInterval(poll, 1000);\nclearInterval(t);", []),
+        (
+            "a.js",
+            "this.items.forEach((x, i) => { if (x) this.items.splice(i, 1); });",
+            ["loki/mutation-during-iteration"],
+        ),
+        ("a.js", "items.forEach((x) => { other.splice(0, 1); });", []),
+        (
+            "a.ts",
+            "const sig = await sign(key, body);\nreturn signatureHeader === `sha256=${sig}`;",
+            ["loki/timing-compare"],
+        ),
+        ("a.ts", "return signature === `none`;", []),
+        (
+            "a.js",
+            "const target = new URL(req.url, base).searchParams.get('u');\n"
+            "await fetch(target);",
+            ["loki/ssrf"],
+        ),
+        (
+            "a.js",
+            "const target = allowedTarget(new URL(req.url, base).searchParams.get('u'));\n"
+            "await fetch(target);",
+            [],
+        ),
+        (
+            "a.ex",
+            "def load(path) do\n  {:ok, body} = File.read(path)\n  body\nend",
+            ["loki/unhandled-error-tuple"],
+        ),
+        (
+            "a.ex",
+            "def export(path) do\n  {:ok, file} = File.open(path, [:write])\n"
+            '  IO.write(file, "x")\nend',
+            ["loki/unhandled-error-tuple", "loki/resource-leak"],
+        ),
+        (
+            "a.ex",
+            "def export(path) do\n  with {:ok, file} <- File.open(path, [:write]) do\n"
+            '    IO.write(file, "x")\n    File.close(file)\n  end\nend',
+            [],
+        ),
+        (
+            "a.rs",
+            "fn save(p: &Path) -> io::Result<()> {\n"
+            '    let mut w = BufWriter::new(File::create(p)?);\n    w.write_all(b"x")\n}',
+            ["loki/unflushed-writer"],
+        ),
+        (
+            "a.rs",
+            "fn save(p: &Path) -> io::Result<()> {\n"
+            "    let mut w = BufWriter::new(File::create(p)?);\n"
+            '    w.write_all(b"x")?;\n    w.flush()\n}',
+            [],
+        ),
+        (
+            "a.rs",
+            "fn writer(p: &Path) -> io::Result<BufWriter<File>> {\n"
+            "    Ok(BufWriter::new(File::create(p)?))\n}",
+            [],
+        ),
+        (
+            "main.go",
+            'import "archive/zip"\nfunc extract(r *zip.Reader, dest string) {\n'
+            "\tfor _, f := range r.File {\n\t\tuse(filepath.Join(dest, f.Name))\n\t}\n}",
+            ["loki/zip-slip"],
+        ),
+        (
+            "main.go",
+            'import "archive/zip"\nfunc extract(r *zip.Reader, dest string) {\n'
+            "\tfor _, f := range r.File {\n\t\tif !filepath.IsLocal(f.Name) { return }\n"
+            "\t\tuse(filepath.Join(dest, f.Name))\n\t}\n}",
+            [],
+        ),
+        ("main.go", "func f() { use(filepath.Join(dest, f.Name)) }", []),
+    ]
+
+    def test_nested_quantifiers(self):
+        for pattern, expected in self.PATTERNS.items():
+            with self.subTest(pattern=pattern):
+                self.assertEqual(expected, loki.nested_quantifier(pattern))
+
+    def test_cases(self):
+        for path, text, expected in self.CASES:
+            with self.subTest(text=text):
+                self.assertEqual(expected, rules(path, text))

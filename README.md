@@ -121,6 +121,11 @@ previews before the write and again on the written file against its committed te
 | Elixir | `redirect(conn, external: ...)` with a params-derived value (open redirect) |
 | Elixir | `Enum.sort_by`/`max_by`/`min_by` on `*_at`, `*date`, `*time` fields without a `DateTime`/`Date` sorter (structural comparison) |
 | Rust | `get_unchecked` with an index that has no bounds check or assertion in the function |
+| JavaScript/TypeScript, Python | Regexes with nested quantifiers such as `(a+)+` or `([a-z0-9]+-?)+` (ReDoS); groups separated by a literal no repeated atom can absorb, like `(?:-[a-z]+)*`, pass |
+| JavaScript/TypeScript | `setInterval` in a file with no `clearInterval`; `forEach` callbacks that `splice` the array they iterate |
+| Elixir | `{:ok, x} = File.read/open/stat/...` (MatchError on `{:error, _}`) and `File.open` handles never passed to `File.close` |
+| Rust | `BufWriter` created in a function that neither flushes, calls `into_inner`, nor returns it |
+| Go | Archive (`archive/zip`, `archive/tar`) entry names joined into paths in a function without `filepath.IsLocal`, `filepath.Rel`, `HasPrefix`, `fs.ValidPath` or a `..` check (zip slip) |
 | Any text file | Hardcoded credentials: AWS, GitHub, Slack, Stripe live, npm, Google and model-provider keys, private keys. Low-entropy and placeholder values are skipped |
 | Any text file | Unresolved merge conflict markers |
 | GitHub workflows and actions | Untrusted `github.event` fields or `github.head_ref` interpolated into `run:` scripts |
@@ -171,8 +176,12 @@ debt and line shifts pass:
   reported only when `go vet` passes. The template enables gosec (SQL string
   building, variable request URLs, tainted subprocesses, disabled TLS
   verification) with its noisiest checks (G104, G301, G302, G304, G306, G404)
-  excluded. gocritic's `deferInLoop` is enabled. errcheck skips conventionally ignored deferred closes (`io.Closer`,
-  `*os.File`, `*os.Root`, `*sql.Rows`) and `http.ResponseWriter.Write`.
+  excluded. gocritic's `deferInLoop` is enabled. errcheck skips
+  `http.ResponseWriter.Write`, and the `std-error-handling` exclusion preset
+  (golangci-lint's long-standing default) ignores unchecked `Close`, `Flush`,
+  `os.Remove` and print calls. That also admits a deliberate
+  `_ = os.Remove(...)`. G305 is replaced by Loki's `loki/zip-slip`, which
+  recognizes `filepath.IsLocal` validation.
 - **Clippy** runs `cargo clippy --offline --all-targets` with the Loki restriction
   lints as warnings. Findings are matched against a materialized base crate that
   shares the project's `target` directory, built only when the candidate has
@@ -294,7 +303,7 @@ report repository checks as `NOT CHECKED`; strict scans require Git.
 The Ruff template ignores S603 and S607, which flag every shell-free
 `subprocess` call and bare executable name, and E501, since the formatter owns
 line length. `shell=True` and shell-string execution are still caught by S602,
-S604 and S605.
+S604 and S605. It also selects SIM115, `open` outside a context manager.
 
 The Oxlint template reports the anti-slop type-evidence rules and
 `unicorn/no-array-sort` as warnings. Post-write hooks deliver up to ten warning

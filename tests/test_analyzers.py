@@ -175,7 +175,7 @@ class GolangciTests(unittest.TestCase):
                 {
                     "go.mod": "module example.invalid/x\n\ngo 1.25\n",
                     "main.go": 'package main\nimport "os"\n'
-                    'func main() { _ = os.Remove("old") }\n',
+                    'func main() { _ = os.Chdir("old") }\n',
                     ".golangci.yml": (
                         Path(loki.__file__).parent / "templates/.golangci.yml"
                     ).read_text(),
@@ -184,7 +184,7 @@ class GolangciTests(unittest.TestCase):
             write_file(
                 root,
                 "extra.go",
-                'package main\nimport "os"\nfunc extra() { _ = os.Remove("new") }\n'
+                'package main\nimport "os"\nfunc extra() { _ = os.Chdir("new") }\n'
                 "var _ = extra\n",
             )
             with (
@@ -611,7 +611,7 @@ class RealGoHookTests(unittest.TestCase):
                     root,
                     "main.go",
                     '// Package main is a fixture.\npackage main\n\nimport "os"\n\n'
-                    'func main() { _ = os.Remove("x") }\n',
+                    'func main() { _ = os.Chdir("x") }\n',
                 )
                 findings = loki.check_file(path, root, {}, checked_projects=set())
                 self.assertTrue(any("errcheck" in item for item in findings), findings)

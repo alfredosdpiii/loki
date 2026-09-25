@@ -1063,10 +1063,15 @@ def javascript_rules(text: str) -> list[Finding]:
                 )
             )
     for match in re.finditer(
-        r"([\w$.]+(?:\([^()]*\))?)\s*(?:===?|!==?)\s*([\w$.]+(?:\([^()]*\))?)",
+        r"([\w$.]+(?:\([^()]*\))?|`[^`]*`)\s*(?:===?|!==?)\s*"
+        r"([\w$.]+(?:\([^()]*\))?|`[^`]*`)",
         masked,
     ):
         sides = [match.group(1), match.group(2)]
+        literal = [side for side in sides if side.startswith("`")]
+        # A template literal counts only when it interpolates a value.
+        if literal and "${" not in text[match.start() : match.end()]:
+            continue
         secret = [
             side
             for side in sides
@@ -1099,8 +1104,19 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
-    source = r"req(?:uest)?\s*\.\s*(?:query|body|params)\b"
-    tainted = set(re.findall(rf"\b(?:const|let|var)\s+([\w$]+)\s*=\s*{source}", masked))
+    source = r"\breq(?:uest)?\s*\.\s*(?:query|body|params|url)\b"
+    tainted = {
+        match.group(1)
+        for match in re.finditer(
+            rf"\b(?:const|let|var)\s+([\w$]+)\s*=([^;\n]*){source}", masked
+        )
+        # A value passed through an allow/validate/sanitize function is clean.
+        if not re.search(
+            r"(?<!un)(?:safe|sanitiz|validat|allow|trusted|whitelist)\w*\s*\(",
+            match.group(2),
+            re.I,
+        )
+    }
     for group in re.findall(
         rf"\b(?:const|let|var)\s*\{{([^}}]*)\}}\s*=\s*{source}", masked
     ):
@@ -1154,6 +1170,34 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    for pattern, offset in javascript_regexes(text, masked):
+        if nested_quantifier(pattern):
+            findings.append((REDOS_RULE, REDOS_MESSAGE, offset))
+    if "clearInterval" not in masked:
+        for match in re.finditer(r"(?<![\w$.])setInterval\s*\(", masked):
+            findings.append(
+                (
+                    "loki/timer-leak",
+                    "setInterval without any clearInterval in this file: the timer "
+                    "and everything it captures are never released",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(
+        r"(?<![\w$.])((?:[\w$]+\s*\.\s*)*[\w$]+)\s*\.\s*forEach\s*\(", masked
+    ):
+        callback = masked[match.end() - 1 : matching_close(masked, match.end() - 1)]
+        parts = re.split(r"\s*\.\s*", match.group(1))
+        receiver = r"\s*\.\s*".join(map(re.escape, parts))
+        if re.search(rf"(?<![\w$.]){receiver}\s*\.\s*splice\s*\(", callback):
+            findings.append(
+                (
+                    "loki/mutation-during-iteration",
+                    f"{match.group(1)} is spliced while forEach iterates it, which "
+                    "skips the next element; filter into a new array instead",
+                    match.start(),
+                )
+            )
     for match in re.finditer(r"(?<![\w$.])(eval|new\s+Function)\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and javascript_literal(text, masked, *arguments[-1]) is None:
@@ -1166,6 +1210,95 @@ def javascript_rules(text: str) -> list[Finding]:
                 )
             )
     return findings
+
+
+REDOS_RULE = "loki/redos"
+REDOS_MESSAGE = (
+    "ReDoS: nested quantifier such as (a+)+ causes catastrophic backtracking on "
+    "crafted input; remove the nesting or bound the repetition"
+)
+
+
+def delimiter_separated(body: str) -> bool:
+    """Whether a repeated group starts or ends with a literal no atom can absorb."""
+    literal = r"(?:\\[^dDwWsSbB]|[^\\\[(.|^$?*+{}])"
+    found = re.match(rf"{literal}(?![?*+{{])", body) or re.search(
+        rf"(?<!\\){literal}$", body
+    )
+    if not found:
+        return False
+    delimiter = found.group(0)[-1]
+    if re.search(r"(?<!\\)\.|\\[SWD]", body):
+        return False
+    for match in re.finditer(r"\[(\^?)((?:\\.|[^\]])*)\]", body):
+        members = re.findall(r"\\.|.", match.group(2))
+        inside = False
+        for index, member in enumerate(members):
+            ranged = (
+                0 < index < len(members) - 1
+                and member == "-"
+                and members[index - 1][-1] <= delimiter <= members[index + 1][-1]
+            )
+            if ranged or member[-1] == delimiter and member not in ("-",):
+                inside = True
+        if members[:1] == ["-"] or members[-1:] == ["-"]:
+            inside = inside or delimiter == "-"
+        if inside != bool(match.group(1)):
+            return False
+    return True
+
+
+def nested_quantifier(pattern: str) -> bool:
+    """A group containing a quantifier that is itself repeated: (x+)+, (x*)*, (x+){2,}.
+
+    A group that begins or ends with a required literal delimiter, such as
+    (?:-[a-z]+)* or (\\d+,)*, cannot match ambiguously across repetitions and is
+    not reported.
+    """
+    stack: list[list[Any]] = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == "[":
+            close = pattern.find("]", index + 2)
+            index = len(pattern) if close < 0 else close + 1
+            continue
+        if char == "(":
+            stack.append([False, index + 1])
+        elif char in "+*" and stack:
+            stack[-1][0] = True
+        elif char == "{" and stack and re.match(r"\{\d*,\d*\}", pattern[index:]):
+            stack[-1][0] = True
+        elif char == ")" and stack:
+            inner, start = stack.pop()
+            body = re.sub(r"^\?(?:[:=!]|<[=!]|<\w+>)", "", pattern[start:index])
+            delimited = "|" not in body and delimiter_separated(body)
+            if (
+                inner
+                and not delimited
+                and re.match(r"[+*]|\{\d+,\}", pattern[index + 1 :])
+            ):
+                return True
+            if inner and stack:
+                stack[-1][0] = True
+        index += 1
+    return False
+
+
+def javascript_regexes(text: str, masked: str) -> list[tuple[str, int]]:
+    """Regex literal bodies and new RegExp("...") patterns with their offsets."""
+    found = []
+    for match in re.finditer(r"/( *)/[dgimsuyv]*", masked):
+        if match.group(1):
+            body = text[match.start(1) : match.end(1)]
+            found.append((body, match.start()))
+    for match in re.finditer(r"\bRegExp\s*\(\s*(['\"`])", masked):
+        close = closing_quote(text, match.end(), match.group(1), False)
+        found.append((text[match.end() : close].replace("\\\\", "\\"), match.start()))
+    return found
 
 
 def javascript_test_names(relative: str, text: str, masked: str) -> set[str]:
@@ -1523,6 +1656,31 @@ def python_rules(text: str) -> list[Finding]:
                         offsets[node.lineno - 1] + node.col_offset,
                     )
                 )
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func)
+            in {
+                f"re.{name}"
+                for name in (
+                    "compile",
+                    "match",
+                    "search",
+                    "fullmatch",
+                    "findall",
+                    "finditer",
+                    "sub",
+                    "split",
+                )
+            }
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+            and nested_quantifier(node.args[0].value)
+        ):
+            findings.append(
+                (REDOS_RULE, REDOS_MESSAGE, offsets[node.lineno - 1] + node.col_offset)
+            )
     for call in python_path_traversal(tree):
         findings.append(
             (
@@ -1630,6 +1788,30 @@ def elixir_rules(text: str) -> list[Finding]:
                     call.start(),
                 )
             )
+    for match in re.finditer(
+        r"\{:ok,\s*[\w_]+\}\s*=\s*File\.(read|open|stat|ls|lstat|read_link)\s*\(",
+        masked,
+    ):
+        findings.append(
+            (
+                "loki/unhandled-error-tuple",
+                f"{{:ok, _}} = File.{match.group(1)}(...) raises MatchError on "
+                "{:error, reason}; use case/with, or the ! variant deliberately",
+                match.start(),
+            )
+        )
+    for match in re.finditer(
+        r"\{:ok,\s*([a-z]\w*)\}\s*(?:=|<-)\s*File\.open\s*\(", masked
+    ):
+        if not re.search(rf"\bFile\.close\s*\(\s*{match.group(1)}\b", masked):
+            findings.append(
+                (
+                    "loki/resource-leak",
+                    f"file handle {match.group(1)} from File.open is never closed; "
+                    "use File.open/3 with a function or File.close",
+                    match.start(),
+                )
+            )
     for call in re.finditer(r"\bSystem\.cmd\s*\(\s*\"", masked):
         program = text[call.end() : closing_quote(text, call.end(), '"', False)]
         arguments = text[call.end() : matching_close(masked, call.end() - 2)]
@@ -1681,6 +1863,19 @@ def rust_rules(text: str) -> list[Finding]:
     ]
     for function in re.finditer(r"\bfn\s+\w+[^{;]*\{", masked):
         body = masked[function.end() - 1 : matching_close(masked, function.end() - 1)]
+        writer = re.search(r"\bBufWriter\s*::\s*(?:new|with_capacity)\s*\(", body)
+        if writer and not re.search(
+            r"\.flush\s*\(|\binto_inner\s*\(|->\s*[^{]*BufWriter",
+            masked[function.start() : function.end()] + body,
+        ):
+            findings.append(
+                (
+                    "loki/unflushed-writer",
+                    "BufWriter dropped without flush(): write errors on drop are "
+                    "silently discarded; call flush()? before returning",
+                    function.end() - 1 + writer.start(),
+                )
+            )
         for match in re.finditer(
             r"\.get_unchecked(?:_mut)?\s*\(\s*([A-Za-z_]\w*)", body
         ):
@@ -1793,6 +1988,34 @@ def workflow_injection(text: str) -> list[Finding]:
     return findings
 
 
+def go_rules(text: str) -> list[Finding]:
+    """Archive entry names joined into paths without a containment check."""
+    if not re.search(r'"archive/(?:zip|tar)"', text):
+        return []
+    masked = mask_rust(text)
+    findings: list[Finding] = []
+    for function in re.finditer(r"\bfunc\b[^{]*\{", masked):
+        end = matching_close(masked, function.end() - 1)
+        body = masked[function.end() - 1 : end]
+        joined = re.search(r"\b(?:filepath|path)\.Join\s*\([^)]*\b\w+\.Name\b", body)
+        guarded = re.search(
+            r"\bIsLocal\s*\(|\bfilepath\.Rel\s*\(|\bHasPrefix\s*\(|"
+            r"\bValidPath\s*\(|\bContains\s*\([^)]*\.\.",
+            text[function.end() - 1 : end],
+        )
+        if joined and not guarded:
+            findings.append(
+                (
+                    "loki/zip-slip",
+                    "path traversal (zip slip): archive entry name joined into a "
+                    "path without checking it stays inside the destination; use "
+                    "filepath.IsLocal",
+                    function.end() - 1 + joined.start(),
+                )
+            )
+    return findings
+
+
 def content_rule_findings(
     relative: str, text: str, *, fallback: bool = False
 ) -> list[Finding]:
@@ -1808,6 +2031,7 @@ def content_rule_findings(
         "python": python_rules,
         "elixir": elixir_rules,
         "rust": rust_rules,
+        "go": go_rules,
     }
     findings = generic_rules(relative, text)
     return findings + (rules[language](text) if language in rules else [])

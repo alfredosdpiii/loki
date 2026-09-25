@@ -17,12 +17,7 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: true
-      # Conventionally ignored: deferred read-side closes and response writes.
       exclude-functions:
-        - (io.Closer).Close
-        - (*os.File).Close
-        - (*os.Root).Close
-        - (*database/sql.Rows).Close
         - (net/http.ResponseWriter).Write
     gocritic:
       enabled-checks:
@@ -33,5 +28,11 @@ linters:
       comparison: true
     gosec:
       # Duplicate of errcheck; permission, variable file path and math/rand
-      # checks are too noisy to block.
-      excludes: [G104, G301, G302, G304, G306, G404]
+      # checks are too noisy to block. G305 flags every archive path join,
+      # even validated ones; Loki's own loki/zip-slip rule replaces it.
+      excludes: [G104, G301, G302, G304, G305, G306, G404]
+  exclusions:
+    # golangci-lint's long-standing defaults: unchecked Close, Flush, os.Remove
+    # and print calls are conventionally ignored.
+    presets:
+      - std-error-handling

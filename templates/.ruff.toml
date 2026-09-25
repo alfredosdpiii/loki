@@ -1,7 +1,7 @@
 target-version = "py311"
 
 [lint]
-select = ["E", "F", "B", "ASYNC", "S", "I", "PLE", "LOG", "RUF006", "RUF100"]
+select = ["E", "F", "B", "ASYNC", "S", "I", "PLE", "LOG", "RUF006", "RUF100", "SIM115"]
 # S603/S607 flag every shell-free subprocess call and bare executable name;
 # S602/S604/S605 still catch shell=True and shell-string execution.
 # E501 is style; the formatter owns line length.
