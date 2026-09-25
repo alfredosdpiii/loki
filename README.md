@@ -98,8 +98,8 @@ flowchart LR
     D --> E{Post-write}
     E -->|mypy, golangci-lint, Clippy,<br/>Credo, Sobelow, Oxlint| F[Report net-new findings]
     E --> G[Advisory: new hotspots,<br/>clones, import cycles]
-    H[(Warm daemon)] -. keeps analyzers hot .- B
-    H -. .- E
+    H[(Warm daemon)] -. keeps analyzers warm .-> B
+    H -.-> E
 ```
 
 1. **Before the write,** Loki reconstructs the file the agent is about to
