@@ -671,3 +671,44 @@ class OxlintPostWriteTests(unittest.TestCase):
                     warnings=None,
                 )
             self.assertIn("oxlint advisory", output[2])
+
+
+@unittest.skipUnless(TSC.is_file() and shutil.which("node"), "TypeScript unavailable")
+class RealNewTypescriptFileTests(unittest.TestCase):
+    def test_new_files_are_checked_before_the_write(self):
+        with temporary_root() as root, temporary_root() as home:
+            commit(
+                root,
+                {
+                    "tsconfig.json": json.dumps(
+                        {
+                            "compilerOptions": {"strict": True, "noEmit": True},
+                            "include": ["src/**/*.ts"],
+                        }
+                    ),
+                    "src/main.ts": "export const value = 1;\n",
+                },
+            )
+            with (
+                patch.object(loki.shutil, "which", return_value=str(TSC)),
+                patch.dict(os.environ, {"HOME": str(home)}),
+            ):
+                bad = 'export const port: number = "80";\n'
+                findings = loki.preview_typescript(
+                    root, {}, [("src/config.ts", "", bad)], deadline=None
+                )
+                self.assertEqual(1, len(findings))
+                self.assertIn("src/config.ts:1: TS2322", findings[0])
+                # Outside include: not checked, so no validated-state marker.
+                loose = [("scripts/x.ts", "", bad)]
+                self.assertEqual(
+                    [], loki.preview_typescript(root, {}, loose, deadline=None)
+                )
+                write_file(root, "scripts/x.ts", bad)
+                with patch.object(
+                    loki,
+                    "typescript_diagnostics",
+                    wraps=loki.typescript_diagnostics,
+                ) as compile_:
+                    loki.typescript_findings(root, {})
+                compile_.assert_called()

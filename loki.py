@@ -4895,7 +4895,23 @@ host.getSourceFile = (file, version) => {
   const text = host.readFile(file);
   return text === undefined ? undefined : ts.createSourceFile(file, text, version);
 };
+// New proposed files: match them against include/exclude from an empty shadow tree.
+const shadow = process.argv[5];
+if (shadow) {
+  try {
+    const extra = ts.parseJsonConfigFileContent(read.config, ts.sys, shadow,
+      {noEmit:true}, path.join(shadow, 'tsconfig.json'));
+    for (const file of extra.fileNames) {
+      const real = path.join(root, path.relative(shadow, file));
+      if (proposed(real) && !parsed.fileNames.includes(real)) parsed.fileNames.push(real);
+    }
+  } catch {
+    // Unmatched new files are reported as uncovered and checked after the write.
+  }
+}
 const program = ts.createProgram(parsed.fileNames, parsed.options, host);
+const uncovered = Object.keys(overrides).filter(file =>
+  /\.[cm]?tsx?$/.test(file) && !program.getSourceFile(file));
 const diagnostics = ts.getPreEmitDiagnostics(program).map(d => {
   const file = d.file ? path.relative(root, d.file.fileName) : '';
   const line = d.file && d.start !== undefined
@@ -4904,7 +4920,7 @@ const diagnostics = ts.getPreEmitDiagnostics(program).map(d => {
   return [file, d.code, ts.flattenDiagnosticMessageText(d.messageText, '\n'), text,
     line];
 });
-console.log(JSON.stringify(diagnostics));
+console.log(JSON.stringify({diagnostics, uncovered}));
 """
 
 
@@ -4914,9 +4930,12 @@ def typescript_diagnostics(
     trusted: Path | None,
     deadline: float | None,
     overrides: Path | None = None,
-) -> tuple[Counter[tuple], dict[tuple, int]]:
+    shadow: Path | None = None,
+) -> tuple[Counter[tuple], dict[tuple, int], list[str]]:
+    """Diagnostics, their first lines, and proposed TypeScript files not checked."""
     command = ["node", "-e", TYPESCRIPT_CHECKER, str(compiler.resolve())]
     command += [str(workspace), str(trusted or ""), str(overrides or "")]
+    command += [str(shadow or "")]
     result = subprocess.run(
         command,
         cwd=workspace,
@@ -4928,12 +4947,13 @@ def typescript_diagnostics(
     )
     if result.returncode:
         raise ValueError(f"typescript: checker unavailable: {result.stderr.strip()}")
+    report = json.loads(result.stdout)
     found: Counter[tuple] = Counter()
     lines: dict[tuple, int] = {}
-    for file, code, message, text, line in json.loads(result.stdout):
+    for file, code, message, text, line in report["diagnostics"]:
         found[(file, code, message, text)] += 1
         lines.setdefault((file, code, message, text), line + 1)
-    return found, lines
+    return found, lines, report["uncovered"]
 
 
 def typescript_state(
@@ -5007,7 +5027,7 @@ def typescript_violations(
     with tempfile.TemporaryDirectory(prefix="loki-typescript-") as directory:
         trusted = Path(directory) / "tsconfig.json"
         trusted.write_bytes(raw)
-        proposed = None
+        proposed = shadow = None
         if overrides is not None:
             proposed = Path(directory) / "overrides.json"
             proposed.write_text(
@@ -5016,12 +5036,23 @@ def typescript_violations(
                 ),
                 encoding="utf-8",
             )
+            shadow = Path(directory) / "shadow"
+            for name in overrides:
+                if not (root / name).exists():
+                    (shadow / name).parent.mkdir(parents=True, exist_ok=True)
+                    (shadow / name).touch()
         # Most edits are clean: build the base snapshot only when errors appear.
-        after, lines = typescript_diagnostics(
-            compiler, root, trusted, deadline, proposed
+        after, lines, uncovered = typescript_diagnostics(
+            compiler,
+            root,
+            trusted,
+            deadline,
+            proposed,
+            shadow if shadow is not None and shadow.is_dir() else None,
         )
         if not after:
-            if overrides is not None:
+            # A proposed file outside the program was not checked: no marker.
+            if overrides is not None and not uncovered:
                 marker.parent.mkdir(parents=True, exist_ok=True)
                 marker.touch()
             return []
@@ -5031,7 +5062,7 @@ def typescript_violations(
             (before / "node_modules").symlink_to(
                 (root / "node_modules").resolve(), target_is_directory=True
             )
-        previous, _ = typescript_diagnostics(compiler, before, None, deadline)
+        previous, _, _ = typescript_diagnostics(compiler, before, None, deadline)
         findings = []
         for key, count in (after - previous).items():
             path, code, message, _ = key
