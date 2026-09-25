@@ -289,6 +289,7 @@ def validate_config(value: Any) -> dict[str, Any]:
         "rule_packs",
         "elixir_security",
         "shell_commands",
+        "slop",
     }
     if unknown:
         raise ValueError(f"loki: unknown configuration key: {sorted(unknown)[0]}")
@@ -296,6 +297,7 @@ def validate_config(value: Any) -> dict[str, Any]:
     rule_packs(value)
     security_policy(value)
     shell_permissions(value)
+    slop_policy(value)
     if not isinstance(value.get("typescript_check", False), bool):
         raise ValueError("typescript_check must be a boolean")
     for key in ("approved_dependencies", "private_packages"):
@@ -804,11 +806,17 @@ def mask_elixir(text: str) -> str:
     return "".join(chars)
 
 
+RUST_INTERESTING = re.compile(r"/[/*]|b?r#*\"|[\"']")
+RUST_RAW = re.compile(r"b?r(#*)\"")
+RUST_CHAR = re.compile(r"'(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\\'\n])'")
+
+
 def mask_rust(text: str) -> str:
+    """Blank comments and literals in Rust, Go and other C-family source."""
     chars = list(text)
     index = 0
-    while index < len(text):
-        char = text[index]
+    while found := RUST_INTERESTING.search(text, index):
+        index = found.start()
         if text.startswith("/*", index):
             depth, end = 1, index + 2
             while end < len(text) and depth:
@@ -818,30 +826,33 @@ def mask_rust(text: str) -> str:
             blank(chars, index, end)
             index = end
             continue
-        if (end := comment_end(text, index)) is not None:
+        if text.startswith("//", index):
+            end = text.find("\n", index)
+            end = len(text) if end < 0 else end
             blank(chars, index, end)
             index = end
             continue
-        identifier = index and (text[index - 1].isalnum() or text[index - 1] == "_")
-        raw = None if identifier else re.match(r'b?r(#*)"', text[index:])
-        if raw:
-            start = index + raw.end()
+        if text[index] not in "\"'":
+            identifier = index and (text[index - 1].isalnum() or text[index - 1] == "_")
+            raw = RUST_RAW.match(text, index)
+            if raw is None or identifier:
+                index = text.index('"', index)
+                continue
+            start = raw.end()
             end = text.find('"' + raw.group(1), start)
             end = len(text) if end < 0 else end
             blank(chars, start, end)
             index = end + 1 + len(raw.group(1))
             continue
-        if char == '"':
+        if text[index] == '"':
             end = closing_quote(text, index + 1, '"', True)
             blank(chars, index + 1, end)
             index = end + 1
             continue
-        literal = char == "'" and re.match(
-            r"'(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\\'\n])'", text[index:]
-        )
+        literal = RUST_CHAR.match(text, index)
         if literal:
-            blank(chars, index + 1, index + literal.end() - 1)
-            index += literal.end()
+            blank(chars, index + 1, literal.end() - 1)
+            index = literal.end()
             continue
         index += 1
     return "".join(chars)
@@ -1844,6 +1855,1502 @@ def typescript_compiler(root: Path) -> Path | None:
         if compiler.is_file():
             return compiler
     return None
+
+
+# --- Structural sloppiness -------------------------------------------------
+# Erosion and verbosity follow https://earendil.com/posts/measuring-code-sloppiness/
+# and the index follows trellis's provisional formula (scoring 0.2.0), extended
+# from TypeScript to every Loki language.
+
+SLOP_COMPLEXITY = 10
+CLONE_MIN_TOKENS = 100
+CLONE_MIN_LINES = 3
+SLOP_DIMENSIONS = (
+    # dimension, weight, density metric @ saturation, count metric, log scale
+    ("complexity-erosion", 0.5, "eroded_share", 0.25, "eroded_functions", 20),
+    ("duplication", 0.3, "duplication_density", 0.15, "clone_groups", 15),
+    ("import-cycle", 0.2, "cycle_density", 0.10, "cycle_groups", 5),
+)
+SLOP_EXTENSIONS = {
+    ".java": "java",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".cs": "csharp",
+    ".c": "c",
+    ".h": "c",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".hh": "cpp",
+    ".swift": "swift",
+    ".scala": "scala",
+    ".php": "php",
+    ".rb": "ruby",
+}
+BRACE_LANGUAGES = {"java", "kotlin", "csharp", "c", "cpp", "swift", "scala", "php"}
+EXACT_COMPLEXITY = {"python", "typescript", "go", "elixir"}
+SLOP_KEYWORDS = {
+    "python": "and as assert async await break class continue def del elif else "
+    "except finally for from global if import in is lambda nonlocal not or pass "
+    "raise return try while with yield None True False match case",
+    "typescript": "async await break case catch class const continue default delete "
+    "do else enum export extends false finally for function if import in instanceof "
+    "let new null of return static super switch this throw true try typeof var void "
+    "while yield interface type implements",
+    "go": "break case chan const continue default defer else fallthrough for func go "
+    "goto if import interface map package range return select struct switch type var "
+    "nil true false",
+    "rust": "as async await break const continue crate else enum extern false fn for "
+    "if impl in let loop match mod move mut pub ref return self Self static struct "
+    "super trait true type unsafe use where while",
+    "elixir": "after and case catch cond def defp defmodule defstruct do else end fn "
+    "for if in nil not or raise receive rescue true false try unless when with",
+    "brace": "abstract break case catch class const continue default do else enum "
+    "extends false final finally for foreach func fun function if implements import "
+    "in interface internal let namespace new null override private protected public "
+    "return static struct super switch this throw true try val var void when while",
+    "ruby": "begin break case class def do else elsif end ensure false for if in module "
+    "next nil not or and rescue return self then true unless until when while yield",
+}
+
+
+def slop_language(path: str) -> str | None:
+    suffix = Path(path).suffix.lower()
+    return LANGUAGE_EXTENSIONS.get(suffix) or SLOP_EXTENSIONS.get(suffix)
+
+
+def slop_mask(language: str, text: str) -> str:
+    if language == "python":
+        return mask_python(text)
+    if language == "typescript":
+        return mask_javascript(text)
+    if language in {"elixir", "ruby"}:
+        return mask_elixir(text)
+    return mask_rust(text)
+
+
+@dataclass(frozen=True)
+class FunctionMetric:
+    path: str
+    name: str
+    start: int
+    end: int
+    complexity: int
+    sloc: int
+    nesting: int
+
+    @property
+    def mass(self) -> float:
+        return self.complexity * self.sloc**0.5
+
+
+def source_lines(masked: str, start: int, end: int) -> int:
+    """Non-blank lines once comments and literal contents are masked."""
+    lines = masked.splitlines()[start - 1 : end]
+    return sum(1 for line in lines if line.strip())
+
+
+def python_functions(path: str, text: str) -> list[FunctionMetric]:
+    """Exact McCabe-style complexity; nested functions count for themselves."""
+    return content_memo(
+        "python-functions", path, text, lambda: python_functions_uncached(path, text)
+    )
+
+
+def python_functions_uncached(path: str, text: str) -> list[FunctionMetric]:
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    lines = text.splitlines()
+    results = []
+
+    def decisions(node: ast.AST, depth: int) -> tuple[int, int]:
+        total, deepest = 0, depth
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
+                continue
+            nested = isinstance(
+                child, ast.If | ast.For | ast.AsyncFor | ast.While | ast.Try | ast.With
+            ) or (isinstance(child, ast.Match))
+            if isinstance(
+                child, ast.If | ast.For | ast.AsyncFor | ast.While | ast.IfExp
+            ):
+                total += 1
+            elif isinstance(child, ast.ExceptHandler):
+                total += 1
+            elif isinstance(child, ast.match_case) and not (
+                isinstance(child.pattern, ast.MatchAs) and child.pattern.pattern is None
+            ):
+                # A bare `case _:` is the default branch, like `default:` elsewhere.
+                total += 1
+            elif isinstance(child, ast.BoolOp):
+                total += len(child.values) - 1
+            elif isinstance(child, ast.comprehension):
+                total += 1 + len(child.ifs)
+            count, reached = decisions(child, depth + 1 if nested else depth)
+            total += count
+            deepest = max(deepest, reached)
+        return total, deepest
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            end = node.end_lineno or node.lineno
+            count, depth = decisions(node, 0)
+            sloc = sum(
+                1
+                for line in lines[node.lineno - 1 : end]
+                if line.strip() and not line.strip().startswith("#")
+            )
+            results.append(
+                FunctionMetric(
+                    path, node.name, node.lineno, end, 1 + count, sloc, depth
+                )
+            )
+    return results
+
+
+def masked_functions(path: str, text: str, language: str) -> list[FunctionMetric]:
+    """Approximate complexity for Go, Rust, Elixir (and JS/TS without a compiler).
+
+    Functions are found structurally on masked source; decisions are counted as
+    branch keywords, match/case arms and short-circuit operators in the body,
+    excluding nested functions.
+    """
+    masked = slop_mask(language, text)
+    spans: list[tuple[str, int, int]] = []
+    if language in {"elixir", "ruby"}:
+        lines = masked.splitlines(keepends=True)
+        offsets = [0]
+        for line in lines:
+            offsets.append(offsets[-1] + len(line))
+        for index, line in enumerate(lines):
+            head = re.match(r"(\s*)defp?\s+(?:self\.)?([\w?!=]+)", line)
+            if not head:
+                continue
+            if re.search(r",\s*do:", line):
+                spans.append((head.group(2), offsets[index], offsets[index + 1]))
+                continue
+            indent = len(head.group(1))
+            for other in range(index + 1, len(lines)):
+                stripped = lines[other].strip()
+                if (
+                    stripped == "end"
+                    and len(lines[other]) - len(lines[other].lstrip()) <= indent
+                ):
+                    spans.append((head.group(2), offsets[index], offsets[other + 1]))
+                    break
+    else:
+        pattern = {
+            "go": r"\bfunc\s*(?:\([^)]*\)\s*)?([\w]*)\s*\(",
+            "rust": r"\bfn\s+(\w+)",
+            "typescript": r"\bfunction\s*\*?\s*([\w$]*)\s*\(|([\w$]+)\s*=\s*"
+            r"(?:async\s*)?(?:\([^()]*\)|[\w$]+)\s*(?::[^=;{]+)?=>\s*\{|"
+            r"^\s*(?:(?:public|private|protected|static|async|get|set)\s+)*"
+            r"([\w$]+)\s*\([^()]*\)\s*(?::[^{;]+)?\{",
+        }.get(
+            language,
+            # Brace languages: `fun`/`func`/`function`/`def` heads, or C-family
+            # `type name(params) {` heads.
+            r"\b(?:fun|func|function|def)\s+(?:[\w.<>]+\.)?([\w$]+)|"
+            r"^[ \t]*(?:[\w<>\[\],.*&:~?]+[ \t]+)+([A-Za-z_]\w*)\s*\([^;{}]*\)"
+            r"[^;{}=]*\{",
+        )
+        for match in re.finditer(pattern, masked, re.M):
+            opening = masked.find("{", match.end() - 1)
+            if opening < 0 or ";" in masked[match.end() : opening]:
+                continue
+            name = next((group for group in match.groups() if group), "<anonymous>")
+            if name in {"if", "for", "while", "switch", "catch", "function", "foreach"}:
+                continue
+            spans.append((name, match.start(), matching_close(masked, opening)))
+    decision = {
+        "go": r"\bif\b|\bfor\b|\bcase\b|&&|\|\|",
+        "rust": r"\bif\b|\bwhile\b|\bfor\b|=>|&&|\|\||\?(?![\w?])",
+        "typescript": r"\bif\b|\bfor\b|\bwhile\b|\bcase\b|\bcatch\b|&&|\|\||\?\?|\?\.|"
+        r"\?(?![.?])",
+        "elixir": r"\bif\b|\bunless\b|->|&&|\|\||\band\b|\bor\b",
+        "ruby": r"\b(?:if|unless|elsif|while|until|for|when|rescue)\b|&&|\|\||"
+        r"\band\b|\bor\b",
+    }.get(
+        language,
+        r"\b(?:if|for|foreach|while|case|catch|when)\b|&&|\|\||\?\?|\?(?![.:?])",
+    )
+    results = []
+    for name, start, end in spans:
+        body = masked[start:end]
+        # Nested functions are measured separately, never folded into the parent.
+        for _, inner_start, inner_end in spans:
+            if start < inner_start and inner_end <= end:
+                body = body.replace(masked[inner_start:inner_end], "", 1)
+        count = len(re.findall(decision, body))
+        if language == "rust":
+            # A match with n arms adds n - 1 decisions.
+            count -= len(re.findall(r"\bmatch\b", body))
+        if language == "elixir":
+            count -= len(re.findall(r"\bfn\b", body))
+        first = masked.count("\n", 0, start) + 1
+        last = masked.count("\n", 0, max(start, end - 1)) + 1
+        depth, deepest = 0, 0
+        for char in body:
+            if char in "{(":
+                depth += 1
+                deepest = max(deepest, depth)
+            elif char in "})":
+                depth -= 1
+        results.append(
+            FunctionMetric(
+                path,
+                name,
+                first,
+                last,
+                1 + max(0, count),
+                source_lines(masked, first, last),
+                max(0, deepest - 1),
+            )
+        )
+    return results
+
+
+def function_metrics(
+    path: str, text: str, exact: list[FunctionMetric] | None = None
+) -> list[FunctionMetric]:
+    """Exact metrics when a parser supplied them, else structural approximation."""
+    language = slop_language(path)
+    if language == "python":
+        return python_functions(path, text)
+    if exact is not None:
+        return exact
+    return [] if language is None else masked_functions(path, text, language)
+
+
+def exact_function_metrics(
+    root: Path, texts: dict[str, str], *, deadline: float | None = None
+) -> tuple[dict[str, list[FunctionMetric]], set[str]]:
+    """Parser-backed metrics for TS/JS, Go and Elixir, plus languages left approximate."""
+    exact: dict[str, list[FunctionMetric]] = {}
+    approximate: set[str] = set()
+    for language, measure in (
+        (
+            "typescript",
+            lambda chosen: typescript_function_metrics(root, chosen, deadline=deadline),
+        ),
+        ("go", lambda chosen: go_function_metrics(chosen, deadline=deadline)),
+        ("elixir", lambda chosen: elixir_function_metrics(chosen, deadline=deadline)),
+    ):
+        chosen = {
+            path: text
+            for path, text in texts.items()
+            if slop_language(path) == language
+        }
+        if not chosen:
+            continue
+        result = measure(chosen)
+        if result is None:
+            approximate.add(language)
+        else:
+            exact.update(result)
+    approximate.update(
+        language
+        for path in texts
+        if (language := slop_language(path)) and language not in EXACT_COMPLEXITY
+    )
+    return exact, approximate
+
+
+SLOP_TYPESCRIPT = r"""
+const ts = require(process.argv[1]);
+const files = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
+const decision = new Set([ts.SyntaxKind.IfStatement, ts.SyntaxKind.ForStatement,
+  ts.SyntaxKind.ForInStatement, ts.SyntaxKind.ForOfStatement,
+  ts.SyntaxKind.WhileStatement, ts.SyntaxKind.DoStatement, ts.SyntaxKind.CaseClause,
+  ts.SyntaxKind.CatchClause, ts.SyntaxKind.ConditionalExpression]);
+const logical = new Set([ts.SyntaxKind.AmpersandAmpersandToken,
+  ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken]);
+const nesting = new Set([ts.SyntaxKind.IfStatement, ts.SyntaxKind.ForStatement,
+  ts.SyntaxKind.ForInStatement, ts.SyntaxKind.ForOfStatement,
+  ts.SyntaxKind.WhileStatement, ts.SyntaxKind.DoStatement,
+  ts.SyntaxKind.SwitchStatement, ts.SyntaxKind.TryStatement]);
+const out = {};
+for (const [name, text] of Object.entries(files)) {
+  const file = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true);
+  const functions = [];
+  const measure = (fn, label) => {
+    let complexity = 1, deepest = 0;
+    const walk = (node, depth) => {
+      if (node !== fn && ts.isFunctionLike(node)) return;
+      if (decision.has(node.kind)) complexity++;
+      if (ts.isBinaryExpression(node) && logical.has(node.operatorToken.kind)) complexity++;
+      if ((ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node) ||
+           ts.isCallExpression(node)) && node.questionDotToken) complexity++;
+      const next = nesting.has(node.kind) ? depth + 1 : depth;
+      deepest = Math.max(deepest, next);
+      ts.forEachChild(node, child => walk(child, next));
+    };
+    ts.forEachChild(fn, child => walk(child, 0));
+    const start = file.getLineAndCharacterOfPosition(fn.getStart(file)).line + 1;
+    const end = file.getLineAndCharacterOfPosition(fn.getEnd()).line + 1;
+    functions.push([label, start, end, complexity, deepest]);
+  };
+  const visit = node => {
+    if (ts.isFunctionLike(node) && node.body) {
+      const label = node.name && ts.isIdentifier(node.name) ? node.name.text
+        : ts.isVariableDeclaration(node.parent) && ts.isIdentifier(node.parent.name)
+          ? node.parent.name.text : '<anonymous>';
+      measure(node, label);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  out[name] = functions;
+}
+console.log(JSON.stringify(out));
+"""
+
+
+def typescript_function_metrics(
+    root: Path, texts: dict[str, str], *, deadline: float | None = None
+) -> dict[str, list[FunctionMetric]] | None:
+    """Exact TS/JS complexity from the TypeScript parser, or None without one."""
+    compiler = typescript_compiler(root)
+    if compiler is None or not texts:
+        return None
+    try:
+        result = subprocess.run(
+            ["node", "-e", SLOP_TYPESCRIPT, str(compiler.resolve())],
+            input=json.dumps(texts),
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=command_timeout(deadline),
+            check=False,
+        )
+        if result.returncode:
+            return None
+        report = json.loads(result.stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    metrics = {}
+    for name, functions in report.items():
+        masked = mask_javascript(texts[name])
+        metrics[name] = [
+            FunctionMetric(
+                name,
+                label,
+                start,
+                end,
+                complexity,
+                source_lines(masked, start, end),
+                depth,
+            )
+            for label, start, end, complexity, depth in functions
+        ]
+    return metrics
+
+
+SLOP_GO = r"""package main
+
+import (
+	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+)
+
+type function struct {
+	Name       string `json:"name"`
+	Start      int    `json:"start"`
+	End        int    `json:"end"`
+	Complexity int    `json:"complexity"`
+	Nesting    int    `json:"nesting"`
+}
+
+func nests(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
+		*ast.TypeSwitchStmt, *ast.SelectStmt:
+		return true
+	}
+	return false
+}
+
+// measure counts gocyclo decisions; function literals are measured separately.
+func measure(fset *token.FileSet, root ast.Node, body *ast.BlockStmt, name string,
+	out *[]function) {
+	complexity, deepest := 1, 0
+	var stack []ast.Node
+	ast.Inspect(body, func(node ast.Node) bool {
+		if node == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		if literal, ok := node.(*ast.FuncLit); ok {
+			measure(fset, literal, literal.Body, "<anonymous>", out)
+			return false
+		}
+		stack = append(stack, node)
+		switch item := node.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt:
+			complexity++
+		case *ast.CaseClause:
+			if item.List != nil {
+				complexity++
+			}
+		case *ast.CommClause:
+			if item.Comm != nil {
+				complexity++
+			}
+		case *ast.BinaryExpr:
+			if item.Op == token.LAND || item.Op == token.LOR {
+				complexity++
+			}
+		}
+		depth := 0
+		for _, open := range stack {
+			if nests(open) {
+				depth++
+			}
+		}
+		if depth > deepest {
+			deepest = depth
+		}
+		return true
+	})
+	*out = append(*out, function{name, fset.Position(root.Pos()).Line,
+		fset.Position(root.End()).Line, complexity, deepest})
+}
+
+func main() {
+	var files map[string]string
+	if err := json.NewDecoder(os.Stdin).Decode(&files); err != nil {
+		os.Exit(2)
+	}
+	result := map[string][]function{}
+	for name, text := range files {
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, name, text, parser.SkipObjectResolution)
+		functions := []function{}
+		if err == nil {
+			for _, declaration := range file.Decls {
+				item, ok := declaration.(*ast.FuncDecl)
+				if !ok || item.Body == nil {
+					continue
+				}
+				label := item.Name.Name
+				if item.Recv != nil && len(item.Recv.List) == 1 {
+					receiver := item.Recv.List[0].Type
+					if star, ok := receiver.(*ast.StarExpr); ok {
+						receiver = star.X
+					}
+					if ident, ok := receiver.(*ast.Ident); ok {
+						label = ident.Name + "." + label
+					}
+				}
+				measure(fset, item, item.Body, label, &functions)
+			}
+		}
+		result[name] = functions
+	}
+	json.NewEncoder(os.Stdout).Encode(result)
+}
+"""
+
+SLOP_ELIXIR = r"""
+defmodule LokiSlop do
+  @branches [:if, :unless]
+  @clauses [:case, :cond, :receive]
+  @nesting [:if, :unless, :case, :cond, :receive, :with, :try, :fn]
+  @boolean [:and, :or, :&&, :||]
+  @definitions [:def, :defp, :defmacro, :defmacrop]
+
+  def main do
+    # A file, not stdin: unicode-mode stdio rejects sources with non-Latin-1 text.
+    [path] = System.argv()
+    read(File.read!(path))
+  end
+
+  defp read(""), do: :ok
+
+  defp read(data) do
+    [name, rest] = :binary.split(data, "\n")
+    [size, rest] = :binary.split(rest, "\n")
+    count = String.to_integer(size)
+    <<text::binary-size(count), rest::binary>> = rest
+    measure(name, text)
+    read(rest)
+  end
+
+  defp measure(name, text) do
+    case Code.string_to_quoted(text, token_metadata: true) do
+      {:ok, ast} ->
+        Macro.prewalk(ast, nil, fn
+          {kind, meta, [head | body]} = node, acc when kind in @definitions ->
+            emit(name, head, meta, body)
+            {node, acc}
+
+          node, acc ->
+            {node, acc}
+        end)
+
+      _ ->
+        IO.puts("#{name}\tUNPARSED")
+    end
+  end
+
+  defp label({:when, _, [call | _]}), do: label(call)
+  defp label({name, _, _}) when is_atom(name), do: Atom.to_string(name)
+  defp label(_), do: "<anonymous>"
+
+  defp emit(name, head, meta, body) do
+    start = Keyword.get(meta, :line, 0)
+    finish = get_in(meta, [:end, :line]) || last_line(body, start)
+    {complexity, nesting} = walk(body, 0)
+    IO.puts(Enum.join([name, label(head), start, finish, 1 + complexity, nesting], "\t"))
+  end
+
+  defp last_line(node, line) do
+    {_, found} =
+      Macro.prewalk(node, line, fn
+        {_, meta, _} = item, acc when is_list(meta) -> {item, max(acc, meta[:line] || acc)}
+        item, acc -> {item, acc}
+      end)
+
+    found
+  end
+
+  # Returns {decisions, deepest nesting} for a subtree.
+  defp walk({kind, _, args}, depth) when is_atom(kind) and is_list(args) do
+    own =
+      cond do
+        kind in @branches -> 1
+        kind in @clauses -> max(length(arms(args)) - 1, 0)
+        kind == :with -> Enum.count(args, &match?({:<-, _, _}, &1)) + length(arms(args, :else))
+        kind == :try -> length(arms(args, :rescue)) + length(arms(args, :catch))
+        kind == :fn -> max(length(args) - 1, 0)
+        kind in @boolean and length(args) == 2 -> 1
+        true -> 0
+      end
+
+    inner = if kind in @nesting, do: depth + 1, else: depth
+    {count, deepest} = walk(args, inner)
+    {own + count, max(deepest, if(kind in @nesting, do: inner, else: depth))}
+  end
+
+  defp walk({left, right}, depth), do: walk([left, right], depth)
+
+  defp walk(list, depth) when is_list(list) do
+    Enum.reduce(list, {0, depth}, fn item, {count, deepest} ->
+      {inner, reached} = walk(item, depth)
+      {count + inner, max(deepest, reached)}
+    end)
+  end
+
+  defp walk({callee, _, args}, depth) when is_list(args), do: walk([callee | args], depth)
+  defp walk(_, depth), do: {0, depth}
+
+  defp arms(args, key \\ :do) do
+    Enum.find_value(args, [], fn
+      list when is_list(list) ->
+        case Keyword.get(list, key) do
+          clauses when is_list(clauses) -> Enum.filter(clauses, &match?({:->, _, _}, &1))
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end)
+  end
+end
+
+LokiSlop.main()
+"""
+
+
+def go_function_metrics(
+    texts: dict[str, str], *, deadline: float | None = None
+) -> dict[str, list[FunctionMetric]] | None:
+    """Exact gocyclo complexity from go/ast; the helper is built once and cached."""
+    import hashlib
+
+    if not texts or not shutil.which("go"):
+        return None
+    digest = hashlib.sha256(SLOP_GO.encode()).hexdigest()[:16]
+    tool = Path.home() / ".cache/loki/tools" / f"gometrics-{digest}"
+    try:
+        if not tool.is_file():
+            source = tool.with_suffix(".src")
+            source.mkdir(parents=True, exist_ok=True)
+            (source / "go.mod").write_text("module lokimetrics\n\ngo 1.21\n")
+            (source / "main.go").write_text(SLOP_GO)
+            built = subprocess.run(
+                ["go", "build", "-o", str(tool), "."],
+                cwd=source,
+                capture_output=True,
+                env={**os.environ, "GOTOOLCHAIN": "local", "GOFLAGS": "-mod=mod"},
+                timeout=command_timeout(deadline),
+                check=False,
+            )
+            if built.returncode:
+                return None
+        result = subprocess.run(
+            [str(tool)],
+            input=json.dumps(texts),
+            capture_output=True,
+            encoding="utf-8",
+            timeout=command_timeout(deadline),
+            check=False,
+        )
+        report = json.loads(result.stdout) if result.returncode == 0 else None
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    if report is None:
+        return None
+    metrics = {}
+    for name, functions in report.items():
+        masked = mask_rust(texts[name])
+        metrics[name] = [
+            FunctionMetric(
+                name,
+                item["name"],
+                item["start"],
+                item["end"],
+                item["complexity"],
+                source_lines(masked, item["start"], item["end"]),
+                item["nesting"],
+            )
+            for item in functions
+        ]
+    return metrics
+
+
+def elixir_function_metrics(
+    texts: dict[str, str], *, deadline: float | None = None
+) -> dict[str, list[FunctionMetric]] | None:
+    """Exact clause-aware complexity from Elixir's own parser."""
+    if not texts or not shutil.which("elixir"):
+        return None
+    import tempfile
+
+    payload = "".join(
+        f"{name}\n{len(text.encode('utf-8'))}\n{text}" for name, text in texts.items()
+    )
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".loki") as handle:
+            handle.write(payload.encode("utf-8"))
+            handle.flush()
+            result = subprocess.run(
+                ["elixir", "-e", SLOP_ELIXIR, handle.name],
+                capture_output=True,
+                timeout=command_timeout(deadline),
+                check=False,
+            )
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+    if result.returncode:
+        return None
+    metrics: dict[str, list[FunctionMetric]] = {name: [] for name in texts}
+    masks: dict[str, str] = {}
+    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
+        fields = line.split("\t")
+        if len(fields) != 6 or fields[0] not in texts:
+            continue
+        name, label, start, end, complexity, nesting = fields
+        if name not in masks:
+            masks[name] = mask_elixir(texts[name])
+        masked = masks[name]
+        metrics[name].append(
+            FunctionMetric(
+                name,
+                label,
+                int(start),
+                int(end),
+                int(complexity),
+                source_lines(masked, int(start), int(end)),
+                int(nesting),
+            )
+        )
+    return metrics
+
+
+def elixir_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
+    """Compile-time dependencies (import, use, require) between project modules."""
+    owners: dict[str, str] = {}
+    for path, text in files.items():
+        if Path(path).suffix in {".ex", ".exs"}:
+            for module in re.findall(
+                r"^\s*defmodule\s+([\w.]+)", mask_elixir(text), re.M
+            ):
+                owners[module] = path
+    graph: dict[str, set[str]] = {}
+    for path, text in files.items():
+        if Path(path).suffix not in {".ex", ".exs"}:
+            continue
+        masked = mask_elixir(text)
+        targets = re.findall(r"^\s*(?:import|use|require)\s+([\w.]+)", masked, re.M)
+        graph[path] = {
+            owners[target]
+            for target in targets
+            if target in owners and owners[target] != path
+        }
+    return graph
+
+
+def normalized_tokens(path: str, text: str) -> list[tuple[str, int]]:
+    """Tokens with identifiers and literals replaced by placeholders, per line."""
+    language = slop_language(path)
+    if language is None:
+        return []
+    masked = slop_mask(language, text)
+    family = "brace" if language in BRACE_LANGUAGES else language
+    keywords = set(SLOP_KEYWORDS[family].split())
+    tokens = []
+    line = 1
+    for match in re.finditer(r"\n|[A-Za-z_]\w*|\d[\w.]*|([\"'`])\s*\1|\S", masked):
+        symbol = match.group(0)
+        if symbol == "\n":
+            line += 1
+            continue
+        if symbol[0].isalpha() or symbol[0] == "_":
+            symbol = symbol if symbol in keywords else "I"
+        elif symbol[0].isdigit():
+            symbol = "N"
+        elif match.group(1):
+            symbol = "S"
+        tokens.append((symbol, line))
+    return tokens
+
+
+def mask_python(text: str) -> str:
+    """Blank Python comments and string contents, keeping quotes and offsets."""
+    import io as _io
+    import tokenize
+
+    chars = list(text)
+    offsets = [0]
+    for line in text.splitlines(keepends=True):
+        offsets.append(offsets[-1] + len(line))
+    try:
+        for token in tokenize.generate_tokens(_io.StringIO(text).readline):
+            if token.type not in (tokenize.COMMENT, tokenize.STRING):
+                continue
+            start = offsets[token.start[0] - 1] + token.start[1]
+            end = offsets[token.end[0] - 1] + token.end[1]
+            if token.type == tokenize.COMMENT:
+                blank(chars, start, end)
+                continue
+            quote = re.match(r"[A-Za-z]*('''|\"\"\"|'|\")", token.string)
+            width = len(quote.group(0)) if quote else 1
+            blank(chars, start + width, end - len(quote.group(1)) if quote else end - 1)
+    except (tokenize.TokenError, SyntaxError, IndentationError):
+        pass
+    return "".join(chars)
+
+
+WINDOW_CACHE: dict[tuple[str, str], tuple[list[tuple[str, int]], list[int]]] = {}
+CONTENT_MEMO: dict[tuple[str, str, bytes], Any] = {}
+TOKEN_CODES: dict[str, int] = {}
+
+
+def token_windows(path: str, text: str) -> tuple[list[tuple[str, int]], list[int]]:
+    """Normalized tokens and rolling hashes of every 100-token window, cached."""
+    import hashlib
+
+    key = (path, hashlib.blake2b(text.encode("utf-8"), digest_size=16).hexdigest())
+    if key in WINDOW_CACHE:
+        return WINDOW_CACHE[key]
+    modulus, base = (1 << 61) - 1, 1_000_003
+    power = pow(base, CLONE_MIN_TOKENS - 1, modulus)
+    tokens = normalized_tokens(path, text)
+    hashes = []
+    value = 0
+    codes = [TOKEN_CODES.setdefault(token, len(TOKEN_CODES) + 1) for token, _ in tokens]
+    for index, code in enumerate(codes):
+        if index >= CLONE_MIN_TOKENS:
+            value = (value - codes[index - CLONE_MIN_TOKENS] * power) % modulus
+        value = (value * base + code) % modulus
+        if index >= CLONE_MIN_TOKENS - 1:
+            hashes.append(value)
+    if len(WINDOW_CACHE) > 50_000:
+        WINDOW_CACHE.clear()
+    WINDOW_CACHE[key] = (tokens, hashes)
+    return tokens, hashes
+
+
+def clone_lines(
+    files: dict[str, str], *, focus: set[str] | None = None
+) -> tuple[dict[str, set[int]], list[list[tuple[str, int, int]]]]:
+    """Normalized-token clones of at least 100 tokens and 3 lines.
+
+    Windows of 100 normalized tokens are rolling-hashed. With focus, only files
+    sharing a window with a focus file are examined, and only groups with a
+    focus member are kept. Returns the union of cloned lines per file and each
+    group's member line spans.
+    """
+    indexed = {path: token_windows(path, text) for path, text in files.items()}
+    if focus is not None:
+        wanted = {
+            value for path in focus if path in indexed for value in indexed[path][1]
+        }
+        indexed = {
+            path: item
+            for path, item in indexed.items()
+            if path in focus or not wanted.isdisjoint(item[1])
+        }
+    streams = {path: tokens for path, (tokens, _) in indexed.items()}
+    windows: dict[int, list[tuple[str, int]]] = {}
+    for path, (_, hashes) in indexed.items():
+        for index, value in enumerate(hashes):
+            # Focused searches only need windows a focus file also contains.
+            if focus is None or value in wanted:
+                windows.setdefault(value, []).append((path, index))
+    # Tokens covered by a duplicated window form maximal runs per file; runs that
+    # share a window are one clone group. A repetitive region that only matches
+    # itself is a single run and is not a clone.
+    covered_tokens: dict[str, set[int]] = {}
+    duplicates = [positions for positions in windows.values() if len(positions) > 1]
+    for positions in duplicates:
+        for path, index in positions:
+            covered_tokens.setdefault(path, set()).update(
+                range(index, index + CLONE_MIN_TOKENS)
+            )
+    run_of: dict[tuple[str, int], int] = {}
+    runs: list[tuple[str, int, int]] = []
+    for path, indexes in covered_tokens.items():
+        for index in sorted(indexes):
+            if (path, index - 1) in run_of:
+                run = run_of[(path, index - 1)]
+                runs[run] = (path, runs[run][1], index)
+            else:
+                run = len(runs)
+                runs.append((path, index, index))
+            run_of[(path, index)] = run
+    parent = list(range(len(runs)))
+
+    def find(item: int) -> int:
+        while parent[item] != item:
+            parent[item] = parent[parent[item]]
+            item = parent[item]
+        return item
+
+    for positions in duplicates:
+        first = find(run_of[positions[0]])
+        for position in positions[1:]:
+            parent[find(run_of[position])] = first
+    components: dict[int, list[int]] = {}
+    for run in range(len(runs)):
+        components.setdefault(find(run), []).append(run)
+    covered: dict[str, set[int]] = {}
+    spans = []
+    for members in components.values():
+        if len(members) < 2:
+            continue
+        lines = []
+        for run in members:
+            path, first, last = runs[run]
+            tokens = streams[path]
+            lines.append((path, tokens[first][1], tokens[last][1]))
+        if all(end - start + 1 < CLONE_MIN_LINES for _, start, end in lines):
+            continue
+        if focus is not None and not any(path in focus for path, _, _ in lines):
+            continue
+        for path, start, end in lines:
+            covered.setdefault(path, set()).update(range(start, end + 1))
+        spans.append(sorted(lines))
+    return covered, sorted(spans)
+
+
+def content_memo(kind: str, path: str, text: str, compute: Any) -> Any:
+    """Memoize per-file analysis by content; the daemon keeps this warm."""
+    import hashlib
+
+    key = (kind, path, hashlib.blake2b(text.encode("utf-8"), digest_size=16).digest())
+    if key not in CONTENT_MEMO:
+        if len(CONTENT_MEMO) > 50_000:
+            CONTENT_MEMO.clear()
+        CONTENT_MEMO[key] = compute()
+    return CONTENT_MEMO[key]
+
+
+def python_imports(path: str, text: str) -> list[tuple[int | None, str, list[str]]]:
+    """(relative level or None for `import`, module, names) for each import."""
+
+    def parse() -> list[tuple[int | None, str, list[str]]]:
+        try:
+            tree = ast.parse(text)
+        except (SyntaxError, ValueError):
+            return []
+        found: list[tuple[int | None, str, list[str]]] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                found.append((None, "", [alias.name for alias in node.names]))
+            elif isinstance(node, ast.ImportFrom):
+                aliases = [alias.name for alias in node.names]
+                found.append((node.level, node.module or "", aliases))
+        return found
+
+    return content_memo("imports", path, text, parse)
+
+
+def python_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
+    modules = {
+        Path(path)
+        .with_suffix("")
+        .as_posix()
+        .replace("/", ".")
+        .removesuffix(".__init__"): path
+        for path in files
+        if path.endswith(".py")
+    }
+    graph: dict[str, set[str]] = {}
+    for module, path in modules.items():
+        package = (
+            module.rsplit(".", 1)[0] if not path.endswith("__init__.py") else module
+        )
+        edges = set()
+        for level, base, aliases in python_imports(path, files[path]):
+            if level is None:
+                names = aliases
+            else:
+                if level:
+                    parts = package.split(".")[: len(package.split(".")) - level + 1]
+                    base = ".".join([*parts, base] if base else parts)
+                names = [base, *(f"{base}.{alias}" for alias in aliases)]
+            for name in names:
+                if name in modules and modules[name] != path:
+                    edges.add(modules[name])
+        graph[path] = edges
+    return graph
+
+
+def javascript_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
+    graph: dict[str, set[str]] = {}
+    suffixes = (
+        "",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mts",
+        ".mjs",
+        "/index.ts",
+        "/index.js",
+    )
+    for path, text in files.items():
+        if LANGUAGE_EXTENSIONS.get(Path(path).suffix.lower()) != "typescript":
+            continue
+        edges = set()
+        for match in re.finditer(
+            r"^\s*(?:import|export)(?!\s+type\b)[^;'\"]*?from\s*(['\"])(\.{1,2}/[^'\"]+)\1"
+            r"|^\s*import\s*(['\"])(\.{1,2}/[^'\"]+)\3",
+            text,
+            re.M,
+        ):
+            specifier = match.group(2) or match.group(4)
+            base = os.path.normpath(os.path.join(os.path.dirname(path), specifier))
+            base = re.sub(r"\.(?:js|mjs|cjs)$", "", base)
+            target = next(
+                (base + suffix for suffix in suffixes if base + suffix in files), None
+            )
+            if target and target != path:
+                edges.add(target)
+        graph[path] = edges
+    return graph
+
+
+def import_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
+    """Strongly connected components with more than one module (Tarjan)."""
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    cycles: list[list[str]] = []
+    counter = 0
+    for start in sorted(graph):
+        if start in index:
+            continue
+        work = [(start, iter(sorted(graph.get(start, ()))))]
+        index[start] = low[start] = counter
+        counter += 1
+        stack.append(start)
+        on_stack.add(start)
+        while work:
+            node, edges = work[-1]
+            advanced = False
+            for target in edges:
+                if target not in index:
+                    index[target] = low[target] = counter
+                    counter += 1
+                    stack.append(target)
+                    on_stack.add(target)
+                    work.append((target, iter(sorted(graph.get(target, ())))))
+                    advanced = True
+                    break
+                if target in on_stack:
+                    low[node] = min(low[node], index[target])
+            if advanced:
+                continue
+            work.pop()
+            if work:
+                low[work[-1][0]] = min(low[work[-1][0]], low[node])
+            if low[node] == index[node]:
+                component = []
+                while True:
+                    item = stack.pop()
+                    on_stack.discard(item)
+                    component.append(item)
+                    if item == node:
+                        break
+                if len(component) > 1:
+                    cycles.append(sorted(component))
+    return sorted(cycles)
+
+
+def verbose_lines(path: str, text: str) -> set[int]:
+    """Lines matching handcrafted verbosity heuristics (for the verbosity ratio)."""
+    flagged: set[int] = set()
+    language = LANGUAGE_EXTENSIONS.get(Path(path).suffix.lower())
+    if language == "python":
+        try:
+            tree = ast.parse(text)
+        except (SyntaxError, ValueError):
+            return flagged
+        for node in ast.walk(tree):
+            body = getattr(node, "body", None)
+            if (
+                isinstance(node, ast.If)
+                and len(node.body) == 1
+                and len(node.orelse) == 1
+            ):
+                returns = [node.body[0], node.orelse[0]]
+                if all(
+                    isinstance(item, ast.Return)
+                    and isinstance(item.value, ast.Constant)
+                    and isinstance(item.value.value, bool)
+                    for item in returns
+                ):
+                    flagged.update(
+                        range(node.lineno, (node.end_lineno or node.lineno) + 1)
+                    )
+            if isinstance(node, ast.Compare) and any(
+                isinstance(item, ast.Constant) and isinstance(item.value, bool)
+                for item in node.comparators
+            ):
+                flagged.add(node.lineno)
+            if (
+                isinstance(node, ast.Try)
+                and all(
+                    len(handler.body) == 1
+                    and isinstance(handler.body[0], ast.Raise)
+                    and handler.body[0].exc is None
+                    for handler in node.handlers
+                )
+                and node.handlers
+                and not node.finalbody
+                and not node.orelse
+            ):
+                flagged.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+            if isinstance(body, list):
+                for first, second in zip(body, body[1:], strict=False):
+                    if (
+                        isinstance(first, ast.Assign)
+                        and len(first.targets) == 1
+                        and isinstance(first.targets[0], ast.Name)
+                        and isinstance(second, ast.Return)
+                        and isinstance(second.value, ast.Name)
+                        and second.value.id == first.targets[0].id
+                    ):
+                        flagged.update({first.lineno, second.lineno})
+        for number, line in enumerate(text.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#") and len(stripped) > 2:
+                try:
+                    code = ast.parse(stripped[1:].strip())
+                except (SyntaxError, ValueError):
+                    continue
+                if code.body and not isinstance(code.body[0], ast.Expr | ast.Pass):
+                    flagged.add(number)
+    elif language == "typescript":
+        masked = mask_javascript(text)
+        for match in re.finditer(
+            r"\bif\s*\([^()]*\)\s*\{?\s*return\s+(true|false)\s*;?\s*\}?\s*else\s*\{?"
+            r"\s*return\s+(true|false)\s*;?\s*\}?|[!=]==?\s*(?:true|false)\b",
+            masked,
+        ):
+            first = masked.count("\n", 0, match.start()) + 1
+            flagged.update(range(first, first + match.group(0).count("\n") + 1))
+        for number, line in enumerate(text.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("//") and re.search(
+                r"[;{}]\s*$|^//\s*(?:const|let|return|if|await)\b", stripped
+            ):
+                flagged.add(number)
+    return flagged
+
+
+def slop_saturate(value: float, saturation: float) -> float:
+    return 100 * min(1.0, value / saturation)
+
+
+def slop_count(count: float, scale: float) -> float:
+    import math
+
+    blend = math.log(1 + count / scale)
+    return 100 * blend / (1 + blend)
+
+
+def slop_measure(
+    root: Path, files: dict[str, str], *, deadline: float | None = None
+) -> dict[str, Any]:
+    """Raw structural metrics and the 0-100 sloppiness index (lower is better)."""
+    production = {
+        path: text
+        for path, text in files.items()
+        if slop_language(path) and slop_included(path) and not TEST_PATH_RE.search(path)
+    }
+    exact, approximate = exact_function_metrics(root, production, deadline=deadline)
+    functions: list[FunctionMetric] = []
+    for path, text in production.items():
+        functions.extend(function_metrics(path, text, exact.get(path)))
+    total_mass = sum(item.mass for item in functions)
+    eroded = [item for item in functions if item.complexity > SLOP_COMPLEXITY]
+    loc = {
+        path: sum(1 for line in text.splitlines() if line.strip())
+        for path, text in production.items()
+    }
+    covered, groups = clone_lines(production)
+    lines = sum(loc.values())
+    cloned = sum(len(value) for value in covered.values())
+    graph = {
+        **python_import_graph(production),
+        **javascript_import_graph(production),
+        **elixir_import_graph(production),
+    }
+    cycles = import_cycles(graph)
+    verbose = {
+        path: verbose_lines(path, text) | covered.get(path, set())
+        for path, text in production.items()
+    }
+    raw = {
+        "functions": len(functions),
+        "eroded_functions": len(eroded),
+        "eroded_share": sum(item.mass for item in eroded) / total_mass
+        if total_mass
+        else 0,
+        "duplication_density": cloned / lines if lines else 0,
+        "clone_groups": len(groups),
+        "cycle_density": (
+            sum(len(cycle) for cycle in cycles) / len(graph) if graph else 0
+        ),
+        "cycle_groups": len(cycles),
+        "verbosity": sum(len(value) for value in verbose.values()) / lines
+        if lines
+        else 0,
+        "lines": lines,
+        "approximate_complexity": sorted(approximate),
+        "languages": sorted({slop_language(path) for path in production}),
+    }
+    contributions = {}
+    for name, weight, density, saturation, count, scale in SLOP_DIMENSIONS:
+        points = (
+            slop_saturate(raw[density], saturation) + slop_count(raw[count], scale)
+        ) / 2
+        contributions[name] = round(weight * points, 2)
+    return {
+        "index": max(0, min(100, int(sum(contributions.values()) + 0.5))),
+        "contributions": contributions,
+        "metrics": raw,
+        "hotspots": [
+            {
+                "path": item.path,
+                "function": item.name,
+                "lines": [item.start, item.end],
+                "complexity": item.complexity,
+                "sloc": item.sloc,
+                "nesting": item.nesting,
+                "mass": round(item.mass, 1),
+            }
+            for item in sorted(eroded, key=lambda item: -item.mass)
+        ],
+        "clone_groups": [
+            [{"path": path, "lines": [start, end]} for path, start, end in group]
+            for group in groups
+        ],
+        "import_cycles": cycles,
+    }
+
+
+SLOP_WRITE_BUDGET = 2 * 1024 * 1024
+
+
+def slop_policy(config: dict[str, Any]) -> dict[str, Any]:
+    policy = config.get("slop", {})
+    if not isinstance(policy, dict) or policy.keys() - {
+        "block",
+        "max_index",
+        "max_index_increase",
+    }:
+        raise ValueError(
+            "slop must be an object with block, max_index, max_index_increase"
+        )
+    if not isinstance(policy.get("block", False), bool):
+        raise ValueError("slop.block must be a boolean")
+    for key in ("max_index", "max_index_increase"):
+        if key in policy and (
+            type(policy[key]) is not int or not 0 <= policy[key] <= 100
+        ):
+            raise ValueError(f"slop.{key} must be an integer from 0 to 100")
+    return policy
+
+
+SLOP_EXCLUDED_DIRECTORIES = {
+    "vendor",
+    "third_party",
+    "third-party",
+    "external",
+    "generated",
+    "dist",
+    "build",
+    "target",
+    "coverage",
+}
+
+
+def slop_included(path: str) -> bool:
+    """Vendored, generated and build-output code is not the project's own debt."""
+    parts = Path(path).parts
+    return not SLOP_EXCLUDED_DIRECTORIES & set(parts[:-1]) and not re.search(
+        r"\.(?:min|generated|pb|g)\.[\w]+$|_pb2\.py$", path
+    )
+
+
+def source_paths(root: Path) -> list[Path]:
+    """Tracked and non-ignored untracked sources; every source outside Git."""
+    try:
+        listing = git_output(
+            root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]
+        )
+    except ValueError:
+        return sorted(
+            path
+            for path in root.rglob("*")
+            if path.is_file()
+            and slop_language(path.name)
+            and not SKIP_DIRECTORIES & set(path.relative_to(root).parts)
+        )
+    paths = []
+    for raw in listing.split(b"\0"):
+        name = os.fsdecode(raw)
+        if (
+            name
+            and slop_language(name)
+            and not SKIP_DIRECTORIES & set(Path(name).parts)
+            and (root / name).is_file()
+        ):
+            paths.append(root / name)
+    return sorted(paths)
+
+
+def repository_sources(root: Path, limit: int | None = None) -> dict[str, str]:
+    """Readable source files by repository-relative path, within a byte budget."""
+    files: dict[str, str] = {}
+    total = 0
+    for path in source_paths(root):
+        try:
+            size = path.stat().st_size
+            if size > 1024 * 1024:
+                continue
+            total += size
+            if limit is not None and total > limit:
+                raise ValueError("repository exceeds the write-time slop budget")
+            files[path.relative_to(root).as_posix()] = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+    return files
+
+
+def base_sources(root: Path, reference: str) -> dict[str, str]:
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="loki-slop-") as directory:
+        base = Path(directory) / "base"
+        commit = git_output(root, ["rev-parse", "--verify", f"{reference}^{{commit}}"])
+        materialize_base(root, commit.decode("ascii").strip(), base)
+        return repository_sources(base)
+
+
+def slop_report_text(report: dict[str, Any], top: int) -> str:
+    metrics = report["metrics"]
+    lines = [
+        f"Sloppiness index: {report['index']}/100 (lower is better; "
+        "trellis 0.2.0-provisional weights)",
+        f"  complexity-erosion {report['contributions']['complexity-erosion']:5.1f}  "
+        f"eroded share {metrics['eroded_share']:.2f}, "
+        f"{metrics['eroded_functions']} of {metrics['functions']} functions with "
+        f"CC > {SLOP_COMPLEXITY}",
+        f"  duplication        {report['contributions']['duplication']:5.1f}  "
+        f"density {metrics['duplication_density']:.2f}, "
+        f"{metrics['clone_groups']} clone groups",
+        f"  import-cycle       {report['contributions']['import-cycle']:5.1f}  "
+        f"density {metrics['cycle_density']:.2f}, {metrics['cycle_groups']} cycles",
+        f"Verbosity {metrics['verbosity']:.2f} over {metrics['lines']} lines "
+        "(reported, not scored)",
+    ]
+    if metrics["approximate_complexity"]:
+        lines.append(
+            "Complexity approximated structurally for: "
+            + ", ".join(metrics["approximate_complexity"])
+        )
+    if {"go", "rust"} & set(metrics["languages"]):
+        lines.append(
+            "Import cycles: not measured for Go (rejected by the compiler) or Rust "
+            "(module cycles are legal)"
+        )
+    for item in report["hotspots"][:top]:
+        lines.append(
+            f"hotspot {item['path']}:{item['lines'][0]} {item['function']} "
+            f"CC {item['complexity']}, {item['sloc']} SLOC, mass {item['mass']}"
+        )
+    for group in report["clone_groups"][:top]:
+        members = ", ".join(
+            f"{m['path']}:{m['lines'][0]}-{m['lines'][1]}" for m in group
+        )
+        lines.append(f"clone {members}")
+    for cycle in report["import_cycles"][:top]:
+        lines.append("import cycle " + " -> ".join(cycle))
+    return "\n".join(lines)
+
+
+def slop_command(
+    root: Path, config: dict[str, Any], base: str | None, as_json: bool, top: int
+) -> int:
+    policy = slop_policy(config)
+    current = slop_measure(root, repository_sources(root))
+    previous = slop_measure(root, base_sources(root, base)) if base else None
+    failures = []
+    if "max_index" in policy and current["index"] > policy["max_index"]:
+        failures.append(
+            f"index {current['index']} exceeds max_index {policy['max_index']}"
+        )
+    if previous is not None and "max_index_increase" in policy:
+        increase = current["index"] - previous["index"]
+        if increase > policy["max_index_increase"]:
+            failures.append(
+                f"index rose by {increase}, above max_index_increase "
+                f"{policy['max_index_increase']}"
+            )
+    if as_json:
+        print(
+            json.dumps(
+                {"current": current, "base": previous, "policy_failures": failures},
+                indent=2,
+            )
+        )
+    else:
+        print(slop_report_text(current, top))
+        if previous is not None:
+            print(
+                f"Base {base}: index {previous['index']} -> {current['index']} "
+                f"({current['index'] - previous['index']:+d})"
+            )
+            known = {(item["path"], item["function"]) for item in previous["hotspots"]}
+            for item in current["hotspots"]:
+                if (item["path"], item["function"]) not in known:
+                    print(
+                        f"new hotspot {item['path']}:{item['lines'][0]} {item['function']}"
+                    )
+        for failure in failures:
+            print(f"loki slop: {failure}")
+    return int(bool(failures))
+
+
+def written_slop(
+    root: Path, targets: list[Path], *, deadline: float | None
+) -> list[str]:
+    """Hotspots, clones and cycles an edit introduces, against committed text."""
+    names = [
+        path.relative_to(root).as_posix()
+        for path in targets
+        if path.is_file() and slop_language(path.name)
+    ]
+    if not names:
+        return []
+    after = {name: (root / name).read_text(encoding="utf-8") for name in names}
+    before = {name: head_text(root, name, deadline=deadline) for name in names}
+    # One analyzer call covers both versions; BEAM-backed Elixir stays structural
+    # at write time and exact in `loki slop` audits.
+    cheap = {
+        key: text
+        for name in names
+        if slop_language(name) in {"typescript", "go"}
+        for key, text in (
+            (f"after/{name}", after[name]),
+            (f"before/{name}", before[name]),
+        )
+        if text
+    }
+    exact, _ = exact_function_metrics(root, cheap, deadline=deadline)
+    exact_after = {
+        key[6:]: value for key, value in exact.items() if key.startswith("after/")
+    }
+    exact_before = {
+        key[7:]: value for key, value in exact.items() if key.startswith("before/")
+    }
+    notes = []
+    for name in names:
+        old = {
+            item.name: item
+            for item in function_metrics(name, before[name], exact_before.get(name))
+        }
+        for item in function_metrics(name, after[name], exact_after.get(name)):
+            prior = old.get(item.name)
+            if item.complexity > SLOP_COMPLEXITY and (
+                prior is None or item.complexity > prior.complexity
+            ):
+                change = f"{prior.complexity} -> " if prior is not None else ""
+                notes.append(
+                    f"{name}:{item.start}: loki/slop-complexity: {item.name} cyclomatic "
+                    f"complexity {change}{item.complexity} (> {SLOP_COMPLEXITY}); "
+                    "split it into smaller functions"
+                )
+    try:
+        # A warm daemon cache makes larger repositories affordable.
+        budget = SLOP_WRITE_BUDGET * (16 if WINDOW_CACHE else 1)
+        repository = repository_sources(root, limit=budget)
+    except ValueError:
+        return notes
+    focus = set(names)
+    _, groups_after = clone_lines(repository, focus=focus)
+    _, groups_before = clone_lines({**repository, **before}, focus=focus)
+    if len(groups_after) > len(groups_before):
+        seen = {tuple(sorted(path for path, _, _ in group)) for group in groups_before}
+        for group in groups_after:
+            if tuple(sorted(path for path, _, _ in group)) in seen:
+                continue
+            here = next((member for member in group if member[0] in focus), group[0])
+            others = ", ".join(
+                f"{path}:{start}-{end}"
+                for path, start, end in group
+                if (path, start, end) != here
+            )
+            notes.append(
+                f"{here[0]}:{here[1]}: loki/slop-duplication: lines {here[1]}-{here[2]} "
+                f"duplicate {others}; reuse or extract the shared code"
+            )
+    graphs = []
+    for sources in ({**repository, **before}, repository):
+        graphs.append(
+            {**python_import_graph(sources), **javascript_import_graph(sources)}
+        )
+    old_cycles = {tuple(cycle) for cycle in import_cycles(graphs[0])}
+    for cycle in import_cycles(graphs[1]):
+        if tuple(cycle) not in old_cycles and focus & set(cycle):
+            notes.append(
+                f"{next(iter(focus & set(cycle)))}: loki/slop-import-cycle: import cycle "
+                + " -> ".join(cycle)
+            )
+    return notes[:MAX_VIOLATIONS]
 
 
 def missing_tool(language: str, root: Path) -> str | None:
@@ -4335,6 +5842,10 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("--strict", action="store_true")
     scan_parser.add_argument("--base")
     scan_parser.add_argument("--ruff-new", action="store_true")
+    slop = subparsers.add_parser("slop")
+    slop.add_argument("--base", help="compare against this revision")
+    slop.add_argument("--json", action="store_true")
+    slop.add_argument("--top", type=int, default=10)
     daemon = subparsers.add_parser("daemon")
     daemon.add_argument("action", choices=("serve", "start", "stop", "status"))
     init_parser = subparsers.add_parser("init")
@@ -4511,6 +6022,12 @@ def dispatch_main() -> int:
         )
         print(f"loki: {prefix}: {error}", file=sys.stderr)
         return 2 if args.command in {"protect", "hook"} else 1
+    if args.command == "slop":
+        try:
+            return slop_command(root, config, args.base, args.json, args.top)
+        except (OSError, ValueError) as error:
+            print(f"loki: {error}", file=sys.stderr)
+            return 1
     if args.command == "scan":
         if args.ruff_new:
             try:
@@ -4563,6 +6080,16 @@ def dispatch_main() -> int:
                     )
                 )
             if not messages:
+                # Structural sloppiness is advisory unless slop.block is set.
+                try:
+                    notes = written_slop(root, targets, deadline=deadline)
+                except (OSError, UnicodeDecodeError, ValueError) as error:
+                    notes = [f"NOT CHECKED slop: {error}"]
+                if slop_policy(config).get("block"):
+                    messages.extend(note for note in notes if "NOT CHECKED" not in note)
+                    warnings.extend(note for note in notes if "NOT CHECKED" in note)
+                else:
+                    warnings.extend(notes)
                 checked_projects: set[tuple[str, Path]] = set()
                 for target in targets:
                     messages.extend(
@@ -6069,6 +7596,15 @@ def prewarm(root: Path) -> None:
             ][:200]
             if sources:
                 mypy_run(root, sources, deadline=deadline)
+    try:
+        for path, text in repository_sources(root, limit=64 * 1024 * 1024).items():
+            token_windows(path, text)
+            if slop_language(path) == "python":
+                python_imports(path, text)
+                python_functions(path, text)
+    except ValueError:
+        WINDOW_CACHE.clear()
+        CONTENT_MEMO.clear()
     warmers = []
     if (root / "go.mod").is_file() and shutil.which("go"):
         warmers.append(["go", "vet", "./..."])

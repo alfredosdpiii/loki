@@ -212,6 +212,61 @@ Net-new comparisons for mypy, TypeScript and Clippy skip the second, base-side
 analysis when no finding's source line appears in the committed file. The line
 text is part of every fingerprint, so such findings cannot be existing debt.
 
+### Structural sloppiness
+
+`loki.py slop` audits structural debt and reports a 0–100 sloppiness index,
+where lower is better. It combines the erosion metric from
+[Measuring code sloppiness](https://earendil.com/posts/measuring-code-sloppiness/)
+with [trellis](https://github.com/jayminwest/trellis)'s provisional scoring
+(0.2.0) and extends both beyond TypeScript:
+
+- **Complexity and erosion (50%).** Cyclomatic complexity per function, with
+  mass = `CC × √SLOC`. The eroded share is the mass held by functions with
+  CC > 10.
+- **Duplication (30%).** Clones of at least 100 normalized tokens and 3 lines.
+  Identifiers and literals become placeholders, so renamed copies count.
+  Overlapping lines are counted once.
+- **Import cycles (20%).** Strongly connected module groups.
+
+Each dimension blends a density, saturating linearly (0.25, 0.15, 0.10), with a
+log-scaled count (scales 20, 15, 5), 50/50, using trellis's constants. The
+article's verbosity ratio (verbose-pattern lines ∪ clone lines, over lines of
+code) is reported but not scored. Test files, vendored, generated and
+build-output directories are excluded, and the file list comes from Git.
+
+| Language | Complexity | Import cycles |
+| --- | --- | --- |
+| Python | Exact, Python AST | Local modules, relative imports resolved |
+| JavaScript/TypeScript | Exact, TypeScript parser (structural without a compiler) | Relative imports; `import type` ignored |
+| Go | Exact, `go/ast` (gocyclo counting; closures measured separately), helper built once with the local Go and cached | Not applicable: the compiler rejects package cycles |
+| Elixir | Exact, `Code.string_to_quoted` (clause-aware `case`/`cond`/`with`/`receive`/`rescue`) | Compile-time `import`/`use`/`require` |
+| Rust | Structural approximation (`if`/`while`/`for`, match arms, `&&`/`||`, `?`) | Not measured: module cycles are legal |
+| Java, Kotlin, C#, C/C++, Swift, Scala, PHP, Ruby | Structural approximation | Not measured |
+
+Reports say which languages were approximated. `--base REF` compares against a
+revision and lists new hotspots. `--json` prints the full report. Optional
+policy in `.loki/loki.json`:
+
+```json
+{"slop": {"max_index": 40, "max_index_increase": 2, "block": false}}
+```
+
+`max_index` and `max_index_increase` make `loki.py slop` exit 1 when exceeded.
+The latter needs `--base`.
+
+After each write, Loki compares the written files with their committed text. It
+reports functions that become or grow as CC > 10 hotspots, new clones of other
+code, and new import cycles. These go to the agent as advisory context; set
+`"block": true` to make them post-write failures. At write time, Python, Go and
+TypeScript complexity is exact; Elixir, Rust and other languages use the
+structural approximation there, and exact analysis is used in audits. Clone
+checks examine only files sharing a token window with the written file, within a
+2 MiB repository budget, or 32 MiB when the daemon's cache is warm.
+
+On trellis's own source, Loki measured an eroded share of 0.165 (trellis 0.161),
+duplication density 0.044 (0.050) and 19 clone groups (21). Go complexity
+matches golangci-lint's gocyclo except where closures are split out.
+
 ### Type-aware TypeScript checks
 
 The TypeScript check also reports two findings that need type information:
