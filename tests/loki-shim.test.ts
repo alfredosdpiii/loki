@@ -173,7 +173,9 @@ test("installed Pi and OMP use relocated engine for context, files and shell per
         handler({ toolName: "bash", input: { command } }, { cwd: root })));
       expect((await shell("npm test")).every(result => result === undefined)).toBe(true);
       expect(existsSync(join(root, "canary"))).toBe(false);
-      for (const command of ["npm test -- --update", "git reset --hard", "printf x > notes.txt"]) {
+      expect((await shell("printf x > notes.txt")).every(result => result === undefined))
+        .toBe(true);
+      for (const command of ["npm test -- --update", "git reset --hard", "printf x > notes.ts"]) {
         expect((await shell(command)).some(result =>
           (result as { block?: boolean } | undefined)?.block)).toBe(true);
       }
