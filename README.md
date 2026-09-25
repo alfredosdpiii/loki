@@ -65,37 +65,81 @@ by an agent that could not see either product. Read the
 
 ## Quick start
 
-Loki needs Python 3.11 or newer and has no runtime dependencies. Install the
-`loki` command, then point it at a Git repository:
+Loki needs Python 3.11 or newer and has no runtime dependencies.
+
+**1. Install the command** (once per machine):
 
 ```bash
 uv tool install loki-guardrails     # or: pipx install loki-guardrails
-loki init --dir /path/to/your/repo
 ```
 
-To try it without installing anything, run `uvx --from loki-guardrails loki init --dir .`.
-You can also clone this repository and run `python3 loki.py init --dir /path/to/repo`.
-
-That installs Loki into `.loki/`, registers hooks for every supported agent, and
-adds starter configuration for Ruff, Oxlint, golangci-lint and a GitHub Actions
-check. Existing configuration is merged or left alone.
-
-Then, inside the repository:
+**2. Set up a repository:**
 
 ```bash
-loki scan                                # check the working tree
-loki scan --strict --base origin/main    # CI: missing tools fail
-loki slop                                # structural sloppiness report
+cd your-repo
+loki init --dir .
 ```
 
-The installed hooks don't use the global `loki` command. `init` copies the
-engine into `.loki/loki.py`, so every repository runs the exact version its
-policy was reviewed against. CI runs the same file, and upgrades happen only
-through `loki init --force` and a reviewed commit. `loki --version` and
-`python3 .loki/loki.py --version` show which version each one is.
+This adds a pinned copy of the engine and your policy in `.loki/`, hooks for every
+supported agent (`.claude/`, `.codex/`, `.factory/`, `.pi/`, `.omp/`), starter Ruff,
+Oxlint and golangci-lint configuration, and a `.github/workflows/loki.yml` CI check.
+Existing configuration files are left alone.
 
-Codex needs a one-time `/hooks` approval and Pi a trust prompt. The
-[install guide](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md#install) covers each host.
+**3. Finish the setup:**
+
+- For JavaScript or TypeScript, install Oxlint with the command `init` prints,
+  e.g. `npm i -D oxlint @oxlint/plugins`.
+- Claude Code and OMP pick the hooks up automatically. In Codex, run `/hooks` and
+  approve them; Pi asks you to trust the project.
+- **Commit the new files yourself.** Loki reads its policy from the committed
+  version, never the working tree, so an agent can't loosen the rules mid-session.
+  Until you commit, `scan` reports the setup as changes awaiting review.
+
+```bash
+git add .loki .claude .codex .factory .pi .omp .ruff.toml .oxlintrc.json \
+  .golangci.yml .github/workflows/loki.yml
+git commit -m "Add Loki guardrails"
+```
+
+**4. Use your agent as usual.** On every edit:
+
+- **Blocked before the write:** dangerous edits are refused with the exact finding
+  (XSS, leaked keys, injection, a type error that breaks a caller, edits to Loki's
+  own files), and the agent fixes them.
+- **Reported after the write:** findings from mypy, `tsc`, golangci-lint, Clippy,
+  Credo and Sobelow go back to the agent. Only what the edit introduced counts;
+  existing debt stays quiet.
+- **Advisory:** new complexity hotspots, copied code and import cycles, unless you
+  make them blocking.
+
+The first edit starts a background daemon that keeps analyzers warm.
+
+**5. Check the whole repository whenever you like:**
+
+```bash
+loki scan                          # everything changed since the last commit
+loki scan --base origin/main       # everything on your branch
+loki slop                          # sloppiness score and complexity hotspots
+loki slop --base main              # how this branch changed the score
+```
+
+The installed CI workflow runs `scan --strict` on every push and pull request.
+Strict mode fails when an analyzer is missing instead of skipping it.
+
+**Upgrading:**
+
+```bash
+uv tool upgrade loki-guardrails
+loki init --dir . --force          # replaces the engine in .loki/; review and commit
+```
+
+Hooks always run the engine in `.loki/loki.py`, not the global `loki`, so each
+repository keeps the version its policy was reviewed against until you commit an
+upgrade. You can try Loki without installing it via
+`uvx --from loki-guardrails loki init --dir .`, or run `python3 loki.py init` from
+a clone of this repository. The
+[install guide](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md#install)
+covers each host in detail.
 
 ## How it works
 
@@ -180,7 +224,7 @@ an agent can't loosen it mid-session:
 | --- | --- | --- |
 | `typescript_check` | on when `tsconfig.json` exists | `false` disables it; `true` makes setup problems block |
 | `slop.block` | `false` | Turns new hotspots, clones and cycles from advice into failures |
-| `shell_commands` | none | Exact, reviewed shell commands the shell guard admits |
+| `shell_commands` | none | Exact, reviewed shell commands the shell guard admits (enable the guard with `loki init --shell-guard`) |
 | `LOKI_STRICT=1` | off | Missing analyzers fail instead of reporting `NOT CHECKED` |
 | `LOKI_DAEMON=0` | on | Runs every hook in-process |
 
