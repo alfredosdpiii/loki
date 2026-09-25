@@ -1906,14 +1906,28 @@ def check_file(
         except ValueError:
             directory = "."
         package = "./" if directory == "." else f"./{directory}"
-        violations.extend(
-            run_command(["go", "vet", package], root, "go vet", deadline=deadline)
-        )
         key = (language, root / directory)
-        if not violations and (checked_projects is None or key not in checked_projects):
-            optional("golangci-lint", golangci_violations, root, package)
+        lint = None
+        if checked_projects is None or key not in checked_projects:
+            from concurrent.futures import ThreadPoolExecutor
+
+            # Both tools build the package; overlapping them hides one cold start.
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                lint = pool.submit(
+                    golangci_violations, root, package, deadline=deadline
+                )
+                vet = run_command(
+                    ["go", "vet", package], root, "go vet", deadline=deadline
+                )
+                lint.exception()
             if checked_projects is not None:
                 checked_projects.add(key)
+        else:
+            vet = run_command(["go", "vet", package], root, "go vet", deadline=deadline)
+        violations.extend(vet)
+        if lint is not None and not violations:
+            # Compile errors from go vet make lint results redundant.
+            optional("golangci-lint", lambda deadline: lint.result())
     elif language == "rust":
         violations.extend(
             run_command(["rustfmt", str(path)], root, "rustfmt", deadline=deadline)

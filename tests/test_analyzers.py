@@ -576,3 +576,46 @@ class RealPreviewTypescriptTests(unittest.TestCase):
                     root, "src/api.ts", 'export function amount() { return "6"; }\n'
                 )
                 self.assertEqual(1, len(loki.typescript_findings(root, {})))
+
+
+@unittest.skipUnless(
+    os.access(GOLANGCI, os.X_OK) and shutil.which("go"), "Go toolchain unavailable"
+)
+class RealGoHookTests(unittest.TestCase):
+    def test_vet_and_golangci_run_together(self):
+        real = shutil.which
+
+        def which(name):
+            return GOLANGCI if name == "golangci-lint" else real(name)
+
+        with temporary_root() as root, temporary_root() as cache:
+            commit(
+                root,
+                {
+                    "go.mod": "module example.invalid/x\n\ngo 1.25\n",
+                    "main.go": "// Package main is a fixture.\npackage main\n\n"
+                    "func main() {}\n",
+                    ".golangci.yml": (
+                        Path(loki.__file__).parent / "templates/.golangci.yml"
+                    ).read_text(),
+                },
+            )
+            env = {"GOCACHE": str(cache / "go"), "GOTOOLCHAIN": "local"}
+            with (
+                patch.object(loki.shutil, "which", side_effect=which),
+                patch.dict(os.environ, env),
+            ):
+                path = write_file(
+                    root,
+                    "main.go",
+                    '// Package main is a fixture.\npackage main\n\nimport "os"\n\n'
+                    'func main() { _ = os.Remove("x") }\n',
+                )
+                findings = loki.check_file(path, root, {}, checked_projects=set())
+                self.assertTrue(any("errcheck" in item for item in findings), findings)
+                write_file(
+                    root, "main.go", "package main\n\nfunc main() { missing() }\n"
+                )
+                findings = loki.check_file(path, root, {})
+                self.assertTrue(findings)
+                self.assertTrue(all(item.startswith("go vet") for item in findings))
