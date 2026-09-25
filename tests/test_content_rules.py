@@ -495,3 +495,105 @@ class ServerSideRuleTests(unittest.TestCase):
         for path, text, expected in self.CASES:
             with self.subTest(text=text):
                 self.assertEqual(expected, rules(path, text))
+
+
+GITHUB_TOKEN = "ghp_" + "aZ3kQ9mB7xL2pW8vR4tY6uI1oE5nC0sD9fGh"
+WORKFLOW = """on: pull_request
+jobs:
+  a:
+    steps:
+      - run: echo "${{ github.event.pull_request.title }}"
+      - run: |
+          echo hi
+          echo ${{ github.head_ref }}
+      - name: ok
+        env:
+          T: ${{ github.event.pull_request.title }}
+"""
+
+
+class GenericRuleTests(unittest.TestCase):
+    CASES = [
+        ("config.py", f"TOKEN = '{GITHUB_TOKEN}'\n", ["loki/secret"]),
+        (".env", "AWS_KEY=AKIA" + "Z7QK3MBX2PWV8R4T\n", ["loki/secret"]),
+        ("docs.md", "AKIAIOSFODNN7EXAMPLE\n", []),
+        ("a.txt", "AKIAAAAAAAAAAAAAAAAA\n", []),
+        ("key.pem", "-----BEGIN RSA PRIVATE KEY-----\nabc\n", ["loki/secret"]),
+        (
+            "a.py",
+            "<<<<<<< HEAD\nx=1\n=======\nx=2\n>>>>>>> branch\n",
+            ["loki/conflict-marker", "loki/conflict-marker"],
+        ),
+        ("README.md", "Title\n=======\n", []),
+        (
+            ".github/workflows/ci.yml",
+            WORKFLOW,
+            ["loki/actions-injection", "loki/actions-injection"],
+        ),
+        (".github/workflows/ci.yml", "steps:\n  - run: echo ${{ github.sha }}\n", []),
+        ("ci.yml", WORKFLOW, []),
+        (
+            "a.ts",
+            "const agent = new https.Agent({ rejectUnauthorized: false });",
+            ["loki/tls-verification"],
+        ),
+        (
+            "a.js",
+            "process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';",
+            ["loki/tls-verification"],
+        ),
+        (
+            "a.js",
+            "// rejectUnauthorized: false\nconst s = 'rejectUnauthorized: false';",
+            [],
+        ),
+    ]
+
+    def test_cases(self):
+        for path, text, expected in self.CASES:
+            with self.subTest(path=path, text=text[:40]):
+                self.assertEqual(expected, rules(path, text))
+
+    def test_secrets_are_denied_before_landing_in_any_file(self):
+        with temporary_root() as root:
+            payload = {
+                "cwd": str(root),
+                "tool_name": "Write",
+                "tool_input": {"file_path": ".env", "content": f"T={GITHUB_TOKEN}\n"},
+            }
+            with (
+                argv("--root", str(root), "protect", "--harness", "claude"),
+                patch.object(sys, "stdin", io.StringIO(json.dumps(payload))),
+            ):
+                status, _, diagnostic = capture_output(loki.main)
+            self.assertEqual(2, status)
+            self.assertIn("loki/secret", diagnostic)
+            self.assertNotIn(GITHUB_TOKEN, diagnostic)
+
+    def test_post_write_checks_non_source_files(self):
+        with temporary_root() as root:
+            git(root, "init", "-q")
+            write_file(root, "README.md", "x\n")
+            git(root, "add", ".")
+            git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "b")
+            path = write_file(root, "notes.txt", f"{GITHUB_TOKEN}\n")
+            findings = loki.check_file(path, root, {})
+            self.assertEqual(1, len(findings))
+            self.assertIn("notes.txt:1: loki/secret", findings[0])
+            big = write_file(root, "big.txt", "x" * (4 * 1024 * 1024 + 1))
+            self.assertEqual([], loki.check_file(big, root, {}))
+
+
+class ScanContentTests(unittest.TestCase):
+    def test_scan_reports_new_findings_in_changed_text_files(self):
+        change = loki.FileChange
+        findings = loki.changed_content_violations(
+            [
+                change("a.ts", b"", b"node.innerHTML = x;\n", None, "100644"),
+                change("gone.ts", b"x", None, "100644", None),
+                change("bin.dat", None, b"\xff\xfe", None, "100644"),
+                change("big.txt", None, b"x" * (4 * 1024 * 1024 + 1), None, "100644"),
+            ]
+        )
+        self.assertEqual(1, len(findings))
+        self.assertIn("a.ts:1: loki/unsanitized-html", findings[0])

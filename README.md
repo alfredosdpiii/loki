@@ -111,7 +111,12 @@ previews before the write and again on the written file against its committed te
 | Elixir | Privilege-named `params` in comparisons or conditions, and `"admin" => true` in function heads |
 | Elixir | HTTP client calls whose arguments use request parameters bound in the function head (SSRF) |
 | Rust | `todo!()` and `unimplemented!()` placeholders |
+| Any text file | Hardcoded credentials: AWS, GitHub, Slack, Stripe live, npm, Google and model-provider keys, private keys. Low-entropy and placeholder values are skipped |
+| Any text file | Unresolved merge conflict markers |
+| GitHub workflows and actions | Untrusted `github.event` fields or `github.head_ref` interpolated into `run:` scripts |
+| JavaScript/TypeScript | `rejectUnauthorized: false` or `NODE_TLS_REJECT_UNAUTHORIZED=0` |
 
+`scan` applies the same rules to changed text files, net-new against the base.
 Strings and comments are masked before matching, and findings compare by rule and
 source-line text, so moved existing findings pass. These are narrow heuristics.
 The authorization rules catch the direct pattern, not authorization logic in general.

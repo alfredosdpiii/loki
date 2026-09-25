@@ -681,7 +681,6 @@ ELIXIR_HTTP_CALL_RE = re.compile(
     r"options|request|new)!?\s*\(|(?<![\w.])Finch\.build\s*\(|"
     r"(?<![\w.])Mint\.HTTP\.connect\s*\("
 )
-CONTENT_RULE_LANGUAGES = {"typescript", "python", "elixir", "rust"}
 OPEN_REDIRECT = (
     "open redirect: unvalidated navigation target; check it against an "
     "allowlist of paths or origins"
@@ -980,6 +979,20 @@ def javascript_rules(text: str) -> list[Finding]:
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and not fixed_origin(text, masked, *arguments[0]):
             findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
+    for match in re.finditer(
+        r"\brejectUnauthorized\s*:\s*false\b|"
+        r"\bNODE_TLS_REJECT_UNAUTHORIZED\b\s*(?:\]\s*)?=(?!=)\s*['\"`]?\s*0",
+        text,
+    ):
+        if masked[match.start()] != " ":
+            findings.append(
+                (
+                    "loki/tls-verification",
+                    "TLS certificate verification disabled; trust the needed CA "
+                    "instead of turning verification off",
+                    match.start(),
+                )
+            )
     for match in re.finditer(r"\bres(?:ponse)?\s*\.\s*redirect\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and re.search(
@@ -1334,6 +1347,92 @@ def rust_rules(text: str) -> list[Finding]:
     ]
 
 
+SECRET_PATTERNS = (
+    ("AWS access key", r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
+    ("GitHub token", r"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_\w{60,})"),
+    ("private key", r"-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----"),
+    ("Slack token", r"\bxox[abposr]-[A-Za-z0-9-]{20,}"),
+    ("Stripe live key", r"\b(?:sk|rk)_live_[A-Za-z0-9]{20,}"),
+    ("npm token", r"\bnpm_[A-Za-z0-9]{36}\b"),
+    ("Google API key", r"\bAIza[0-9A-Za-z_-]{35}\b"),
+    ("model provider API key", r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{40,}"),
+)
+SECRET_RE = re.compile("|".join(f"({pattern})" for _, pattern in SECRET_PATTERNS))
+PLACEHOLDER_RE = re.compile(r"example|placeholder|dummy|fake|redacted|x{6}", re.I)
+WORKFLOW_PATH_RE = re.compile(
+    r"(?:^|/)\.github/(?:workflows/[^/]+|actions/.+/action)\.ya?ml$"
+)
+UNTRUSTED_CONTEXT_RE = re.compile(
+    r"\$\{\{\s*github\.(?:head_ref|event\.[\w.*\[\]'-]*?\b(?:title|body|message|"
+    r"head_ref|ref|label|name|email|default_branch|page_name))\s*\}\}"
+)
+
+
+def entropy(value: str) -> float:
+    import math
+
+    counts = Counter(value)
+    return -sum(n / len(value) * math.log2(n / len(value)) for n in counts.values())
+
+
+def generic_rules(relative: str, text: str) -> list[Finding]:
+    """Rules for every text file: credentials, conflict markers, CI injection."""
+    findings: list[Finding] = []
+    for match in SECRET_RE.finditer(text):
+        token = match.group(0)
+        if PLACEHOLDER_RE.search(token) or (
+            "PRIVATE KEY" not in token and entropy(token) < 3.0
+        ):
+            continue
+        kind = SECRET_PATTERNS[match.lastindex - 1][0]
+        findings.append(
+            (
+                "loki/secret",
+                f"hardcoded credential ({kind}); load it from the environment or a "
+                "secret store and rotate the exposed value",
+                match.start(),
+            )
+        )
+    if re.search(r"^<{7} ", text, re.M) and re.search(r"^>{7} ", text, re.M):
+        for match in re.finditer(r"^(?:<{7}|>{7}) ", text, re.M):
+            findings.append(
+                (
+                    "loki/conflict-marker",
+                    "unresolved merge conflict marker",
+                    match.start(),
+                )
+            )
+    if WORKFLOW_PATH_RE.search(relative):
+        findings.extend(workflow_injection(text))
+    return findings
+
+
+def workflow_injection(text: str) -> list[Finding]:
+    """Untrusted event fields interpolated into `run:` shell scripts."""
+    findings: list[Finding] = []
+    offset, block = 0, None
+    for line in text.splitlines(keepends=True):
+        indent = len(line) - len(line.lstrip(" "))
+        stripped = line.strip()
+        if block is not None and stripped and indent <= block:
+            block = None
+        key = re.match(r"(?:-\s+)?run:\s*(.*)$", stripped)
+        if key:
+            block = indent if key.group(1).strip()[:1] in ("|", ">", "") else None
+        if key or block is not None:
+            for match in UNTRUSTED_CONTEXT_RE.finditer(line):
+                findings.append(
+                    (
+                        "loki/actions-injection",
+                        "script injection: untrusted GitHub event field interpolated "
+                        "into a run step; pass it through env and quote it",
+                        offset + match.start(),
+                    )
+                )
+        offset += len(line)
+    return findings
+
+
 def content_rule_findings(
     relative: str, text: str, *, fallback: bool = False
 ) -> list[Finding]:
@@ -1350,7 +1449,8 @@ def content_rule_findings(
         "elixir": elixir_rules,
         "rust": rust_rules,
     }
-    return rules[language](text) if language in rules else []
+    findings = generic_rules(relative, text)
+    return findings + (rules[language](text) if language in rules else [])
 
 
 def content_rule_violations(
@@ -1437,6 +1537,8 @@ def written_content_violations(
     path: Path, root: Path, relative: str, *, fallback: bool, deadline: float | None
 ) -> list[str]:
     try:
+        if path.stat().st_size > 4 * 1024 * 1024:
+            return []
         before = head_text(root, relative, deadline=deadline)
         change = (relative, before, path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError):
@@ -1724,9 +1826,13 @@ def check_file(
     if message := protect_path(str(path), root, config):
         return [message]
     language = LANGUAGE_EXTENSIONS.get(path.suffix.lower())
-    if not language or not language_enabled(config, language) or not path.is_file():
+    if not path.is_file():
         return []
     display = relative_display(path, root)
+    if not language or not language_enabled(config, language):
+        return written_content_violations(
+            path, root, display, fallback=False, deadline=deadline
+        )
     missing = missing_tool(language, root)
     violations: list[str] = []
 
@@ -1748,16 +1854,15 @@ def check_file(
             else:
                 print(message, file=sys.stderr)
 
-    if language in CONTENT_RULE_LANGUAGES:
-        violations.extend(
-            written_content_violations(
-                path,
-                root,
-                display,
-                fallback=language == "typescript" and missing is not None,
-                deadline=deadline,
-            )
+    violations.extend(
+        written_content_violations(
+            path,
+            root,
+            display,
+            fallback=language == "typescript" and missing is not None,
+            deadline=deadline,
         )
+    )
     if missing:
         if strict:
             violations.append(f"{display}: loki: missing {missing}")
@@ -3014,6 +3119,7 @@ def repository_violations(
         *test_integrity_violations(changes),
         *dependency_policy_violations(root, config),
         *lockfile_violations(root, changes),
+        *changed_content_violations(changes),
     ]
     if not configured_commands(config, "contract") and any(
         change.path in ECOSYSTEM_MANIFEST.values() and change.before != change.after
@@ -3026,6 +3132,20 @@ def repository_violations(
     if not violations:
         violations.extend(command_guardrail_violations(root, config, base, paths))
     return violations[:MAX_VIOLATIONS]
+
+
+def changed_content_violations(changes: list[FileChange]) -> list[str]:
+    """Net-new built-in content findings across changed text files."""
+    pairs = []
+    for change in changes:
+        if change.after is None or len(change.after) > 4 * 1024 * 1024:
+            continue
+        try:
+            before = (change.before or b"").decode("utf-8")
+            pairs.append((change.path, before, change.after.decode("utf-8")))
+        except UnicodeDecodeError:
+            continue
+    return content_rule_violations(pairs)
 
 
 def write_guardrail_violations(
@@ -3628,8 +3748,6 @@ def preview_violations(
     if payload is None:
         return []
     languages = {LANGUAGE_EXTENSIONS.get(Path(path).suffix.lower()) for path in paths}
-    if not languages & CONTENT_RULE_LANGUAGES:
-        return []
     javascript = "typescript" in languages
     violations: list[str] = []
     changes = None
