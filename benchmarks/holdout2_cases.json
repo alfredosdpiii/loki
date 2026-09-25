@@ -1,0 +1,902 @@
+[
+  {
+    "name": "sqlite-order-filter-fstring",
+    "language": "python",
+    "path": "app.py",
+    "category": "security",
+    "markers": [
+      "S608",
+      "B608",
+      "sql injection",
+      "(string|f-string|format).*(sql|query)",
+      "CWE-89"
+    ],
+    "defect": "\"\"\"Order lookup endpoints backed by SQLite.\"\"\"\n\nimport sqlite3\nfrom typing import Any\n\nSORT_COLUMNS = {\"newest\": \"created_at DESC\", \"total\": \"total_cents DESC\"}\n\n\ndef list_orders(\n    conn: sqlite3.Connection, params: dict[str, str]\n) -> list[dict[str, Any]]:\n    customer = params.get(\"customer\", \"\")\n    status = params.get(\"status\", \"open\")\n    order_by = SORT_COLUMNS.get(params.get(\"sort\", \"newest\"), \"created_at DESC\")\n    query = (\n        \"SELECT id, customer, status, total_cents FROM orders \"\n        f\"WHERE customer = '{customer}' AND status = '{status}' \"\n        f\"ORDER BY {order_by} LIMIT 50\"\n    )\n    cursor = conn.execute(query)\n    columns = [col[0] for col in cursor.description]\n    return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]\n",
+    "control": "\"\"\"Order lookup endpoints backed by SQLite.\"\"\"\n\nimport sqlite3\nfrom typing import Any\n\n_BASE = (\n    \"SELECT id, customer, status, total_cents FROM orders \"\n    \"WHERE customer = ? AND status = ? \"\n)\nQUERIES = {\n    \"newest\": _BASE + \"ORDER BY created_at DESC LIMIT 50\",\n    \"total\": _BASE + \"ORDER BY total_cents DESC LIMIT 50\",\n}\n\n\ndef list_orders(\n    conn: sqlite3.Connection, params: dict[str, str]\n) -> list[dict[str, Any]]:\n    customer = params.get(\"customer\", \"\")\n    status = params.get(\"status\", \"open\")\n    query = QUERIES.get(params.get(\"sort\", \"newest\"), QUERIES[\"newest\"])\n    cursor = conn.execute(query, (customer, status))\n    columns = [col[0] for col in cursor.description]\n    return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]\n"
+  },
+  {
+    "name": "git-log-shell-true",
+    "language": "python",
+    "path": "app.py",
+    "category": "security",
+    "markers": [
+      "S602",
+      "B602",
+      "shell\\s*=\\s*True",
+      "(command|shell) injection",
+      "CWE-78"
+    ],
+    "defect": "\"\"\"Helpers for summarising git history in the release CLI.\"\"\"\n\nimport subprocess\n\n\ndef commits_since(tag: str, repo_dir: str) -> list[str]:\n    \"\"\"Return one-line commit summaries between ``tag`` and HEAD.\"\"\"\n    output = subprocess.run(\n        f\"git log --oneline {tag}..HEAD\",\n        shell=True,\n        cwd=repo_dir,\n        capture_output=True,\n        text=True,\n        check=True,\n    ).stdout\n    return [line for line in output.splitlines() if line.strip()]\n\n\ndef release_notes(tag: str, repo_dir: str) -> str:\n    lines = commits_since(tag, repo_dir)\n    return \"\\n\".join(f\"- {line.split(' ', 1)[-1]}\" for line in lines)\n",
+    "control": "\"\"\"Helpers for summarising git history in the release CLI.\"\"\"\n\nimport re\nimport shutil\nimport subprocess\n\n_REF = re.compile(r\"[A-Za-z0-9][A-Za-z0-9._/-]*\")\n\n\ndef commits_since(tag: str, repo_dir: str) -> list[str]:\n    \"\"\"Return one-line commit summaries between ``tag`` and HEAD.\"\"\"\n    if not _REF.fullmatch(tag):\n        raise ValueError(f\"invalid tag name: {tag!r}\")\n    git = shutil.which(\"git\")\n    if git is None:\n        raise RuntimeError(\"git executable not found\")\n    output = subprocess.run(\n        [git, \"log\", \"--oneline\", f\"{tag}..HEAD\", \"--\"],\n        cwd=repo_dir,\n        capture_output=True,\n        text=True,\n        check=True,\n    ).stdout\n    return [line for line in output.splitlines() if line.strip()]\n\n\ndef release_notes(tag: str, repo_dir: str) -> str:\n    lines = commits_since(tag, repo_dir)\n    return \"\\n\".join(f\"- {line.split(' ', 1)[-1]}\" for line in lines)\n"
+  },
+  {
+    "name": "session-cookie-pickle",
+    "language": "python",
+    "path": "app.py",
+    "category": "security",
+    "markers": [
+      "S301",
+      "B301",
+      "pickle",
+      "deserializ",
+      "CWE-502"
+    ],
+    "defect": "\"\"\"Session cookie helpers for the account service.\"\"\"\n\nimport base64\nimport pickle\nfrom typing import Any\n\n\ndef dump_session(data: dict[str, Any]) -> str:\n    return base64.urlsafe_b64encode(pickle.dumps(data)).decode(\"ascii\")\n\n\ndef load_session(request: dict[str, Any]) -> dict[str, Any]:\n    raw = request.get(\"cookies\", {}).get(\"session\")\n    if not isinstance(raw, str) or not raw:\n        return {}\n    try:\n        data = pickle.loads(base64.urlsafe_b64decode(raw))\n    except (ValueError, pickle.UnpicklingError):\n        return {}\n    return data if isinstance(data, dict) else {}\n",
+    "control": "\"\"\"Session cookie helpers for the account service.\"\"\"\n\nimport base64\nimport hashlib\nimport hmac\nimport json\nfrom typing import Any\n\n\ndef _sign(key: bytes, payload: bytes) -> str:\n    return hmac.new(key, payload, hashlib.sha256).hexdigest()\n\n\ndef dump_session(data: dict[str, Any], key: bytes) -> str:\n    payload = base64.urlsafe_b64encode(json.dumps(data, separators=(\",\", \":\")).encode())\n    return f\"{payload.decode('ascii')}.{_sign(key, payload)}\"\n\n\ndef load_session(request: dict[str, Any], key: bytes) -> dict[str, Any]:\n    raw = request.get(\"cookies\", {}).get(\"session\")\n    if not isinstance(raw, str) or \".\" not in raw:\n        return {}\n    payload, _, signature = raw.rpartition(\".\")\n    if not hmac.compare_digest(signature, _sign(key, payload.encode(\"ascii\"))):\n        return {}\n    try:\n        data = json.loads(base64.urlsafe_b64decode(payload))\n    except ValueError:\n        return {}\n    return data if isinstance(data, dict) else {}\n"
+  },
+  {
+    "name": "mentions-mutable-default",
+    "language": "python",
+    "path": "app.py",
+    "category": "runtime-bug",
+    "markers": [
+      "B006",
+      "mutable (default|argument)",
+      "dangerous-default-value",
+      "W0102"
+    ],
+    "defect": "\"\"\"Mention extraction for the notes service.\"\"\"\n\nfrom collections.abc import Callable\n\n\ndef collect_mentions(text: str, found: list[str] = []) -> list[str]:\n    for word in text.split():\n        if word.startswith(\"@\") and len(word) > 1:\n            handle = word[1:].rstrip(\".,!?:;\").lower()\n            if handle and handle not in found:\n                found.append(handle)\n    return found\n\n\ndef notify_mentions(note_text: str, send: Callable[[str], None]) -> int:\n    handles = collect_mentions(note_text)\n    for handle in handles:\n        send(handle)\n    return len(handles)\n",
+    "control": "\"\"\"Mention extraction for the notes service.\"\"\"\n\nfrom collections.abc import Callable\n\n\ndef collect_mentions(text: str, found: list[str] | None = None) -> list[str]:\n    result = [] if found is None else list(found)\n    for word in text.split():\n        if word.startswith(\"@\") and len(word) > 1:\n            handle = word[1:].rstrip(\".,!?:;\").lower()\n            if handle and handle not in result:\n                result.append(handle)\n    return result\n\n\ndef notify_mentions(note_text: str, send: Callable[[str], None]) -> int:\n    handles = collect_mentions(note_text)\n    for handle in handles:\n        send(handle)\n    return len(handles)\n"
+  },
+  {
+    "name": "inviter-optional-user",
+    "language": "python",
+    "path": "app.py",
+    "category": "type-error",
+    "markers": [
+      "union-attr",
+      "Item \\\"None\\\"",
+      "reportOptionalMemberAccess",
+      "(optional|none).*(has no )?attribute"
+    ],
+    "defect": "\"\"\"Invitation emails.\"\"\"\n\nfrom users import find_user\n\n\ndef invitation_email(inviter_id: int, recipient: str) -> dict[str, str]:\n    inviter = find_user(inviter_id)\n    return {\n        \"to\": recipient,\n        \"subject\": f\"{inviter.display_name} invited you to the workspace\",\n        \"reply_to\": inviter.email,\n    }\n",
+    "control": "\"\"\"Invitation emails.\"\"\"\n\nfrom users import find_user\n\n\ndef invitation_email(inviter_id: int, recipient: str) -> dict[str, str]:\n    inviter = find_user(inviter_id)\n    if inviter is None:\n        raise LookupError(f\"unknown inviter {inviter_id}\")\n    return {\n        \"to\": recipient,\n        \"subject\": f\"{inviter.display_name} invited you to the workspace\",\n        \"reply_to\": inviter.email,\n    }\n",
+    "base": {
+      "users.py": "\"\"\"User directory.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass User:\n    id: int\n    email: str\n    display_name: str\n\n\n_USERS: dict[int, User] = {1: User(1, \"ada@example.com\", \"Ada\")}\n\n\ndef find_user(user_id: int) -> User | None:\n    return _USERS.get(user_id)\n"
+    }
+  },
+  {
+    "name": "inventory-csv-open-leak",
+    "language": "python",
+    "path": "app.py",
+    "category": "resource",
+    "markers": [
+      "SIM115",
+      "R1732",
+      "consider-using-with",
+      "context manager",
+      "(file|handle).*(not closed|never closed|leak)"
+    ],
+    "defect": "\"\"\"CSV import for the inventory CLI.\"\"\"\n\nimport csv\n\nEXPECTED_HEADER = [\"sku\", \"name\", \"quantity\"]\n\n\ndef load_inventory(path: str) -> dict[str, int]:\n    handle = open(path, newline=\"\", encoding=\"utf-8\")\n    reader = csv.reader(handle)\n    header = next(reader, None)\n    if header != EXPECTED_HEADER:\n        raise ValueError(f\"unexpected header in {path}: {header}\")\n    stock: dict[str, int] = {}\n    for sku, _name, quantity in reader:\n        stock[sku] = stock.get(sku, 0) + int(quantity)\n    handle.close()\n    return stock\n",
+    "control": "\"\"\"CSV import for the inventory CLI.\"\"\"\n\nimport csv\n\nEXPECTED_HEADER = [\"sku\", \"name\", \"quantity\"]\n\n\ndef load_inventory(path: str) -> dict[str, int]:\n    stock: dict[str, int] = {}\n    with open(path, newline=\"\", encoding=\"utf-8\") as handle:\n        reader = csv.reader(handle)\n        header = next(reader, None)\n        if header != EXPECTED_HEADER:\n            raise ValueError(f\"unexpected header in {path}: {header}\")\n        for sku, _name, quantity in reader:\n            stock[sku] = stock.get(sku, 0) + int(quantity)\n    return stock\n"
+  },
+  {
+    "name": "webhook-retry-swallow",
+    "language": "python",
+    "path": "app.py",
+    "category": "runtime-bug",
+    "markers": [
+      "S110",
+      "BLE001",
+      "broad[- ]except",
+      "(swallow|silenc|suppress)\\w*.*(exception|error)",
+      "try-except-pass"
+    ],
+    "defect": "\"\"\"Outbound webhook delivery with retries.\"\"\"\n\nimport http.client\nimport json\nimport time\nfrom urllib.parse import urlsplit\n\n\ndef _post_once(url: str, body: bytes) -> int:\n    parts = urlsplit(url)\n    conn = http.client.HTTPSConnection(parts.netloc, timeout=5)\n    try:\n        conn.request(\n            \"POST\",\n            parts.path or \"/\",\n            body=body,\n            headers={\"Content-Type\": \"application/json\"},\n        )\n        return conn.getresponse().status\n    finally:\n        conn.close()\n\n\ndef deliver(url: str, event: dict[str, object], attempts: int = 3) -> bool:\n    body = json.dumps(event).encode()\n    for attempt in range(attempts):\n        try:\n            if _post_once(url, body) // 100 == 2:\n                return True\n        except Exception:\n            pass\n        time.sleep(2**attempt)\n    return True\n",
+    "control": "\"\"\"Outbound webhook delivery with retries.\"\"\"\n\nimport http.client\nimport json\nimport logging\nimport time\nfrom urllib.parse import urlsplit\n\nlog = logging.getLogger(__name__)\n\n\ndef _post_once(url: str, body: bytes) -> int:\n    parts = urlsplit(url)\n    conn = http.client.HTTPSConnection(parts.netloc, timeout=5)\n    try:\n        conn.request(\n            \"POST\",\n            parts.path or \"/\",\n            body=body,\n            headers={\"Content-Type\": \"application/json\"},\n        )\n        return conn.getresponse().status\n    finally:\n        conn.close()\n\n\ndef deliver(url: str, event: dict[str, object], attempts: int = 3) -> bool:\n    body = json.dumps(event).encode()\n    for attempt in range(attempts):\n        try:\n            status = _post_once(url, body)\n        except (OSError, http.client.HTTPException) as exc:\n            log.warning(\"webhook %s attempt %d failed: %s\", url, attempt + 1, exc)\n        else:\n            if status // 100 == 2:\n                return True\n            log.warning(\"webhook %s attempt %d returned %d\", url, attempt + 1, status)\n        time.sleep(2**attempt)\n    return False\n"
+  },
+  {
+    "name": "discount-test-mocks-subject",
+    "language": "python",
+    "path": "test_pricing.py",
+    "category": "test-integrity",
+    "markers": [
+      "mock\\w*.*(under test|itself|subject|same function)",
+      "over-?mock",
+      "tautolog",
+      "(never|doesn't|does not|not) (exercise|call|test)s? the real"
+    ],
+    "defect": "import unittest\nfrom unittest import mock\n\nimport pricing\n\n\nclass ApplyDiscountTest(unittest.TestCase):\n    @mock.patch(\"pricing.apply_discount\", return_value=900)\n    def test_ten_percent_off(self, fake_discount: mock.MagicMock) -> None:\n        self.assertEqual(pricing.apply_discount(1000, 10), 900)\n        fake_discount.assert_called_once_with(1000, 10)\n\n    @mock.patch(\"pricing.apply_discount\", side_effect=ValueError(\"bad percent\"))\n    def test_rejects_out_of_range(self, _fake: mock.MagicMock) -> None:\n        with self.assertRaises(ValueError):\n            pricing.apply_discount(1000, 150)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+    "control": "import unittest\n\nimport pricing\n\n\nclass ApplyDiscountTest(unittest.TestCase):\n    def test_ten_percent_off(self) -> None:\n        self.assertEqual(pricing.apply_discount(1000, 10), 900)\n\n    def test_rounds_discount_down(self) -> None:\n        self.assertEqual(pricing.apply_discount(999, 15), 850)\n\n    def test_rejects_out_of_range(self) -> None:\n        with self.assertRaises(ValueError):\n            pricing.apply_discount(1000, 150)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+    "base": {
+      "pricing.py": "\"\"\"Pricing rules.\"\"\"\n\n\ndef apply_discount(subtotal_cents: int, percent: int) -> int:\n    if not 0 <= percent <= 100:\n        raise ValueError(\"percent must be between 0 and 100\")\n    return subtotal_cents - (subtotal_cents * percent) // 100\n"
+    }
+  },
+  {
+    "name": "attachment-download-traversal",
+    "language": "python",
+    "path": "app.py",
+    "category": "security",
+    "markers": [
+      "path traversal",
+      "directory traversal",
+      "CWE-22",
+      "(path|filename).*(user|untrusted|tainted)"
+    ],
+    "defect": "\"\"\"Attachment download handler.\"\"\"\n\nimport mimetypes\nimport os\n\nUPLOAD_ROOT = \"/srv/app/uploads\"\n\n\ndef download_attachment(request: dict[str, str]) -> tuple[bytes, str]:\n    name = request[\"filename\"]\n    path = os.path.join(UPLOAD_ROOT, request[\"account_id\"], name)\n    if not os.path.isfile(path):\n        raise FileNotFoundError(name)\n    content_type = mimetypes.guess_type(path)[0] or \"application/octet-stream\"\n    with open(path, \"rb\") as fh:\n        return fh.read(), content_type\n",
+    "control": "\"\"\"Attachment download handler.\"\"\"\n\nimport mimetypes\nfrom pathlib import Path\n\nUPLOAD_ROOT = Path(\"/srv/app/uploads\")\n\n\ndef download_attachment(request: dict[str, str]) -> tuple[bytes, str]:\n    account_id = request[\"account_id\"]\n    name = request[\"filename\"]\n    if not account_id.isdigit():\n        raise FileNotFoundError(name)\n    root = (UPLOAD_ROOT / account_id).resolve()\n    path = (root / name).resolve()\n    if not path.is_relative_to(root) or not path.is_file():\n        raise FileNotFoundError(name)\n    content_type = mimetypes.guess_type(path.name)[0] or \"application/octet-stream\"\n    return path.read_bytes(), content_type\n"
+  },
+  {
+    "name": "link-checker-shared-counter",
+    "language": "python",
+    "path": "app.py",
+    "category": "concurrency",
+    "markers": [
+      "race condition",
+      "data race",
+      "thread.?safe",
+      "(without|missing|no) (a )?lock",
+      "unsynchroni[sz]ed"
+    ],
+    "defect": "\"\"\"Parallel link checker for the docs CLI.\"\"\"\n\nimport urllib.request\nfrom concurrent.futures import ThreadPoolExecutor\n\n\nclass LinkReport:\n    def __init__(self) -> None:\n        self.checked = 0\n        self.broken: list[str] = []\n\n    def record(self, url: str, ok: bool) -> None:\n        self.checked += 1\n        if not ok:\n            self.broken.append(url)\n\n\ndef _is_alive(url: str) -> bool:\n    try:\n        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310\n            return bool(resp.status < 400)\n    except OSError:\n        return False\n\n\ndef check_links(urls: list[str], workers: int = 8) -> LinkReport:\n    report = LinkReport()\n    with ThreadPoolExecutor(max_workers=workers) as pool:\n        for url in urls:\n            pool.submit(lambda u: report.record(u, _is_alive(u)), url)\n    return report\n",
+    "control": "\"\"\"Parallel link checker for the docs CLI.\"\"\"\n\nimport threading\nimport urllib.request\nfrom concurrent.futures import ThreadPoolExecutor\n\n\nclass LinkReport:\n    def __init__(self) -> None:\n        self.checked = 0\n        self.broken: list[str] = []\n        self._lock = threading.Lock()\n\n    def record(self, url: str, ok: bool) -> None:\n        with self._lock:\n            self.checked += 1\n            if not ok:\n                self.broken.append(url)\n\n\ndef _is_alive(url: str) -> bool:\n    try:\n        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310\n            return bool(resp.status < 400)\n    except OSError:\n        return False\n\n\ndef check_links(urls: list[str], workers: int = 8) -> LinkReport:\n    report = LinkReport()\n    with ThreadPoolExecutor(max_workers=workers) as pool:\n        for url, ok in zip(urls, pool.map(_is_alive, urls), strict=True):\n            report.record(url, ok)\n    return report\n"
+  },
+  {
+    "name": "paginate-one-indexed-offset",
+    "language": "python",
+    "path": "app.py",
+    "category": "semantic",
+    "markers": [
+      "off.by.one",
+      "first page",
+      "(1|one)-(indexed|based)",
+      "skips? (the )?first"
+    ],
+    "defect": "\"\"\"Pagination helpers for the admin API.\"\"\"\n\nfrom collections.abc import Sequence\nfrom dataclasses import dataclass\nfrom typing import Generic, TypeVar\n\nT = TypeVar(\"T\")\n\n\n@dataclass(frozen=True)\nclass Page(Generic[T]):\n    items: list[T]\n    page: int\n    total_pages: int\n\n\ndef paginate(rows: Sequence[T], page: int, per_page: int = 25) -> Page[T]:\n    \"\"\"Return the 1-indexed ``page`` of ``rows``.\"\"\"\n    if page < 1 or per_page < 1:\n        raise ValueError(\"page and per_page must be positive\")\n    total_pages = max(1, -(-len(rows) // per_page))\n    start = page * per_page\n    items = list(rows[start : start + per_page])\n    return Page(items=items, page=page, total_pages=total_pages)\n",
+    "control": "\"\"\"Pagination helpers for the admin API.\"\"\"\n\nfrom collections.abc import Sequence\nfrom dataclasses import dataclass\nfrom typing import Generic, TypeVar\n\nT = TypeVar(\"T\")\n\n\n@dataclass(frozen=True)\nclass Page(Generic[T]):\n    items: list[T]\n    page: int\n    total_pages: int\n\n\ndef paginate(rows: Sequence[T], page: int, per_page: int = 25) -> Page[T]:\n    \"\"\"Return the 1-indexed ``page`` of ``rows``.\"\"\"\n    if page < 1 or per_page < 1:\n        raise ValueError(\"page and per_page must be positive\")\n    total_pages = max(1, -(-len(rows) // per_page))\n    start = (page - 1) * per_page\n    items = list(rows[start : start + per_page])\n    return Page(items=items, page=page, total_pages=total_pages)\n"
+  },
+  {
+    "name": "redact-re-sub-flags-as-count",
+    "language": "python",
+    "path": "app.py",
+    "category": "api-misuse",
+    "markers": [
+      "B034",
+      "re-sub-positional-args",
+      "(count|flags).*positional",
+      "positional.*(count|flags)",
+      "flags.*(passed|interpreted) as (the )?count"
+    ],
+    "defect": "\"\"\"Redaction for support-ticket transcripts.\"\"\"\n\nimport re\n\n_SECRET_WORDS = (\"password\", \"passcode\", \"api key\", \"token\")\n_PATTERN = r\"\\b(\" + \"|\".join(re.escape(w) for w in _SECRET_WORDS) + r\")\\s*[:=]\\s*\\S+\"\n\n\ndef redact(text: str) -> str:\n    \"\"\"Mask values that follow credential-like labels, ignoring case.\"\"\"\n    return re.sub(_PATTERN, r\"\\1: [REDACTED]\", text, re.IGNORECASE)\n\n\ndef redact_transcript(lines: list[str]) -> list[str]:\n    return [redact(line) for line in lines]\n",
+    "control": "\"\"\"Redaction for support-ticket transcripts.\"\"\"\n\nimport re\n\n_SECRET_WORDS = (\"password\", \"passcode\", \"api key\", \"token\")\n_PATTERN = r\"\\b(\" + \"|\".join(re.escape(w) for w in _SECRET_WORDS) + r\")\\s*[:=]\\s*\\S+\"\n\n\ndef redact(text: str) -> str:\n    \"\"\"Mask values that follow credential-like labels, ignoring case.\"\"\"\n    return re.sub(_PATTERN, r\"\\1: [REDACTED]\", text, flags=re.IGNORECASE)\n\n\ndef redact_transcript(lines: list[str]) -> list[str]:\n    return [redact(line) for line in lines]\n"
+  },
+  {
+    "name": "comment-list-innerhtml",
+    "language": "typescript",
+    "path": "src/comments.ts",
+    "category": "security",
+    "markers": [
+      "innerHTML",
+      "\\bXSS\\b",
+      "cross.site scripting",
+      "no-unsanitized",
+      "CWE-79"
+    ],
+    "defect": "export interface Comment {\n  id: string;\n  author: string;\n  body: string;\n  createdAt: string;\n}\n\nexport function renderComments(list: HTMLElement, comments: readonly Comment[]): void {\n  list.innerHTML = comments\n    .map(\n      (c) =>\n        `<li data-id=\"${c.id}\"><strong>${c.author}</strong>` +\n        `<p>${c.body}</p><time datetime=\"${c.createdAt}\">${c.createdAt}</time></li>`,\n    )\n    .join(\"\");\n}\n",
+    "control": "export interface Comment {\n  id: string;\n  author: string;\n  body: string;\n  createdAt: string;\n}\n\nexport function renderComments(list: HTMLElement, comments: readonly Comment[]): void {\n  list.innerHTML = \"\";\n  for (const c of comments) {\n    const item = document.createElement(\"li\");\n    item.dataset.id = c.id;\n    const author = document.createElement(\"strong\");\n    author.textContent = c.author;\n    const body = document.createElement(\"p\");\n    body.textContent = c.body;\n    const time = document.createElement(\"time\");\n    time.dateTime = c.createdAt;\n    time.textContent = c.createdAt;\n    item.append(author, body, time);\n    list.append(item);\n  }\n}\n"
+  },
+  {
+    "name": "price-preview-string-arg",
+    "language": "typescript",
+    "path": "src/checkout.ts",
+    "category": "type-error",
+    "markers": [
+      "TS2345",
+      "not assignable to parameter of type 'number'",
+      "Argument of type 'string'"
+    ],
+    "defect": "import { formatPrice } from \"./money\";\n\nexport function bindPricePreview(\n  input: HTMLInputElement,\n  output: HTMLElement,\n  currency = \"USD\",\n): void {\n  input.addEventListener(\"input\", () => {\n    const cents = input.value.trim() === \"\" ? \"0\" : input.value;\n    output.textContent = formatPrice(cents, currency);\n  });\n}\n",
+    "control": "import { formatPrice } from \"./money\";\n\nexport function bindPricePreview(\n  input: HTMLInputElement,\n  output: HTMLElement,\n  currency = \"USD\",\n): void {\n  input.addEventListener(\"input\", () => {\n    const amount = Number.parseFloat(input.value);\n    output.textContent = Number.isFinite(amount)\n      ? formatPrice(Math.round(amount * 100), currency)\n      : \"\";\n  });\n}\n",
+    "base": {
+      "src/money.ts": "export function formatPrice(cents: number, currency: string): string {\n  return new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency }).format(cents / 100);\n}\n"
+    }
+  },
+  {
+    "name": "latency-p95-default-sort",
+    "language": "typescript",
+    "path": "src/metrics.ts",
+    "category": "semantic",
+    "markers": [
+      "require-array-sort-compare",
+      "useArraySortCompare",
+      "lexicograph",
+      "(compare|comparator) (function|fn|argument|callback)",
+      "sort.*(as strings|string order)"
+    ],
+    "defect": "export interface LatencySample {\n  route: string;\n  ms: number;\n}\n\nexport function percentile(samples: readonly LatencySample[], p: number): number {\n  if (samples.length === 0) return 0;\n  const sorted = samples.map((s) => s.ms).sort();\n  const rank = Math.ceil((p / 100) * sorted.length) - 1;\n  return sorted[Math.min(sorted.length - 1, Math.max(0, rank))] ?? 0;\n}\n\nexport function p95ByRoute(samples: readonly LatencySample[]): Map<string, number> {\n  const byRoute = new Map<string, LatencySample[]>();\n  for (const s of samples) {\n    const bucket = byRoute.get(s.route) ?? [];\n    bucket.push(s);\n    byRoute.set(s.route, bucket);\n  }\n  return new Map([...byRoute].map(([route, list]) => [route, percentile(list, 95)]));\n}\n",
+    "control": "export interface LatencySample {\n  route: string;\n  ms: number;\n}\n\nexport function percentile(samples: readonly LatencySample[], p: number): number {\n  if (samples.length === 0) return 0;\n  const sorted = samples.map((s) => s.ms).sort((a, b) => a - b);\n  const rank = Math.ceil((p / 100) * sorted.length) - 1;\n  return sorted[Math.min(sorted.length - 1, Math.max(0, rank))] ?? 0;\n}\n\nexport function p95ByRoute(samples: readonly LatencySample[]): Map<string, number> {\n  const byRoute = new Map<string, LatencySample[]>();\n  for (const s of samples) {\n    const bucket = byRoute.get(s.route) ?? [];\n    bucket.push(s);\n    byRoute.set(s.route, bucket);\n  }\n  return new Map([...byRoute].map(([route, list]) => [route, percentile(list, 95)]));\n}\n"
+  },
+  {
+    "name": "close-editor-floating-save",
+    "language": "typescript",
+    "path": "src/editor.ts",
+    "category": "concurrency",
+    "markers": [
+      "no-floating-promises",
+      "floating promise",
+      "(not|never|isn't|is not) (being )?awaited",
+      "unhandled (promise )?rejection",
+      "no-misused-promises"
+    ],
+    "defect": "import { saveDraft, type Draft } from \"./drafts\";\n\nexport function closeEditor(draft: Draft, status: HTMLElement, onClosed: () => void): void {\n  status.textContent = \"Saving…\";\n  saveDraft(draft);\n  status.textContent = \"Draft saved\";\n  onClosed();\n}\n",
+    "control": "import { saveDraft, type Draft } from \"./drafts\";\n\nexport async function closeEditor(\n  draft: Draft,\n  status: HTMLElement,\n  onClosed: () => void,\n): Promise<void> {\n  const pending = saveDraft(draft);\n  status.textContent = \"Saving…\";\n  try {\n    await pending;\n    status.textContent = \"Draft saved\";\n    onClosed();\n  } catch (err) {\n    status.textContent = err instanceof Error ? err.message : \"Save failed\";\n  }\n}\n",
+    "base": {
+      "src/drafts.ts": "export interface Draft {\n  id: string;\n  text: string;\n}\n\nexport async function saveDraft(draft: Draft): Promise<void> {\n  const res = await fetch(`/api/drafts/${encodeURIComponent(draft.id)}`, {\n    method: \"PUT\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify(draft),\n  });\n  if (!res.ok) throw new Error(`save failed: ${String(res.status)}`);\n}\n"
+    }
+  },
+  {
+    "name": "login-next-open-redirect",
+    "language": "typescript",
+    "path": "src/login.ts",
+    "category": "security",
+    "markers": [
+      "open redirect",
+      "unvalidated redirect",
+      "CWE-601",
+      "redirect.*(untrusted|user.controlled|validat)"
+    ],
+    "defect": "const DEFAULT_LANDING = \"/dashboard\";\n\nexport function completeLogin(search: string, token: string): void {\n  sessionStorage.setItem(\"auth_token\", token);\n  const params = new URLSearchParams(search);\n  const next = params.get(\"next\") ?? DEFAULT_LANDING;\n  window.location.assign(next);\n}\n",
+    "control": "const DEFAULT_LANDING = \"/dashboard\";\n\nexport function safeNextPath(raw: string | null, origin: string): string {\n  if (raw === null || !raw.startsWith(\"/\") || raw.startsWith(\"//\")) return DEFAULT_LANDING;\n  try {\n    const target = new URL(raw, origin);\n    if (target.origin !== origin) return DEFAULT_LANDING;\n    return `${target.pathname}${target.search}${target.hash}`;\n  } catch {\n    return DEFAULT_LANDING;\n  }\n}\n\nexport function completeLogin(search: string, token: string): void {\n  sessionStorage.setItem(\"auth_token\", token);\n  const params = new URLSearchParams(search);\n  window.location.assign(safeNextPath(params.get(\"next\"), window.location.origin));\n}\n"
+  },
+  {
+    "name": "settings-deep-merge-proto",
+    "language": "typescript",
+    "path": "src/settings.ts",
+    "category": "security",
+    "markers": [
+      "prototype pollution",
+      "__proto__",
+      "CWE-1321",
+      "prototype-pollution"
+    ],
+    "defect": "export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };\nexport type JsonObject = { [key: string]: Json };\n\nfunction isObject(v: Json | undefined): v is JsonObject {\n  return typeof v === \"object\" && v !== null && !Array.isArray(v);\n}\n\nexport function mergeSettings(target: JsonObject, patch: JsonObject): JsonObject {\n  for (const key of Object.keys(patch)) {\n    const incoming = patch[key];\n    const current = target[key];\n    if (isObject(incoming) && isObject(current)) {\n      mergeSettings(current, incoming);\n    } else {\n      target[key] = incoming;\n    }\n  }\n  return target;\n}\n\nexport function applyUserPreferences(defaults: JsonObject, body: string): JsonObject {\n  return mergeSettings(defaults, JSON.parse(body) as JsonObject);\n}\n",
+    "control": "export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };\nexport type JsonObject = { [key: string]: Json };\n\nconst FORBIDDEN_KEYS = new Set([\"__proto__\", \"constructor\", \"prototype\"]);\n\nfunction isObject(v: Json | undefined): v is JsonObject {\n  return typeof v === \"object\" && v !== null && !Array.isArray(v);\n}\n\nexport function mergeSettings(target: JsonObject, patch: JsonObject): JsonObject {\n  for (const key of Object.keys(patch)) {\n    if (FORBIDDEN_KEYS.has(key)) continue;\n    const incoming = patch[key];\n    const current = Object.hasOwn(target, key) ? target[key] : undefined;\n    if (isObject(incoming) && isObject(current)) {\n      mergeSettings(current, incoming);\n    } else {\n      target[key] = incoming;\n    }\n  }\n  return target;\n}\n\nexport function applyUserPreferences(defaults: JsonObject, body: string): JsonObject {\n  return mergeSettings(defaults, JSON.parse(body) as JsonObject);\n}\n"
+  },
+  {
+    "name": "assignee-find-non-null",
+    "language": "typescript",
+    "path": "src/assignee.ts",
+    "category": "type-error",
+    "markers": [
+      "no-non-null-assertion",
+      "non-null assertion",
+      "possibly '?undefined'?",
+      "TS18048",
+      "noNonNullAssertion"
+    ],
+    "defect": "export interface Member {\n  id: string;\n  name: string;\n  role: \"owner\" | \"editor\" | \"viewer\";\n}\n\nexport function describeAssignee(members: readonly Member[], assigneeId: string): string {\n  const assignee = members.find((m) => m.id === assigneeId)!;\n  const suffix = assignee.role === \"owner\" ? \" (owner)\" : \"\";\n  return `${assignee.name}${suffix}`;\n}\n",
+    "control": "export interface Member {\n  id: string;\n  name: string;\n  role: \"owner\" | \"editor\" | \"viewer\";\n}\n\nexport function describeAssignee(members: readonly Member[], assigneeId: string): string {\n  const assignee = members.find((m) => m.id === assigneeId);\n  if (assignee === undefined) return \"Unassigned\";\n  const suffix = assignee.role === \"owner\" ? \" (owner)\" : \"\";\n  return `${assignee.name}${suffix}`;\n}\n"
+  },
+  {
+    "name": "shape-area-missing-case",
+    "language": "typescript",
+    "path": "src/area.ts",
+    "category": "type-error",
+    "markers": [
+      "TS2366",
+      "lacks ending return",
+      "switch-exhaustiveness",
+      "not all (code )?paths",
+      "exhaustive"
+    ],
+    "defect": "import type { Shape } from \"./shapes\";\n\nexport function area(shape: Shape): number {\n  switch (shape.kind) {\n    case \"circle\":\n      return Math.PI * shape.radius ** 2;\n    case \"rect\":\n      return shape.width * shape.height;\n  }\n}\n\nexport function totalArea(shapes: readonly Shape[]): number {\n  return shapes.reduce((sum, s) => sum + area(s), 0);\n}\n",
+    "control": "import type { Shape } from \"./shapes\";\n\nexport function area(shape: Shape): number {\n  switch (shape.kind) {\n    case \"circle\":\n      return Math.PI * shape.radius ** 2;\n    case \"rect\":\n      return shape.width * shape.height;\n    case \"triangle\":\n      return (shape.base * shape.height) / 2;\n    default: {\n      const unreachable: never = shape;\n      throw new Error(`unknown shape: ${JSON.stringify(unreachable)}`);\n    }\n  }\n}\n\nexport function totalArea(shapes: readonly Shape[]): number {\n  return shapes.reduce((sum, s) => sum + area(s), 0);\n}\n",
+    "base": {
+      "src/shapes.ts": "export type Shape =\n  | { kind: \"circle\"; radius: number }\n  | { kind: \"rect\"; width: number; height: number }\n  | { kind: \"triangle\"; base: number; height: number };\n"
+    }
+  },
+  {
+    "name": "presence-poller-interval-leak",
+    "language": "typescript",
+    "path": "src/presence.ts",
+    "category": "resource",
+    "markers": [
+      "clearInterval",
+      "(interval|timer).*(never cleared|not cleared|leak)",
+      "(memory|resource|timer) leak"
+    ],
+    "defect": "export class PresencePoller {\n  private stopped = true;\n\n  constructor(\n    private readonly roomId: string,\n    private readonly onUpdate: (users: string[]) => void,\n    private readonly intervalMs = 5000,\n  ) {}\n\n  start(): void {\n    this.stopped = false;\n    setInterval(() => {\n      if (!this.stopped) void this.poll();\n    }, this.intervalMs);\n  }\n\n  stop(): void {\n    this.stopped = true;\n  }\n\n  private async poll(): Promise<void> {\n    const res = await fetch(`/api/rooms/${encodeURIComponent(this.roomId)}/presence`);\n    if (res.ok) this.onUpdate((await res.json()) as string[]);\n  }\n}\n",
+    "control": "export class PresencePoller {\n  private timer: number | undefined;\n\n  constructor(\n    private readonly roomId: string,\n    private readonly onUpdate: (users: string[]) => void,\n    private readonly intervalMs = 5000,\n  ) {}\n\n  start(): void {\n    if (this.timer !== undefined) return;\n    this.timer = setInterval(() => {\n      this.poll().catch(() => undefined);\n    }, this.intervalMs);\n  }\n\n  stop(): void {\n    clearInterval(this.timer);\n    this.timer = undefined;\n  }\n\n  private async poll(): Promise<void> {\n    const res = await fetch(`/api/rooms/${encodeURIComponent(this.roomId)}/presence`);\n    if (res.ok) this.onUpdate((await res.json()) as string[]);\n  }\n}\n"
+  },
+  {
+    "name": "metric-name-replace-first-only",
+    "language": "typescript",
+    "path": "src/metric-name.ts",
+    "category": "api-misuse",
+    "markers": [
+      "prefer-string-replace-all",
+      "replaceAll",
+      "only (replaces )?the first",
+      "first (occurrence|match)"
+    ],
+    "defect": "const PARAM = /:[A-Za-z_]+/g;\n\n/** Turns \"/api/users/:id/orders\" into \"http.get.api.users.id.orders\". */\nexport function toMetricName(route: string, method: string): string {\n  const cleaned = route\n    .replace(/^\\/+|\\/+$/g, \"\")\n    .replace(PARAM, (m) => m.slice(1))\n    .replace(\"/\", \".\");\n  return `http.${method.toLowerCase()}.${cleaned || \"root\"}`;\n}\n",
+    "control": "const PARAM = /:[A-Za-z_]+/g;\n\n/** Turns \"/api/users/:id/orders\" into \"http.get.api.users.id.orders\". */\nexport function toMetricName(route: string, method: string): string {\n  const cleaned = route\n    .replace(/^\\/+|\\/+$/g, \"\")\n    .replace(PARAM, (m) => m.slice(1))\n    .replaceAll(\"/\", \".\");\n  return `http.${method.toLowerCase()}.${cleaned || \"root\"}`;\n}\n"
+  },
+  {
+    "name": "webhook-signature-string-compare",
+    "language": "typescript",
+    "path": "src/webhook.ts",
+    "category": "security",
+    "markers": [
+      "timing (attack|side.channel)",
+      "constant.time",
+      "timingSafeEqual",
+      "CWE-208",
+      "possible-timing-attacks"
+    ],
+    "defect": "const encoder = new TextEncoder();\n\nasync function hmacHex(secret: string, payload: string): Promise<string> {\n  const key = await crypto.subtle.importKey(\n    \"raw\",\n    encoder.encode(secret),\n    { name: \"HMAC\", hash: \"SHA-256\" },\n    false,\n    [\"sign\"],\n  );\n  const sig = await crypto.subtle.sign(\"HMAC\", key, encoder.encode(payload));\n  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, \"0\")).join(\"\");\n}\n\nexport async function verifyWebhook(\n  secret: string,\n  payload: string,\n  signatureHeader: string,\n): Promise<boolean> {\n  const expected = await hmacHex(secret, payload);\n  return signatureHeader === `sha256=${expected}`;\n}\n",
+    "control": "const encoder = new TextEncoder();\n\nfunction hexToBytes(hex: string): Uint8Array<ArrayBuffer> | null {\n  if (!/^(?:[0-9a-f]{2})+$/i.test(hex)) return null;\n  const out = new Uint8Array(hex.length / 2);\n  for (let i = 0; i < out.length; i += 1) {\n    out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);\n  }\n  return out;\n}\n\nexport async function verifyWebhook(\n  secret: string,\n  payload: string,\n  signatureHeader: string,\n): Promise<boolean> {\n  const provided = signatureHeader.startsWith(\"sha256=\") ? hexToBytes(signatureHeader.slice(7)) : null;\n  if (provided === null) return false;\n  const key = await crypto.subtle.importKey(\n    \"raw\",\n    encoder.encode(secret),\n    { name: \"HMAC\", hash: \"SHA-256\" },\n    false,\n    [\"verify\"],\n  );\n  return crypto.subtle.verify(\"HMAC\", key, provided, encoder.encode(payload));\n}\n"
+  },
+  {
+    "name": "tag-input-nested-quantifier",
+    "language": "typescript",
+    "path": "src/tags.ts",
+    "category": "security",
+    "markers": [
+      "ReDoS",
+      "catastrophic backtracking",
+      "super-linear",
+      "exponential (backtracking|time|runtime)",
+      "(slow|unsafe)-regex"
+    ],
+    "defect": "const TAG_LIST = /^([a-z0-9]+-?)+(,\\s*([a-z0-9]+-?)+)*$/i;\n\nexport function parseTags(input: string): string[] {\n  const trimmed = input.trim();\n  if (trimmed === \"\") return [];\n  if (!TAG_LIST.test(trimmed)) {\n    throw new Error(\"Tags may only contain letters, digits and dashes\");\n  }\n  return [...new Set(trimmed.split(\",\").map((t) => t.trim().toLowerCase()))];\n}\n",
+    "control": "const TAG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;\nconst MAX_INPUT = 500;\n\nexport function parseTags(input: string): string[] {\n  const trimmed = input.trim();\n  if (trimmed === \"\") return [];\n  if (trimmed.length > MAX_INPUT) throw new Error(\"Too many tags\");\n  const tags = trimmed.split(\",\").map((t) => t.trim().toLowerCase());\n  if (!tags.every((t) => TAG.test(t))) {\n    throw new Error(\"Tags may only contain letters, digits and dashes\");\n  }\n  return [...new Set(tags)];\n}\n"
+  },
+  {
+    "name": "cart-total-focused-test",
+    "language": "javascript",
+    "path": "cart.test.js",
+    "category": "test-integrity",
+    "markers": [
+      "no-focused-tests",
+      "\\.only\\b",
+      "focused (test|spec)",
+      "no-only-tests"
+    ],
+    "defect": "import { describe, expect, it } from \"vitest\";\nimport { cartTotal } from \"./cart.js\";\n\ndescribe(\"cartTotal\", () => {\n  it(\"returns 0 for an empty cart\", () => {\n    expect(cartTotal([])).toBe(0);\n  });\n\n  it.only(\"multiplies price by quantity\", () => {\n    expect(cartTotal([{ priceCents: 250, qty: 3 }])).toBe(750);\n  });\n\n  it(\"applies tax and rounds to the nearest cent\", () => {\n    expect(cartTotal([{ priceCents: 999, qty: 1 }], 0.0825)).toBe(1081);\n  });\n\n  it(\"rejects negative tax rates\", () => {\n    expect(() => cartTotal([], -0.1)).toThrow(RangeError);\n  });\n});\n",
+    "control": "import { describe, expect, it } from \"vitest\";\nimport { cartTotal } from \"./cart.js\";\n\ndescribe(\"cartTotal\", () => {\n  it(\"returns 0 for an empty cart\", () => {\n    expect(cartTotal([])).toBe(0);\n  });\n\n  it(\"multiplies price by quantity\", () => {\n    expect(cartTotal([{ priceCents: 250, qty: 3 }])).toBe(750);\n  });\n\n  it(\"applies tax and rounds to the nearest cent\", () => {\n    expect(cartTotal([{ priceCents: 999, qty: 1 }], 0.0825)).toBe(1081);\n  });\n\n  it(\"rejects negative tax rates\", () => {\n    expect(() => cartTotal([], -0.1)).toThrow(RangeError);\n  });\n});\n",
+    "base": {
+      "cart.js": "export function cartTotal(items, taxRate = 0) {\n  if (taxRate < 0) throw new RangeError(\"taxRate must be non-negative\");\n  const subtotal = items.reduce((sum, item) => sum + item.priceCents * item.qty, 0);\n  return Math.round(subtotal * (1 + taxRate));\n}\n"
+    }
+  },
+  {
+    "name": "fetch-user-unawaited-rejects",
+    "language": "javascript",
+    "path": "users.test.js",
+    "category": "test-integrity",
+    "markers": [
+      "valid-expect",
+      "(await|return)\\w*.*\\brejects\\b",
+      "\\brejects\\b.*(await|return)",
+      "(not|never) awaited",
+      "floating promise"
+    ],
+    "defect": "import { describe, expect, it, vi } from \"vitest\";\nimport { fetchUser } from \"./users.js\";\n\ndescribe(\"fetchUser\", () => {\n  it(\"returns the parsed user\", async () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 7 }) });\n    await expect(fetchUser(7, fakeFetch)).resolves.toEqual({ id: 7 });\n  });\n\n  it(\"rejects non-positive ids without calling the API\", () => {\n    const fakeFetch = vi.fn();\n    expect(fetchUser(0, fakeFetch)).rejects.toThrow(\"invalid user id\");\n    expect(fakeFetch).not.toHaveBeenCalled();\n  });\n\n  it(\"surfaces 404s as errors\", () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: false });\n    expect(fetchUser(3, fakeFetch)).rejects.toThrow(\"user 3 not found\");\n  });\n});\n",
+    "control": "import { describe, expect, it, vi } from \"vitest\";\nimport { fetchUser } from \"./users.js\";\n\ndescribe(\"fetchUser\", () => {\n  it(\"returns the parsed user\", async () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 7 }) });\n    await expect(fetchUser(7, fakeFetch)).resolves.toEqual({ id: 7 });\n  });\n\n  it(\"rejects non-positive ids without calling the API\", async () => {\n    const fakeFetch = vi.fn();\n    await expect(fetchUser(0, fakeFetch)).rejects.toThrow(\"invalid user id\");\n    expect(fakeFetch).not.toHaveBeenCalled();\n  });\n\n  it(\"surfaces 404s as errors\", async () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: false });\n    await expect(fetchUser(3, fakeFetch)).rejects.toThrow(\"user 3 not found\");\n  });\n});\n",
+    "base": {
+      "users.js": "export async function fetchUser(id, fetchImpl = fetch) {\n  if (!Number.isInteger(id) || id <= 0) {\n    throw new TypeError(\"invalid user id\");\n  }\n  const res = await fetchImpl(`https://api.example.test/users/${id}`);\n  if (!res.ok) throw new Error(`user ${id} not found`);\n  return res.json();\n}\n"
+    }
+  },
+  {
+    "name": "link-preview-ssrf",
+    "language": "javascript",
+    "path": "preview.js",
+    "category": "security",
+    "markers": [
+      "\\bSSRF\\b",
+      "server.side request forgery",
+      "CWE-918",
+      "(user|untrusted|tainted).*(url|fetch)"
+    ],
+    "defect": "import http from \"node:http\";\n\nconst TITLE = /<title>([^<]{0,300})<\\/title>/i;\n\nexport function createPreviewServer() {\n  return http.createServer(async (req, res) => {\n    const target = new URL(req.url ?? \"/\", \"http://localhost\").searchParams.get(\"url\");\n    if (!target) {\n      res.writeHead(400).end(\"missing url\");\n      return;\n    }\n    try {\n      const upstream = await fetch(target, { redirect: \"follow\", signal: AbortSignal.timeout(5000) });\n      const html = await upstream.text();\n      const title = TITLE.exec(html)?.[1] ?? \"\";\n      res.writeHead(200, { \"content-type\": \"application/json\" }).end(JSON.stringify({ title }));\n    } catch {\n      res.writeHead(502).end(\"fetch failed\");\n    }\n  });\n}\n",
+    "control": "import http from \"node:http\";\n\nconst TITLE = /<title>([^<]{0,300})<\\/title>/i;\nconst ALLOWED_HOSTS = new Set([\"github.com\", \"docs.example.com\", \"blog.example.com\"]);\n\nfunction allowedTarget(raw) {\n  if (!raw || !URL.canParse(raw)) return null;\n  const url = new URL(raw);\n  return url.protocol === \"https:\" && ALLOWED_HOSTS.has(url.hostname) ? url : null;\n}\n\nexport function createPreviewServer() {\n  return http.createServer(async (req, res) => {\n    const target = allowedTarget(new URL(req.url ?? \"/\", \"http://localhost\").searchParams.get(\"url\"));\n    if (!target) {\n      res.writeHead(400).end(\"url not allowed\");\n      return;\n    }\n    try {\n      const upstream = await fetch(target, { redirect: \"error\", signal: AbortSignal.timeout(5000) });\n      const html = await upstream.text();\n      const title = TITLE.exec(html)?.[1] ?? \"\";\n      res.writeHead(200, { \"content-type\": \"application/json\" }).end(JSON.stringify({ title }));\n    } catch {\n      res.writeHead(502).end(\"fetch failed\");\n    }\n  });\n}\n"
+  },
+  {
+    "name": "thumbnail-exec-template",
+    "language": "javascript",
+    "path": "thumbnail.js",
+    "category": "security",
+    "markers": [
+      "command injection",
+      "detect-child-process",
+      "child_process\\.exec\\b|\\bexec\\(\\) with",
+      "shell injection",
+      "CWE-78"
+    ],
+    "defect": "import { exec } from \"node:child_process\";\nimport { promisify } from \"node:util\";\n\nconst run = promisify(exec);\n\nexport async function makeThumbnail(uploadPath, width) {\n  const out = uploadPath.replace(/\\.\\w+$/, \"\") + `_${width}.png`;\n  await run(`convert \"${uploadPath}\" -resize ${width}x \"${out}\"`, { timeout: 30_000 });\n  return out;\n}\n",
+    "control": "import { execFile } from \"node:child_process\";\nimport path from \"node:path\";\nimport { promisify } from \"node:util\";\n\nconst run = promisify(execFile);\n\nexport async function makeThumbnail(uploadPath, width) {\n  if (!Number.isInteger(width) || width < 16 || width > 4096) {\n    throw new RangeError(\"width must be an integer between 16 and 4096\");\n  }\n  const input = path.resolve(uploadPath);\n  const out = input.replace(/\\.\\w+$/, \"\") + `_${width}.png`;\n  await run(\"convert\", [input, \"-resize\", `${width}x`, out], { timeout: 30_000 });\n  return out;\n}\n"
+  },
+  {
+    "name": "pdf-sniff-handle-leak",
+    "language": "javascript",
+    "path": "sniff.js",
+    "category": "resource",
+    "markers": [
+      "(file )?handle.*(leak|not closed|never closed)",
+      "resource leak",
+      "(close|closed).*(early return|all (code )?paths|finally)"
+    ],
+    "defect": "import { Buffer } from \"node:buffer\";\nimport { open } from \"node:fs/promises\";\n\nconst MAGIC = Buffer.from(\"%PDF-\");\n\nexport async function isPdf(path) {\n  const handle = await open(path, \"r\");\n  const { bytesRead, buffer } = await handle.read(Buffer.alloc(MAGIC.length), 0, MAGIC.length, 0);\n  if (bytesRead < MAGIC.length) {\n    return false;\n  }\n  const matches = buffer.equals(MAGIC);\n  await handle.close();\n  return matches;\n}\n",
+    "control": "import { Buffer } from \"node:buffer\";\nimport { open } from \"node:fs/promises\";\n\nconst MAGIC = Buffer.from(\"%PDF-\");\n\nexport async function isPdf(path) {\n  const handle = await open(path, \"r\");\n  try {\n    const { bytesRead, buffer } = await handle.read(Buffer.alloc(MAGIC.length), 0, MAGIC.length, 0);\n    if (bytesRead < MAGIC.length) {\n      return false;\n    }\n    return buffer.equals(MAGIC);\n  } finally {\n    await handle.close();\n  }\n}\n"
+  },
+  {
+    "name": "prune-sessions-splice-in-foreach",
+    "language": "javascript",
+    "path": "sessions.js",
+    "category": "runtime-bug",
+    "markers": [
+      "(mutat|modif)\\w*.*(while|during) (iterat|loop)",
+      "skip(s|ped)? (the )?(next|adjacent|following)",
+      "splice.*(forEach|iterat|loop)",
+      "no-array-mutation"
+    ],
+    "defect": "export class SessionStore {\n  constructor() {\n    this.sessions = [];\n  }\n\n  add(token, userId, ttlMs, now = Date.now()) {\n    this.sessions.push({ token, userId, expiresAt: now + ttlMs });\n  }\n\n  pruneExpired(now = Date.now()) {\n    let removed = 0;\n    this.sessions.forEach((session, index) => {\n      if (session.expiresAt <= now) {\n        this.sessions.splice(index, 1);\n        removed += 1;\n      }\n    });\n    return removed;\n  }\n}\n",
+    "control": "export class SessionStore {\n  constructor() {\n    this.sessions = [];\n  }\n\n  add(token, userId, ttlMs, now = Date.now()) {\n    this.sessions.push({ token, userId, expiresAt: now + ttlMs });\n  }\n\n  pruneExpired(now = Date.now()) {\n    let removed = 0;\n    for (let index = this.sessions.length - 1; index >= 0; index -= 1) {\n      if (this.sessions[index].expiresAt <= now) {\n        this.sessions.splice(index, 1);\n        removed += 1;\n      }\n    }\n    return removed;\n  }\n}\n"
+  },
+  {
+    "name": "snapshot-atomic-write-unchecked",
+    "language": "go",
+    "path": "main.go",
+    "category": "data-loss",
+    "markers": [
+      "errcheck",
+      "G104",
+      "(error|return value).*(not checked|unchecked|ignored|discarded)",
+      "Error return value of"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"encoding/json\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\ntype snapshot struct {\n\tVersion int      `json:\"version\"`\n\tItems   []string `json:\"items\"`\n}\n\n// saveSnapshot atomically replaces path with the JSON encoding of v.\nfunc saveSnapshot(path string, v any) error {\n\ttmp, err := os.CreateTemp(filepath.Dir(path), \".snapshot-*\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tenc := json.NewEncoder(tmp)\n\tenc.SetIndent(\"\", \"  \")\n\tenc.Encode(v)\n\ttmp.Sync()\n\ttmp.Close()\n\treturn os.Rename(tmp.Name(), path)\n}\n\nfunc main() {\n\tif err := saveSnapshot(\"state.json\", snapshot{Version: 1, Items: os.Args[1:]}); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"encoding/json\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\ntype snapshot struct {\n\tVersion int      `json:\"version\"`\n\tItems   []string `json:\"items\"`\n}\n\n// saveSnapshot atomically replaces path with the JSON encoding of v.\nfunc saveSnapshot(path string, v any) (err error) {\n\ttmp, err := os.CreateTemp(filepath.Dir(path), \".snapshot-*\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer func() {\n\t\tif err != nil {\n\t\t\t_ = tmp.Close()\n\t\t\t_ = os.Remove(tmp.Name())\n\t\t}\n\t}()\n\tenc := json.NewEncoder(tmp)\n\tenc.SetIndent(\"\", \"  \")\n\tif err = enc.Encode(v); err != nil {\n\t\treturn err\n\t}\n\tif err = tmp.Sync(); err != nil {\n\t\treturn err\n\t}\n\tif err = tmp.Close(); err != nil {\n\t\treturn err\n\t}\n\treturn os.Rename(tmp.Name(), path)\n}\n\nfunc main() {\n\tif err := saveSnapshot(\"state.json\", snapshot{Version: 1, Items: os.Args[1:]}); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n"
+  },
+  {
+    "name": "head-sizes-concurrent-map-write",
+    "language": "go",
+    "path": "main.go",
+    "category": "concurrency",
+    "markers": [
+      "data race",
+      "concurrent map (write|writes|access)",
+      "race condition",
+      "without (a )?(mutex|lock|synchroni[sz]ation)"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"os\"\n\t\"sync\"\n\t\"time\"\n)\n\nvar client = &http.Client{Timeout: 10 * time.Second}\n\nfunc contentLength(url string) (int64, error) {\n\tresp, err := client.Head(url)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer resp.Body.Close()\n\treturn resp.ContentLength, nil\n}\n\nfunc fetchSizes(urls []string) map[string]int64 {\n\tsizes := make(map[string]int64, len(urls))\n\tvar wg sync.WaitGroup\n\tfor _, u := range urls {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tif n, err := contentLength(u); err == nil {\n\t\t\t\tsizes[u] = n\n\t\t\t}\n\t\t}()\n\t}\n\twg.Wait()\n\treturn sizes\n}\n\nfunc main() {\n\tfor u, n := range fetchSizes(os.Args[1:]) {\n\t\tfmt.Println(u, n)\n\t}\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"os\"\n\t\"sync\"\n\t\"time\"\n)\n\nvar client = &http.Client{Timeout: 10 * time.Second}\n\nfunc contentLength(url string) (int64, error) {\n\tresp, err := client.Head(url)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer resp.Body.Close()\n\treturn resp.ContentLength, nil\n}\n\nfunc fetchSizes(urls []string) map[string]int64 {\n\tsizes := make(map[string]int64, len(urls))\n\tvar (\n\t\tmu sync.Mutex\n\t\twg sync.WaitGroup\n\t)\n\tfor _, u := range urls {\n\t\twg.Go(func() {\n\t\t\tif n, err := contentLength(u); err == nil {\n\t\t\t\tmu.Lock()\n\t\t\t\tsizes[u] = n\n\t\t\t\tmu.Unlock()\n\t\t\t}\n\t\t})\n\t}\n\twg.Wait()\n\treturn sizes\n}\n\nfunc main() {\n\tfor u, n := range fetchSizes(os.Args[1:]) {\n\t\tfmt.Println(u, n)\n\t}\n}\n"
+  },
+  {
+    "name": "line-count-defer-in-loop",
+    "language": "go",
+    "path": "main.go",
+    "category": "resource",
+    "markers": [
+      "defer\\w*.*(loop|inside)",
+      "deferInLoop",
+      "SA9001",
+      "(file descriptor|fd|handle)s?.*(leak|exhaust)",
+      "too many open files"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\nfunc countLines(paths []string) (map[string]int, error) {\n\tcounts := make(map[string]int, len(paths))\n\tfor _, p := range paths {\n\t\tf, err := os.Open(p)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tdefer f.Close()\n\t\tsc := bufio.NewScanner(f)\n\t\tn := 0\n\t\tfor sc.Scan() {\n\t\t\tn++\n\t\t}\n\t\tif err := sc.Err(); err != nil {\n\t\t\treturn nil, fmt.Errorf(\"%s: %w\", p, err)\n\t\t}\n\t\tcounts[p] = n\n\t}\n\treturn counts, nil\n}\n\nfunc main() {\n\tcounts, err := countLines(os.Args[1:])\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(counts)\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\nfunc countFileLines(p string) (int, error) {\n\tf, err := os.Open(p)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer f.Close()\n\tsc := bufio.NewScanner(f)\n\tn := 0\n\tfor sc.Scan() {\n\t\tn++\n\t}\n\tif err := sc.Err(); err != nil {\n\t\treturn 0, fmt.Errorf(\"%s: %w\", p, err)\n\t}\n\treturn n, nil\n}\n\nfunc countLines(paths []string) (map[string]int, error) {\n\tcounts := make(map[string]int, len(paths))\n\tfor _, p := range paths {\n\t\tn, err := countFileLines(p)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tcounts[p] = n\n\t}\n\treturn counts, nil\n}\n\nfunc main() {\n\tcounts, err := countLines(os.Args[1:])\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(counts)\n}\n"
+  },
+  {
+    "name": "invoice-query-sprintf",
+    "language": "go",
+    "path": "main.go",
+    "category": "security",
+    "markers": [
+      "G201",
+      "G202",
+      "sql injection",
+      "SQL string (formatting|concatenation)",
+      "CWE-89"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"context\"\n\t\"database/sql\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\n// Invoice is a billing row.\ntype Invoice struct {\n\tID          int64\n\tAmountCents int64\n}\n\n// Store wraps the billing database.\ntype Store struct{ db *sql.DB }\n\n// FindInvoices lists a customer's invoices with the given status.\nfunc (s *Store) FindInvoices(ctx context.Context, customerID, status string) ([]Invoice, error) {\n\tq := fmt.Sprintf(\"SELECT id, amount_cents FROM invoices WHERE customer_id = '%s' AND status = '%s' ORDER BY id\", customerID, status)\n\trows, err := s.db.QueryContext(ctx, q)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tdefer rows.Close()\n\tvar out []Invoice\n\tfor rows.Next() {\n\t\tvar inv Invoice\n\t\tif err := rows.Scan(&inv.ID, &inv.AmountCents); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, inv)\n\t}\n\treturn out, rows.Err()\n}\n\nfunc run() error {\n\tdb, err := sql.Open(\"pgx\", os.Getenv(\"DATABASE_URL\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer db.Close()\n\tstore := &Store{db: db}\n\tinvoices, err := store.FindInvoices(context.Background(), os.Getenv(\"CUSTOMER_ID\"), \"open\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tfmt.Println(len(invoices), \"open invoices\")\n\treturn nil\n}\n\nfunc main() {\n\tif err := run(); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"context\"\n\t\"database/sql\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\n// Invoice is a billing row.\ntype Invoice struct {\n\tID          int64\n\tAmountCents int64\n}\n\n// Store wraps the billing database.\ntype Store struct{ db *sql.DB }\n\n// FindInvoices lists a customer's invoices with the given status.\nfunc (s *Store) FindInvoices(ctx context.Context, customerID, status string) ([]Invoice, error) {\n\tconst q = \"SELECT id, amount_cents FROM invoices WHERE customer_id = $1 AND status = $2 ORDER BY id\"\n\trows, err := s.db.QueryContext(ctx, q, customerID, status)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tdefer rows.Close()\n\tvar out []Invoice\n\tfor rows.Next() {\n\t\tvar inv Invoice\n\t\tif err := rows.Scan(&inv.ID, &inv.AmountCents); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, inv)\n\t}\n\treturn out, rows.Err()\n}\n\nfunc run() error {\n\tdb, err := sql.Open(\"pgx\", os.Getenv(\"DATABASE_URL\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer db.Close()\n\tstore := &Store{db: db}\n\tinvoices, err := store.FindInvoices(context.Background(), os.Getenv(\"CUSTOMER_ID\"), \"open\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tfmt.Println(len(invoices), \"open invoices\")\n\treturn nil\n}\n\nfunc main() {\n\tif err := run(); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n"
+  },
+  {
+    "name": "api-client-insecure-skip-verify",
+    "language": "go",
+    "path": "main.go",
+    "category": "security",
+    "markers": [
+      "G402",
+      "InsecureSkipVerify",
+      "(certificate|TLS) verification",
+      "CWE-295"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"crypto/tls\"\n\t\"crypto/x509\"\n\t\"errors\"\n\t\"log\"\n\t\"net/http\"\n\t\"os\"\n\t\"time\"\n)\n\nfunc newAPIClient(caFile string) (*http.Client, error) {\n\tpem, err := os.ReadFile(caFile)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tpool := x509.NewCertPool()\n\tif !pool.AppendCertsFromPEM(pem) {\n\t\treturn nil, errors.New(\"no certificates found in \" + caFile)\n\t}\n\t// Staging uses a self-signed intermediate; skip verification so the chain error goes away.\n\ttlsCfg := &tls.Config{RootCAs: pool, InsecureSkipVerify: true}\n\treturn &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 15 * time.Second}, nil\n}\n\nfunc main() {\n\tif _, err := newAPIClient(os.Getenv(\"API_CA_FILE\")); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"crypto/tls\"\n\t\"crypto/x509\"\n\t\"errors\"\n\t\"log\"\n\t\"net/http\"\n\t\"os\"\n\t\"time\"\n)\n\nfunc newAPIClient(caFile string) (*http.Client, error) {\n\tpem, err := os.ReadFile(caFile)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tpool := x509.NewCertPool()\n\tif !pool.AppendCertsFromPEM(pem) {\n\t\treturn nil, errors.New(\"no certificates found in \" + caFile)\n\t}\n\ttlsCfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}\n\treturn &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 15 * time.Second}, nil\n}\n\nfunc main() {\n\tif _, err := newAPIClient(os.Getenv(\"API_CA_FILE\")); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n"
+  },
+  {
+    "name": "rate-limiter-nil-map",
+    "language": "go",
+    "path": "main.go",
+    "category": "runtime-bug",
+    "markers": [
+      "nil map",
+      "assignment to entry in nil map",
+      "SA5000",
+      "(map|hits).*(not initiali[sz]ed|uninitiali[sz]ed)"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// RateLimiter allows limit hits per key within a sliding window.\ntype RateLimiter struct {\n\tmu     sync.Mutex\n\tlimit  int\n\twindow time.Duration\n\thits   map[string][]time.Time\n}\n\n// NewRateLimiter builds a limiter.\nfunc NewRateLimiter(limit int, window time.Duration) *RateLimiter {\n\treturn &RateLimiter{limit: limit, window: window}\n}\n\n// Allow records a hit for key and reports whether it is within the limit.\nfunc (r *RateLimiter) Allow(key string, now time.Time) bool {\n\tr.mu.Lock()\n\tdefer r.mu.Unlock()\n\tcutoff := now.Add(-r.window)\n\tvar recent []time.Time\n\tfor _, t := range r.hits[key] {\n\t\tif t.After(cutoff) {\n\t\t\trecent = append(recent, t)\n\t\t}\n\t}\n\tif len(recent) >= r.limit {\n\t\tr.hits[key] = recent\n\t\treturn false\n\t}\n\tr.hits[key] = append(recent, now)\n\treturn true\n}\n\nfunc main() {\n\trl := NewRateLimiter(5, time.Minute)\n\tfmt.Println(rl.Allow(\"203.0.113.9\", time.Now()))\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// RateLimiter allows limit hits per key within a sliding window.\ntype RateLimiter struct {\n\tmu     sync.Mutex\n\tlimit  int\n\twindow time.Duration\n\thits   map[string][]time.Time\n}\n\n// NewRateLimiter builds a limiter.\nfunc NewRateLimiter(limit int, window time.Duration) *RateLimiter {\n\treturn &RateLimiter{limit: limit, window: window, hits: make(map[string][]time.Time)}\n}\n\n// Allow records a hit for key and reports whether it is within the limit.\nfunc (r *RateLimiter) Allow(key string, now time.Time) bool {\n\tr.mu.Lock()\n\tdefer r.mu.Unlock()\n\tcutoff := now.Add(-r.window)\n\tvar recent []time.Time\n\tfor _, t := range r.hits[key] {\n\t\tif t.After(cutoff) {\n\t\t\trecent = append(recent, t)\n\t\t}\n\t}\n\tif len(recent) >= r.limit {\n\t\tr.hits[key] = recent\n\t\treturn false\n\t}\n\tr.hits[key] = append(recent, now)\n\treturn true\n}\n\nfunc main() {\n\trl := NewRateLimiter(5, time.Minute)\n\tfmt.Println(rl.Allow(\"203.0.113.9\", time.Now()))\n}\n"
+  },
+  {
+    "name": "batch-chunk-drops-last",
+    "language": "go",
+    "path": "main.go",
+    "category": "semantic",
+    "markers": [
+      "off.by.one",
+      "(last|final|trailing) (item|element|batch)",
+      "dropp?(ed|s)",
+      "len\\(items\\)\\s*-\\s*1"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\n// chunk splits items into consecutive batches of at most size elements.\nfunc chunk[T any](items []T, size int) [][]T {\n\tif size <= 0 {\n\t\treturn nil\n\t}\n\tvar batches [][]T\n\tfor start := 0; start < len(items)-1; start += size {\n\t\tend := min(start+size, len(items))\n\t\tbatches = append(batches, items[start:end])\n\t}\n\treturn batches\n}\n\nfunc main() {\n\tfor i, batch := range chunk(os.Args[1:], 25) {\n\t\tfmt.Printf(\"batch %d: %d ids\\n\", i, len(batch))\n\t}\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\n// chunk splits items into consecutive batches of at most size elements.\nfunc chunk[T any](items []T, size int) [][]T {\n\tif size <= 0 {\n\t\treturn nil\n\t}\n\tvar batches [][]T\n\tfor start := 0; start < len(items); start += size {\n\t\tend := min(start+size, len(items))\n\t\tbatches = append(batches, items[start:end])\n\t}\n\treturn batches\n}\n\nfunc main() {\n\tfor i, batch := range chunk(os.Args[1:], 25) {\n\t\tfmt.Printf(\"batch %d: %d ids\\n\", i, len(batch))\n\t}\n}\n"
+  },
+  {
+    "name": "load-timeout-ignores-second-result",
+    "language": "go",
+    "path": "main.go",
+    "category": "type-error",
+    "markers": [
+      "assignment mismatch",
+      "returns 2 values",
+      "WrongResultCount",
+      "multiple-value"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc main() {\n\ttimeout := LoadTimeout(5 * time.Second)\n\tclient := &http.Client{Timeout: timeout}\n\tfmt.Println(\"request timeout:\", client.Timeout)\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"log\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc main() {\n\ttimeout, err := LoadTimeout(5 * time.Second)\n\tif err != nil {\n\t\tlog.Fatalf(\"invalid REQUEST_TIMEOUT_MS: %v\", err)\n\t}\n\tclient := &http.Client{Timeout: timeout}\n\tfmt.Println(\"request timeout:\", client.Timeout)\n}\n",
+    "base": {
+      "config.go": "package main\n\nimport (\n\t\"os\"\n\t\"strconv\"\n\t\"time\"\n)\n\n// LoadTimeout reads REQUEST_TIMEOUT_MS, falling back to def when unset.\nfunc LoadTimeout(def time.Duration) (time.Duration, error) {\n\traw := os.Getenv(\"REQUEST_TIMEOUT_MS\")\n\tif raw == \"\" {\n\t\treturn def, nil\n\t}\n\tms, err := strconv.Atoi(raw)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\treturn time.Duration(ms) * time.Millisecond, nil\n}\n"
+    }
+  },
+  {
+    "name": "plugin-unzip-zip-slip",
+    "language": "go",
+    "path": "main.go",
+    "category": "security",
+    "markers": [
+      "G305",
+      "zip ?slip",
+      "(path|file|directory) traversal",
+      "CWE-22"
+    ],
+    "defect": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"archive/zip\"\n\t\"io\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\nconst maxEntryBytes = 64 << 20\n\nfunc extract(archive, dest string) error {\n\tr, err := zip.OpenReader(archive)\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer r.Close()\n\tfor _, f := range r.File {\n\t\ttarget := filepath.Join(dest, f.Name)\n\t\tif f.FileInfo().IsDir() {\n\t\t\tif err := os.MkdirAll(target, 0o750); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontinue\n\t\t}\n\t\tif err := writeEntry(f, target); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\treturn nil\n}\n\nfunc writeEntry(f *zip.File, target string) error {\n\tif err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {\n\t\treturn err\n\t}\n\trc, err := f.Open()\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer rc.Close()\n\tout, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif _, err := io.Copy(out, io.LimitReader(rc, maxEntryBytes)); err != nil {\n\t\t_ = out.Close()\n\t\treturn err\n\t}\n\treturn out.Close()\n}\n\nfunc main() {\n\tif len(os.Args) != 3 {\n\t\tlog.Fatal(\"usage: extract ARCHIVE DEST\")\n\t}\n\tif err := extract(os.Args[1], os.Args[2]); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+    "control": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"archive/zip\"\n\t\"fmt\"\n\t\"io\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\nconst maxEntryBytes = 64 << 20\n\nfunc extract(archive, dest string) error {\n\tr, err := zip.OpenReader(archive)\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer r.Close()\n\tfor _, f := range r.File {\n\t\tif !filepath.IsLocal(f.Name) {\n\t\t\treturn fmt.Errorf(\"refusing unsafe archive path %q\", f.Name)\n\t\t}\n\t\ttarget := filepath.Join(dest, f.Name)\n\t\tif f.FileInfo().IsDir() {\n\t\t\tif err := os.MkdirAll(target, 0o750); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontinue\n\t\t}\n\t\tif err := writeEntry(f, target); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\treturn nil\n}\n\nfunc writeEntry(f *zip.File, target string) error {\n\tif err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {\n\t\treturn err\n\t}\n\trc, err := f.Open()\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer rc.Close()\n\tout, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif _, err := io.Copy(out, io.LimitReader(rc, maxEntryBytes)); err != nil {\n\t\t_ = out.Close()\n\t\treturn err\n\t}\n\treturn out.Close()\n}\n\nfunc main() {\n\tif len(os.Args) != 3 {\n\t\tlog.Fatal(\"usage: extract ARCHIVE DEST\")\n\t}\n\tif err := extract(os.Args[1], os.Args[2]); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n"
+  },
+  {
+    "name": "parse-size-test-self-compare",
+    "language": "go",
+    "path": "size_test.go",
+    "category": "test-integrity",
+    "markers": [
+      "SA4000",
+      "identical expressions",
+      "tautolog",
+      "compar(ed|es|ing|ison)? .*(to|with) itself",
+      "always (false|true)"
+    ],
+    "defect": "package main\n\nimport \"testing\"\n\nfunc TestParseSize(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\tin   string\n\t\twant int64\n\t}{\n\t\t{\"bytes\", \"512\", 512},\n\t\t{\"kilobytes\", \"4K\", 4096},\n\t\t{\"lowercase megabytes\", \" 2m \", 2 << 20},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tgot, err := ParseSize(tc.in)\n\t\t\tif err != nil {\n\t\t\t\tt.Fatalf(\"ParseSize(%q) error: %v\", tc.in, err)\n\t\t\t}\n\t\t\tif tc.want != tc.want {\n\t\t\t\tt.Errorf(\"ParseSize(%q) = %d, want %d\", tc.in, got, tc.want)\n\t\t\t}\n\t\t})\n\t}\n}\n",
+    "control": "package main\n\nimport \"testing\"\n\nfunc TestParseSize(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\tin   string\n\t\twant int64\n\t}{\n\t\t{\"bytes\", \"512\", 512},\n\t\t{\"kilobytes\", \"4K\", 4096},\n\t\t{\"lowercase megabytes\", \" 2m \", 2 << 20},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tgot, err := ParseSize(tc.in)\n\t\t\tif err != nil {\n\t\t\t\tt.Fatalf(\"ParseSize(%q) error: %v\", tc.in, err)\n\t\t\t}\n\t\t\tif got != tc.want {\n\t\t\t\tt.Errorf(\"ParseSize(%q) = %d, want %d\", tc.in, got, tc.want)\n\t\t\t}\n\t\t})\n\t}\n}\n",
+    "base": {
+      "size.go": "package main\n\nimport (\n\t\"fmt\"\n\t\"strconv\"\n\t\"strings\"\n)\n\n// ParseSize converts strings like \"512\", \"4K\" or \"3M\" into bytes.\nfunc ParseSize(s string) (int64, error) {\n\ts = strings.ToUpper(strings.TrimSpace(s))\n\tmult := int64(1)\n\tswitch {\n\tcase strings.HasSuffix(s, \"K\"):\n\t\tmult, s = 1<<10, strings.TrimSuffix(s, \"K\")\n\tcase strings.HasSuffix(s, \"M\"):\n\t\tmult, s = 1<<20, strings.TrimSuffix(s, \"M\")\n\t}\n\tn, err := strconv.ParseInt(s, 10, 64)\n\tif err != nil {\n\t\treturn 0, fmt.Errorf(\"parse size %q: %w\", s, err)\n\t}\n\treturn n * mult, nil\n}\n"
+    }
+  },
+  {
+    "name": "config-question-mark-on-option",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "type-error",
+    "markers": [
+      "E0277",
+      "the `\\?` operator can only be used on",
+      "`\\?`.*Option.*Result",
+      "Option.*in a (function|method) that returns `?Result"
+    ],
+    "defect": "use std::collections::HashMap;\nuse std::fmt;\n\n#[derive(Debug, PartialEq, Eq)]\npub enum ConfigError {\n    Missing(&'static str),\n    Invalid(&'static str, String),\n}\n\nimpl fmt::Display for ConfigError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            Self::Missing(key) => write!(f, \"missing {key}\"),\n            Self::Invalid(key, why) => write!(f, \"invalid {key}: {why}\"),\n        }\n    }\n}\n\nimpl std::error::Error for ConfigError {}\n\npub struct ServerConfig {\n    pub host: String,\n    pub port: u16,\n}\n\npub fn parse_config(vars: &HashMap<String, String>) -> Result<ServerConfig, ConfigError> {\n    let host = vars.get(\"HOST\")?.clone();\n    let raw_port = vars.get(\"PORT\").ok_or(ConfigError::Missing(\"PORT\"))?;\n    let port = raw_port\n        .parse::<u16>()\n        .map_err(|e| ConfigError::Invalid(\"PORT\", e.to_string()))?;\n    Ok(ServerConfig { host, port })\n}\n",
+    "control": "use std::collections::HashMap;\nuse std::fmt;\n\n#[derive(Debug, PartialEq, Eq)]\npub enum ConfigError {\n    Missing(&'static str),\n    Invalid(&'static str, String),\n}\n\nimpl fmt::Display for ConfigError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            Self::Missing(key) => write!(f, \"missing {key}\"),\n            Self::Invalid(key, why) => write!(f, \"invalid {key}: {why}\"),\n        }\n    }\n}\n\nimpl std::error::Error for ConfigError {}\n\npub struct ServerConfig {\n    pub host: String,\n    pub port: u16,\n}\n\npub fn parse_config(vars: &HashMap<String, String>) -> Result<ServerConfig, ConfigError> {\n    let host = vars\n        .get(\"HOST\")\n        .ok_or(ConfigError::Missing(\"HOST\"))?\n        .clone();\n    let raw_port = vars.get(\"PORT\").ok_or(ConfigError::Missing(\"PORT\"))?;\n    let port = raw_port\n        .parse::<u16>()\n        .map_err(|e| ConfigError::Invalid(\"PORT\", e.to_string()))?;\n    Ok(ServerConfig { host, port })\n}\n"
+  },
+  {
+    "name": "frame-field-get-unchecked",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "security",
+    "markers": [
+      "get_unchecked",
+      "out.of.bounds",
+      "bounds.check",
+      "undefined behaviou?r",
+      "(unchecked|unsound) index"
+    ],
+    "defect": "/// Decodes compact telemetry frames: byte 0 selects a metric from the\n/// negotiated table, bytes 1..5 carry a little-endian delta.\npub struct FrameDecoder<'a> {\n    metrics: &'a [u32],\n}\n\nimpl<'a> FrameDecoder<'a> {\n    pub fn new(metrics: &'a [u32]) -> Self {\n        Self { metrics }\n    }\n\n    pub fn decode(&self, frame: &[u8]) -> Option<(u32, i32)> {\n        let (&selector, rest) = frame.split_first()?;\n        let delta = i32::from_le_bytes(rest.get(..4)?.try_into().ok()?);\n        // Hot path: the selector comes straight off the wire, skip the bounds check.\n        let metric = unsafe { *self.metrics.get_unchecked(usize::from(selector)) };\n        Some((metric, delta))\n    }\n}\n",
+    "control": "/// Decodes compact telemetry frames: byte 0 selects a metric from the\n/// negotiated table, bytes 1..5 carry a little-endian delta.\npub struct FrameDecoder<'a> {\n    metrics: &'a [u32],\n}\n\nimpl<'a> FrameDecoder<'a> {\n    pub fn new(metrics: &'a [u32]) -> Self {\n        Self { metrics }\n    }\n\n    pub fn decode(&self, frame: &[u8]) -> Option<(u32, i32)> {\n        let (&selector, rest) = frame.split_first()?;\n        let delta = i32::from_le_bytes(rest.get(..4)?.try_into().ok()?);\n        let index = usize::from(selector);\n        if index >= self.metrics.len() {\n            return None;\n        }\n        // SAFETY: `index < self.metrics.len()` was checked immediately above.\n        let metric = unsafe { *self.metrics.get_unchecked(index) };\n        Some((metric, delta))\n    }\n}\n"
+  },
+  {
+    "name": "retry-header-unwrap",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "runtime-bug",
+    "markers": [
+      "unwrap_used",
+      "\\.unwrap\\(\\)",
+      "(called|calling) `?(Option|Result)::unwrap",
+      "panic\\w* on (invalid|malformed|bad) (input|header)"
+    ],
+    "defect": "#[derive(Debug, PartialEq, Eq)]\npub struct RetryPolicy {\n    pub max_attempts: u32,\n    pub backoff_ms: u64,\n}\n\n/// Parses an `X-Retry-Policy` header such as `\"5; 250\"` sent by upstream services.\npub fn parse_retry_header(value: &str) -> RetryPolicy {\n    let (attempts, backoff) = value.split_once(';').unwrap_or((value, \"250\"));\n    let max_attempts = attempts.trim().parse().unwrap();\n    let backoff_ms = backoff.trim().parse().unwrap();\n    RetryPolicy {\n        max_attempts,\n        backoff_ms,\n    }\n}\n",
+    "control": "use std::num::ParseIntError;\n\n#[derive(Debug, PartialEq, Eq)]\npub struct RetryPolicy {\n    pub max_attempts: u32,\n    pub backoff_ms: u64,\n}\n\n/// Parses an `X-Retry-Policy` header such as `\"5; 250\"` sent by upstream services.\npub fn parse_retry_header(value: &str) -> Result<RetryPolicy, ParseIntError> {\n    let (attempts, backoff) = value.split_once(';').unwrap_or((value, \"250\"));\n    let max_attempts = attempts.trim().parse()?;\n    let backoff_ms = backoff.trim().parse()?;\n    Ok(RetryPolicy {\n        max_attempts,\n        backoff_ms,\n    })\n}\n"
+  },
+  {
+    "name": "session-store-relock-deadlock",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "concurrency",
+    "markers": [
+      "deadlock",
+      "(already|re-?)(locked|entrant|acquir)",
+      "lock\\w*.*(held|twice|again)",
+      "mutex.*(twice|again|recursive)"
+    ],
+    "defect": "use std::collections::HashMap;\nuse std::sync::{Mutex, PoisonError};\n\npub struct SessionStore {\n    inner: Mutex<HashMap<String, u64>>,\n    max_sessions: usize,\n}\n\nimpl SessionStore {\n    pub fn new(max_sessions: usize) -> Self {\n        Self {\n            inner: Mutex::new(HashMap::new()),\n            max_sessions,\n        }\n    }\n\n    pub fn len(&self) -> usize {\n        self.inner\n            .lock()\n            .unwrap_or_else(PoisonError::into_inner)\n            .len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.len() == 0\n    }\n\n    /// Inserts a session unless the store is full.\n    pub fn insert(&self, token: String, user_id: u64) -> bool {\n        let mut sessions = self.inner.lock().unwrap_or_else(PoisonError::into_inner);\n        if sessions.contains_key(&token) || self.len() >= self.max_sessions {\n            return false;\n        }\n        sessions.insert(token, user_id);\n        true\n    }\n}\n",
+    "control": "use std::collections::HashMap;\nuse std::sync::{Mutex, PoisonError};\n\npub struct SessionStore {\n    inner: Mutex<HashMap<String, u64>>,\n    max_sessions: usize,\n}\n\nimpl SessionStore {\n    pub fn new(max_sessions: usize) -> Self {\n        Self {\n            inner: Mutex::new(HashMap::new()),\n            max_sessions,\n        }\n    }\n\n    pub fn len(&self) -> usize {\n        self.inner\n            .lock()\n            .unwrap_or_else(PoisonError::into_inner)\n            .len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.len() == 0\n    }\n\n    /// Inserts a session unless the store is full.\n    pub fn insert(&self, token: String, user_id: u64) -> bool {\n        let mut sessions = self.inner.lock().unwrap_or_else(PoisonError::into_inner);\n        if sessions.contains_key(&token) || sessions.len() >= self.max_sessions {\n            return false;\n        }\n        sessions.insert(token, user_id);\n        true\n    }\n}\n"
+  },
+  {
+    "name": "csv-export-bufwriter-no-flush",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "data-loss",
+    "markers": [
+      "\\bflush",
+      "BufWriter",
+      "(error|errors).*(on drop|when dropped|ignored|silently)",
+      "data loss"
+    ],
+    "defect": "use std::fs::File;\nuse std::io::{self, BufWriter, Write};\nuse std::path::Path;\n\npub struct Row {\n    pub id: u64,\n    pub name: String,\n    pub score: f64,\n}\n\n/// Writes `rows` as CSV and returns how many data rows were written.\npub fn export_csv(path: &Path, rows: &[Row]) -> io::Result<usize> {\n    let mut out = BufWriter::new(File::create(path)?);\n    writeln!(out, \"id,name,score\")?;\n    for row in rows {\n        writeln!(\n            out,\n            \"{},{},{:.2}\",\n            row.id,\n            row.name.replace(',', \" \"),\n            row.score\n        )?;\n    }\n    Ok(rows.len())\n}\n",
+    "control": "use std::fs::File;\nuse std::io::{self, BufWriter, Write};\nuse std::path::Path;\n\npub struct Row {\n    pub id: u64,\n    pub name: String,\n    pub score: f64,\n}\n\n/// Writes `rows` as CSV and returns how many data rows were written.\npub fn export_csv(path: &Path, rows: &[Row]) -> io::Result<usize> {\n    let mut out = BufWriter::new(File::create(path)?);\n    writeln!(out, \"id,name,score\")?;\n    for row in rows {\n        writeln!(\n            out,\n            \"{},{},{:.2}\",\n            row.id,\n            row.name.replace(',', \" \"),\n            row.score\n        )?;\n    }\n    let file = out.into_inner().map_err(io::IntoInnerError::into_error)?;\n    file.sync_all()?;\n    Ok(rows.len())\n}\n"
+  },
+  {
+    "name": "payments-client-hardcoded-key",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "security",
+    "markers": [
+      "hard.?coded",
+      "(api|access|secret) key",
+      "credential",
+      "CWE-798",
+      "secret.*(source|literal|committed)"
+    ],
+    "defect": "const PAYMENTS_API_KEY: &str = \"sk_live_51Hc9xQ2eZvKYlo2CkT7uW3pRmN8aB4\";\n\npub struct PaymentsClient {\n    base_url: String,\n    api_key: String,\n}\n\nimpl PaymentsClient {\n    pub fn new(base_url: impl Into<String>) -> Self {\n        Self {\n            base_url: base_url.into(),\n            api_key: PAYMENTS_API_KEY.to_owned(),\n        }\n    }\n\n    pub fn auth_header(&self) -> (&'static str, String) {\n        (\"Authorization\", format!(\"Bearer {}\", self.api_key))\n    }\n\n    pub fn charge_url(&self, charge_id: &str) -> String {\n        format!(\"{}/v1/charges/{charge_id}\", self.base_url)\n    }\n}\n",
+    "control": "use std::env::{self, VarError};\n\npub struct PaymentsClient {\n    base_url: String,\n    api_key: String,\n}\n\nimpl PaymentsClient {\n    pub fn from_env(base_url: impl Into<String>) -> Result<Self, VarError> {\n        let api_key = env::var(\"PAYMENTS_API_KEY\")?;\n        Ok(Self {\n            base_url: base_url.into(),\n            api_key,\n        })\n    }\n\n    pub fn auth_header(&self) -> (&'static str, String) {\n        (\"Authorization\", format!(\"Bearer {}\", self.api_key))\n    }\n\n    pub fn charge_url(&self, charge_id: &str) -> String {\n        format!(\"{}/v1/charges/{charge_id}\", self.base_url)\n    }\n}\n"
+  },
+  {
+    "name": "leaderboard-top-n-ascending",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "semantic",
+    "markers": [
+      "ascending",
+      "descending",
+      "(lowest|highest) (score|first)",
+      "revers\\w* (order|comparison|comparator)",
+      "wrong (sort )?order"
+    ],
+    "defect": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct Entry {\n    pub player: String,\n    pub score: u32,\n    pub finished_at: u64,\n}\n\n/// Returns the top `n` entries: highest score first, earliest finisher wins ties.\npub fn top_n(entries: &[Entry], n: usize) -> Vec<Entry> {\n    let mut ranked = entries.to_vec();\n    ranked.sort_by(|a, b| {\n        a.score\n            .cmp(&b.score)\n            .then_with(|| a.finished_at.cmp(&b.finished_at))\n    });\n    ranked.truncate(n);\n    ranked\n}\n",
+    "control": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct Entry {\n    pub player: String,\n    pub score: u32,\n    pub finished_at: u64,\n}\n\n/// Returns the top `n` entries: highest score first, earliest finisher wins ties.\npub fn top_n(entries: &[Entry], n: usize) -> Vec<Entry> {\n    let mut ranked = entries.to_vec();\n    ranked.sort_by(|a, b| {\n        b.score\n            .cmp(&a.score)\n            .then_with(|| a.finished_at.cmp(&b.finished_at))\n    });\n    ranked.truncate(n);\n    ranked\n}\n"
+  },
+  {
+    "name": "registry-lazy-map-unused",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "api-misuse",
+    "markers": [
+      "unused_must_use",
+      "lazy and do nothing",
+      "must be used",
+      "(iterator|Map)\\b.*(unused|not consumed|never consumed)",
+      "suspicious_map"
+    ],
+    "defect": "#[derive(Debug, Default)]\npub struct Registry {\n    handlers: Vec<String>,\n}\n\nimpl Registry {\n    /// Registers `name`, returning `false` if it was already present.\n    pub fn register(&mut self, name: &str) -> bool {\n        if self.handlers.iter().any(|h| h == name) {\n            return false;\n        }\n        self.handlers.push(name.to_owned());\n        true\n    }\n\n    pub fn len(&self) -> usize {\n        self.handlers.len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.handlers.is_empty()\n    }\n}\n\n/// Registers every name and returns how many were new.\npub fn register_all(registry: &mut Registry, names: &[&str]) -> usize {\n    let before = registry.len();\n    names.iter().map(|name| registry.register(name));\n    registry.len() - before\n}\n",
+    "control": "#[derive(Debug, Default)]\npub struct Registry {\n    handlers: Vec<String>,\n}\n\nimpl Registry {\n    /// Registers `name`, returning `false` if it was already present.\n    pub fn register(&mut self, name: &str) -> bool {\n        if self.handlers.iter().any(|h| h == name) {\n            return false;\n        }\n        self.handlers.push(name.to_owned());\n        true\n    }\n\n    pub fn len(&self) -> usize {\n        self.handlers.len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.handlers.is_empty()\n    }\n}\n\n/// Registers every name and returns how many were new.\npub fn register_all(registry: &mut Registry, names: &[&str]) -> usize {\n    names.iter().filter(|name| registry.register(name)).count()\n}\n"
+  },
+  {
+    "name": "static-files-path-join-traversal",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "security",
+    "markers": [
+      "path traversal",
+      "directory traversal",
+      "CWE-22",
+      "ParentDir",
+      "(untrusted|user).*(path|join)"
+    ],
+    "defect": "use std::fs;\nuse std::io;\nuse std::path::PathBuf;\n\npub struct StaticFiles {\n    root: PathBuf,\n}\n\nimpl StaticFiles {\n    pub fn new(root: impl Into<PathBuf>) -> Self {\n        Self { root: root.into() }\n    }\n\n    /// Serves `GET /static/<request_path>` from the asset root.\n    pub fn read(&self, request_path: &str) -> io::Result<Vec<u8>> {\n        let relative = request_path.trim_start_matches('/');\n        let full = self.root.join(relative);\n        fs::read(full)\n    }\n}\n",
+    "control": "use std::fs;\nuse std::io;\nuse std::path::{Component, Path, PathBuf};\n\npub struct StaticFiles {\n    root: PathBuf,\n}\n\nimpl StaticFiles {\n    pub fn new(root: impl Into<PathBuf>) -> Self {\n        Self { root: root.into() }\n    }\n\n    /// Serves `GET /static/<request_path>` from the asset root.\n    pub fn read(&self, request_path: &str) -> io::Result<Vec<u8>> {\n        let mut full = self.root.clone();\n        for component in Path::new(request_path.trim_start_matches('/')).components() {\n            match component {\n                Component::Normal(part) => full.push(part),\n                Component::CurDir => {}\n                _ => return Err(io::Error::new(io::ErrorKind::NotFound, \"invalid path\")),\n            }\n        }\n        fs::read(full)\n    }\n}\n"
+  },
+  {
+    "name": "parse-version-assert-true",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "category": "test-integrity",
+    "markers": [
+      "assertions_on_constants",
+      "assertion is always",
+      "assert!\\(true",
+      "(no|without|missing) (real |meaningful )?assert",
+      "always pass",
+      "tautolog"
+    ],
+    "defect": "/// Parses `\"1.2.3\"` or `\"v1.2.3\"` into its numeric parts.\npub fn parse_version(s: &str) -> Option<(u32, u32, u32)> {\n    let mut parts = s.trim().trim_start_matches('v').splitn(3, '.');\n    let major = parts.next()?.parse().ok()?;\n    let minor = parts.next()?.parse().ok()?;\n    let patch = parts.next()?.parse().ok()?;\n    Some((major, minor, patch))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn parses_prefixed_version() {\n        let parsed = parse_version(\"v1.12.3\");\n        assert!(true, \"parsed {parsed:?}\");\n    }\n\n    #[test]\n    fn rejects_non_numeric() {\n        let _ = parse_version(\"latest\");\n    }\n}\n",
+    "control": "/// Parses `\"1.2.3\"` or `\"v1.2.3\"` into its numeric parts.\npub fn parse_version(s: &str) -> Option<(u32, u32, u32)> {\n    let mut parts = s.trim().trim_start_matches('v').splitn(3, '.');\n    let major = parts.next()?.parse().ok()?;\n    let minor = parts.next()?.parse().ok()?;\n    let patch = parts.next()?.parse().ok()?;\n    Some((major, minor, patch))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn parses_prefixed_version() {\n        assert_eq!(parse_version(\"v1.12.3\"), Some((1, 12, 3)));\n    }\n\n    #[test]\n    fn rejects_non_numeric() {\n        assert_eq!(parse_version(\"latest\"), None);\n        assert_eq!(parse_version(\"1.2\"), None);\n    }\n}\n"
+  },
+  {
+    "name": "report-sort-string-to-atom",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture_web/controllers/report_controller.ex",
+    "category": "security",
+    "markers": [
+      "String\\.to_atom",
+      "DOS\\.StringToAtom",
+      "atom (table )?exhaustion",
+      "to_existing_atom"
+    ],
+    "defect": "defmodule LokiPhoenixFixtureWeb.ReportController do\n  @moduledoc \"Lists generated reports with caller-selected sorting.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @reports [\n    %{name: \"weekly-usage\", size: 1_204, owner: \"ops\"},\n    %{name: \"churn\", size: 88, owner: \"growth\"},\n    %{name: \"invoices\", size: 5_310, owner: \"billing\"}\n  ]\n\n  def index(conn, params) do\n    sort_key = String.to_atom(Map.get(params, \"sort\", \"name\"))\n    direction = String.to_atom(Map.get(params, \"dir\", \"asc\"))\n    reports = Enum.sort_by(@reports, &Map.get(&1, sort_key), direction)\n    json(conn, %{reports: reports})\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixtureWeb.ReportController do\n  @moduledoc \"Lists generated reports with caller-selected sorting.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @reports [\n    %{name: \"weekly-usage\", size: 1_204, owner: \"ops\"},\n    %{name: \"churn\", size: 88, owner: \"growth\"},\n    %{name: \"invoices\", size: 5_310, owner: \"billing\"}\n  ]\n  @sort_keys %{\"name\" => :name, \"size\" => :size, \"owner\" => :owner}\n  @directions %{\"asc\" => :asc, \"desc\" => :desc}\n\n  def index(conn, params) do\n    sort_key = Map.get(@sort_keys, params[\"sort\"], :name)\n    direction = Map.get(@directions, params[\"dir\"], :asc)\n    reports = Enum.sort_by(@reports, &Map.fetch!(&1, sort_key), direction)\n    json(conn, %{reports: reports})\n  end\nend\n"
+  },
+  {
+    "name": "thumbnail-system-cmd-sh-c",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture/media/thumbnailer.ex",
+    "category": "security",
+    "markers": [
+      "CI\\.System",
+      "command injection",
+      "sh -c",
+      "shell (injection|command)",
+      "CWE-78"
+    ],
+    "defect": "defmodule LokiPhoenixFixture.Media.Thumbnailer do\n  @moduledoc \"Generates PNG thumbnails for uploaded images via ImageMagick.\"\n\n  @spec thumbnail(Path.t(), pos_integer()) :: {:ok, Path.t()} | {:error, String.t()}\n  def thumbnail(upload_path, width) do\n    out = Path.rootname(upload_path) <> \"_#{width}.png\"\n    command = \"convert #{upload_path} -resize #{width}x #{out}\"\n\n    case System.cmd(\"sh\", [\"-c\", command], stderr_to_stdout: true) do\n      {_output, 0} -> {:ok, out}\n      {output, status} -> {:error, \"convert exited #{status}: #{output}\"}\n    end\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixture.Media.Thumbnailer do\n  @moduledoc \"Generates PNG thumbnails for uploaded images via ImageMagick.\"\n\n  @spec thumbnail(Path.t(), pos_integer()) :: {:ok, Path.t()} | {:error, String.t()}\n  def thumbnail(upload_path, width) when is_integer(width) and width in 16..4096 do\n    input = Path.expand(upload_path)\n    out = Path.rootname(input) <> \"_#{width}.png\"\n\n    case System.cmd(\"convert\", [input, \"-resize\", \"#{width}x\", out], stderr_to_stdout: true) do\n      {_output, 0} -> {:ok, out}\n      {output, status} -> {:error, \"convert exited #{status}: #{output}\"}\n    end\n  end\n\n  def thumbnail(_upload_path, width), do: {:error, \"invalid width: #{inspect(width)}\"}\nend\n"
+  },
+  {
+    "name": "invite-greeting-html-interpolation",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture_web/controllers/greeting_controller.ex",
+    "category": "security",
+    "markers": [
+      "\\bXSS\\b",
+      "cross.site scripting",
+      "XSS\\.HTML",
+      "(unescaped|unsanitized|not escaped)",
+      "CWE-79"
+    ],
+    "defect": "defmodule LokiPhoenixFixtureWeb.GreetingController do\n  @moduledoc \"Landing page shown to users who follow an invitation link.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, %{\"name\" => name} = params) do\n    team = Map.get(params, \"team\", \"your team\")\n\n    html(conn, \"\"\"\n    <main>\n      <h1>Welcome, #{name}!</h1>\n      <p>You have been invited to join #{team}.</p>\n    </main>\n    \"\"\")\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixtureWeb.GreetingController do\n  @moduledoc \"Landing page shown to users who follow an invitation link.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, %{\"name\" => name} = params) do\n    team = Map.get(params, \"team\", \"your team\")\n\n    html(conn, \"\"\"\n    <main>\n      <h1>Welcome, #{escape(name)}!</h1>\n      <p>You have been invited to join #{escape(team)}.</p>\n    </main>\n    \"\"\")\n  end\n\n  defp escape(value) do\n    value |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()\n  end\nend\n"
+  },
+  {
+    "name": "invoice-show-missing-owner-check",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex",
+    "category": "security",
+    "markers": [
+      "\\bIDOR\\b",
+      "insecure direct object",
+      "authori[sz]ation",
+      "(ownership|owner) check",
+      "access control"
+    ],
+    "defect": "defmodule LokiPhoenixFixtureWeb.InvoiceController do\n  @moduledoc \"Invoice JSON API for signed-in customers.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Billing\n\n  def show(conn, %{\"id\" => id}) do\n    case Billing.get_invoice(id) do\n      {:ok, invoice} ->\n        json(conn, invoice)\n\n      {:error, :not_found} ->\n        conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixtureWeb.InvoiceController do\n  @moduledoc \"Invoice JSON API for signed-in customers.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Billing\n\n  def show(conn, %{\"id\" => id}) do\n    account_id = conn.assigns.current_account.id\n\n    case Billing.get_invoice(id) do\n      {:ok, %{account_id: ^account_id} = invoice} ->\n        json(conn, invoice)\n\n      _not_found_or_not_owned ->\n        conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+    "base": {
+      "lib/loki_phoenix_fixture/billing.ex": "defmodule LokiPhoenixFixture.Billing do\n  @moduledoc \"In-memory invoice store.\"\n\n  @invoices %{\n    \"inv_1\" => %{id: \"inv_1\", account_id: 1, total_cents: 1_200},\n    \"inv_2\" => %{id: \"inv_2\", account_id: 2, total_cents: 5_400}\n  }\n\n  @spec get_invoice(String.t()) :: {:ok, map()} | {:error, :not_found}\n  def get_invoice(id) do\n    case Map.fetch(@invoices, id) do\n      {:ok, invoice} -> {:ok, invoice}\n      :error -> {:error, :not_found}\n    end\n  end\nend\n"
+    }
+  },
+  {
+    "name": "feature-flags-file-read-match",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture/feature_flags.ex",
+    "category": "runtime-bug",
+    "markers": [
+      "MatchError",
+      "\\{:error, *(reason|:enoent|_)",
+      "(pattern|match).*(fail|crash|raise)",
+      "(crash|raise)\\w* .*(missing|unreadable) file"
+    ],
+    "defect": "defmodule LokiPhoenixFixture.FeatureFlags do\n  @moduledoc \"Loads feature flags from a JSON file on disk.\"\n\n  @spec load(Path.t()) :: {:ok, map()} | {:error, term()}\n  def load(path) do\n    {:ok, body} = File.read(path)\n\n    case Jason.decode(body) do\n      {:ok, %{} = flags} -> {:ok, flags}\n      {:ok, _other} -> {:error, :not_an_object}\n      {:error, reason} -> {:error, reason}\n    end\n  end\n\n  @spec enabled?(map(), String.t()) :: boolean()\n  def enabled?(flags, name), do: Map.get(flags, name) == true\nend\n",
+    "control": "defmodule LokiPhoenixFixture.FeatureFlags do\n  @moduledoc \"Loads feature flags from a JSON file on disk.\"\n\n  @spec load(Path.t()) :: {:ok, map()} | {:error, term()}\n  def load(path) do\n    with {:ok, body} <- File.read(path),\n         {:ok, decoded} <- Jason.decode(body) do\n      if is_map(decoded), do: {:ok, decoded}, else: {:error, :not_an_object}\n    end\n  end\n\n  @spec enabled?(map(), String.t()) :: boolean()\n  def enabled?(flags, name), do: Map.get(flags, name) == true\nend\n"
+  },
+  {
+    "name": "download-counter-agent-lost-update",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture/download_counter.ex",
+    "category": "concurrency",
+    "markers": [
+      "race condition",
+      "\\brace\\b",
+      "lost update",
+      "get_and_update",
+      "(atomic|read-modify-write)"
+    ],
+    "defect": "defmodule LokiPhoenixFixture.DownloadCounter do\n  @moduledoc \"Counts downloads per asset for the stats page.\"\n  use Agent\n\n  def start_link(_opts), do: Agent.start_link(fn -> %{} end, name: __MODULE__)\n\n  @spec increment(String.t()) :: pos_integer()\n  def increment(asset_id) do\n    counts = Agent.get(__MODULE__, & &1)\n    next = Map.get(counts, asset_id, 0) + 1\n    Agent.update(__MODULE__, &Map.put(&1, asset_id, next))\n    next\n  end\n\n  @spec count(String.t()) :: non_neg_integer()\n  def count(asset_id), do: Agent.get(__MODULE__, &Map.get(&1, asset_id, 0))\nend\n",
+    "control": "defmodule LokiPhoenixFixture.DownloadCounter do\n  @moduledoc \"Counts downloads per asset for the stats page.\"\n  use Agent\n\n  def start_link(_opts), do: Agent.start_link(fn -> %{} end, name: __MODULE__)\n\n  @spec increment(String.t()) :: pos_integer()\n  def increment(asset_id) do\n    Agent.get_and_update(__MODULE__, fn counts ->\n      next = Map.get(counts, asset_id, 0) + 1\n      {next, Map.put(counts, asset_id, next)}\n    end)\n  end\n\n  @spec count(String.t()) :: non_neg_integer()\n  def count(asset_id), do: Agent.get(__MODULE__, &Map.get(&1, asset_id, 0))\nend\n"
+  },
+  {
+    "name": "csv-export-file-never-closed",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture/export.ex",
+    "category": "resource",
+    "markers": [
+      "File\\.close",
+      "(not|never) closed",
+      "(file|descriptor|handle)\\w*.*leak",
+      "resource leak"
+    ],
+    "defect": "defmodule LokiPhoenixFixture.Export do\n  @moduledoc \"Writes user exports as CSV files.\"\n\n  @spec write_csv(Path.t(), [%{id: integer(), email: String.t()}]) :: :ok | {:error, File.posix()}\n  def write_csv(path, rows) do\n    with {:ok, file} <- File.open(path, [:write, :utf8]) do\n      IO.write(file, \"id,email\\n\")\n      Enum.each(rows, fn row -> IO.write(file, \"#{row.id},#{row.email}\\n\") end)\n      :ok\n    end\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixture.Export do\n  @moduledoc \"Writes user exports as CSV files.\"\n\n  @spec write_csv(Path.t(), [%{id: integer(), email: String.t()}]) :: :ok | {:error, File.posix()}\n  def write_csv(path, rows) do\n    result =\n      File.open(path, [:write, :utf8], fn file ->\n        IO.write(file, \"id,email\\n\")\n        Enum.each(rows, fn row -> IO.write(file, \"#{row.id},#{row.email}\\n\") end)\n      end)\n\n    case result do\n      {:ok, :ok} -> :ok\n      {:error, reason} -> {:error, reason}\n    end\n  end\nend\n"
+  },
+  {
+    "name": "search-params-atom-keys",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture_web/controllers/search_controller.ex",
+    "category": "api-misuse",
+    "markers": [
+      "atom keys?",
+      "string keys?",
+      "(always|returns?) (nil|the default)",
+      "params.*(string|binary)[- ]key"
+    ],
+    "defect": "defmodule LokiPhoenixFixtureWeb.SearchController do\n  @moduledoc \"Product search endpoint.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @default_limit 20\n  @max_limit 100\n\n  def index(conn, params) do\n    query = params |> Map.get(:q, \"\") |> String.trim()\n    limit = params |> Map.get(:limit, @default_limit) |> min(@max_limit)\n    json(conn, %{query: query, limit: limit, results: []})\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixtureWeb.SearchController do\n  @moduledoc \"Product search endpoint.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @default_limit 20\n  @max_limit 100\n\n  def index(conn, params) do\n    query = params |> Map.get(\"q\", \"\") |> String.trim()\n    limit = params |> Map.get(\"limit\") |> parse_limit()\n    json(conn, %{query: query, limit: limit, results: []})\n  end\n\n  defp parse_limit(raw) when is_binary(raw) do\n    case Integer.parse(raw) do\n      {n, \"\"} when n > 0 -> min(n, @max_limit)\n      _ -> @default_limit\n    end\n  end\n\n  defp parse_limit(_raw), do: @default_limit\nend\n"
+  },
+  {
+    "name": "profile-fetch-user-wrong-arity",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture_web/controllers/profile_controller.ex",
+    "category": "type-error",
+    "markers": [
+      "undefined or private",
+      "fetch_user/2",
+      "is undefined",
+      "UndefinedFunctionError"
+    ],
+    "defect": "defmodule LokiPhoenixFixtureWeb.ProfileController do\n  @moduledoc \"Public profile JSON.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Accounts\n\n  def show(conn, %{\"id\" => id}) do\n    case Accounts.fetch_user(String.to_integer(id), preload: [:team]) do\n      {:ok, user} -> json(conn, Map.take(user, [:id, :name]))\n      {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixtureWeb.ProfileController do\n  @moduledoc \"Public profile JSON.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Accounts\n\n  def show(conn, %{\"id\" => raw_id}) do\n    with {id, \"\"} <- Integer.parse(raw_id),\n         {:ok, user} <- Accounts.fetch_user(id) do\n      json(conn, Map.take(user, [:id, :name]))\n    else\n      _ -> conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+    "base": {
+      "lib/loki_phoenix_fixture/accounts.ex": "defmodule LokiPhoenixFixture.Accounts do\n  @moduledoc \"Account lookups.\"\n\n  @users %{1 => %{id: 1, name: \"Ada\", email: \"ada@example.com\"}}\n\n  @spec fetch_user(pos_integer()) :: {:ok, map()} | {:error, :not_found}\n  def fetch_user(id) do\n    case Map.fetch(@users, id) do\n      {:ok, user} -> {:ok, user}\n      :error -> {:error, :not_found}\n    end\n  end\nend\n"
+    }
+  },
+  {
+    "name": "audit-log-write-truncates",
+    "language": "elixir",
+    "path": "lib/loki_phoenix_fixture/audit_log.ex",
+    "category": "data-loss",
+    "markers": [
+      "\\[:append\\]|:append",
+      "overwrit",
+      "truncat",
+      "data loss"
+    ],
+    "defect": "defmodule LokiPhoenixFixture.AuditLog do\n  @moduledoc \"Appends audit events to a JSON-lines file.\"\n\n  @spec record(Path.t(), map()) :: :ok | {:error, File.posix()}\n  def record(path, event) do\n    line =\n      event\n      |> Map.put(:at, DateTime.utc_now() |> DateTime.to_iso8601())\n      |> Jason.encode!()\n\n    File.write(path, line <> \"\\n\")\n  end\nend\n",
+    "control": "defmodule LokiPhoenixFixture.AuditLog do\n  @moduledoc \"Appends audit events to a JSON-lines file.\"\n\n  @spec record(Path.t(), map()) :: :ok | {:error, File.posix()}\n  def record(path, event) do\n    line =\n      event\n      |> Map.put(:at, DateTime.utc_now() |> DateTime.to_iso8601())\n      |> Jason.encode!()\n\n    File.write(path, line <> \"\\n\", [:append])\n  end\nend\n"
+  }
+]
