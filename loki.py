@@ -1088,6 +1088,61 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    source = r"req(?:uest)?\s*\.\s*(?:query|body|params)\b"
+    tainted = set(re.findall(rf"\b(?:const|let|var)\s+([\w$]+)\s*=\s*{source}", masked))
+    for group in re.findall(
+        rf"\b(?:const|let|var)\s*\{{([^}}]*)\}}\s*=\s*{source}", masked
+    ):
+        tainted.update(item.split(":")[-1].strip() for item in group.split(","))
+    for match in re.finditer(
+        r"(?<![\w$.])(?:fetch|got|axios(?:\s*\.\s*(?:get|post|put|delete|head|request))?"
+        r"|https?\s*\.\s*(?:get|request))\s*\(",
+        masked,
+    ):
+        arguments = split_arguments(masked, match.end() - 1)
+        target = masked[arguments[0][0] : arguments[0][1]] if arguments else ""
+        words = set(re.findall(r"(?<![\w$.])([\w$]+)", target))
+        if re.search(source, target) or words & (tainted - {""}):
+            findings.append(
+                (
+                    "loki/ssrf",
+                    "server-side request forgery (SSRF): outbound request URL comes "
+                    "from request data; validate the host against an allowlist",
+                    match.start(),
+                )
+            )
+    for match in re.finditer(
+        r"\bfunction\s+([\w$]+)\s*\(|\b(?:const|let)\s+([\w$]+)\s*=\s*"
+        r"(?:async\s*)?\([^)]*\)[^={]*=>\s*\{",
+        masked,
+    ):
+        name = match.group(1) or match.group(2)
+        opening = masked.find("{", match.end() - 1)
+        if opening < 0:
+            continue
+        end = matching_close(masked, opening)
+        body = masked[opening:end]
+        loop = re.search(
+            r"for\s*\(\s*(?:const|let|var)\s+\[?\s*([\w$]+)[^)]*?"
+            r"(?:\bof\s+Object\s*\.\s*(?:keys|entries)|\bin\b)",
+            body,
+        )
+        if (
+            loop
+            and re.search(rf"(?<![\w$.]){re.escape(name)}\s*\(", body[1:])
+            and re.search(rf"\[\s*{re.escape(loop.group(1))}\s*\]\s*=(?!=)", body)
+            and not re.search(
+                r"__proto__|prototype|constructor|hasOwn", text[opening:end]
+            )
+        ):
+            findings.append(
+                (
+                    "loki/prototype-pollution",
+                    "prototype pollution: recursive merge copies arbitrary keys; skip "
+                    "__proto__, constructor and prototype or use Object.create(null)",
+                    match.start(),
+                )
+            )
     for match in re.finditer(r"(?<![\w$.])(eval|new\s+Function)\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and javascript_literal(text, masked, *arguments[-1]) is None:
@@ -1234,8 +1289,23 @@ def request_source(node: ast.AST) -> bool:
     return isinstance(owner, ast.Name) and owner.id in REQUEST_NAMES
 
 
-def python_ssrf(tree: ast.AST) -> list[ast.Call]:
-    """HTTP client calls whose URL derives from request data, per function."""
+PYTHON_PATH_CALLS = {"open", "io.open", "os.path.join", "Path", "pathlib.Path"}
+PATH_SANITIZERS = ("basename", "secure_filename", "is_relative_to", "commonpath")
+PATH_SANITIZERS += ("relative_to",)
+
+
+def request_tainted_calls(
+    tree: ast.AST,
+    sink: Any,
+    arguments: Any,
+    *,
+    sanitizers: tuple[str, ...] = (),
+) -> list[ast.Call]:
+    """Calls accepted by sink whose chosen arguments derive from request data.
+
+    Taint follows plain assignments within one function (or module). A scope
+    that calls any sanitizer is treated as validated.
+    """
     calls = []
     scopes = [
         tree,
@@ -1246,6 +1316,12 @@ def python_ssrf(tree: ast.AST) -> list[ast.Call]:
         ),
     ]
     for scope in scopes:
+        if sanitizers and any(
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func).split(".")[-1] in sanitizers
+            for node in ast.walk(scope)
+        ):
+            continue
         tainted: set[str] = set()
         for _ in range(2):
             for node in ast.walk(scope):
@@ -1268,20 +1344,37 @@ def python_ssrf(tree: ast.AST) -> list[ast.Call]:
                         if isinstance(item, ast.Name)
                     )
         for node in ast.walk(scope):
-            if (
-                not isinstance(node, ast.Call)
-                or ast.unparse(node.func) not in PYTHON_HTTP_CALLS
-            ):
+            if not isinstance(node, ast.Call) or not sink(ast.unparse(node.func)):
                 continue
-            url = node.args[:1] + [k.value for k in node.keywords if k.arg == "url"]
             if any(
                 request_source(item)
                 or (isinstance(item, ast.Name) and item.id in tainted)
-                for argument in url
+                for argument in arguments(node)
                 for item in ast.walk(argument)
             ):
                 calls.append(node)
-    return list({id(call): call for call in calls}.values())
+                break
+    unique = {(call.lineno, call.col_offset): call for call in calls}
+    return list(unique.values())
+
+
+def python_ssrf(tree: ast.AST) -> list[ast.Call]:
+    """HTTP client calls whose URL derives from request data."""
+    return request_tainted_calls(
+        tree,
+        lambda name: name in PYTHON_HTTP_CALLS,
+        lambda call: call.args[:1] + [k.value for k in call.keywords if k.arg == "url"],
+    )
+
+
+def python_path_traversal(tree: ast.AST) -> list[ast.Call]:
+    """File paths built from request data without a containment check."""
+    return request_tainted_calls(
+        tree,
+        lambda name: name in PYTHON_PATH_CALLS or name.endswith(".joinpath"),
+        lambda call: [*call.args, *(k.value for k in call.keywords)],
+        sanitizers=PATH_SANITIZERS,
+    )
 
 
 def secret_value(node: ast.AST, derived: set[str] = frozenset()) -> bool:
@@ -1303,6 +1396,48 @@ def secret_names(tree: ast.AST) -> set[str]:
                 target.id for target in node.targets if isinstance(target, ast.Name)
             )
     return names
+
+
+def computed_call(node: ast.AST, values: dict[str, str]) -> str | None:
+    """The call expression a value came from: directly or via a local name."""
+    if isinstance(node, ast.Name):
+        return values.get(node.id)
+    return ast.dump(node) if isinstance(node, ast.Call) else None
+
+
+def tautological_assertions(tree: ast.AST) -> list[ast.AST]:
+    """Assertions in tests comparing two copies of the same computed call."""
+    found: list[ast.AST] = []
+    for function in ast.walk(tree):
+        if not (
+            isinstance(function, ast.FunctionDef | ast.AsyncFunctionDef)
+            and function.name.startswith("test")
+        ):
+            continue
+        values = {
+            target.id: ast.dump(node.value)
+            for node in ast.walk(function)
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        }
+
+        for node in ast.walk(function):
+            pair: list[ast.AST] = []
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {"assertEqual", "assertEquals", "assertAlmostEqual"}
+            ):
+                pair = node.args[:2]
+            elif isinstance(node, ast.Assert) and isinstance(node.test, ast.Compare):
+                if isinstance(node.test.ops[0], ast.Eq):
+                    pair = [node.test.left, node.test.comparators[0]]
+            if len(pair) == 2 and computed_call(pair[0], values) is not None:
+                if computed_call(pair[0], values) == computed_call(pair[1], values):
+                    found.append(node)
+    return found
 
 
 def python_rules(text: str) -> list[Finding]:
@@ -1377,6 +1512,24 @@ def python_rules(text: str) -> list[Finding]:
                         offsets[node.lineno - 1] + node.col_offset,
                     )
                 )
+    for call in python_path_traversal(tree):
+        findings.append(
+            (
+                "loki/path-traversal",
+                "path traversal: file path built from request data; take the base "
+                "name or resolve it and check it stays under the intended directory",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    for call in tautological_assertions(tree):
+        findings.append(
+            (
+                "loki/tautological-test",
+                "tautological assertion: the expected value is computed by the "
+                "same call as the result, so the test always passes",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
     for call in python_ssrf(tree):
         findings.append(
             (
@@ -1433,6 +1586,39 @@ def elixir_rules(text: str) -> list[Finding]:
                         start,
                     )
                 )
+    tainted.update(re.findall(r"^\s*([a-z]\w*)\s*=[^\n]*\bparams\b", masked, re.M))
+    for call in re.finditer(r"\bredirect\s*\(", masked):
+        arguments = masked[call.end() : matching_close(masked, call.end() - 1) - 1]
+        external = re.search(r"\bexternal:\s*([^,)]+)", arguments)
+        if external and (
+            set(re.findall(r"(?<![\w.:])([a-z]\w*)", external.group(1))) & tainted
+            or re.search(r"\bparams\b", external.group(1))
+        ):
+            findings.append(
+                (
+                    "loki/open-redirect",
+                    "open redirect: external redirect target comes from request "
+                    "params; allow only known hosts or same-site paths",
+                    call.start(),
+                )
+            )
+    for call in re.finditer(r"\bEnum\.(?:sort_by|max_by|min_by)\s*\(", masked):
+        arguments = [
+            masked[start:end].strip()
+            for start, end in split_arguments(masked, call.end() - 1)
+        ]
+        field = r"\.\w*(?:_at|_on|date|time|timestamp)\b"
+        mapper = next((item for item in arguments if re.search(field, item)), None)
+        sorter = arguments[-1] if arguments and arguments[-1] != mapper else ""
+        if mapper and (not sorter or re.fullmatch(r":(?:asc|desc)", sorter)):
+            findings.append(
+                (
+                    "loki/structural-date-sort",
+                    "structural comparison: DateTime/Date values sorted with plain "
+                    "term ordering; pass DateTime (or {:desc, DateTime}) as the sorter",
+                    call.start(),
+                )
+            )
     for call in re.finditer(r"\bSystem\.cmd\s*\(\s*\"", masked):
         program = text[call.end() : closing_quote(text, call.end(), '"', False)]
         arguments = text[call.end() : matching_close(masked, call.end() - 2)]
@@ -1482,6 +1668,24 @@ def rust_rules(text: str) -> list[Finding]:
         )
         for match in re.finditer(r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]", masked)
     ]
+    for function in re.finditer(r"\bfn\s+\w+[^{;]*\{", masked):
+        body = masked[function.end() - 1 : matching_close(masked, function.end() - 1)]
+        for match in re.finditer(
+            r"\.get_unchecked(?:_mut)?\s*\(\s*([A-Za-z_]\w*)", body
+        ):
+            index = re.escape(match.group(1))
+            if not re.search(
+                rf"\b{index}\s*(?:<|>=)|(?:>|<=)\s*{index}\b|assert!\([^;]*\b{index}\b",
+                body,
+            ):
+                findings.append(
+                    (
+                        "loki/unchecked-index",
+                        "get_unchecked index is not bounds-checked in this function; "
+                        "an out-of-bounds index is undefined behaviour",
+                        function.end() - 1 + match.start(),
+                    )
+                )
     for match in re.finditer(r"\bCommand\s*::\s*new\s*\(\s*\"", masked):
         program = text[match.end() : closing_quote(text, match.end(), '"', False)]
         end = masked.find(";", match.end())

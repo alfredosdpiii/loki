@@ -114,6 +114,13 @@ previews before the write and again on the written file against its committed te
 | Python, Rust, Elixir, JavaScript | A shell run with `-c` and a command built from variables (`["sh", "-c", f"..."]`, `Command::new("sh").arg("-c").arg(format!(...))`, `System.cmd("sh", ["-c", "#{...}"])`, `:os.cmd` with a non-literal, promisified `exec`) |
 | Python, JavaScript/TypeScript | Signatures or digests compared with `==` instead of a constant-time comparison |
 | JavaScript/TypeScript | `message` event listeners that never read `origin` |
+| Python | File paths built from request data (`open`, `os.path.join`, `Path`, `joinpath`) in a function without `basename`, `secure_filename`, `is_relative_to`, `relative_to` or `commonpath` |
+| Python | Test assertions whose expected value comes from the same call as the result |
+| JavaScript/TypeScript | `req.query`/`req.body`/`req.params` reaching `fetch`, `got`, `axios` or `http(s).get` (SSRF) |
+| JavaScript/TypeScript | Recursive merges copying arbitrary keys with no `__proto__`/`constructor`/`prototype` guard (prototype pollution) |
+| Elixir | `redirect(conn, external: ...)` with a params-derived value (open redirect) |
+| Elixir | `Enum.sort_by`/`max_by`/`min_by` on `*_at`, `*date`, `*time` fields without a `DateTime`/`Date` sorter (structural comparison) |
+| Rust | `get_unchecked` with an index that has no bounds check or assertion in the function |
 | Any text file | Hardcoded credentials: AWS, GitHub, Slack, Stripe live, npm, Google and model-provider keys, private keys. Low-entropy and placeholder values are skipped |
 | Any text file | Unresolved merge conflict markers |
 | GitHub workflows and actions | Untrusted `github.event` fields or `github.head_ref` interpolated into `run:` scripts |

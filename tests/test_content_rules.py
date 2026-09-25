@@ -652,3 +652,140 @@ class ShellTimingOriginRuleTests(unittest.TestCase):
         for path, text, expected in self.CASES:
             with self.subTest(text=text):
                 self.assertEqual(expected, len(rules(path, text)), rules(path, text))
+
+
+class FlowRuleTests(unittest.TestCase):
+    CASES = [
+        (
+            "a.py",
+            "def f(request):\n    name = request['f']\n"
+            "    return open(os.path.join(ROOT, name)).read()\n",
+            ["loki/path-traversal"],
+        ),
+        (
+            "a.py",
+            "def f(request):\n    return Path(ROOT).joinpath(request.args['f'])\n",
+            ["loki/path-traversal"],
+        ),
+        (
+            "a.py",
+            "def f(request):\n    name = request['f']\n"
+            "    return open(os.path.basename(name))\n",
+            [],
+        ),
+        (
+            "a.py",
+            "def f(request):\n    p = (ROOT / request['f']).resolve()\n"
+            "    if not p.is_relative_to(ROOT):\n        raise ValueError\n"
+            "    return p.read_bytes()\n",
+            [],
+        ),
+        ("a.py", "def f(name):\n    return open(os.path.join(ROOT, name))\n", []),
+        (
+            "test_a.py",
+            "def test_x():\n    assert add(1, 2) == add(1, 2)\n",
+            ["loki/tautological-test"],
+        ),
+        (
+            "test_a.py",
+            "def test_x(self):\n    a = f(1)\n    b = f(1)\n    self.assertEqual(a, b)\n",
+            ["loki/tautological-test"],
+        ),
+        ("test_a.py", "def test_x():\n    assert add(1, 2) == 3\n", []),
+        (
+            "test_a.py",
+            "def test_x(self):\n    a = f(1)\n    b = f(2)\n    self.assertEqual(a, b)\n",
+            [],
+        ),
+        ("test_a.py", "def helper():\n    assert f(1) == f(1)\n", []),
+        ("test_a.py", "def test_x():\n    assert value < limit\n", []),
+        (
+            "a.js",
+            "const { url: target } = req.query;\nawait fetch(target);",
+            ["loki/ssrf"],
+        ),
+        ("a.js", "await axios.get(req.body.callback);", ["loki/ssrf"]),
+        ("a.js", "const u = req.query.url;\nhttps.get(u, done);", ["loki/ssrf"]),
+        ("a.js", "await fetch('/api/items'); await fetch(); fetch(config.url);", []),
+        (
+            "a.ts",
+            "function merge(t: any, s: any) {\n  for (const k of Object.keys(s)) {\n"
+            "    if (typeof s[k] === 'object') merge(t[k], s[k]); else t[k] = s[k];\n"
+            "  }\n}",
+            ["loki/prototype-pollution"],
+        ),
+        (
+            "a.ts",
+            "const merge = (t: any, s: any) => {\n"
+            "  for (const [k, v] of Object.entries(s)) { t[k] = v; merge(t, v); }\n};",
+            ["loki/prototype-pollution"],
+        ),
+        (
+            "a.ts",
+            "function merge(t: any, s: any) {\n  for (const k of Object.keys(s)) {\n"
+            "    if (k === '__proto__') continue;\n"
+            "    if (typeof s[k] === 'object') merge(t[k], s[k]); else t[k] = s[k];\n"
+            "  }\n}",
+            [],
+        ),
+        (
+            "a.ts",
+            "function copy(t: any, s: any) {\n"
+            "  for (const k of Object.keys(s)) { t[k] = s[k]; }\n}",
+            [],
+        ),
+        ("a.ts", "const f = (x) => {", []),
+        (
+            "a.ex",
+            "def complete(conn, params) do\n"
+            '  return_to = Map.get(params, "return_to", "/")\n'
+            "  redirect(conn, external: return_to)\nend",
+            ["loki/open-redirect"],
+        ),
+        (
+            "a.ex",
+            'def c(conn, params), do: redirect(conn, external: params["next"])',
+            ["loki/open-redirect"],
+        ),
+        (
+            "a.ex",
+            'def c(conn, _params), do: redirect(conn, external: "https://example.com")',
+            [],
+        ),
+        ("a.ex", 'def c(conn, _p), do: redirect(conn, to: ~p"/")', []),
+        (
+            "a.ex",
+            "events |> Enum.sort_by(& &1.occurred_at, :desc)",
+            ["loki/structural-date-sort"],
+        ),
+        (
+            "a.ex",
+            "Enum.max_by(events, fn e -> e.inserted_at end)",
+            ["loki/structural-date-sort"],
+        ),
+        ("a.ex", "Enum.sort_by(events, & &1.occurred_at, {:desc, DateTime})", []),
+        ("a.ex", "Enum.sort_by(events, & &1.occurred_at, DateTime)", []),
+        ("a.ex", "Enum.sort_by(events, & &1.score, :desc)", []),
+        (
+            "a.rs",
+            "fn f(t: &[u8], i: usize) -> u8 { unsafe { *t.get_unchecked(i) } }",
+            ["loki/unchecked-index"],
+        ),
+        (
+            "a.rs",
+            "fn f(t: &[u8], i: usize) -> u8 {\n    assert!(i < t.len());\n"
+            "    unsafe { *t.get_unchecked(i) }\n}",
+            [],
+        ),
+        (
+            "a.rs",
+            "fn f(t: &[u8], i: usize) -> u8 {\n    if i >= t.len() { return 0; }\n"
+            "    unsafe { *t.get_unchecked(i) }\n}",
+            [],
+        ),
+    ]
+
+    def test_cases(self):
+        for path, text, expected in self.CASES:
+            with self.subTest(text=text):
+                self.assertEqual(expected, rules(path, text))
