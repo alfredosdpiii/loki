@@ -17,10 +17,18 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: true
+      # Conventionally ignored: deferred read-side closes and response writes.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*os.Root).Close
+        - (*database/sql.Rows).Close
+        - (net/http.ResponseWriter).Write
     errorlint:
       errorf: true
       asserts: true
       comparison: true
     gosec:
-      # Duplicate of errcheck, permission and math/rand checks are too noisy to block.
-      excludes: [G104, G301, G302, G306, G404]
+      # Duplicate of errcheck; permission, variable file path and math/rand
+      # checks are too noisy to block.
+      excludes: [G104, G301, G302, G304, G306, G404]

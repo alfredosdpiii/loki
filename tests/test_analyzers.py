@@ -619,3 +619,55 @@ class RealGoHookTests(unittest.TestCase):
                 findings = loki.check_file(path, root, {})
                 self.assertTrue(findings)
                 self.assertTrue(all(item.startswith("go vet") for item in findings))
+
+
+class OxlintPostWriteTests(unittest.TestCase):
+    def run_oxlint(self, result=None, error=None):
+        with temporary_root() as root:
+            path = write_file(root, "a.ts", "x")
+            warnings = []
+            with (
+                patch.object(loki, "resolve_tool", return_value="/bin/oxlint"),
+                patch.object(
+                    loki.subprocess, "run", return_value=result, side_effect=error
+                ),
+            ):
+                findings = loki.oxlint_violations(
+                    path, root, "a.ts", deadline=None, warnings=warnings
+                )
+            return findings, warnings
+
+    def test_errors_block_and_warnings_are_advisory(self):
+        warning = "a.ts:1:1: Use toSorted [Warning/unicorn(no-array-sort)]"
+        error = "a.ts:1:2: Unexpected empty block [Error/eslint(no-empty)]"
+        findings, warnings = self.run_oxlint(completed(0, warning + "\n1 problem\n"))
+        self.assertEqual([], findings)
+        self.assertIn("oxlint advisory (not blocking):\n" + warning, warnings[0])
+        findings, warnings = self.run_oxlint(completed(1, f"{error}\n{warning}\n"))
+        self.assertEqual([f"oxlint: {error}"], findings)
+        self.assertEqual(1, len(warnings))
+        findings, _ = self.run_oxlint(completed(1, "", "config broken"))
+        self.assertEqual(["oxlint: config broken"], findings)
+        findings, _ = self.run_oxlint(error=OSError("missing"))
+        self.assertEqual(["oxlint: missing"], findings)
+
+    def test_advisory_context_is_capped(self):
+        lines = "\n".join(f"a.ts:{n}:1: w [Warning/x(y)]" for n in range(1, 13))
+        _, warnings = self.run_oxlint(completed(0, lines))
+        self.assertIn("... 2 more", warnings[0])
+        self.assertEqual(11, warnings[0].count("\n"))
+        with temporary_root() as root:
+            path = write_file(root, "a.ts", "x")
+            with (
+                patch.object(loki, "resolve_tool", return_value="/bin/oxlint"),
+                patch.object(loki.subprocess, "run", return_value=completed(0, lines)),
+            ):
+                output = capture_output(
+                    loki.oxlint_violations,
+                    path,
+                    root,
+                    "a.ts",
+                    deadline=None,
+                    warnings=None,
+                )
+            self.assertIn("oxlint advisory", output[2])

@@ -390,7 +390,7 @@ def probe(host, binary, enabled):
             capture_output=True,
         )
         (root / ".loki/loki.json").write_text('{"rule_packs":["python"]}')
-        subprocess.run(["git", "init"], cwd=root, capture_output=True, check=True)  # noqa: S607
+        subprocess.run(["git", "init"], cwd=root, capture_output=True, check=True)
         server = ThreadingHTTPServer(("127.0.0.1", 0), ModelStub)
         server.observations = []
         thread = threading.Thread(target=server.serve_forever, daemon=True)

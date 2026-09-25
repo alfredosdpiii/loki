@@ -13,7 +13,7 @@ from tests.helpers import temporary_root
 
 def git(root, *args):
     return subprocess.run(
-        [  # noqa: S607 - host Git in disposable repositories
+        [
             "git",
             *args,
         ],

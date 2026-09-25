@@ -2,9 +2,10 @@ target-version = "py311"
 
 [lint]
 select = ["E", "F", "B", "ASYNC", "S", "I", "PLE", "LOG", "RUF006", "RUF100"]
-# S603 flags every subprocess call, including shell-free argument lists.
+# S603/S607 flag every shell-free subprocess call and bare executable name;
 # S602/S604/S605 still catch shell=True and shell-string execution.
-ignore = ["S603"]
+# E501 is style; the formatter owns line length.
+ignore = ["E501", "S603", "S607"]
 
 [lint.per-file-ignores]
 "tests/**" = ["S101"]

@@ -101,7 +101,7 @@ previews before the write and again on the written file against its committed te
 | Language | Built-in rule |
 | --- | --- |
 | JavaScript/TypeScript | Non-literal HTML reaching `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `dangerouslySetInnerHTML` (XSS) |
-| JavaScript/TypeScript | Navigation to a target not pinned by a same-origin or fixed-host literal (open redirect) |
+| JavaScript/TypeScript | Navigation to a target not pinned by a same-origin or fixed-host literal, or returned by a sanitizer-named function such as `safeRedirect(...)` (open redirect) |
 | JavaScript/TypeScript | `eval` or `new Function` with non-literal source |
 | JavaScript/TypeScript | `res.redirect(...)` with `req.query`, `req.body`, `req.params`, headers or cookies (open redirect) |
 | JavaScript/TypeScript | `child_process` `exec`/`execSync` with a non-literal command (command injection) |
@@ -157,10 +157,12 @@ debt and line shifts pass:
   project's `.venv/bin/mypy` or `mypy` on PATH, with a per-repository cache under
   `~/.cache/loki/mypy`.
 - **golangci-lint** runs `--new-from-rev=HEAD` on the written file's package with
-  the protected `.golangci.yml`, only after `go vet` passes. The template now
-  enables gosec (SQL string building, variable request URLs, tainted subprocesses,
-  disabled TLS verification) with its noisiest checks (G104, G301, G302, G306,
-  G404) excluded.
+  the protected `.golangci.yml`, concurrently with `go vet`; its findings are
+  reported only when `go vet` passes. The template enables gosec (SQL string
+  building, variable request URLs, tainted subprocesses, disabled TLS
+  verification) with its noisiest checks (G104, G301, G302, G304, G306, G404)
+  excluded. errcheck skips conventionally ignored deferred closes (`io.Closer`,
+  `*os.File`, `*os.Root`, `*sql.Rows`) and `http.ResponseWriter.Write`.
 - **Clippy** runs `cargo clippy --offline --all-targets` with the Loki restriction
   lints as warnings. Findings are matched against a materialized base crate that
   shares the project's `target` directory, built only when the candidate has
@@ -185,9 +187,17 @@ report repository checks as `NOT CHECKED`; strict scans require Git.
 | Rust | Compiler/Clippy warnings fail; `expect` joins the existing `unwrap`, `todo`, and `unimplemented` restrictions | Clippy repository scans, all targets |
 | Elixir | Unsafe shell APIs, runtime atom creation, discarded immutable results, constant operations and rescue mistakes | Credo hooks and project checks after policy adoption |
 
-The Ruff template ignores S603, which flags every `subprocess` call including
-shell-free argument lists. `shell=True` and shell-string execution are still
-caught by S602, S604 and S605.
+The Ruff template ignores S603 and S607, which flag every shell-free
+`subprocess` call and bare executable name, and E501, since the formatter owns
+line length. `shell=True` and shell-string execution are still caught by S602,
+S604 and S605.
+
+The Oxlint template reports the anti-slop type-evidence rules and
+`unicorn/no-array-sort` as warnings. Post-write hooks deliver up to ten warning
+lines to the agent as `oxlint advisory (not blocking)` context; correctness,
+suspicious and the pre-write preview rules still block. These rules encode taste
+and type-discipline policy, not defects, so they no longer reject legitimate code.
+Set them back to `"error"` in `.oxlintrc.json` to make them blocking.
 
 The installer preserves existing `.ruff.toml`, `.golangci.yml` and `.credo.exs`,
 including during `init --force`. Reconcile them with the templates and independently

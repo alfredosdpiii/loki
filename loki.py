@@ -906,9 +906,18 @@ def javascript_literal(text: str, masked: str, start: int, end: int) -> str | No
     return None if value[0] == "`" and "${" in literal else literal
 
 
+SANITIZER_CALL_RE = re.compile(
+    r"\s*[\w$.]*?(?:(?<!un)safe|sanitiz|validat|allow|trusted|whitelist)[\w$]*\s*\(",
+    re.I,
+)
+
+
 def fixed_origin(text: str, masked: str, start: int, end: int) -> bool:
-    """True when a leading literal pins navigation to a same-origin path or host."""
+    """True when a leading literal pins navigation to a same-origin path or host,
+    or the target comes straight from a sanitizer-named function."""
     if javascript_literal(text, masked, start, end) is not None:
+        return True
+    if SANITIZER_CALL_RE.match(masked[start:end]):
         return True
     value = masked[start:end].lstrip()
     if not value or value[0] not in "'\"`":
@@ -1799,6 +1808,49 @@ def clippy_violations(
     return violations[:MAX_VIOLATIONS]
 
 
+def oxlint_violations(
+    path: Path,
+    root: Path,
+    display: str,
+    *,
+    deadline: float | None,
+    warnings: list[str] | None,
+) -> list[str]:
+    """Oxlint errors block; warning-level policy reaches the agent as context."""
+    command = [str(resolve_tool(root, "oxlint")), "--fix", "--format", "unix", display]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=root,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=command_timeout(deadline),
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired, ValueError) as error:
+        evidence_finding("checker-unavailable")
+        return [f"oxlint: {error}"]
+    findings = [
+        line.strip()
+        for line in result.stdout.splitlines()
+        if re.search(r"\[(?:Error|Warning)/", line)
+    ]
+    advisory = [line for line in findings if "[Warning/" in line]
+    if advisory:
+        extra = f"\n... {len(advisory) - 10} more" if len(advisory) > 10 else ""
+        message = "oxlint advisory (not blocking):\n" + "\n".join(advisory[:10])
+        if warnings is None:
+            print(message + extra, file=sys.stderr)
+        else:
+            warnings.append(message + extra)
+    if not result.returncode:
+        return []
+    evidence_finding("external-check-failed")
+    errors = [line for line in findings if "[Error/" in line]
+    return [f"oxlint: {line}" for line in errors or command_output(result)]
+
+
 def mix_project(path: Path, root: Path) -> Path | None:
     root = root.resolve()
     project = path.parent.resolve()
@@ -1890,12 +1942,7 @@ def check_file(
                 checked_projects.add(key)
     elif language == "typescript":
         violations.extend(
-            run_command(
-                [str(resolve_tool(root, "oxlint")), "--fix", str(path)],
-                root,
-                "oxlint",
-                deadline=deadline,
-            )
+            oxlint_violations(path, root, display, deadline=deadline, warnings=warnings)
         )
     elif language == "go":
         violations.extend(
@@ -2624,7 +2671,7 @@ def git_output(
 ) -> bytes:
     try:
         result = subprocess.run(
-            ["git", "--literal-pathspecs", *arguments],  # noqa: S607 - host Git
+            ["git", "--literal-pathspecs", *arguments],
             cwd=root,
             capture_output=True,
             input=input_data,
@@ -2767,7 +2814,7 @@ def git_changes(
         )
         try:
             commit = subprocess.run(
-                [  # noqa: S607 - host Git
+                [
                     "git",
                     "rev-parse",
                     "--verify",
@@ -2781,7 +2828,7 @@ def git_changes(
             elif base is None:
                 options["timeout"] = command_timeout(deadline)
                 symbolic = subprocess.run(
-                    ["git", "symbolic-ref", "-q", "HEAD"],  # noqa: S607 - host Git
+                    ["git", "symbolic-ref", "-q", "HEAD"],
                     **options,
                 )
                 if symbolic.returncode != 0 or not symbolic.stdout.startswith(
@@ -2790,7 +2837,7 @@ def git_changes(
                     raise ValueError("git: cannot resolve HEAD")
                 options["timeout"] = command_timeout(deadline)
                 exists = subprocess.run(
-                    [  # noqa: S607 - host Git
+                    [
                         "git",
                         "show-ref",
                         "--verify",
@@ -5111,7 +5158,7 @@ def ruff_delta(
             counts = []
             for content in (before, after):
                 result = subprocess.run(
-                    [  # noqa: S607 - host Git
+                    [
                         "ruff",
                         "check",
                         "--no-cache",
