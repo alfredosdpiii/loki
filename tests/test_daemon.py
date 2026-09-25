@@ -122,7 +122,10 @@ class DaemonTests(unittest.TestCase):
         with patch.object(loki, "__file__", str(self.engine)):
             self.assertIsNone(loki.daemon_client(argv))
             self.assertTrue(self.lock.exists())
-            self.assertIsNone(loki.daemon_client(argv))
+            # A fast daemon may already be serving; either way, no second spawn.
+            with patch.object(loki.subprocess, "Popen") as spawn:
+                self.assertIn(loki.daemon_client(argv), (None, 0))
+            spawn.assert_not_called()
         wait_for(self.socket)
         self.assertEqual(0, self.command("protect", "--file", "notes.md").returncode)
         self.command("daemon", "stop")
