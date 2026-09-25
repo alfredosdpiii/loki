@@ -7,6 +7,7 @@ Loki rules were not tuned on these cases before the first recorded run.
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -14,7 +15,11 @@ SOURCE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SOURCE))
 from benchmarks import comprehensive, corpus  # noqa: E402
 
-CASES = Path(__file__).with_name("holdout_cases.json")
+# LOKI_HOLDOUT_CASES selects another blind holdout, e.g. holdout2_cases.json.
+CASES = Path(
+    os.environ.get("LOKI_HOLDOUT_CASES")
+    or Path(__file__).with_name("holdout_cases.json")
+).resolve()
 original_manifest = corpus.manifest
 original_identity = comprehensive.identity
 original_save = comprehensive.save
@@ -23,7 +28,7 @@ original_save = comprehensive.save
 def cases():
     result = []
     for item in json.loads(CASES.read_text()):
-        name = f"holdout/{item['language']}/{item['name']}"
+        name = f"{CASES.stem.removesuffix('_cases')}/{item['language']}/{item['name']}"
         for phase in ("defect", "control"):
             result.append(
                 {
@@ -52,7 +57,7 @@ def manifest():
         raise ValueError("duplicate holdout IDs")
     encoded = json.dumps(items, sort_keys=True, separators=(",", ":")).encode()
     return {
-        "version": "holdout-1",
+        "version": CASES.stem,
         "sha256": hashlib.sha256(encoded).hexdigest(),
         "cases": items,
     }
@@ -63,7 +68,7 @@ def identity(args):
         **original_identity(args),
         **{
             str(path): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in (Path(__file__).resolve(), CASES.resolve())
+            for path in (Path(__file__).resolve(), CASES)
         },
     }
 
