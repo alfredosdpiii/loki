@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 SOURCE_ROOT = Path(__file__).resolve().parent
 INSTALLED = SOURCE_ROOT.name == ".loki"
@@ -5750,7 +5750,8 @@ def install_target(target: Path, force: bool = False) -> None:
         "Policy bootstrap or upgrade changes require independent review; "
         "scan reports them until accepted into the base."
     )
-    print("Verify: python3 .loki/loki.py scan")
+    # The global command when installed; the pinned engine from a plain checkout.
+    print(f"Verify: {'loki' if shutil.which('loki') else 'python3 .loki/loki.py'} scan")
 
 
 def preview_changes(

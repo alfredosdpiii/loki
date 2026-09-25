@@ -35,7 +35,7 @@ to fix, and does all of this without calling a model.
 - **It's fast when it matters.** A per-repository daemon keeps the TypeScript
   checker, `dmypy` and build caches warm. A TypeScript check takes about 40 ms
   warm instead of 500 ms.
-- **It measures structural sloppiness too.** `loki.py slop` scores complexity,
+- **It measures structural sloppiness too.** `loki slop` scores complexity,
   duplication and import cycles in six languages and flags new hotspots as the
   agent writes them.
 
@@ -184,13 +184,13 @@ documents every rule, threshold and limitation.
 
 ## Structural sloppiness
 
-`loki.py slop` puts a single number on how hard code is to change. It combines
+`loki slop` puts a single number on how hard code is to change. It combines
 the erosion metric from
 [Measuring code sloppiness](https://earendil.com/posts/measuring-code-sloppiness/)
 with [trellis](https://github.com/jayminwest/trellis)'s scoring:
 
 ```text
-$ python3 .loki/loki.py slop
+$ loki slop
 Sloppiness index: 26/100 (lower is better; trellis 0.2.0-provisional weights)
   complexity-erosion  26.2  eroded share 0.94, 1 of 4 functions with CC > 10
   duplication          0.0  density 0.00, 0 clone groups

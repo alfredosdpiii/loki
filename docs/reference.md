@@ -63,13 +63,13 @@ After installation:
 Check the installation:
 
 ```bash
-python3 .loki/loki.py scan
+loki scan
 ```
 
 Use `--strict` in CI when a missing compiler or linter should fail the job:
 
 ```bash
-python3 .loki/loki.py scan --strict --base origin/main
+loki scan --strict --base origin/main
 ```
 
 Add `--online` to check package names against their public registries.
@@ -222,7 +222,7 @@ Before accepting requests it warms what is available:
 - `dmypy` with Loki's fixed mypy flags;
 - one `go vet`/golangci-lint pass, or one Clippy build, to fill build caches.
 
-Set `LOKI_DAEMON=0` to disable it. `loki.py daemon status|start|stop` manage it,
+Set `LOKI_DAEMON=0` to disable it. `loki daemon status|start|stop` manage it,
 and `daemon serve` runs it in the foreground.
 
 Net-new comparisons for mypy, TypeScript and Clippy skip the second, base-side
@@ -231,7 +231,7 @@ text is part of every fingerprint, so such findings cannot be existing debt.
 
 ### Structural sloppiness
 
-`loki.py slop` audits structural debt and reports a 0–100 sloppiness index,
+`loki slop` audits structural debt and reports a 0–100 sloppiness index,
 where lower is better. It combines the erosion metric from
 [Measuring code sloppiness](https://earendil.com/posts/measuring-code-sloppiness/)
 with [trellis](https://github.com/jayminwest/trellis)'s provisional scoring
@@ -268,7 +268,7 @@ policy in `.loki/loki.json`:
 {"slop": {"max_index": 40, "max_index_increase": 2, "block": false}}
 ```
 
-`max_index` and `max_index_increase` make `loki.py slop` exit 1 when exceeded.
+`max_index` and `max_index_increase` make `loki slop` exit 1 when exceeded.
 The latter needs `--base`.
 
 After each write, Loki compares the written files with their committed text. It
@@ -356,7 +356,7 @@ as clean results.
 
 ### Elixir and Phoenix
 
-For nested projects, run `python3 loki.py elixir --project api --tier project --json`.
+For nested projects, run `loki elixir --project api --tier project --json`.
 `--file lib/my_app/example.ex` selects files for the fast checks.
 Ordinary `scan` groups Elixir/HEEx sources by their enclosing Mix project and runs
 the project tier from each directory. Source discovery excludes `deps/` and
@@ -557,7 +557,7 @@ commit. Policy-only changes must be reviewed through existing human-owned contro
 ## Evidence and trusted execution
 
 Use `protect --record` or `hook --record` to append event metadata outside the
-repository under `~/.local/state/loki/`. `loki.py explain --limit 20` prints recent
+repository under `~/.local/state/loki/`. `loki explain --limit 20` prints recent
 events for the current project. Records contain paths, outcome, duration and engine
 digest, not source bodies or command arguments. Recording is opt-in; this local
 log is not tamper-proof and cannot establish that unobserved events were checked.
@@ -604,7 +604,7 @@ JSON with exit zero.
 
 ## Checked multi-file admission
 
-`loki.py apply --manifest batch.json` accepts a JSON array of `write` operations
+`loki apply --manifest batch.json` accepts a JSON array of `write` operations
 with `path`/`content`, `delete` with `path`, and `move` with `path`/`to`.
 Paths must be canonical repository-relative paths. `--check-only` verifies without
 applying. Checks run in an isolated tree before targets change. The command rejects

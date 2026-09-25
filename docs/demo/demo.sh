@@ -13,6 +13,9 @@ DEMO="$(mktemp -d)/shop"
 export LOKI_DAEMON=0 GIT_AUTHOR_NAME=demo GIT_AUTHOR_EMAIL=demo@example.invalid
 export GIT_COMMITTER_NAME=demo GIT_COMMITTER_EMAIL=demo@example.invalid
 
+# `loki` is the installed CLI; fall back to this checkout's engine, which is the same code.
+command -v loki >/dev/null 2>&1 || loki() { python3 "$LOKI" "$@"; }
+
 bold=$'\e[1m' dim=$'\e[2m' red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m'
 cyan=$'\e[36m' magenta=$'\e[35m' reset=$'\e[0m'
 
@@ -96,8 +99,8 @@ printf '%sLoki%s %s· deterministic guardrails for AI coding agents%s\n' "$cyan$
 sleep 1
 
 say "Install Loki into a repository"
-command_line "python3 loki.py init --dir ."
-python3 "$LOKI" init --dir . >/dev/null 2>&1
+command_line "loki init --dir ."
+loki init --dir . >/dev/null 2>&1
 git add -A && git commit -qm "Install Loki"
 printf '%s✓%s hooks for Claude Code, Codex, Factory, Pi and OMP\n' "$green" "$reset"
 sleep 1.2
@@ -138,6 +141,6 @@ agent_write src/discounts.ts 'export function discount(tier: string, cents: numb
 }'
 
 say "Audit structural sloppiness at any time"
-command_line "python3 .loki/loki.py slop"
-python3 .loki/loki.py slop | grep -v "^Verbosity\|^clone" | head -n 5
+command_line "loki slop"
+loki slop | grep -v "^Verbosity\|^clone" | head -n 5
 sleep 3
