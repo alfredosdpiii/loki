@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+__version__ = "0.1.0"
+
 SOURCE_ROOT = Path(__file__).resolve().parent
 INSTALLED = SOURCE_ROOT.name == ".loki"
 DEFAULT_ROOT = SOURCE_ROOT.parent if INSTALLED else Path.cwd()
@@ -6025,6 +6027,7 @@ def selected_paths(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="loki")
+    parser.add_argument("--version", action="version", version=f"loki {__version__}")
     parser.add_argument("--root", type=Path)
     subparsers = parser.add_subparsers(dest="command", required=True)
     boundary = subparsers.add_parser("verify-installation")
@@ -8004,6 +8007,11 @@ def daemon_dispatch(connection: Any, request: dict[str, Any]) -> None:
     os.waitpid(pid, 0)
 
 
-if __name__ == "__main__":
+def cli() -> int:
+    """Console entry point: the warm daemon when available, else in-process."""
     status = daemon_client(sys.argv[1:])
-    raise SystemExit(main() if status is None else status)
+    return main() if status is None else status
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli())

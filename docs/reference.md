@@ -28,11 +28,16 @@ inspection rejects edits. OMP supports local filesystem targets and local
 
 ## Install
 
-Run the installer from this checkout and point it at a Git repository:
+Install the `loki` command from PyPI and point it at a Git repository:
 
 ```bash
-python3 /path/to/loki/loki.py init --dir /path/to/repository
+uv tool install loki-guardrails    # or: pipx install loki-guardrails
+loki init --dir /path/to/repository
 ```
+
+From a checkout, `python3 /path/to/loki/loki.py init --dir /path/to/repository`
+does the same. Either way, hooks run the engine copy in `.loki/loki.py`, never
+the global command.
 
 The installer copies Loki into `.loki/`, adds the agent adapters, and installs
 starter configuration for Ruff, Oxlint, golangci-lint, and GitHub Actions. It

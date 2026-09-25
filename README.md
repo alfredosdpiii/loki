@@ -13,9 +13,9 @@ to fix, and does all of this without calling a model.
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Factory%20%C2%B7%20Pi%20%C2%B7%20OMP-8a63d2)
 ![Languages](https://img.shields.io/badge/languages-Python%20%C2%B7%20TS%2FJS%20%C2%B7%20Go%20%C2%B7%20Rust%20%C2%B7%20Elixir-e36209)
 
-<img src="docs/demo/demo.gif" alt="Loki blocking an XSS write, a leaked API key and a cross-file type error, then allowing the fix and flagging a complexity hotspot" width="820">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/demo.gif" alt="Loki blocking an XSS write, a leaked API key and a cross-file type error, then allowing the fix and flagging a complexity hotspot" width="820">
 
-<sub>Real hook output from <a href="docs/demo/demo.sh">docs/demo/demo.sh</a>. Only the typing is simulated.</sub>
+<sub>Real hook output from <a href="https://github.com/alfredosdpiii/loki/blob/main/docs/demo/demo.sh">docs/demo/demo.sh</a>. Only the typing is simulated.</sub>
 
 </div>
 
@@ -60,18 +60,21 @@ Interlinked's 10.8 s. Every holdout defect Interlinked catches, Loki catches too
 
 These are synthetic cases, not production sessions. The blind holdout was written
 by an agent that could not see either product. Read the
-[full results](artifacts/comprehensive-summary-2026-09-26.md) and the
-[benchmark protocol](benchmarks/README.md).
+[full results](https://github.com/alfredosdpiii/loki/blob/main/artifacts/comprehensive-summary-2026-09-26.md) and the
+[benchmark protocol](https://github.com/alfredosdpiii/loki/blob/main/benchmarks/README.md).
 
 ## Quick start
 
-Loki is a single Python file with no runtime dependencies. Point the installer at
-a Git repository:
+Loki needs Python 3.11 or newer and has no runtime dependencies. Install the
+`loki` command, then point it at a Git repository:
 
 ```bash
-git clone https://github.com/alfredosdpiii/loki
-python3 loki/loki.py init --dir /path/to/your/repo
+uv tool install loki-guardrails     # or: pipx install loki-guardrails
+loki init --dir /path/to/your/repo
 ```
+
+To try it without installing anything, run `uvx --from loki-guardrails loki init --dir .`.
+You can also clone this repository and run `python3 loki.py init --dir /path/to/repo`.
 
 That installs Loki into `.loki/`, registers hooks for every supported agent, and
 adds starter configuration for Ruff, Oxlint, golangci-lint and a GitHub Actions
@@ -80,13 +83,19 @@ check. Existing configuration is merged or left alone.
 Then, inside the repository:
 
 ```bash
-python3 .loki/loki.py scan                       # check the working tree
-python3 .loki/loki.py scan --strict --base origin/main   # CI: missing tools fail
-python3 .loki/loki.py slop                       # structural sloppiness report
+loki scan                                # check the working tree
+loki scan --strict --base origin/main    # CI: missing tools fail
+loki slop                                # structural sloppiness report
 ```
 
+The installed hooks don't use the global `loki` command. `init` copies the
+engine into `.loki/loki.py`, so every repository runs the exact version its
+policy was reviewed against. CI runs the same file, and upgrades happen only
+through `loki init --force` and a reviewed commit. `loki --version` and
+`python3 .loki/loki.py --version` show which version each one is.
+
 Codex needs a one-time `/hooks` approval and Pi a trust prompt. The
-[install guide](docs/reference.md#install) covers each host.
+[install guide](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md#install) covers each host.
 
 ## How it works
 
@@ -126,7 +135,7 @@ edits, so an agent can't switch it off.
 | **Any file** | protected paths, root confinement | hardcoded credentials, merge-conflict markers, GitHub Actions script injection |
 
 Missing analyzers are reported as `NOT CHECKED`, never as clean, and
-`LOKI_STRICT=1` turns them into failures. The [reference](docs/reference.md)
+`LOKI_STRICT=1` turns them into failures. The [reference](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md)
 documents every rule, threshold and limitation.
 
 ## Structural sloppiness
@@ -187,11 +196,11 @@ an agent can't loosen it mid-session:
 
 ## Documentation
 
-- [Reference](docs/reference.md): every check, rule, threshold and limitation
-- [Benchmark protocol](benchmarks/README.md) and the
-  [latest results](artifacts/comprehensive-summary-2026-09-26.md)
-- [Blind holdout cases](benchmarks/holdout2_cases.json) and the
-  [runner](benchmarks/holdout.py)
+- [Reference](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md): every check, rule, threshold and limitation
+- [Benchmark protocol](https://github.com/alfredosdpiii/loki/blob/main/benchmarks/README.md) and the
+  [latest results](https://github.com/alfredosdpiii/loki/blob/main/artifacts/comprehensive-summary-2026-09-26.md)
+- [Blind holdout cases](https://github.com/alfredosdpiii/loki/blob/main/benchmarks/holdout2_cases.json) and the
+  [runner](https://github.com/alfredosdpiii/loki/blob/main/benchmarks/holdout.py)
 
 ## Development
 
