@@ -1,0 +1,56 @@
+{
+  "case": "holdout/python/optional-profile-attr/control",
+  "language": "python",
+  "family": "type-error",
+  "pair": "holdout/python/optional-profile-attr",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2059.259
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "23136a0a20c5063caf32b0d8e55dda52e9d4921931fdbdd8408434d13ecc4600",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 193.144,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 193.144
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 412.131,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 412.131
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

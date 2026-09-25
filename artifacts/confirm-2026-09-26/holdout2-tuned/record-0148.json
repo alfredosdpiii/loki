@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/download-counter-agent-lost-update/defect",
+  "language": "elixir",
+  "family": "concurrency",
+  "pair": "holdout2/elixir/download-counter-agent-lost-update",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    805.735
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "6addc5600e1418507afead6d8e25fce34d7d97ca6b88fbf3913d0e34f5443b02",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 145.272,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 145.272
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1288.764,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1288.764
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

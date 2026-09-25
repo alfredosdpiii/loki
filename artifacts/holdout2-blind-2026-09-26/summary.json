@@ -1,0 +1,43 @@
+{
+  "identity_unchanged": true,
+  "groups": {
+    "shared/loki": {
+      "outcomes": {
+        "prevented": 19,
+        "admitted": 57,
+        "detected_after_write": 14,
+        "missed": 27,
+        "false_post_block": 3
+      },
+      "steps": 120,
+      "errors": [],
+      "coverage_warning_steps": 16,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 698.6435,
+        "p95": 2779.552,
+        "max": 7497.574
+      }
+    },
+    "shared/interlinked": {
+      "outcomes": {
+        "missed": 44,
+        "admitted": 58,
+        "detected_after_write": 10,
+        "prevented": 4,
+        "false_block": 2,
+        "blocked_unrelated": 2
+      },
+      "steps": 120,
+      "errors": [],
+      "coverage_warning_steps": 69,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 364.4835,
+        "p95": 6381.598,
+        "max": 7554.3460000000005
+      }
+    }
+  },
+  "corpus_sha256": "27215b6ebb72353e4be4fa8bab91d7db5583de4b9450655d020cca53690f40c5"
+}

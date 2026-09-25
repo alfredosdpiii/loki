@@ -1,0 +1,123 @@
+{
+  "case": "python/authorization-from-request/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/authorization-from-request",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1284.43,
+    1600.453,
+    1730.641
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "aed71c6c8206d5f25987312a651eb339474be8c1844519d683e1e441669a3ff7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 121.821,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py:2: loki/request-authorization: authorization decision trusts client-controlled request field \"is_admin\"; derive privilege from the authenticated server-side identity\nloki: hook command failed\n",
+            "ms": 121.821
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "aed71c6c8206d5f25987312a651eb339474be8c1844519d683e1e441669a3ff7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 141.874,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py:2: loki/request-authorization: authorization decision trusts client-controlled request field \"is_admin\"; derive privilege from the authenticated server-side identity\nloki: hook command failed\n",
+            "ms": 141.874
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "aed71c6c8206d5f25987312a651eb339474be8c1844519d683e1e441669a3ff7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 138.234,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py:2: loki/request-authorization: authorization decision trusts client-controlled request field \"is_admin\"; derive privilege from the authenticated server-side identity\nloki: hook command failed\n",
+            "ms": 138.234
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 116.094
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 128.277
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 126.875
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 119.76
+    }
+  ]
+}

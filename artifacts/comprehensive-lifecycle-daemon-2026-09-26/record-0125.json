@@ -1,0 +1,123 @@
+{
+  "case": "typescript/async-promise/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/async-promise",
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    1227.008,
+    1558.943,
+    1530.262
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 180.285,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-async-promise-executor: async Promise executor functions are not allowed\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 180.285
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 191.539,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-async-promise-executor: async Promise executor functions are not allowed\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 191.539
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 199.573,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-async-promise-executor: async Promise executor functions are not allowed\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 199.573
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 157.71
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 144.743
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 145.528
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 131.942
+    }
+  ]
+}

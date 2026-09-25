@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/subprocess-shell-backup/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/subprocess-shell-backup",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    843.518
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "df340bf0445ab8812219fa63b22a948b117cc1bce7f91f7b1735851a388e9be7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 155.8,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_subprocess_shell_true]. This edit INTRODUCES 1 violation(s) at L12 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-32yrb9eh/project/archive.py. Fix the introduced line(s), then retry.\\nsubprocess.<run/Popen/check_output/...>(cmd, shell=True) is a command-injection vector when any part of `cmd` originates from user input. Pass a list of arguments instead \u2014 `subprocess.run([\\\"ls\\\", \\\"-la\\\"])` \u2014 so the shell is bypassed entirely.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_subprocess_shell_true \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-32yrb9eh/project/archive.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-32yrb9eh/project/test_archive.py first with a failing test, then write the implementation. (Searched: test_archive.py, tests/test_archive.py, __tests__/test_archive.py, archive_test.py, tests/archive_test.py, __tests__/archive_test.py, test/test_archive.py, test/archive_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 155.8
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

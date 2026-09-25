@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/tls-insecure-skip-verify/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout/go/tls-insecure-skip-verify",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5790.882
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "e35f313c9ce8e3f06a2a00ab49b669a9553f97b9c8bed36cfa033f4e489c891f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 237.633,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 237.633
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 11777.844,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 11777.844
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/thumbnail-system-cmd-sh-c/control",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout2/elixir/thumbnail-system-cmd-sh-c",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    801.017
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "a84b9af4acbc76c40b24eca1cf42198a9795f8839f4bd159b0956e79cd6a3066",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 153.16,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+            "stderr": "[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+            "ms": 153.16
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 145.771,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture/media/thumbnailer.ex: ex exact adapter unavailable\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture/media/thumbnailer.ex: ex exact adapter unavailable",
+            "ms": 145.771
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

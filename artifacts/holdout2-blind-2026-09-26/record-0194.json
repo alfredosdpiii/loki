@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/javascript/thumbnail-exec-template/defect",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout2/javascript/thumbnail-exec-template",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    789.356,
+    1155.206,
+    1070.019
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "42ce793275cac7f6d7e2d579039f5c1bfa270e6bfca4dc452e5c982ded286bf8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 177.837,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "thumbnail.js:8: loki/command-injection: shell command injection: non-literal command passed to run; use execFile or spawn with an argument array\nloki: hook command failed\n",
+            "ms": 177.837
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "42ce793275cac7f6d7e2d579039f5c1bfa270e6bfca4dc452e5c982ded286bf8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 194.51,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "thumbnail.js:8: loki/command-injection: shell command injection: non-literal command passed to run; use execFile or spawn with an argument array\nloki: hook command failed\n",
+            "ms": 194.51
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "42ce793275cac7f6d7e2d579039f5c1bfa270e6bfca4dc452e5c982ded286bf8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 193.802,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "thumbnail.js:8: loki/command-injection: shell command injection: non-literal command passed to run; use execFile or spawn with an argument array\nloki: hook command failed\n",
+            "ms": 193.802
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 132.468
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 140.222
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 129.906
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.184
+    }
+  ]
+}

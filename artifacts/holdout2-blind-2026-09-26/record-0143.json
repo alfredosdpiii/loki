@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/typescript/webhook-signature-string-compare/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/webhook-signature-string-compare",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1097.855,
+    1162.102,
+    1356.459
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "a5e2a48b43a971f7139bdd1eb87d5ca1a53fa7c31129eb792718c365bd7b5bb9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 241.773,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 241.773
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 390.47,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/webhook.ts:4:8: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/webhook.ts:4:8: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 390.47
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "a5e2a48b43a971f7139bdd1eb87d5ca1a53fa7c31129eb792718c365bd7b5bb9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 242.093,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 242.093
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 406.407,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/webhook.ts:4:8: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/webhook.ts:4:8: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 406.407
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "a5e2a48b43a971f7139bdd1eb87d5ca1a53fa7c31129eb792718c365bd7b5bb9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 256.05,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 256.05
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 407.401,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/webhook.ts:4:8: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/webhook.ts:4:8: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 407.401
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.396
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 118.919
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 114.864
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.812
+    }
+  ]
+}

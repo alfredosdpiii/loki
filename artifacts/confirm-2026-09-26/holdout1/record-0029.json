@@ -1,0 +1,56 @@
+{
+  "case": "holdout/elixir/undefined-map-get-bang/control",
+  "language": "elixir",
+  "family": "type-error",
+  "pair": "holdout/elixir/undefined-map-get-bang",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1145.409
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "84720cfed2c8475f64374f8317616031b026a655d2295f6979807bb699de7af2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 275.437,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 275.437
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1961.58,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1961.58
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

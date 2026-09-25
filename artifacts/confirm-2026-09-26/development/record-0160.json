@@ -1,0 +1,97 @@
+{
+  "case": "workflow/typescript/break-repair",
+  "language": "typescript",
+  "family": "workflow",
+  "pair": null,
+  "product": "interlinked",
+  "profile": "missing-js",
+  "setup_ms": [
+    711.737
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cd895d065c7ea6e035c0392f6441aef5459d7f206adb1f282e3ad57fd3e0e8ae",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 167.282,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 167.282
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 10666.745,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"decision\":\"block\",\"reason\":\"[interlinked:typescript] [proven] typescript found new issues in src/main.ts\\nsrc/main.ts(1): TS2322: Type 'string' is not assignable to type 'number'.\\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\\n\\n\u2014 Advisory findings (not blocking; address when convenient) \u2014\\n\\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\\n\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\"}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:typescript] [proven] typescript found new issues in src/main.ts\nsrc/main.ts(1): TS2322: Type 'string' is not assignable to type 'number'.\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for src/main.ts (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.",
+            "ms": 10666.745
+          }
+        ]
+      }
+    },
+    {
+      "step": 1,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "6fe81c42c800320b14df01ec3a293a7b645ba1c8726271b55d817233c7548683",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 109.129,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-hnczstnb/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.",
+            "ms": 109.129
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 171.608,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 171.608
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

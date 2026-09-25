@@ -1,0 +1,42 @@
+{
+  "case": "holdout/javascript/link-preview-ssrf/defect",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout/javascript/link-preview-ssrf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1447.96
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6954aa05fe98d47beb88c83843052c62074be7cabb2363d32f6b416fda0b8415",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 323.011,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "preview.js:3: loki/ssrf: server-side request forgery (SSRF): outbound request URL comes from request data; validate the host against an allowlist\nloki: hook command failed\n",
+            "ms": 323.011
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/md5-password-hash/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/md5-password-hash",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    805.477
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2256fe28bdc394c4caec424dfe796a91c2790bbad636404aa4ca7d9c13780d54",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 160.986,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_weak_hash]. This edit INTRODUCES 2 violation(s) at L10, L17 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-n0lib5c5/project/auth.py. Fix the introduced line(s), then retry.\\nMD5 and SHA-1 are broken for collision resistance and must not back signatures, password hashing, or anything else the security model relies on. Use SHA-256 / SHA-3 / BLAKE3, or a password-grade KDF (bcrypt / scrypt / argon2) for credentials. If the hash is a non-security cache key, leave a comment to that effect so the next reader knows why MD5 stayed.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_weak_hash \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-n0lib5c5/project/auth.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-n0lib5c5/project/test_auth.py first with a failing test, then write the implementation. (Searched: test_auth.py, tests/test_auth.py, __tests__/test_auth.py, auth_test.py, tests/auth_test.py, __tests__/auth_test.py, test/test_auth.py, test/auth_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 160.986
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

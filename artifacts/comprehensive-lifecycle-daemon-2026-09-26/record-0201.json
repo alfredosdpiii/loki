@@ -1,0 +1,123 @@
+{
+  "case": "typescript/null-access/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/null-access",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1029.083,
+    1263.401,
+    1229.439
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a5a9cfbe5760e1cd0b9ebf382fb4bc964749d3aaa721a4718f16da9c419752da",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 206.37,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: TS18047: 'value' is possibly 'null'.\nloki: hook command failed\n",
+            "ms": 206.37
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a5a9cfbe5760e1cd0b9ebf382fb4bc964749d3aaa721a4718f16da9c419752da",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 209.992,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: TS18047: 'value' is possibly 'null'.\nloki: hook command failed\n",
+            "ms": 209.992
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a5a9cfbe5760e1cd0b9ebf382fb4bc964749d3aaa721a4718f16da9c419752da",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 201.582,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: TS18047: 'value' is possibly 'null'.\nloki: hook command failed\n",
+            "ms": 201.582
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 112.99
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 117.103
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 105.516
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 110.093
+    }
+  ]
+}

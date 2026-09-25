@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/tautological-discount-test/defect",
+  "language": "python",
+  "family": "test-integrity",
+  "pair": "holdout/python/tautological-discount-test",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2303.811
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "411b353bdaa76d7ac1b7ab6c9dfc7919efb6d2e671c83e60b2220d3de04e5931",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 258.738,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "tests/test_pricing.py:10: loki/tautological-test: tautological assertion: the expected value is computed by the same call as the result, so the test always passes\nloki: hook command failed\n",
+            "ms": 258.738
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

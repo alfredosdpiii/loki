@@ -1,0 +1,42 @@
+{
+  "case": "python/unsafe-deserialization/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/unsafe-deserialization",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1550.674
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "9d4afec7d119827bf64077f2970f8e070bc6cf1a8b95920a2d80891cb12412cf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 194.238,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 194.238
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

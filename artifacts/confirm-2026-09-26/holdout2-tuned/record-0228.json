@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/retry-header-unwrap/control",
+  "language": "rust",
+  "family": "runtime-bug",
+  "pair": "holdout2/rust/retry-header-unwrap",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    869.594
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "fa448218b7525e53cd85d1c907d3e1a1f53b7b882e48841a1c3661fde49bff76",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 139.923,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 139.923
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 338.059,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 338.059
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/unchecked-json-unmarshal/control",
+  "language": "go",
+  "family": "api-misuse",
+  "pair": "holdout/go/unchecked-json-unmarshal",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    4505.764
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "b6d5b8ea625891354d1155269dd51d2a306d372a8b6d0f34cb511b3c097780ae",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 146.653,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 146.653
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2198.894,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2198.894
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

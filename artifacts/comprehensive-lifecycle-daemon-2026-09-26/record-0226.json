@@ -1,0 +1,123 @@
+{
+  "case": "typescript/cross-file-contract/defect",
+  "language": "typescript",
+  "family": "cross-file",
+  "pair": "typescript/cross-file-contract",
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    1302.201,
+    1399.83,
+    1361.003
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 221.203,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: TS2322: Type 'string' is not assignable to type 'number'.\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 221.203
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 216.544,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: TS2322: Type 'string' is not assignable to type 'number'.\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 216.544
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 221.821,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: TS2322: Type 'string' is not assignable to type 'number'.\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 221.821
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 142.879
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 132.523
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 131.023
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 137.719
+    }
+  ]
+}

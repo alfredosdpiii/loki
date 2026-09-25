@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/invoice-query-sprintf/defect",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/invoice-query-sprintf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5531.041
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "7ec7cf8c41e4e25047f30fcbf6de1437c5e082df156ef46624eebae5526e0a96",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 192.942,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 192.942
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3341.112,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:24:7: G201: SQL string formatting (gosec)\nloki: hook command failed\n",
+            "ms": 3341.112
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

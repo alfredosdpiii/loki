@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/batch-chunk-drops-last/control",
+  "language": "go",
+  "family": "semantic",
+  "pair": "holdout2/go/batch-chunk-drops-last",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5519.044
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "8dff907fd42c07b7a2bb6a3a3fbb7e98764bc94300b79e64479f32e407caee5d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 171.195,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 171.195
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2847.42,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2847.42
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/registry-lazy-map-unused/control",
+  "language": "rust",
+  "family": "api-misuse",
+  "pair": "holdout2/rust/registry-lazy-map-unused",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    837.453
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4965c858fb44e15b2e56d5f590c70d97bed31baea11cac251692aa6634959123",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 143.295,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 143.295
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 348.811,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 348.811
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

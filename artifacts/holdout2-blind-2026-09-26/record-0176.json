@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/javascript/fetch-user-unawaited-rejects/control",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout2/javascript/fetch-user-unawaited-rejects",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    914.891,
+    1001.485,
+    1154.948
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "132ed4c7037779ba2d3003924204594ab63bf84d94274b505ce46dc6c2df73f7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 355.72,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 355.72
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 538.701,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-i2i5rijp/project/tsconfig.json'. Specified 'include' pa\\noxlint advisory (not blocking):\\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-i2i5rijp/project/tsconfig.json'. Specified 'include' pa\noxlint advisory (not blocking):\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\n",
+            "ms": 538.701
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "132ed4c7037779ba2d3003924204594ab63bf84d94274b505ce46dc6c2df73f7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 345.995,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 345.995
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 549.927,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-v8b8akdq/project/tsconfig.json'. Specified 'include' pa\\noxlint advisory (not blocking):\\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-v8b8akdq/project/tsconfig.json'. Specified 'include' pa\noxlint advisory (not blocking):\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\n",
+            "ms": 549.927
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "132ed4c7037779ba2d3003924204594ab63bf84d94274b505ce46dc6c2df73f7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 376.666,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 376.666
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 612.061,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-ghn_a5pb/project/tsconfig.json'. Specified 'include' pa\\noxlint advisory (not blocking):\\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-ghn_a5pb/project/tsconfig.json'. Specified 'include' pa\noxlint advisory (not blocking):\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\n",
+            "ms": 612.061
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 119.434
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.329
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 169.326
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 143.11
+    }
+  ]
+}

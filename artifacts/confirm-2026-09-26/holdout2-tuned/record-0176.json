@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/attachment-download-traversal/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/attachment-download-traversal",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1749.525
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "2e5e5e641d0f192f682a881568cbebfbbcd20c736e6deaf9d8c26b3894427f41",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 160.227,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 160.227
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 332.211,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 332.211
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

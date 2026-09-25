@@ -1,0 +1,42 @@
+{
+  "case": "holdout/elixir/system-cmd-sh-c/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout/elixir/system-cmd-sh-c",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1131.169
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "559bf41046cad58d6e35bc1e5e2c8891bbc708609b53dc47bebc96f68e53043d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 184.372,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/thumbnailer.ex:8: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 184.372
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

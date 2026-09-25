@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/snapshot-atomic-write-unchecked/defect",
+  "language": "go",
+  "family": "data-loss",
+  "pair": "holdout2/go/snapshot-atomic-write-unchecked",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    3899.742
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "71e2372ada3e9580c69292605246ac71ed74333d92cab88acd88bb92d1a3864c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 135.202,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 135.202
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 2126.259,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:25:12: Error return value of `enc.Encode` is not checked (errcheck)\ngolangci-lint: main.go:26:10: Error return value of `tmp.Sync` is not checked (errcheck)\nloki: hook command failed\n",
+            "ms": 2126.259
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

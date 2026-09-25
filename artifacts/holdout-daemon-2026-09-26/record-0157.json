@@ -1,0 +1,165 @@
+{
+  "case": "holdout/python/sql-fstring-like-query/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/sql-fstring-like-query",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    646.751,
+    848.048,
+    823.781
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "72d75134325860c1ce9dd781b70c68386e03851b1270a786ba8dd335b640de48",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 196.858,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:tdd] new source file \\\"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-w64yvvj3/project/repository.py\\\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-w64yvvj3/project/test_repository.py first with a failing test, then write the implementation. (Searched: test_repository.py, tests/test_repository.py, __tests__/test_repository.py, repository_test.py, tests/repository_test.py, __tests__/repository_test.py, test/test_repository.py, test/repository_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \\\"# interlinked-tdd: exempt\\\" as the first line. (test_first_mode \\\"warn\\\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-w64yvvj3/project/repository.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-w64yvvj3/project/repository.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-w64yvvj3/project/test_repository.py first with a failing test, then write the implementation. (Searched: test_repository.py, tests/test_repository.py, __tests__/test_repository.py, repository_test.py, tests/repository_test.py, __tests__/repository_test.py, test/test_repository.py, test/repository_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-w64yvvj3/project/repository.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 196.858
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 212.494,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] repository.py: 1 fns, max find_users_by_email_domain=75 (\u0394+75), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for repository.py\\nno test file found (checked: repository.test.py, repository.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] repository.py: 1 fns, max find_users_by_email_domain=75 (\u0394+75), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for repository.py\nno test file found (checked: repository.test.py, repository.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 212.494
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "72d75134325860c1ce9dd781b70c68386e03851b1270a786ba8dd335b640de48",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 148.261,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:tdd] new source file \\\"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-_x_f7rz7/project/repository.py\\\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-_x_f7rz7/project/test_repository.py first with a failing test, then write the implementation. (Searched: test_repository.py, tests/test_repository.py, __tests__/test_repository.py, repository_test.py, tests/repository_test.py, __tests__/repository_test.py, test/test_repository.py, test/repository_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \\\"# interlinked-tdd: exempt\\\" as the first line. (test_first_mode \\\"warn\\\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-_x_f7rz7/project/repository.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-_x_f7rz7/project/repository.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-_x_f7rz7/project/test_repository.py first with a failing test, then write the implementation. (Searched: test_repository.py, tests/test_repository.py, __tests__/test_repository.py, repository_test.py, tests/repository_test.py, __tests__/repository_test.py, test/test_repository.py, test/repository_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-_x_f7rz7/project/repository.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 148.261
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 198.339,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] repository.py: 1 fns, max find_users_by_email_domain=75 (\u0394+75), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for repository.py\\nno test file found (checked: repository.test.py, repository.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] repository.py: 1 fns, max find_users_by_email_domain=75 (\u0394+75), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for repository.py\nno test file found (checked: repository.test.py, repository.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 198.339
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "72d75134325860c1ce9dd781b70c68386e03851b1270a786ba8dd335b640de48",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 151.809,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:tdd] new source file \\\"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-8ahlkiyr/project/repository.py\\\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-8ahlkiyr/project/test_repository.py first with a failing test, then write the implementation. (Searched: test_repository.py, tests/test_repository.py, __tests__/test_repository.py, repository_test.py, tests/repository_test.py, __tests__/repository_test.py, test/test_repository.py, test/repository_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \\\"# interlinked-tdd: exempt\\\" as the first line. (test_first_mode \\\"warn\\\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-8ahlkiyr/project/repository.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-8ahlkiyr/project/repository.py\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-8ahlkiyr/project/test_repository.py first with a failing test, then write the implementation. (Searched: test_repository.py, tests/test_repository.py, __tests__/test_repository.py, repository_test.py, tests/repository_test.py, __tests__/repository_test.py, test/test_repository.py, test/repository_test.py.) Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"# interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-8ahlkiyr/project/repository.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 151.809
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 196.802,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] repository.py: 1 fns, max find_users_by_email_domain=75 (\u0394+75), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for repository.py\\nno test file found (checked: repository.test.py, repository.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] repository.py: 1 fns, max find_users_by_email_domain=75 (\u0394+75), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for repository.py\nno test file found (checked: repository.test.py, repository.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 196.802
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 146.92
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 98.497
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 127.789
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 101.566
+    }
+  ]
+}

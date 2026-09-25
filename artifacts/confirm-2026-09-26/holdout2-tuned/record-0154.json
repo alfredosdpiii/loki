@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/close-editor-floating-save/defect",
+  "language": "typescript",
+  "family": "concurrency",
+  "pair": "holdout2/typescript/close-editor-floating-save",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1435.792
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "55721079b1be169c9f69c92cc3c6a905f896ef63e5680ab49ee2693750373bc9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 296.524,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/editor.ts:5: loki/floating-promise: floating promise: this Promise is not awaited, returned, voided or handled with .catch, so its rejection is lost\nloki: hook command failed\n",
+            "ms": 296.524
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

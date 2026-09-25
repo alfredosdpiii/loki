@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/parse-size-test-self-compare/defect",
+  "language": "go",
+  "family": "test-integrity",
+  "pair": "holdout2/go/parse-size-test-self-compare",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    643.448
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "20af570565cf2c1814c636db3d4c16ac3c8c9b1c60ae450bed406c12d8cdc8a2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 145.921,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 145.921
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 289.249,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for size_test.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for size_test.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.",
+            "ms": 289.249
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

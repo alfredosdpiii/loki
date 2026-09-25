@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/go/invoice-query-sprintf/defect",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/invoice-query-sprintf",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    650.858,
+    893.827,
+    1033.997
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "7ec7cf8c41e4e25047f30fcbf6de1437c5e082df156ef46624eebae5526e0a96",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 125.006,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:ubs_sql_string_concat] /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-skzn_vnv/project/main.go has 1 violation(s) at L24 \u2014 Use parameterized queries / prepared statements: `db.query('SELECT * WHERE id = $1', [id])`. Concatenating input into the SQL string is a SQLi vector even on internal queries \u2014 values that look safe today get reached by external code paths tomorrow.\"}}",
+            "stderr": "[interlinked:ubs_sql_string_concat] /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-skzn_vnv/project/main.go has 1 violation(s) at L24 \u2014 Use parameterized queries / prepared statements: `db.query('SELECT * WHERE id = $1', [id])`. Concatenating input into the SQL string is a SQLi vector even on internal queries \u2014 values that look safe today get reached by external code paths tomorrow.",
+            "ms": 125.006
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 236.317,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\\n  L52: fmt.Println(len(invoices), \\\"open invoices\\\")\\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\n  L52: fmt.Println(len(invoices), \"open invoices\")\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.",
+            "ms": 236.317
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "7ec7cf8c41e4e25047f30fcbf6de1437c5e082df156ef46624eebae5526e0a96",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 105.63,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:ubs_sql_string_concat] /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-93sc7165/project/main.go has 1 violation(s) at L24 \u2014 Use parameterized queries / prepared statements: `db.query('SELECT * WHERE id = $1', [id])`. Concatenating input into the SQL string is a SQLi vector even on internal queries \u2014 values that look safe today get reached by external code paths tomorrow.\"}}",
+            "stderr": "[interlinked:ubs_sql_string_concat] /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-93sc7165/project/main.go has 1 violation(s) at L24 \u2014 Use parameterized queries / prepared statements: `db.query('SELECT * WHERE id = $1', [id])`. Concatenating input into the SQL string is a SQLi vector even on internal queries \u2014 values that look safe today get reached by external code paths tomorrow.",
+            "ms": 105.63
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 237.916,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\\n  L52: fmt.Println(len(invoices), \\\"open invoices\\\")\\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\n  L52: fmt.Println(len(invoices), \"open invoices\")\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.",
+            "ms": 237.916
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "7ec7cf8c41e4e25047f30fcbf6de1437c5e082df156ef46624eebae5526e0a96",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 111.31,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:ubs_sql_string_concat] /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-eqdln5f2/project/main.go has 1 violation(s) at L24 \u2014 Use parameterized queries / prepared statements: `db.query('SELECT * WHERE id = $1', [id])`. Concatenating input into the SQL string is a SQLi vector even on internal queries \u2014 values that look safe today get reached by external code paths tomorrow.\"}}",
+            "stderr": "[interlinked:ubs_sql_string_concat] /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-eqdln5f2/project/main.go has 1 violation(s) at L24 \u2014 Use parameterized queries / prepared statements: `db.query('SELECT * WHERE id = $1', [id])`. Concatenating input into the SQL string is a SQLi vector even on internal queries \u2014 values that look safe today get reached by external code paths tomorrow.",
+            "ms": 111.31
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 256.528,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\\n  L52: fmt.Println(len(invoices), \\\"open invoices\\\")\\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\n  L52: fmt.Println(len(invoices), \"open invoices\")\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.",
+            "ms": 256.528
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 144.85
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 108.43
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 153.4
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 105.392
+    }
+  ]
+}

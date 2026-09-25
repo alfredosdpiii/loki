@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/profile-fetch-user-wrong-arity/control",
+  "language": "elixir",
+  "family": "type-error",
+  "pair": "holdout2/elixir/profile-fetch-user-wrong-arity",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1098.885
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "fa7d066df0dd9b27a16070bac971aca41f942d06970e6b36d38a0ec3ed320a95",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 172.373,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 172.373
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1273.523,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1273.523
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

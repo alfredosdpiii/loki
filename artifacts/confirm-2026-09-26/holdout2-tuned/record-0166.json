@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/parse-version-assert-true/control",
+  "language": "rust",
+  "family": "test-integrity",
+  "pair": "holdout2/rust/parse-version-assert-true",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    887.622
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "68dc43842d88d52ca31063108b53eafa80606dc80f522f72f5a4117419e7ebbf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 161.808,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 161.808
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 387.156,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 387.156
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

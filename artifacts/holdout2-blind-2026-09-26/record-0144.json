@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/python/session-cookie-pickle/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/session-cookie-pickle",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1459.316,
+    1585.665,
+    1578.384
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4e21dc3fd9e84da38d1f63e2d7af36f334373de16d4d2f7f875012e19bdd1eb0",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 146.485,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 146.485
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4e21dc3fd9e84da38d1f63e2d7af36f334373de16d4d2f7f875012e19bdd1eb0",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 139.242,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 139.242
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4e21dc3fd9e84da38d1f63e2d7af36f334373de16d4d2f7f875012e19bdd1eb0",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 137.328,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 137.328
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.395
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 118.527
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 120.092
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 126.368
+    }
+  ]
+}

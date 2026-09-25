@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/assignee-find-non-null/control",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout2/typescript/assignee-find-non-null",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1135.116
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "805747ff21917ddef7567d14823a1cc9387a9d5967943b41b1171239bfcbcc1e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 232.404,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 232.404
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 567.364,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 567.364
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

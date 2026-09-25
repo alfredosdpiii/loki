@@ -1,0 +1,165 @@
+{
+  "case": "holdout/go/report-download-traversal/defect",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout/go/report-download-traversal",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    656.77,
+    842.301,
+    836.595
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c662fae7e091a52500b2822a53e88d7f501f2d566a8a2ed237cf17dc9d00f7a1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 143.363,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 143.363
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 266.428,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:go_error_ignored] [heuristic] main.go:21 \u2014 Detect ignored errors (err assigned to _ or discarded)\\n  L21: _, _ = w.Write(data)\\n  Handle errors explicitly \u2014 don't discard with _\\n\u2192 Handle errors explicitly. Do NOT discard errors with `_`. At minimum, log the error or return it to the caller.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:go_error_ignored] [heuristic] main.go:21 \u2014 Detect ignored errors (err assigned to _ or discarded)\n  L21: _, _ = w.Write(data)\n  Handle errors explicitly \u2014 don't discard with _\n\u2192 Handle errors explicitly. Do NOT discard errors with `_`. At minimum, log the error or return it to the caller.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 266.428
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c662fae7e091a52500b2822a53e88d7f501f2d566a8a2ed237cf17dc9d00f7a1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 100.851,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 100.851
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 215.458,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:go_error_ignored] [heuristic] main.go:21 \u2014 Detect ignored errors (err assigned to _ or discarded)\\n  L21: _, _ = w.Write(data)\\n  Handle errors explicitly \u2014 don't discard with _\\n\u2192 Handle errors explicitly. Do NOT discard errors with `_`. At minimum, log the error or return it to the caller.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:go_error_ignored] [heuristic] main.go:21 \u2014 Detect ignored errors (err assigned to _ or discarded)\n  L21: _, _ = w.Write(data)\n  Handle errors explicitly \u2014 don't discard with _\n\u2192 Handle errors explicitly. Do NOT discard errors with `_`. At minimum, log the error or return it to the caller.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 215.458
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c662fae7e091a52500b2822a53e88d7f501f2d566a8a2ed237cf17dc9d00f7a1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 106.319,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 106.319
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 257.503,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:go_error_ignored] [heuristic] main.go:21 \u2014 Detect ignored errors (err assigned to _ or discarded)\\n  L21: _, _ = w.Write(data)\\n  Handle errors explicitly \u2014 don't discard with _\\n\u2192 Handle errors explicitly. Do NOT discard errors with `_`. At minimum, log the error or return it to the caller.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:go_error_ignored] [heuristic] main.go:21 \u2014 Detect ignored errors (err assigned to _ or discarded)\n  L21: _, _ = w.Write(data)\n  Handle errors explicitly \u2014 don't discard with _\n\u2192 Handle errors explicitly. Do NOT discard errors with `_`. At minimum, log the error or return it to the caller.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 257.503
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 134.349
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 95.831
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 137.961
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 101.787
+    }
+  ]
+}

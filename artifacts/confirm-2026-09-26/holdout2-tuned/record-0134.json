@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/session-store-relock-deadlock/defect",
+  "language": "rust",
+  "family": "concurrency",
+  "pair": "holdout2/rust/session-store-relock-deadlock",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    895.835
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "ce44e0c8d09d3385aeb6b06f15b33cdf8a2286275d51cb6cda8dc69d034dee80",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 164.056,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 164.056
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 363.092,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 363.092
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

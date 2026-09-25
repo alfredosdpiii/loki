@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/config-question-mark-on-option/control",
+  "language": "rust",
+  "family": "type-error",
+  "pair": "holdout2/rust/config-question-mark-on-option",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    846.615
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "5f3326aaf209a52e71221aaea810b00de0d739c77df2413587995c6afcdace80",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 181.311,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 181.311
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 402.866,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 402.866
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

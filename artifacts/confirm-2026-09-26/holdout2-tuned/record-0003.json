@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/tag-input-nested-quantifier/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/tag-input-nested-quantifier",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1367.746
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "724c83478da87a1f988624b840721cdd6c32a33e0a3e4523bb3354c7e73fd859",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 253.825,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/tags.ts:1: loki/redos: ReDoS: nested quantifier such as (a+)+ causes catastrophic backtracking on crafted input; remove the nesting or bound the repetition\nloki: hook command failed\n",
+            "ms": 253.825
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/invite-greeting-html-interpolation/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout2/elixir/invite-greeting-html-interpolation",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1155.05
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "501370e8b845eda1984d7ff726bb5b3f2d9fef4a7c1e1a6a51768326efeb7ebb",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 190.9,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 190.9
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1296.263,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nlib/loki_phoenix_fixture_web/controllers/greeting_controller.ex:8: Sobelow high: XSS.HTML: XSS in `html`\nloki: hook command failed\n",
+            "ms": 1296.263
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

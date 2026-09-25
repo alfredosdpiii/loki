@@ -1,0 +1,165 @@
+{
+  "case": "typescript/finally-return/control",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/finally-return",
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    1228.631,
+    1560.055,
+    1342.857
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "52b1de23f65f4c7fddc771a6d9b83d3c6d65b99cebb438948fa972ad7171045c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 210.381,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\n",
+            "ms": 210.381
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 213.245,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing oxlint\n",
+            "ms": 213.245
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "52b1de23f65f4c7fddc771a6d9b83d3c6d65b99cebb438948fa972ad7171045c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 200.199,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\n",
+            "ms": 200.199
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 189.141,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing oxlint\n",
+            "ms": 189.141
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "52b1de23f65f4c7fddc771a6d9b83d3c6d65b99cebb438948fa972ad7171045c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 327.039,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\n",
+            "ms": 327.039
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 352.968,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing oxlint\n",
+            "ms": 352.968
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 143.45
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 125.013
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 131.427
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 150.141
+    }
+  ]
+}

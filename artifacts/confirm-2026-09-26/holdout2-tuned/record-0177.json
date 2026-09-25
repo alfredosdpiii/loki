@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/parse-size-test-self-compare/defect",
+  "language": "go",
+  "family": "test-integrity",
+  "pair": "holdout2/go/parse-size-test-self-compare",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5141.558
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "20af570565cf2c1814c636db3d4c16ac3c8c9b1c60ae450bed406c12d8cdc8a2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 150.483,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 150.483
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 2164.518,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: size_test.go:22:7: dupSubExpr: suspicious identical LHS and RHS for `!=` operator (gocritic)\nloki: hook command failed\n",
+            "ms": 2164.518
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout/typescript/new-function-formula/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/new-function-formula",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1156.759,
+    1249.883,
+    1303.614
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4a7d6658da651e048850e8727a8710eadc5fa8e4bed421eed0c55dde74b6fdc1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 252.318,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 252.318
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 441.081,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/formula.ts:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\\nsrc/formula.ts:32:9: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/formula.ts:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\nsrc/formula.ts:32:9: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 441.081
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4a7d6658da651e048850e8727a8710eadc5fa8e4bed421eed0c55dde74b6fdc1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 254.203,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 254.203
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 426.283,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/formula.ts:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\\nsrc/formula.ts:32:9: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/formula.ts:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\nsrc/formula.ts:32:9: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 426.283
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4a7d6658da651e048850e8727a8710eadc5fa8e4bed421eed0c55dde74b6fdc1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 254.437,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 254.437
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 428.915,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/formula.ts:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\\nsrc/formula.ts:32:9: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/formula.ts:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\nsrc/formula.ts:32:9: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 428.915
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.184
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.511
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 126.126
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.139
+    }
+  ]
+}

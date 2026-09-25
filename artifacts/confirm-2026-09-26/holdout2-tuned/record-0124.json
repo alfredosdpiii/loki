@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/python/git-log-shell-true/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/git-log-shell-true",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    653.387
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "47d35898182055186880875df661efe965034ac0148dfa684e4d4e2e64df4b8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 119.564,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_subprocess_shell_true]. This edit INTRODUCES 1 violation(s) at L10 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-44kts06h/project/app.py. Fix the introduced line(s), then retry.\\nsubprocess.<run/Popen/check_output/...>(cmd, shell=True) is a command-injection vector when any part of `cmd` originates from user input. Pass a list of arguments instead \u2014 `subprocess.run([\\\"ls\\\", \\\"-la\\\"])` \u2014 so the shell is bypassed entirely.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_subprocess_shell_true \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 119.564
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

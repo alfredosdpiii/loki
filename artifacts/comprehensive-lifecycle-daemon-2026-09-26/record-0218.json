@@ -1,0 +1,165 @@
+{
+  "case": "control/regex",
+  "language": "typescript",
+  "family": "lexical-control",
+  "pair": null,
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1021.357,
+    1234.886,
+    1128.294
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c40c9a7533cc19820618797cdac90551a5a4a37be1d6d93ba83c3d3c76778a44",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 194.262,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 194.262
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 360.414,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/main.ts:1:24: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/main.ts:1:24: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 360.414
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c40c9a7533cc19820618797cdac90551a5a4a37be1d6d93ba83c3d3c76778a44",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 185.899,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 185.899
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 369.489,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/main.ts:1:24: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/main.ts:1:24: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 369.489
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c40c9a7533cc19820618797cdac90551a5a4a37be1d6d93ba83c3d3c76778a44",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 188.981,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 188.981
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 385.657,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/main.ts:1:24: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/main.ts:1:24: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 385.657
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 112.979
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 114.132
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 107.733
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 107.93
+    }
+  ]
+}

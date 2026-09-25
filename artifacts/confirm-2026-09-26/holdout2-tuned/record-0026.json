@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/session-cookie-pickle/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/session-cookie-pickle",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2166.113
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "50969ee99f43bc6588c3c7891b7dfcead7953914af9a5d31a12d8f5dc0903b0b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 207.83,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 207.83
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 521.996,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 521.996
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

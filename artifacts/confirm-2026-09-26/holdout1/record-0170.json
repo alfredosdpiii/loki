@@ -1,0 +1,56 @@
+{
+  "case": "holdout/rust/reentrant-mutex-deadlock/defect",
+  "language": "rust",
+  "family": "concurrency",
+  "pair": "holdout/rust/reentrant-mutex-deadlock",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    777.067
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "4adf270b628b7a7e92b5a111cbec3bf4f55103999b66eba162372ee9ee77dd73",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 147.976,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 147.976
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 375.21,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 375.21
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

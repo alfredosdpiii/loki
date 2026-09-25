@@ -1,0 +1,123 @@
+{
+  "case": "holdout/python/upload-path-traversal/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/upload-path-traversal",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1502.863,
+    1750.645,
+    2342.927
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "bb59b03bf5d2aba416b63b1c9b8b6a00a87f98ad703eadc41a297ceb57e12517",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 149.877,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "downloads.py:11: loki/path-traversal: path traversal: file path built from request data; take the base name or resolve it and check it stays under the intended directory\nloki: hook command failed\n",
+            "ms": 149.877
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "bb59b03bf5d2aba416b63b1c9b8b6a00a87f98ad703eadc41a297ceb57e12517",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 160.761,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "downloads.py:11: loki/path-traversal: path traversal: file path built from request data; take the base name or resolve it and check it stays under the intended directory\nloki: hook command failed\n",
+            "ms": 160.761
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "bb59b03bf5d2aba416b63b1c9b8b6a00a87f98ad703eadc41a297ceb57e12517",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 208.062,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "downloads.py:11: loki/path-traversal: path traversal: file path built from request data; take the base name or resolve it and check it stays under the intended directory\nloki: hook command failed\n",
+            "ms": 208.062
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 148.179
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 150.171
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 297.703
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 199.562
+    }
+  ]
+}

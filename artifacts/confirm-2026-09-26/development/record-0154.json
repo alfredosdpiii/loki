@@ -1,0 +1,56 @@
+{
+  "case": "exact-edit/typescript/assignment-type/control",
+  "language": "typescript",
+  "family": "exact-edit",
+  "pair": "exact-edit/typescript/assignment-type",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1294.659
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4745b32b0fe4ffe9c15b708c46662f1da5a3d7ca8319acea0e33e6044681273b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 262.45,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 262.45
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 740.406,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 740.406
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

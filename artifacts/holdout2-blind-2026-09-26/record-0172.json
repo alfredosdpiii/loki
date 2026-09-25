@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/typescript/comment-list-innerhtml/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/comment-list-innerhtml",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1047.54,
+    1382.166,
+    1294.347
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8c80977b3f572646d0f3cd40de2386d94c8eb6d58ec6864da3a8be7918e24191",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 188.879,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/comments.ts:9: loki/unsanitized-html: cross-site scripting (XSS): non-literal HTML assigned to innerHTML; use textContent or a sanitizer\nloki: hook command failed\n",
+            "ms": 188.879
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8c80977b3f572646d0f3cd40de2386d94c8eb6d58ec6864da3a8be7918e24191",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 172.195,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/comments.ts:9: loki/unsanitized-html: cross-site scripting (XSS): non-literal HTML assigned to innerHTML; use textContent or a sanitizer\nloki: hook command failed\n",
+            "ms": 172.195
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8c80977b3f572646d0f3cd40de2386d94c8eb6d58ec6864da3a8be7918e24191",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 174.975,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/comments.ts:9: loki/unsanitized-html: cross-site scripting (XSS): non-literal HTML assigned to innerHTML; use textContent or a sanitizer\nloki: hook command failed\n",
+            "ms": 174.975
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 128.06
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 121.538
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.545
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.443
+    }
+  ]
+}

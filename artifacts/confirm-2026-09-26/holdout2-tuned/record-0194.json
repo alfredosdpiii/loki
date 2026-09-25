@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/rate-limiter-nil-map/defect",
+  "language": "go",
+  "family": "runtime-bug",
+  "pair": "holdout2/go/rate-limiter-nil-map",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    3922.29
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "27637689e34131fe69a9b94ae4c94ac465b09db60fa68d4067031627be0b7cbe",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 169.792,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 169.792
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2137.181,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2137.181
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

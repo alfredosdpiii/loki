@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/redact-re-sub-flags-as-count/control",
+  "language": "python",
+  "family": "api-misuse",
+  "pair": "holdout2/python/redact-re-sub-flags-as-count",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    4382.78
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "b60b84c0dd8cc9cf2eb408cb1cc59e67d7667eb39b33eb92a4710faab9588aae",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 606.617,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 606.617
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1065.671,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1065.671
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

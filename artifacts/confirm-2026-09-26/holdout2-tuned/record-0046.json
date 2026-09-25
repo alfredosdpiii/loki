@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/load-timeout-ignores-second-result/defect",
+  "language": "go",
+  "family": "type-error",
+  "pair": "holdout2/go/load-timeout-ignores-second-result",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    8460.96
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "c2d82819b8a2001822c1f80ba7fa44ca00294d5ac529beee0a4b68de9c7b0934",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 200.079,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 200.079
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 9910.833,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: vet: ./main.go:12:13: assignment mismatch: 1 variable but LoadTimeout returns 2 values\nloki: hook command failed\n",
+            "ms": 9910.833
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

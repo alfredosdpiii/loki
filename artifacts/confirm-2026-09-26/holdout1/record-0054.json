@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/subprocess-shell-backup/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/subprocess-shell-backup",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2361.591
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "df340bf0445ab8812219fa63b22a948b117cc1bce7f91f7b1735851a388e9be7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 250.201,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "archive.py: S602: `subprocess` call with `shell=True` identified, security issue\nloki: hook command failed\n",
+            "ms": 250.201
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

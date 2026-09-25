@@ -1,0 +1,56 @@
+{
+  "case": "go/duration-square/defect",
+  "language": "go",
+  "family": "bug",
+  "pair": "go/duration-square",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    6293.154
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1bd6ebf470cc1d7e03fa352d848133fbff6a2e4507ce6f3c637b9ca02797103c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 232.822,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 232.822
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3418.751,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:6:52: Multiplication of durations: `d * time.Second` (durationcheck)\nloki: hook command failed\n",
+            "ms": 3418.751
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

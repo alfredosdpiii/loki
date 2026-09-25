@@ -1,0 +1,42 @@
+{
+  "case": "holdout/javascript/exec-thumbnail-command/defect",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout/javascript/exec-thumbnail-command",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1060.915
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a804d271e598de7b5f855458117804b14752901d7bd30fa93165a7b9d88c96f0",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 270.129,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "thumbnail.js:8: loki/command-injection: shell command injection: non-literal command passed to run; use execFile or spawn with an argument array\nloki: hook command failed\n",
+            "ms": 270.129
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

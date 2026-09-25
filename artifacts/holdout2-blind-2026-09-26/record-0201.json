@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/go/invoice-query-sprintf/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/invoice-query-sprintf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    4309.262,
+    4711.716,
+    4348.156
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "2a4315f25c50d2131da0e8041d3d1f9eb5c23789cfe9d1bbbb7917e32d1f83c4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 142.722,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 142.722
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1839.59,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:46:16: Error return value of `db.Close` is not checked (errcheck)\nloki: hook command failed\n",
+            "ms": 1839.59
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "2a4315f25c50d2131da0e8041d3d1f9eb5c23789cfe9d1bbbb7917e32d1f83c4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 138.397,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 138.397
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1937.372,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:46:16: Error return value of `db.Close` is not checked (errcheck)\nloki: hook command failed\n",
+            "ms": 1937.372
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "2a4315f25c50d2131da0e8041d3d1f9eb5c23789cfe9d1bbbb7917e32d1f83c4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 120.418,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 120.418
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1712.747,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:46:16: Error return value of `db.Close` is not checked (errcheck)\nloki: hook command failed\n",
+            "ms": 1712.747
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 137.486
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 145.991
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.346
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.89
+    }
+  ]
+}

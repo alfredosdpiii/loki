@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/mutable-default-cart/defect",
+  "language": "python",
+  "family": "runtime-bug",
+  "pair": "holdout/python/mutable-default-cart",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2775.386
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "de24d8f477607fa64ab3cc068c18e1aa0ec5b622da10a9f17929bc65cac40d93",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 258.98,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "cart.py: B006: Do not use mutable data structures for argument defaults\nloki: hook command failed\n",
+            "ms": 258.98
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

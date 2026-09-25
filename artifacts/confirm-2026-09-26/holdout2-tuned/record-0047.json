@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/csv-export-bufwriter-no-flush/control",
+  "language": "rust",
+  "family": "data-loss",
+  "pair": "holdout2/rust/csv-export-bufwriter-no-flush",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1080.545
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "e47b412356dcc3c9792102e8957539be05fb519d4bab9e10c873228d4ad31670",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 186.113,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 186.113
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 398.763,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 398.763
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

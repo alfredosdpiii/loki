@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/api-client-insecure-skip-verify/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/api-client-insecure-skip-verify",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    6986.813
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "e86c62f2f59325521f530f83badedc18631bc7e0443d7dad5ff0ae58d5c07575",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 275.812,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 275.812
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 11926.566,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 11926.566
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/typescript/settings-deep-merge-proto/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/settings-deep-merge-proto",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    969.914,
+    1224.402,
+    1246.108
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "d29ef0dfa9aed404276f33ba5c93191f7fee22b0f1efb18bdca12c078cc1ffed",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 231.297,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 231.297
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 386.604,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 386.604
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "d29ef0dfa9aed404276f33ba5c93191f7fee22b0f1efb18bdca12c078cc1ffed",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 235.556,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 235.556
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 382.852,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 382.852
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "d29ef0dfa9aed404276f33ba5c93191f7fee22b0f1efb18bdca12c078cc1ffed",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 227.357,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 227.357
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 401.229,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 401.229
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 128.213
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.641
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 114.814
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 113.443
+    }
+  ]
+}

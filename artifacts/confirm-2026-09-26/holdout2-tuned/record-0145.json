@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/javascript/cart-total-focused-test/control",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout2/javascript/cart-total-focused-test",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    670.6
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "54a446630808079b8115919fac3214b037be226383f2c95379b3d5b937aeb711",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 167.087,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/cart.test.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/cart.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/cart.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/cart.test.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/cart.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-nblaa22z/project/cart.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 167.087
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 753.034,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-contract-review] [heuristic] cart.test.js: Ground new test expectations in a supplied requirement or public example, independently of the implementation. Record concrete examples with interlinked tests contracts; a passing self-authored assertion is not contract validation.\\n[interlinked:trajectory] reb_import_added_without_reading_module (low, shadow \u2014 would silent_metric): Imported ./cart.js without ever reading or writing the module \u2014 the imported surface (names, signatures) is assumed, not seen. A typecheck will confirm resolution, but not intent.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-contract-review] [heuristic] cart.test.js: Ground new test expectations in a supplied requirement or public example, independently of the implementation. Record concrete examples with interlinked tests contracts; a passing self-authored assertion is not contract validation.\n[interlinked:trajectory] reb_import_added_without_reading_module (low, shadow \u2014 would silent_metric): Imported ./cart.js without ever reading or writing the module \u2014 the imported surface (names, signatures) is assumed, not seen. A typecheck will confirm resolution, but not intent.",
+            "ms": 753.034
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

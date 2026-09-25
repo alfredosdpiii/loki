@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/latency-p95-default-sort/defect",
+  "language": "typescript",
+  "family": "semantic",
+  "pair": "holdout2/typescript/latency-p95-default-sort",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1294.266
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ad23856634787ab00221eca7875ca0534be8edbf4ed4bbc9cc32ff8f8d5ce4af",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 317.137,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/metrics.ts:8: loki/numeric-sort: numeric array sorted without a comparator is ordered lexicographically (10 before 9); pass (a, b) => a - b\nloki: hook command failed\n",
+            "ms": 317.137
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

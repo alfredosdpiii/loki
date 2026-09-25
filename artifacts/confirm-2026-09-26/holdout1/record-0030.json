@@ -1,0 +1,42 @@
+{
+  "case": "holdout/typescript/floating-promise-remove-draft/defect",
+  "language": "typescript",
+  "family": "api-misuse",
+  "pair": "holdout/typescript/floating-promise-remove-draft",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1711.357
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "bbd081f041b57ccc09d256ecfad29778ab03761fc94c026ece6c21060a769128",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 365.569,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/drafts.ts:13: loki/floating-promise: floating promise: this Promise is not awaited, returned, voided or handled with .catch, so its rejection is lost\nloki: hook command failed\n",
+            "ms": 365.569
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,42 @@
+{
+  "case": "typescript/argument-type/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/argument-type",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1023.935
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "5ffafed57c11bfd4c278c759e8f8399ed7b3437e16eac575437117b8f6f2c497",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 217.377,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.\nloki: hook command failed\n",
+            "ms": 217.377
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

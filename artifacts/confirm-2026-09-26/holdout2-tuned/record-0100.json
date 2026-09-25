@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/rate-limiter-nil-map/control",
+  "language": "go",
+  "family": "runtime-bug",
+  "pair": "holdout2/go/rate-limiter-nil-map",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    664.944
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "90a6e5bc56fb526074ba8effb74c690ec1dc4157831da905395d4eeb20cd219e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 145.088,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 145.088
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 239.978,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\\n[interlinked:no_test_file] [proven] No test file found for main.go\\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\\n  L45: fmt.Println(rl.Allow(\\\"203.0.113.9\\\", time.Now()))\\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] main.go: go exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Runner prerequisites are available; no behavioral checks have run. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite go --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:checks-deferred] [proven] NOT CHECKED: go_build, golangci_lint for main.go (async runner unavailable; run `interlinked verify` for this tool). Retry each deferred check after its prerequisites change; no clean verdict exists for checks.\n[interlinked:no_test_file] [proven] No test file found for main.go\nno test file found (checked: main.test.go, main.spec.go, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:ubs_print_debug_leak] [heuristic] 1 ubs print debug leak issue(s) in main.go\n  L45: fmt.Println(rl.Allow(\"203.0.113.9\", time.Now()))\n\u2192 `console.log` / `print` / `fmt.Println` left in library code is almost always a forgotten debug print. Use a structured logger (with a level) so the noise can be filtered, or remove the line if it was just a breadcrumb.",
+            "ms": 239.978
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

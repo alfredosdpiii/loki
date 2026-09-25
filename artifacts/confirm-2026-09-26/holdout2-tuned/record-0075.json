@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/paginate-one-indexed-offset/control",
+  "language": "python",
+  "family": "semantic",
+  "pair": "holdout2/python/paginate-one-indexed-offset",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2617.302
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "83b28693288b3bc72303a80d169750af4b3c4f8ee87b34aa199122bca7257bff",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 233.924,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 233.924
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 545.113,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 545.113
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

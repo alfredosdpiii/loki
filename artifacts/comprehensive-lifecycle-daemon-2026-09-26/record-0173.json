@@ -1,0 +1,174 @@
+{
+  "case": "rust/ignored-result/defect",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/ignored-result",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    814.219,
+    896.017,
+    912.467
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "718138bb905abb4e33d4771de77fe600901d8a866d32313cca40c1a0a5ca8de7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 122.643,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 122.643
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 285.237,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:2: unused_must_use: unused `std::result::Result` that must be used\nsrc/lib.rs:2: unused_must_use: unused `std::result::Result` that must be used\nloki: hook command failed\n",
+            "ms": 285.237
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "718138bb905abb4e33d4771de77fe600901d8a866d32313cca40c1a0a5ca8de7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 119.257,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 119.257
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 287.348,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:2: unused_must_use: unused `std::result::Result` that must be used\nsrc/lib.rs:2: unused_must_use: unused `std::result::Result` that must be used\nloki: hook command failed\n",
+            "ms": 287.348
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "718138bb905abb4e33d4771de77fe600901d8a866d32313cca40c1a0a5ca8de7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 120.63,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 120.63
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 295.019,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:2: unused_must_use: unused `std::result::Result` that must be used\nsrc/lib.rs:2: unused_must_use: unused `std::result::Result` that must be used\nloki: hook command failed\n",
+            "ms": 295.019
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[rust]\ncargo: Checking guardrail_fixture v0.1.0 (/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-ffaf9dqj/project)\ncargo: error: unused `std::result::Result` that must be used\ncargo: --> src/lib.rs:2:5\ncargo: |\ncargo: 2 |     std::fs::read_to_string(\"unused\");\ncargo: |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ncargo: |\ncargo: = note: this `Result` may be an `Err` variant, which should be handled\ncargo: = note: `-D unused-must-use` implied by `-D warnings`\ncargo: = help: to override `-D warnings` add `#[allow(unused_must_use)]`\ncargo: help: use `let _ = ...` to ignore the resulting value\ncargo: |\ncargo: 2 |     let _ = std::fs::read_to_string(\"unused\");\ncargo: |     +++++++\ncargo: error: could not compile `guardrail_fixture` (lib) due to 1 previous error\ncargo: warning: build failed, waiting for other jobs to finish...\ncargo: error: could not compile `guardrail_fixture` (lib test) due to 1 previous error\n",
+      "stderr": "",
+      "ms": 252.723,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 114.086
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 113.674
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 125.673
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 119.61
+    }
+  ]
+}

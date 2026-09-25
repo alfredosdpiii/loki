@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/rust/csv-export-bufwriter-no-flush/defect",
+  "language": "rust",
+  "family": "data-loss",
+  "pair": "holdout2/rust/csv-export-bufwriter-no-flush",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    939.013
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "513f4c2b904f6da6f65d811aa509b2ca211beb3409b9348145485a71e7b21dac",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 162.893,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:13: loki/unflushed-writer: BufWriter dropped without flush(): write errors on drop are silently discarded; call flush()? before returning\nloki: hook command failed\n",
+            "ms": 162.893
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout/go/mutex-value-receiver/defect",
+  "language": "go",
+  "family": "concurrency",
+  "pair": "holdout/go/mutex-value-receiver",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    4058.696,
+    4220.393,
+    4069.518
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "0f6cde7ee28d8433896edb613743ccdf77fe16296093d94df77d2da91fa08f92",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 133.213,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 133.213
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1157.063,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: ./main.go:19:9: Hit passes lock by value: example.invalid/loki/benchmark.RateCounter contains sync.Mutex\nloki: hook command failed\n",
+            "ms": 1157.063
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "0f6cde7ee28d8433896edb613743ccdf77fe16296093d94df77d2da91fa08f92",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 135.226,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 135.226
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1129.248,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: ./main.go:19:9: Hit passes lock by value: example.invalid/loki/benchmark.RateCounter contains sync.Mutex\nloki: hook command failed\n",
+            "ms": 1129.248
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "0f6cde7ee28d8433896edb613743ccdf77fe16296093d94df77d2da91fa08f92",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 130.357,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 130.357
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1117.466,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: ./main.go:19:9: Hit passes lock by value: example.invalid/loki/benchmark.RateCounter contains sync.Mutex\nloki: hook command failed\n",
+            "ms": 1117.466
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 133.067
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 132.418
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.576
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.485
+    }
+  ]
+}

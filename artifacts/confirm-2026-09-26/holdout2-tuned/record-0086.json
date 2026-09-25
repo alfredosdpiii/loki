@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/link-checker-shared-counter/control",
+  "language": "python",
+  "family": "concurrency",
+  "pair": "holdout2/python/link-checker-shared-counter",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2806.823
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "56ba2a03925563d5c15ba407d451dfbc1f39ba6a34ed2afa4063cc03a96d0287",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 284.625,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 284.625
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 3856.989,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 3856.989
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

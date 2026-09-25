@@ -1,0 +1,56 @@
+{
+  "case": "holdout/javascript/focused-slugify-test/control",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout/javascript/focused-slugify-test",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1250.063
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "a655ae042a1abb529882e3e4125d5e9bde7cfc7fbc039bb8e58c5e97243ca33b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 540.692,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 540.692
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1141.996,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-cbshkk50/project/tsconfig.json'. Specified 'include' path\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-cbshkk50/project/tsconfig.json'. Specified 'include' path\n",
+            "ms": 1141.996
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

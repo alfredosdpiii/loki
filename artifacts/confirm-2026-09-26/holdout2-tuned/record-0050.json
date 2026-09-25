@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/inventory-csv-open-leak/control",
+  "language": "python",
+  "family": "resource",
+  "pair": "holdout2/python/inventory-csv-open-leak",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2217.174
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "9dc2ce91ed2a3f2943b8f3b9042c186cae5b8561211b7391efd19290fe2194a1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 263.395,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 263.395
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 641.012,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 641.012
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

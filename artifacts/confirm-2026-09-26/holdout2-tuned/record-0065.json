@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/shape-area-missing-case/control",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout2/typescript/shape-area-missing-case",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1810.628
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "8e9402a452f64c418a7baeae0f4089a964ea867d7d82d6eeb79e21c579bcd299",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 544.551,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 544.551
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1237.268,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/area.ts:1:15: Rename symbol \\\"Shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:1:15: Rename symbol \\\"Shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:3:22: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:3:29: Rename symbol \\\"Shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:4:11: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:6:24: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:8:14: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:8:28: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:10:15: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\nsrc/area.ts:10:28: Rename symbol \\\"shape\\\" for its domain role; \\\"shape\\\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\\n... 4 more\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/area.ts:1:15: Rename symbol \"Shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:1:15: Rename symbol \"Shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:3:22: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:3:29: Rename symbol \"Shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:4:11: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:6:24: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:8:14: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:8:28: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:10:15: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\nsrc/area.ts:10:28: Rename symbol \"shape\" for its domain role; \"shape\" describes structure rather than ownership. [Warning/anti-slop(no-shape-in-symbol-names)]\n... 4 more\n",
+            "ms": 1237.268
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

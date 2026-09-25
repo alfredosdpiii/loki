@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/price-preview-string-arg/defect",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout2/typescript/price-preview-string-arg",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2282.093
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "fc61d555ff30c9b025319f90842f74e429312b3eb5f2cbdb54604ac003d079e6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 619.542,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/checkout.ts:10: TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.\nloki: hook command failed\n",
+            "ms": 619.542
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

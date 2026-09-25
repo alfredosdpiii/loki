@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/nil-map-word-tally/defect",
+  "language": "go",
+  "family": "runtime-bug",
+  "pair": "holdout/go/nil-map-word-tally",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    6359.009
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "393703be894de12b763b52fdf946e1a247c87e2b898043e93b02acdcb6694972",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 354.869,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 354.869
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3303.564,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:14:3: SA5000: assignment to nil map (staticcheck)\nloki: hook command failed\n",
+            "ms": 3303.564
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

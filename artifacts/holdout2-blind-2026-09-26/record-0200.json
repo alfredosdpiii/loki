@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/typescript/presence-poller-interval-leak/control",
+  "language": "typescript",
+  "family": "resource",
+  "pair": "holdout2/typescript/presence-poller-interval-leak",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1189.919,
+    1532.172,
+    1563.318
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "951724a7194f11b5247f2359b6ecaca82126ade2d4486342987eb4a8ab1a0093",
+      "post_modified_written_bytes": true,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 294.269,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 294.269
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 519.275,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/presence.ts:24:31: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/presence.ts:24:31: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 519.275
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "951724a7194f11b5247f2359b6ecaca82126ade2d4486342987eb4a8ab1a0093",
+      "post_modified_written_bytes": true,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 257.74,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 257.74
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 501.005,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/presence.ts:24:31: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/presence.ts:24:31: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 501.005
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "951724a7194f11b5247f2359b6ecaca82126ade2d4486342987eb4a8ab1a0093",
+      "post_modified_written_bytes": true,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 266.415,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 266.415
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 495.241,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/presence.ts:24:31: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/presence.ts:24:31: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 495.241
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 134.758
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 126.496
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 162.227
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 159.0
+    }
+  ]
+}

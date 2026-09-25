@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/python/redact-re-sub-flags-as-count/defect",
+  "language": "python",
+  "family": "api-misuse",
+  "pair": "holdout2/python/redact-re-sub-flags-as-count",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1484.682,
+    1948.789,
+    1766.017
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ea9cf952e98610a7296ad660ba7bea7c36559283c0a29276b1499c4cb09c2d1c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 164.333,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: B034: `re.sub` should pass `count` and `flags` as keyword arguments to avoid confusion due to unintuitive argument positions\nloki: hook command failed\n",
+            "ms": 164.333
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ea9cf952e98610a7296ad660ba7bea7c36559283c0a29276b1499c4cb09c2d1c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 160.529,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: B034: `re.sub` should pass `count` and `flags` as keyword arguments to avoid confusion due to unintuitive argument positions\nloki: hook command failed\n",
+            "ms": 160.529
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ea9cf952e98610a7296ad660ba7bea7c36559283c0a29276b1499c4cb09c2d1c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 159.399,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: B034: `re.sub` should pass `count` and `flags` as keyword arguments to avoid confusion due to unintuitive argument positions\nloki: hook command failed\n",
+            "ms": 159.399
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 139.05
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 135.461
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 138.191
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.457
+    }
+  ]
+}

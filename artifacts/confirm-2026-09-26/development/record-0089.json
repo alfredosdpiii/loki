@@ -1,0 +1,56 @@
+{
+  "case": "elixir/code-from-request/defect",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/code-from-request",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    799.013
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "82dafeea90677efe4f2e0ab8bcd39d608b554876c995a575693f099cbdbfef90",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 164.872,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 164.872
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1225.802,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nlib/loki_phoenix_fixture_web/input_controller.ex:5: Sobelow high: RCE.CodeModule: Code Execution in `Code.eval_string`\nloki: hook command failed\n",
+            "ms": 1225.802
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

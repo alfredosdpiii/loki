@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/line-count-defer-in-loop/control",
+  "language": "go",
+  "family": "resource",
+  "pair": "holdout2/go/line-count-defer-in-loop",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    6439.458
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "b2c8fbe68ec0adf6006b1f936706460d44f35fa3a42674d7289ddc96fe4c14b4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 230.077,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 230.077
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 3061.246,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 3061.246
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,123 @@
+{
+  "case": "python/shell-interpolation/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/shell-interpolation",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    580.955,
+    857.186,
+    904.25
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 104.634,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_subprocess_shell_true]. This edit INTRODUCES 1 violation(s) at L5 in /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-lwrbfgdp/project/app.py. Fix the introduced line(s), then retry.\\nsubprocess.<run/Popen/check_output/...>(cmd, shell=True) is a command-injection vector when any part of `cmd` originates from user input. Pass a list of arguments instead \u2014 `subprocess.run([\\\"ls\\\", \\\"-la\\\"])` \u2014 so the shell is bypassed entirely.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_subprocess_shell_true \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 104.634
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 106.27,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_subprocess_shell_true]. This edit INTRODUCES 1 violation(s) at L5 in /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-dfkz6tzn/project/app.py. Fix the introduced line(s), then retry.\\nsubprocess.<run/Popen/check_output/...>(cmd, shell=True) is a command-injection vector when any part of `cmd` originates from user input. Pass a list of arguments instead \u2014 `subprocess.run([\\\"ls\\\", \\\"-la\\\"])` \u2014 so the shell is bypassed entirely.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_subprocess_shell_true \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 106.27
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 111.322,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_subprocess_shell_true]. This edit INTRODUCES 1 violation(s) at L5 in /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-vpbsr9gm/project/app.py. Fix the introduced line(s), then retry.\\nsubprocess.<run/Popen/check_output/...>(cmd, shell=True) is a command-injection vector when any part of `cmd` originates from user input. Pass a list of arguments instead \u2014 `subprocess.run([\\\"ls\\\", \\\"-la\\\"])` \u2014 so the shell is bypassed entirely.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_subprocess_shell_true \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 111.322
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 161.923
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 107.131
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 137.462
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 102.823
+    }
+  ]
+}

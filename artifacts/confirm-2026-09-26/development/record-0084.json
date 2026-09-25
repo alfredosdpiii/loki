@@ -1,0 +1,42 @@
+{
+  "case": "python/shell-interpolation/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/shell-interpolation",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    775.2
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 159.71,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_subprocess_shell_true]. This edit INTRODUCES 1 violation(s) at L5 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-5vk7uu0f/project/app.py. Fix the introduced line(s), then retry.\\nsubprocess.<run/Popen/check_output/...>(cmd, shell=True) is a command-injection vector when any part of `cmd` originates from user input. Pass a list of arguments instead \u2014 `subprocess.run([\\\"ls\\\", \\\"-la\\\"])` \u2014 so the shell is bypassed entirely.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_subprocess_shell_true \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 159.71
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

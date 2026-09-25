@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/python/inviter-optional-user/defect",
+  "language": "python",
+  "family": "type-error",
+  "pair": "holdout2/python/inviter-optional-user",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1849.012,
+    1993.073,
+    1890.279
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "3438c3d2a50eebe7b1944ba8354fdd24c339e9c311929b6ad077232f04f29a2c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 190.195,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 190.195
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 445.778,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py:10: mypy[union-attr]: Item \"None\" of \"User | None\" has no attribute \"display_name\"\napp.py:11: mypy[union-attr]: Item \"None\" of \"User | None\" has no attribute \"email\"\nloki: hook command failed\n",
+            "ms": 445.778
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "3438c3d2a50eebe7b1944ba8354fdd24c339e9c311929b6ad077232f04f29a2c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 188.701,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 188.701
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 379.045,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py:10: mypy[union-attr]: Item \"None\" of \"User | None\" has no attribute \"display_name\"\napp.py:11: mypy[union-attr]: Item \"None\" of \"User | None\" has no attribute \"email\"\nloki: hook command failed\n",
+            "ms": 379.045
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "3438c3d2a50eebe7b1944ba8354fdd24c339e9c311929b6ad077232f04f29a2c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 194.289,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 194.289
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 346.338,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py:10: mypy[union-attr]: Item \"None\" of \"User | None\" has no attribute \"display_name\"\napp.py:11: mypy[union-attr]: Item \"None\" of \"User | None\" has no attribute \"email\"\nloki: hook command failed\n",
+            "ms": 346.338
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 152.484
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 206.442
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.341
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 193.374
+    }
+  ]
+}

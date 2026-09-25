@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/presence-poller-interval-leak/defect",
+  "language": "typescript",
+  "family": "resource",
+  "pair": "holdout2/typescript/presence-poller-interval-leak",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1189.444
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "92f641ee1f6cdba5f9c27ccb917ae4f251e3afe529d6589d84edaefe9322c2cc",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 207.762,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/presence.ts:12: loki/timer-leak: setInterval without any clearInterval in this file: the timer and everything it captures are never released\nloki: hook command failed\n",
+            "ms": 207.762
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,174 @@
+{
+  "case": "rust/use-after-move/defect",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/use-after-move",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    848.385,
+    1296.765,
+    1140.568
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "77b5096beef67300aef07af9b6d081e1ce524396ede9c3cd320c980aec8e7f8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 148.14,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 148.14
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 321.081,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:4: E0382: borrow of moved value: `a`\nsrc/lib.rs:4: E0382: borrow of moved value: `a`\nloki: hook command failed\n",
+            "ms": 321.081
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "77b5096beef67300aef07af9b6d081e1ce524396ede9c3cd320c980aec8e7f8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 153.511,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 153.511
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 335.166,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:4: E0382: borrow of moved value: `a`\nsrc/lib.rs:4: E0382: borrow of moved value: `a`\nloki: hook command failed\n",
+            "ms": 335.166
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "77b5096beef67300aef07af9b6d081e1ce524396ede9c3cd320c980aec8e7f8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 140.652,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 140.652
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 328.068,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:4: E0382: borrow of moved value: `a`\nsrc/lib.rs:4: E0382: borrow of moved value: `a`\nloki: hook command failed\n",
+            "ms": 328.068
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[rust]\ncargo: Checking guardrail_fixture v0.1.0 (/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-b3mvv8g4/project)\ncargo: error[E0382]: borrow of moved value: `a`\ncargo: --> src/lib.rs:4:5\ncargo: |\ncargo: 2 |     let a = String::from(\"x\");\ncargo: |         - move occurs because `a` has type `std::string::String`, which does not implement the `Copy` trait\ncargo: 3 |     let b = a;\ncargo: |             - value moved here\ncargo: 4 |     a.len() + b.len()\ncargo: |     ^ value borrowed here after move\ncargo: |\ncargo: help: consider cloning the value if the performance cost is acceptable\ncargo: |\ncargo: 3 |     let b = a.clone();\ncargo: |              ++++++++\ncargo: For more information about this error, try `rustc --explain E0382`.\ncargo: error: could not compile `guardrail_fixture` (lib) due to 1 previous error\ncargo: warning: build failed, waiting for other jobs to finish...\ncargo: error: could not compile `guardrail_fixture` (lib test) due to 1 previous error\n",
+      "stderr": "",
+      "ms": 269.352,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 142.164
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 171.286
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 136.693
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 148.567
+    }
+  ]
+}

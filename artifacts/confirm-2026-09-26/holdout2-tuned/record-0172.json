@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/go/api-client-insecure-skip-verify/defect",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/api-client-insecure-skip-verify",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    690.319
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "c817c7780acbabf69ce742acb36d65abe4bdd2923f8a2cb2c508175c219af17a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 127.152,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_tls_verify_disabled]. This edit INTRODUCES 1 violation(s) at L25 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-qfj_j_oq/project/main.go. Fix the introduced line(s), then retry.\\nDisabling TLS peer verification opens a man-in-the-middle hole on every request. Restore the default verification or, if a self-signed cert is genuinely needed, install the cert into the trust store and document why in a comment immediately above the call.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_tls_verify_disabled \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 127.152
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,42 @@
+{
+  "case": "holdout/elixir/external-redirect-return-to/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout/elixir/external-redirect-return-to",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1047.041
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a6c1aa770b23f0f9184cbea1430221a21f5111f61e85826009ee310a481befbc",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 153.611,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture_web/controllers/session_controller.ex:7: loki/open-redirect: open redirect: external redirect target comes from request params; allow only known hosts or same-site paths\nloki: hook command failed\n",
+            "ms": 153.611
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

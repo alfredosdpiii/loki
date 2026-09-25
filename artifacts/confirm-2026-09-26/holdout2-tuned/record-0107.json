@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/mentions-mutable-default/control",
+  "language": "python",
+  "family": "runtime-bug",
+  "pair": "holdout2/python/mentions-mutable-default",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1773.269
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "8f32d4139fb69209ea6b20cb880d2a9bea45f62b8586689938946e2f606ea569",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 201.014,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 201.014
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 481.6,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 481.6
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

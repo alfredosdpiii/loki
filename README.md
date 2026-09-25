@@ -679,7 +679,7 @@ the operator; this command does not install a sandbox or establish those control
 ## Development
 
 Latest comparison with Interlinked CLI:
-[artifacts/comprehensive-summary-2026-09-25.md](artifacts/comprehensive-summary-2026-09-25.md).
+[artifacts/comprehensive-summary-2026-09-26.md](artifacts/comprehensive-summary-2026-09-26.md).
 The broader comparison protocol is in [benchmarks/README.md](benchmarks/README.md).
 `benchmarks/holdout.py` runs the independently authored holdout corpus.
 It separates pre-write prevention, post-write detection, explicit audits,

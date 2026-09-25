@@ -1,0 +1,42 @@
+{
+  "case": "holdout/typescript/innerhtml-comment-render/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/innerhtml-comment-render",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    816.25
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "99b1f05fa876ab20eabce4c73dea327ba8af6fc23aa37bdda7f823639dc1a4c1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 176.581,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [inner_html]. This edit INTRODUCES 1 violation(s) at L8 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-k960_9l8/project/src/comments.ts. Fix the introduced line(s), then retry.\\ninnerHTML and dangerouslySetInnerHTML create XSS vulnerabilities. Use textContent for plain text, or a sanitization library for HTML.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: inner_html \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-k960_9l8/project/src/comments.ts\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-k960_9l8/project/src/comments.test.ts first with a failing test, then write the implementation. (Searched: src/comments.test.ts, src/__tests__/comments.test.ts, src/comments.spec.ts, src/__tests__/comments.spec.ts.) Public surface to test (extracted from your content): renderComments. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 176.581
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

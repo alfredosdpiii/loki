@@ -1,0 +1,42 @@
+{
+  "case": "holdout/elixir/datetime-structural-sort/defect",
+  "language": "elixir",
+  "family": "semantic",
+  "pair": "holdout/elixir/datetime-structural-sort",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    867.855
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3240e41543d7431ccd63b5987165e5ddad909465fec3184c7987766d778e156a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 168.287,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/timeline.ex:9: loki/structural-date-sort: structural comparison: DateTime/Date values sorted with plain term ordering; pass DateTime (or {:desc, DateTime}) as the sorter\nloki: hook command failed\n",
+            "ms": 168.287
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

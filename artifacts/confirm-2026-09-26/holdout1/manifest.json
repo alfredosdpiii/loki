@@ -1,0 +1,2966 @@
+{
+  "corpus": {
+    "version": "holdout_cases",
+    "sha256": "f3ec4c434e43323b26eb06c494a79e7002ee1a9fb59ef0c41b85ad7c57f1987f",
+    "cases": [
+      {
+        "id": "holdout/python/sql-fstring-like-query/defect",
+        "pair": "holdout/python/sql-fstring-like-query",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "repository.py",
+            "content": "\"\"\"User lookup helpers backed by SQLite.\"\"\"\n\nimport sqlite3\n\n\ndef find_users_by_email_domain(conn: sqlite3.Connection, domain: str) -> list[tuple[int, str]]:\n    \"\"\"Return (id, email) rows for users whose address ends with the domain.\"\"\"\n    query = f\"SELECT id, email FROM users WHERE email LIKE '%@{domain}' ORDER BY id\"\n    cursor = conn.execute(query)\n    return [(int(row[0]), str(row[1])) for row in cursor.fetchall()]\n",
+            "kind": "defect",
+            "markers": [
+              "S608",
+              "B608",
+              "sql injection",
+              "sql.*(f-string|string format|interpolat|concatenat)",
+              "parameteri[sz]ed (query|statement)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/sql-fstring-like-query/control",
+        "pair": "holdout/python/sql-fstring-like-query",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "repository.py",
+            "content": "\"\"\"User lookup helpers backed by SQLite.\"\"\"\n\nimport sqlite3\n\n\ndef find_users_by_email_domain(conn: sqlite3.Connection, domain: str) -> list[tuple[int, str]]:\n    \"\"\"Return (id, email) rows for users whose address ends with the domain.\"\"\"\n    pattern = f\"%@{domain}\"\n    cursor = conn.execute(\n        \"SELECT id, email FROM users WHERE email LIKE ? ORDER BY id\",\n        (pattern,),\n    )\n    return [(int(row[0]), str(row[1])) for row in cursor.fetchall()]\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/subprocess-shell-backup/defect",
+        "pair": "holdout/python/subprocess-shell-backup",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "archive.py",
+            "content": "\"\"\"Project backup helpers.\"\"\"\n\nimport subprocess\nfrom pathlib import Path\n\n\ndef create_backup(project_dir: Path, archive_name: str) -> Path:\n    \"\"\"Tar up a project directory next to it and return the archive path.\"\"\"\n    target = project_dir.parent / f\"{archive_name}.tar.gz\"\n    subprocess.run(\n        f\"tar -czf {target} -C {project_dir} .\",\n        shell=True,\n        check=True,\n    )\n    return target\n",
+            "kind": "defect",
+            "markers": [
+              "S602",
+              "B602",
+              "shell=True",
+              "command injection",
+              "shell injection"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/subprocess-shell-backup/control",
+        "pair": "holdout/python/subprocess-shell-backup",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "archive.py",
+            "content": "\"\"\"Project backup helpers.\"\"\"\n\nimport re\nimport subprocess\nfrom pathlib import Path\n\n_SAFE_NAME = re.compile(r\"^[A-Za-z0-9][A-Za-z0-9_.-]*$\")\n\n\ndef create_backup(project_dir: Path, archive_name: str) -> Path:\n    \"\"\"Tar up a project directory next to it and return the archive path.\"\"\"\n    if not _SAFE_NAME.match(archive_name):\n        raise ValueError(f\"invalid archive name: {archive_name!r}\")\n    target = project_dir.parent / f\"{archive_name}.tar.gz\"\n    subprocess.run(\n        [\"tar\", \"-czf\", str(target), \"-C\", str(project_dir), \".\"],\n        check=True,\n    )\n    return target\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/pickle-session-cookie/defect",
+        "pair": "holdout/python/pickle-session-cookie",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "session.py",
+            "content": "\"\"\"Cookie-backed session decoding.\"\"\"\n\nimport base64\nimport pickle\n\n\ndef load_session(cookie_value: str) -> dict[str, object]:\n    \"\"\"Decode the session dictionary stored in the client cookie.\"\"\"\n    raw = base64.urlsafe_b64decode(cookie_value.encode(\"ascii\"))\n    data = pickle.loads(raw)\n    if not isinstance(data, dict):\n        raise ValueError(\"session cookie is not a mapping\")\n    return data\n",
+            "kind": "defect",
+            "markers": [
+              "S301",
+              "B301",
+              "pickle",
+              "deserializ",
+              "untrusted data"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/pickle-session-cookie/control",
+        "pair": "holdout/python/pickle-session-cookie",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "session.py",
+            "content": "\"\"\"Cookie-backed session decoding.\"\"\"\n\nimport base64\nimport binascii\nimport json\n\n\ndef load_session(cookie_value: str) -> dict[str, object]:\n    \"\"\"Decode the session dictionary stored in the client cookie.\"\"\"\n    try:\n        raw = base64.urlsafe_b64decode(cookie_value.encode(\"ascii\"))\n        data = json.loads(raw.decode(\"utf-8\"))\n    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as exc:\n        raise ValueError(\"malformed session cookie\") from exc\n    if not isinstance(data, dict):\n        raise ValueError(\"session cookie is not a mapping\")\n    return data\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/mutable-default-cart/defect",
+        "pair": "holdout/python/mutable-default-cart",
+        "language": "python",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "cart.py",
+            "content": "\"\"\"Shopping cart helpers.\"\"\"\n\n\ndef add_item(sku: str, quantity: int, items: list[tuple[str, int]] = []) -> list[tuple[str, int]]:\n    \"\"\"Add quantity of sku to the cart, merging with an existing line.\"\"\"\n    for index, (existing, qty) in enumerate(items):\n        if existing == sku:\n            items[index] = (sku, qty + quantity)\n            return items\n    items.append((sku, quantity))\n    return items\n",
+            "kind": "defect",
+            "markers": [
+              "B006",
+              "mutable default",
+              "mutable (data structures? )?(for )?argument",
+              "default argument.*(list|mutable|shared)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/mutable-default-cart/control",
+        "pair": "holdout/python/mutable-default-cart",
+        "language": "python",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "cart.py",
+            "content": "\"\"\"Shopping cart helpers.\"\"\"\n\n\ndef add_item(\n    sku: str, quantity: int, items: list[tuple[str, int]] | None = None\n) -> list[tuple[str, int]]:\n    \"\"\"Add quantity of sku to the cart, merging with an existing line.\"\"\"\n    cart = [] if items is None else items\n    for index, (existing, qty) in enumerate(cart):\n        if existing == sku:\n            cart[index] = (sku, qty + quantity)\n            return cart\n    cart.append((sku, quantity))\n    return cart\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/upload-path-traversal/defect",
+        "pair": "holdout/python/upload-path-traversal",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "downloads.py",
+            "content": "\"\"\"Serve previously uploaded files.\"\"\"\n\nimport os\n\nUPLOAD_ROOT = \"/srv/app/uploads\"\n\n\ndef read_upload(request: dict[str, str]) -> bytes:\n    \"\"\"Return the bytes of the upload named in the request.\"\"\"\n    filename = request[\"filename\"]\n    path = os.path.join(UPLOAD_ROOT, filename)\n    with open(path, \"rb\") as handle:\n        return handle.read()\n",
+            "kind": "defect",
+            "markers": [
+              "traversal",
+              "CWE-22",
+              "(untrusted|user[- ]controlled|unsanitized) (file ?name|path)",
+              "escape.*(upload|root|base) dir"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/upload-path-traversal/control",
+        "pair": "holdout/python/upload-path-traversal",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "downloads.py",
+            "content": "\"\"\"Serve previously uploaded files.\"\"\"\n\nfrom pathlib import Path\n\nUPLOAD_ROOT = Path(\"/srv/app/uploads\").resolve()\n\n\ndef read_upload(request: dict[str, str]) -> bytes:\n    \"\"\"Return the bytes of the upload named in the request.\"\"\"\n    filename = request[\"filename\"]\n    candidate = (UPLOAD_ROOT / filename).resolve()\n    if not candidate.is_relative_to(UPLOAD_ROOT) or not candidate.is_file():\n        raise PermissionError(\"invalid upload path\")\n    return candidate.read_bytes()\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/webhook-signature-eq/defect",
+        "pair": "holdout/python/webhook-signature-eq",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "webhooks.py",
+            "content": "\"\"\"Webhook signature verification.\"\"\"\n\nimport hashlib\nimport hmac\n\n\ndef verify_webhook(secret: bytes, body: bytes, signature_header: str) -> bool:\n    \"\"\"Check the sha256 HMAC signature sent by the payment provider.\"\"\"\n    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()\n    provided = signature_header.removeprefix(\"sha256=\")\n    return expected == provided\n",
+            "kind": "defect",
+            "markers": [
+              "compare_digest",
+              "timing",
+              "constant[- ]time",
+              "side[- ]channel"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/webhook-signature-eq/control",
+        "pair": "holdout/python/webhook-signature-eq",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "webhooks.py",
+            "content": "\"\"\"Webhook signature verification.\"\"\"\n\nimport hashlib\nimport hmac\n\n\ndef verify_webhook(secret: bytes, body: bytes, signature_header: str) -> bool:\n    \"\"\"Check the sha256 HMAC signature sent by the payment provider.\"\"\"\n    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()\n    provided = signature_header.removeprefix(\"sha256=\")\n    return hmac.compare_digest(expected, provided)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/md5-password-hash/defect",
+        "pair": "holdout/python/md5-password-hash",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "auth.py",
+            "content": "\"\"\"Password hashing for local accounts.\"\"\"\n\nimport hashlib\nimport secrets\n\n\ndef hash_password(password: str) -> str:\n    \"\"\"Return a salted hash suitable for storing in the users table.\"\"\"\n    salt = secrets.token_hex(8)\n    digest = hashlib.md5((salt + password).encode(\"utf-8\")).hexdigest()\n    return f\"{salt}${digest}\"\n\n\ndef verify_password(password: str, stored: str) -> bool:\n    \"\"\"Check a candidate password against a stored hash.\"\"\"\n    salt, digest = stored.split(\"$\", 1)\n    return hashlib.md5((salt + password).encode(\"utf-8\")).hexdigest() == digest\n",
+            "kind": "defect",
+            "markers": [
+              "S324",
+              "B303",
+              "B324",
+              "md5",
+              "weak (hash|crypto)",
+              "insecure hash"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/md5-password-hash/control",
+        "pair": "holdout/python/md5-password-hash",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "auth.py",
+            "content": "\"\"\"Password hashing for local accounts.\"\"\"\n\nimport hashlib\nimport hmac\nimport secrets\n\n_ITERATIONS = 600_000\n\n\ndef _derive(password: str, salt: bytes) -> bytes:\n    return hashlib.pbkdf2_hmac(\"sha256\", password.encode(\"utf-8\"), salt, _ITERATIONS)\n\n\ndef hash_password(password: str) -> str:\n    \"\"\"Return a salted hash suitable for storing in the users table.\"\"\"\n    salt = secrets.token_bytes(16)\n    return f\"{salt.hex()}${_derive(password, salt).hex()}\"\n\n\ndef verify_password(password: str, stored: str) -> bool:\n    \"\"\"Check a candidate password against a stored hash.\"\"\"\n    salt_hex, digest_hex = stored.split(\"$\", 1)\n    candidate = _derive(password, bytes.fromhex(salt_hex))\n    return hmac.compare_digest(candidate, bytes.fromhex(digest_hex))\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/optional-profile-attr/defect",
+        "pair": "holdout/python/optional-profile-attr",
+        "language": "python",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "profiles.py",
+            "content": "\"\"\"Greeting text for the account page.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass Profile:\n    user_id: int\n    display_name: str | None\n\n\ndef greeting(profiles: dict[int, Profile], user_id: int) -> str:\n    \"\"\"Build the welcome banner for a signed-in user.\"\"\"\n    profile = profiles.get(user_id)\n    name = profile.display_name.strip()\n    return f\"Welcome back, {name.title()}!\"\n",
+            "kind": "defect",
+            "markers": [
+              "union-attr",
+              "Item \\\"None\\\" of",
+              "has no attribute \\\"(display_name|strip)\\\"",
+              "(possibly|may be|might be|could be) None",
+              "Optional"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/optional-profile-attr/control",
+        "pair": "holdout/python/optional-profile-attr",
+        "language": "python",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "profiles.py",
+            "content": "\"\"\"Greeting text for the account page.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass Profile:\n    user_id: int\n    display_name: str | None\n\n\ndef greeting(profiles: dict[int, Profile], user_id: int) -> str:\n    \"\"\"Build the welcome banner for a signed-in user.\"\"\"\n    profile = profiles.get(user_id)\n    if profile is None or not profile.display_name:\n        return \"Welcome back!\"\n    name = profile.display_name.strip()\n    return f\"Welcome back, {name.title()}!\"\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/tautological-discount-test/defect",
+        "pair": "holdout/python/tautological-discount-test",
+        "language": "python",
+        "family": "test-integrity",
+        "base": {
+          "pricing.py": "\"\"\"Price calculations.\"\"\"\n\n\ndef apply_discount(price: float, percent: float) -> float:\n    \"\"\"Return price reduced by the given percentage.\"\"\"\n    if percent < 0 or percent > 100:\n        raise ValueError(\"percent must be between 0 and 100\")\n    return round(price * (1 - percent / 100), 2)\n"
+        },
+        "steps": [
+          {
+            "path": "tests/test_pricing.py",
+            "content": "import unittest\n\nfrom pricing import apply_discount\n\n\nclass ApplyDiscountTests(unittest.TestCase):\n    def test_ten_percent_discount(self) -> None:\n        result = apply_discount(200.0, 10)\n        expected = apply_discount(200.0, 10)\n        self.assertEqual(result, expected)\n\n    def test_rejects_negative_percent(self) -> None:\n        with self.assertRaises(ValueError):\n            apply_discount(100.0, -5)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+            "kind": "defect",
+            "markers": [
+              "tautolog",
+              "(compares?|asserts?) .*(itself|the same (value|call|expression))",
+              "always (pass|true|succeed)",
+              "expected value .*(computed|derived) (from|by|using) the (function|code) under test",
+              "function under test"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/tautological-discount-test/control",
+        "pair": "holdout/python/tautological-discount-test",
+        "language": "python",
+        "family": "test-integrity",
+        "base": {
+          "pricing.py": "\"\"\"Price calculations.\"\"\"\n\n\ndef apply_discount(price: float, percent: float) -> float:\n    \"\"\"Return price reduced by the given percentage.\"\"\"\n    if percent < 0 or percent > 100:\n        raise ValueError(\"percent must be between 0 and 100\")\n    return round(price * (1 - percent / 100), 2)\n"
+        },
+        "steps": [
+          {
+            "path": "tests/test_pricing.py",
+            "content": "import unittest\n\nfrom pricing import apply_discount\n\n\nclass ApplyDiscountTests(unittest.TestCase):\n    def test_ten_percent_discount(self) -> None:\n        result = apply_discount(200.0, 10)\n        self.assertAlmostEqual(result, 180.0)\n\n    def test_rejects_negative_percent(self) -> None:\n        with self.assertRaises(ValueError):\n            apply_discount(100.0, -5)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/pagination-off-by-one/defect",
+        "pair": "holdout/python/pagination-off-by-one",
+        "language": "python",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "pagination.py",
+            "content": "\"\"\"Pagination helper for list endpoints.\"\"\"\n\nfrom collections.abc import Sequence\nfrom typing import TypeVar\n\nT = TypeVar(\"T\")\n\n\ndef paginate(items: Sequence[T], page: int, page_size: int) -> list[T]:\n    \"\"\"Return the items on a 1-indexed page.\"\"\"\n    if page < 1 or page_size < 1:\n        raise ValueError(\"page and page_size must be positive\")\n    start = page * page_size\n    return list(items[start : start + page_size])\n",
+            "kind": "defect",
+            "markers": [
+              "off[- ]by[- ]one",
+              "first page",
+              "\\(page ?- ?1\\)",
+              "1-indexed.*(offset|skip|start)",
+              "skips? (the )?first"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/python/pagination-off-by-one/control",
+        "pair": "holdout/python/pagination-off-by-one",
+        "language": "python",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "pagination.py",
+            "content": "\"\"\"Pagination helper for list endpoints.\"\"\"\n\nfrom collections.abc import Sequence\nfrom typing import TypeVar\n\nT = TypeVar(\"T\")\n\n\ndef paginate(items: Sequence[T], page: int, page_size: int) -> list[T]:\n    \"\"\"Return the items on a 1-indexed page.\"\"\"\n    if page < 1 or page_size < 1:\n        raise ValueError(\"page and page_size must be positive\")\n    start = (page - 1) * page_size\n    return list(items[start : start + page_size])\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/innerhtml-comment-render/defect",
+        "pair": "holdout/typescript/innerhtml-comment-render",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/comments.ts",
+            "content": "export interface Comment {\n  author: string;\n  body: string;\n  postedAt: string;\n}\n\nexport function renderComments(list: HTMLUListElement, comments: readonly Comment[]): void {\n  list.innerHTML = \"\";\n  for (const comment of comments) {\n    const item = document.createElement(\"li\");\n    item.innerHTML = `<strong>${comment.author}</strong> <time>${comment.postedAt}</time><p>${comment.body}</p>`;\n    list.appendChild(item);\n  }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "XSS",
+              "cross[- ]site scripting",
+              "no-unsanitized",
+              "innerHTML.*(untrusted|user|interpolat|unsanitized|unescaped)",
+              "(unsanitized|unescaped) (html|input|data)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/innerhtml-comment-render/control",
+        "pair": "holdout/typescript/innerhtml-comment-render",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/comments.ts",
+            "content": "export interface Comment {\n  author: string;\n  body: string;\n  postedAt: string;\n}\n\nexport function renderComments(list: HTMLUListElement, comments: readonly Comment[]): void {\n  list.innerHTML = \"\";\n  for (const comment of comments) {\n    const item = document.createElement(\"li\");\n    const author = document.createElement(\"strong\");\n    author.textContent = comment.author;\n    const time = document.createElement(\"time\");\n    time.textContent = comment.postedAt;\n    const body = document.createElement(\"p\");\n    body.textContent = comment.body;\n    item.append(author, \" \", time, body);\n    list.appendChild(item);\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/floating-promise-remove-draft/defect",
+        "pair": "holdout/typescript/floating-promise-remove-draft",
+        "language": "typescript",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/drafts.ts",
+            "content": "export interface DraftStore {\n  save(id: string, body: string): Promise<void>;\n  remove(id: string): Promise<void>;\n}\n\nexport async function publishDraft(\n  store: DraftStore,\n  id: string,\n  body: string,\n  publish: (body: string) => Promise<string>,\n): Promise<string> {\n  const url = await publish(body);\n  store.remove(id);\n  return url;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "no-floating-promises",
+              "floating promise",
+              "not awaited",
+              "missing await",
+              "unhandled (promise|rejection)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/floating-promise-remove-draft/control",
+        "pair": "holdout/typescript/floating-promise-remove-draft",
+        "language": "typescript",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/drafts.ts",
+            "content": "export interface DraftStore {\n  save(id: string, body: string): Promise<void>;\n  remove(id: string): Promise<void>;\n}\n\nexport async function publishDraft(\n  store: DraftStore,\n  id: string,\n  body: string,\n  publish: (body: string) => Promise<string>,\n): Promise<string> {\n  const url = await publish(body);\n  await store.remove(id);\n  return url;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/nullish-port-type-mismatch/defect",
+        "pair": "holdout/typescript/nullish-port-type-mismatch",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/config.ts",
+            "content": "export interface ServerConfig {\n  host: string;\n  port: number;\n  debug: boolean;\n}\n\nexport function parseConfig(search: string): ServerConfig {\n  const params = new URLSearchParams(search);\n  const port: number = params.get(\"port\") ?? 8080;\n  return {\n    host: params.get(\"host\") ?? \"localhost\",\n    port,\n    debug: params.get(\"debug\") === \"true\",\n  };\n}\n",
+            "kind": "defect",
+            "markers": [
+              "TS2322",
+              "not assignable to type 'number'",
+              "string \\| (number|\\d+)",
+              "type mismatch"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/nullish-port-type-mismatch/control",
+        "pair": "holdout/typescript/nullish-port-type-mismatch",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/config.ts",
+            "content": "export interface ServerConfig {\n  host: string;\n  port: number;\n  debug: boolean;\n}\n\nexport function parseConfig(search: string): ServerConfig {\n  const params = new URLSearchParams(search);\n  const parsedPort = Number.parseInt(params.get(\"port\") ?? \"\", 10);\n  const port = Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : 8080;\n  return {\n    host: params.get(\"host\") ?? \"localhost\",\n    port,\n    debug: params.get(\"debug\") === \"true\",\n  };\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/login-open-redirect/defect",
+        "pair": "holdout/typescript/login-open-redirect",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/login.ts",
+            "content": "export function redirectAfterLogin(location: Location): void {\n  const params = new URLSearchParams(location.search);\n  const next = params.get(\"next\") ?? \"/dashboard\";\n  location.assign(next);\n}\n",
+            "kind": "defect",
+            "markers": [
+              "open redirect",
+              "unvalidated redirect",
+              "CWE-601",
+              "redirect.*(untrusted|user[- ]controlled|unvalidated|attacker)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/login-open-redirect/control",
+        "pair": "holdout/typescript/login-open-redirect",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/login.ts",
+            "content": "const FALLBACK = \"/dashboard\";\n\nexport function safeRedirectTarget(raw: string | null, origin: string): string {\n  if (raw === null) {\n    return FALLBACK;\n  }\n  try {\n    const url = new URL(raw, origin);\n    if (url.origin !== origin) {\n      return FALLBACK;\n    }\n    return `${url.pathname}${url.search}${url.hash}`;\n  } catch {\n    return FALLBACK;\n  }\n}\n\nexport function redirectAfterLogin(location: Location): void {\n  const params = new URLSearchParams(location.search);\n  location.assign(safeRedirectTarget(params.get(\"next\"), location.origin));\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/new-function-formula/defect",
+        "pair": "holdout/typescript/new-function-formula",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/formula.ts",
+            "content": "export type Row = Record<string, number>;\n\nexport function evaluateFormula(formula: string, row: Row): number {\n  const names = Object.keys(row);\n  const compiled = new Function(...names, `return (${formula});`) as (...args: number[]) => unknown;\n  const result = compiled(...names.map((name) => row[name]));\n  if (typeof result !== \"number\" || Number.isNaN(result)) {\n    throw new Error(`Formula did not produce a number: ${formula}`);\n  }\n  return result;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "no-new-func",
+              "no-implied-eval",
+              "noGlobalEval",
+              "new Function",
+              "code injection",
+              "\\beval\\b"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/new-function-formula/control",
+        "pair": "holdout/typescript/new-function-formula",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/formula.ts",
+            "content": "export type Row = Record<string, number>;\n\nconst TOKEN = /\\s*(?:(\\d+(?:\\.\\d+)?)|([A-Za-z_]\\w*)|([-+*/()]))/y;\n\nfunction tokenize(formula: string): string[] {\n  const tokens: string[] = [];\n  TOKEN.lastIndex = 0;\n  while (TOKEN.lastIndex < formula.length) {\n    const match = TOKEN.exec(formula);\n    if (match === null) {\n      if (formula.slice(TOKEN.lastIndex).trim() === \"\") break;\n      throw new Error(`Unexpected input at ${TOKEN.lastIndex}`);\n    }\n    tokens.push(match[1] ?? match[2] ?? match[3] ?? \"\");\n  }\n  return tokens;\n}\n\nexport function evaluateFormula(formula: string, row: Row): number {\n  const tokens = tokenize(formula);\n  let pos = 0;\n\n  const primary = (): number => {\n    const token = tokens[pos++];\n    if (token === undefined) throw new Error(\"Unexpected end of formula\");\n    if (token === \"(\") {\n      const value = sum();\n      if (tokens[pos++] !== \")\") throw new Error(\"Expected )\");\n      return value;\n    }\n    if (token === \"-\") return -primary();\n    if (/^\\d/.test(token)) return Number(token);\n    if (Object.hasOwn(row, token)) return row[token] ?? 0;\n    throw new Error(`Unknown column: ${token}`);\n  };\n\n  const product = (): number => {\n    let value = primary();\n    while (tokens[pos] === \"*\" || tokens[pos] === \"/\") {\n      value = tokens[pos++] === \"*\" ? value * primary() : value / primary();\n    }\n    return value;\n  };\n\n  const sum = (): number => {\n    let value = product();\n    while (tokens[pos] === \"+\" || tokens[pos] === \"-\") {\n      value = tokens[pos++] === \"+\" ? value + product() : value - product();\n    }\n    return value;\n  };\n\n  const result = sum();\n  if (pos !== tokens.length) throw new Error(\"Trailing tokens in formula\");\n  return result;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/non-exhaustive-shipping-switch/defect",
+        "pair": "holdout/typescript/non-exhaustive-shipping-switch",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/shipping.ts",
+            "content": "export type ShippingMethod = \"standard\" | \"express\" | \"overnight\" | \"pickup\";\n\nexport function shippingCost(method: ShippingMethod, weightKg: number): number {\n  switch (method) {\n    case \"standard\":\n      return 4.99 + weightKg * 0.5;\n    case \"express\":\n      return 9.99 + weightKg * 0.75;\n    case \"overnight\":\n      return 19.99 + weightKg;\n  }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "TS2366",
+              "TS7030",
+              "lacks ending return",
+              "not all code paths",
+              "switch-exhaustiveness",
+              "\\bpickup\\b"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/non-exhaustive-shipping-switch/control",
+        "pair": "holdout/typescript/non-exhaustive-shipping-switch",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/shipping.ts",
+            "content": "export type ShippingMethod = \"standard\" | \"express\" | \"overnight\" | \"pickup\";\n\nexport function shippingCost(method: ShippingMethod, weightKg: number): number {\n  switch (method) {\n    case \"standard\":\n      return 4.99 + weightKg * 0.5;\n    case \"express\":\n      return 9.99 + weightKg * 0.75;\n    case \"overnight\":\n      return 19.99 + weightKg;\n    case \"pickup\":\n      return 0;\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/deep-merge-prototype-pollution/defect",
+        "pair": "holdout/typescript/deep-merge-prototype-pollution",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/merge.ts",
+            "content": "export type PlainObject = { [key: string]: unknown };\n\nfunction isPlainObject(value: unknown): value is PlainObject {\n  return typeof value === \"object\" && value !== null && !Array.isArray(value);\n}\n\nexport function deepMerge(target: PlainObject, source: PlainObject): PlainObject {\n  for (const key of Object.keys(source)) {\n    const incoming = source[key];\n    const existing = target[key];\n    if (isPlainObject(incoming) && isPlainObject(existing)) {\n      deepMerge(existing, incoming);\n    } else {\n      target[key] = incoming;\n    }\n  }\n  return target;\n}\n\nexport function applyUserSettings(defaults: PlainObject, json: string): PlainObject {\n  return deepMerge(defaults, JSON.parse(json) as PlainObject);\n}\n",
+            "kind": "defect",
+            "markers": [
+              "prototype pollution",
+              "__proto__",
+              "CWE-1321",
+              "pollut"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/deep-merge-prototype-pollution/control",
+        "pair": "holdout/typescript/deep-merge-prototype-pollution",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/merge.ts",
+            "content": "export type PlainObject = { [key: string]: unknown };\n\nconst FORBIDDEN_KEYS = new Set([\"__proto__\", \"constructor\", \"prototype\"]);\n\nfunction isPlainObject(value: unknown): value is PlainObject {\n  return typeof value === \"object\" && value !== null && !Array.isArray(value);\n}\n\nexport function deepMerge(target: PlainObject, source: PlainObject): PlainObject {\n  for (const key of Object.keys(source)) {\n    if (FORBIDDEN_KEYS.has(key)) {\n      continue;\n    }\n    const incoming = source[key];\n    const existing = Object.hasOwn(target, key) ? target[key] : undefined;\n    if (isPlainObject(incoming) && isPlainObject(existing)) {\n      deepMerge(existing, incoming);\n    } else {\n      target[key] = incoming;\n    }\n  }\n  return target;\n}\n\nexport function applyUserSettings(defaults: PlainObject, json: string): PlainObject {\n  const parsed: unknown = JSON.parse(json);\n  return isPlainObject(parsed) ? deepMerge(defaults, parsed) : defaults;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/postmessage-missing-origin-check/defect",
+        "pair": "holdout/typescript/postmessage-missing-origin-check",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/bridge.ts",
+            "content": "interface AuthMessage {\n  type: \"auth\";\n  token: string;\n}\n\nfunction isAuthMessage(data: unknown): data is AuthMessage {\n  return (\n    typeof data === \"object\" &&\n    data !== null &&\n    (data as { type?: unknown }).type === \"auth\" &&\n    typeof (data as { token?: unknown }).token === \"string\"\n  );\n}\n\nexport function listenForAuth(storage: Storage): void {\n  window.addEventListener(\"message\", (event: MessageEvent<unknown>) => {\n    if (isAuthMessage(event.data)) {\n      storage.setItem(\"session_token\", event.data.token);\n    }\n  });\n}\n",
+            "kind": "defect",
+            "markers": [
+              "event\\.origin",
+              "origin (check|validation|verif)",
+              "(verify|check|validate)s? (the )?(message )?origin",
+              "postMessage",
+              "(untrusted|any) origin"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/postmessage-missing-origin-check/control",
+        "pair": "holdout/typescript/postmessage-missing-origin-check",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/bridge.ts",
+            "content": "interface AuthMessage {\n  type: \"auth\";\n  token: string;\n}\n\nconst TRUSTED_ORIGIN = \"https://auth.example.com\";\n\nfunction isAuthMessage(data: unknown): data is AuthMessage {\n  return (\n    typeof data === \"object\" &&\n    data !== null &&\n    (data as { type?: unknown }).type === \"auth\" &&\n    typeof (data as { token?: unknown }).token === \"string\"\n  );\n}\n\nexport function listenForAuth(storage: Storage): void {\n  window.addEventListener(\"message\", (event: MessageEvent<unknown>) => {\n    if (event.origin !== TRUSTED_ORIGIN) {\n      return;\n    }\n    if (isAuthMessage(event.data)) {\n      storage.setItem(\"session_token\", event.data.token);\n    }\n  });\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/numeric-sort-without-comparator/defect",
+        "pair": "holdout/typescript/numeric-sort-without-comparator",
+        "language": "typescript",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/leaderboard.ts",
+            "content": "export interface Entry {\n  player: string;\n  score: number;\n}\n\nexport function topScores(entries: readonly Entry[], limit: number): number[] {\n  const scores = entries.map((entry) => entry.score);\n  return scores.sort().reverse().slice(0, limit);\n}\n",
+            "kind": "defect",
+            "markers": [
+              "require-array-sort-compare",
+              "useArraySortCompare",
+              "lexicograph",
+              "(compare|comparator) (function|fn|callback)",
+              "sort(s|ed)? .*as strings"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/numeric-sort-without-comparator/control",
+        "pair": "holdout/typescript/numeric-sort-without-comparator",
+        "language": "typescript",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/leaderboard.ts",
+            "content": "export interface Entry {\n  player: string;\n  score: number;\n}\n\nexport function topScores(entries: readonly Entry[], limit: number): number[] {\n  const scores = entries.map((entry) => entry.score);\n  return scores.sort((a, b) => b - a).slice(0, limit);\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/hardcoded-stripe-secret/defect",
+        "pair": "holdout/typescript/hardcoded-stripe-secret",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/payments.ts",
+            "content": "const STRIPE_SECRET_KEY = \"sk_live_51Hq8ZtKf2LmX9vQwR3pYb7Nc\";\n\nexport async function createCharge(amountCents: number, currency: string): Promise<string> {\n  const response = await fetch(\"https://api.stripe.com/v1/charges\", {\n    method: \"POST\",\n    headers: {\n      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,\n      \"Content-Type\": \"application/x-www-form-urlencoded\",\n    },\n    body: new URLSearchParams({ amount: String(amountCents), currency }),\n  });\n  if (!response.ok) {\n    throw new Error(`Charge failed with status ${response.status}`);\n  }\n  const data = (await response.json()) as { id: string };\n  return data.id;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "hard[- ]?coded",
+              "secret",
+              "api[ _-]?key",
+              "credential",
+              "sk_live"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/typescript/hardcoded-stripe-secret/control",
+        "pair": "holdout/typescript/hardcoded-stripe-secret",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/payments.ts",
+            "content": "export async function createCharge(amountCents: number, currency: string): Promise<string> {\n  const response = await fetch(\"/api/charges\", {\n    method: \"POST\",\n    credentials: \"same-origin\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify({ amountCents, currency }),\n  });\n  if (!response.ok) {\n    throw new Error(`Charge failed with status ${response.status}`);\n  }\n  const data = (await response.json()) as { id: string };\n  return data.id;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/focused-slugify-test/defect",
+        "pair": "holdout/javascript/focused-slugify-test",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "slugify.js": "export function slugify(input) {\n  return input\n    .toLowerCase()\n    .trim()\n    .replace(/[^a-z0-9]+/g, \"-\")\n    .replace(/^-+|-+$/g, \"\");\n}\n"
+        },
+        "steps": [
+          {
+            "path": "slugify.test.js",
+            "content": "import { describe, it, expect } from \"vitest\";\nimport { slugify } from \"./slugify.js\";\n\ndescribe(\"slugify\", () => {\n  it.only(\"lowercases and hyphenates words\", () => {\n    expect(slugify(\"Hello World\")).toBe(\"hello-world\");\n  });\n\n  it(\"strips leading and trailing separators\", () => {\n    expect(slugify(\"  --Release Notes--  \")).toBe(\"release-notes\");\n  });\n\n  it(\"collapses punctuation runs\", () => {\n    expect(slugify(\"Q3: Revenue & Costs!!\")).toBe(\"q3-revenue-costs\");\n  });\n});\n",
+            "kind": "defect",
+            "markers": [
+              "no-focused-tests",
+              "no-only-tests",
+              "no-exclusive-tests",
+              "focused test",
+              "\\.only"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/focused-slugify-test/control",
+        "pair": "holdout/javascript/focused-slugify-test",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "slugify.js": "export function slugify(input) {\n  return input\n    .toLowerCase()\n    .trim()\n    .replace(/[^a-z0-9]+/g, \"-\")\n    .replace(/^-+|-+$/g, \"\");\n}\n"
+        },
+        "steps": [
+          {
+            "path": "slugify.test.js",
+            "content": "import { describe, it, expect } from \"vitest\";\nimport { slugify } from \"./slugify.js\";\n\ndescribe(\"slugify\", () => {\n  it(\"lowercases and hyphenates words\", () => {\n    expect(slugify(\"Hello World\")).toBe(\"hello-world\");\n  });\n\n  it(\"strips leading and trailing separators\", () => {\n    expect(slugify(\"  --Release Notes--  \")).toBe(\"release-notes\");\n  });\n\n  it(\"collapses punctuation runs\", () => {\n    expect(slugify(\"Q3: Revenue & Costs!!\")).toBe(\"q3-revenue-costs\");\n  });\n});\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/assertion-free-currency-test/defect",
+        "pair": "holdout/javascript/assertion-free-currency-test",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "currency.js": "const formatter = new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\" });\n\nexport function formatCents(cents) {\n  return formatter.format(cents / 100);\n}\n"
+        },
+        "steps": [
+          {
+            "path": "currency.test.js",
+            "content": "import { describe, it, expect } from \"vitest\";\nimport { formatCents } from \"./currency.js\";\n\ndescribe(\"formatCents\", () => {\n  it(\"formats cents as dollars\", () => {\n    const formatted = formatCents(123456);\n    expect(formatted);\n  });\n\n  it(\"handles zero\", () => {\n    formatCents(0);\n  });\n});\n",
+            "kind": "defect",
+            "markers": [
+              "expect-expect",
+              "valid-expect",
+              "no assertions?",
+              "assertion[- ]free",
+              "without (an |any )?(assertion|matcher)",
+              "matcher"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/assertion-free-currency-test/control",
+        "pair": "holdout/javascript/assertion-free-currency-test",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "currency.js": "const formatter = new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\" });\n\nexport function formatCents(cents) {\n  return formatter.format(cents / 100);\n}\n"
+        },
+        "steps": [
+          {
+            "path": "currency.test.js",
+            "content": "import { describe, it, expect } from \"vitest\";\nimport { formatCents } from \"./currency.js\";\n\ndescribe(\"formatCents\", () => {\n  it(\"formats cents as dollars\", () => {\n    const formatted = formatCents(123456);\n    expect(formatted).toBe(\"$1,234.56\");\n  });\n\n  it(\"handles zero\", () => {\n    expect(formatCents(0)).toBe(\"$0.00\");\n  });\n});\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/exec-thumbnail-command/defect",
+        "pair": "holdout/javascript/exec-thumbnail-command",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "thumbnail.js",
+            "content": "import { exec } from \"node:child_process\";\nimport { promisify } from \"node:util\";\n\nconst run = promisify(exec);\n\nexport async function makeThumbnail(inputPath, width) {\n  const output = inputPath.replace(/\\.(\\w+)$/, \".thumb.$1\");\n  await run(`convert \"${inputPath}\" -resize ${width}x \"${output}\"`);\n  return output;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "command injection",
+              "detect-child-process",
+              "shell (injection|metachar)",
+              "child_process.*exec",
+              "CWE-78"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/exec-thumbnail-command/control",
+        "pair": "holdout/javascript/exec-thumbnail-command",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "thumbnail.js",
+            "content": "import { execFile } from \"node:child_process\";\nimport { promisify } from \"node:util\";\n\nconst run = promisify(execFile);\n\nexport async function makeThumbnail(inputPath, width) {\n  if (!Number.isInteger(width) || width <= 0) {\n    throw new RangeError(\"width must be a positive integer\");\n  }\n  if (inputPath.startsWith(\"-\")) {\n    throw new Error(\"input path must not start with '-'\");\n  }\n  const output = inputPath.replace(/\\.(\\w+)$/, \".thumb.$1\");\n  await run(\"convert\", [inputPath, \"-resize\", `${width}x`, output]);\n  return output;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/link-preview-ssrf/defect",
+        "pair": "holdout/javascript/link-preview-ssrf",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "preview.js",
+            "content": "export async function fetchLinkPreview(req, res) {\n  const target = req.query.url;\n  const response = await fetch(target, { redirect: \"follow\" });\n  const html = await response.text();\n  const title = /<title>([^<]*)<\\/title>/i.exec(html)?.[1] ?? target;\n  res.json({ url: target, title });\n}\n",
+            "kind": "defect",
+            "markers": [
+              "SSRF",
+              "server[- ]side request forgery",
+              "CWE-918",
+              "(untrusted|user[- ]controlled|user[- ]supplied|arbitrary) url"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/javascript/link-preview-ssrf/control",
+        "pair": "holdout/javascript/link-preview-ssrf",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "preview.js",
+            "content": "const ALLOWED_HOSTS = new Set([\"github.com\", \"www.youtube.com\", \"en.wikipedia.org\"]);\n\nexport async function fetchLinkPreview(req, res) {\n  let target;\n  try {\n    target = new URL(String(req.query.url));\n  } catch {\n    res.status(400).json({ error: \"invalid url\" });\n    return;\n  }\n  if (target.protocol !== \"https:\" || !ALLOWED_HOSTS.has(target.hostname)) {\n    res.status(400).json({ error: \"host not allowed\" });\n    return;\n  }\n  const response = await fetch(target, { redirect: \"error\" });\n  const html = await response.text();\n  const title = /<title>([^<]*)<\\/title>/i.exec(html)?.[1] ?? target.href;\n  res.json({ url: target.href, title });\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/sprintf-sql-query/defect",
+        "pair": "holdout/go/sprintf-sql-query",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"context\"\n\t\"database/sql\"\n\t\"fmt\"\n)\n\n// Order is a row from the orders table.\ntype Order struct {\n\tID     int64\n\tStatus string\n}\n\nfunc ordersByStatus(ctx context.Context, db *sql.DB, status string) ([]Order, error) {\n\tquery := fmt.Sprintf(\"SELECT id, status FROM orders WHERE status = '%s' ORDER BY id\", status)\n\trows, err := db.QueryContext(ctx, query)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"query orders: %w\", err)\n\t}\n\tdefer rows.Close()\n\n\tvar out []Order\n\tfor rows.Next() {\n\t\tvar o Order\n\t\tif err := rows.Scan(&o.ID, &o.Status); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, o)\n\t}\n\treturn out, rows.Err()\n}\n\nvar _ = ordersByStatus\n\nfunc main() {}\n",
+            "kind": "defect",
+            "markers": [
+              "G201",
+              "G202",
+              "sql injection",
+              "sql string (formatting|concatenation)",
+              "Sprintf.*(query|sql)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/sprintf-sql-query/control",
+        "pair": "holdout/go/sprintf-sql-query",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"context\"\n\t\"database/sql\"\n\t\"fmt\"\n)\n\n// Order is a row from the orders table.\ntype Order struct {\n\tID     int64\n\tStatus string\n}\n\nfunc ordersByStatus(ctx context.Context, db *sql.DB, status string) ([]Order, error) {\n\trows, err := db.QueryContext(ctx, \"SELECT id, status FROM orders WHERE status = $1 ORDER BY id\", status)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"query orders: %w\", err)\n\t}\n\tdefer rows.Close()\n\n\tvar out []Order\n\tfor rows.Next() {\n\t\tvar o Order\n\t\tif err := rows.Scan(&o.ID, &o.Status); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, o)\n\t}\n\treturn out, rows.Err()\n}\n\nvar _ = ordersByStatus\n\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/unchecked-json-unmarshal/defect",
+        "pair": "holdout/go/unchecked-json-unmarshal",
+        "language": "go",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n)\n\n// Config holds runtime settings.\ntype Config struct {\n\tAddr    string `json:\"addr\"`\n\tWorkers int    `json:\"workers\"`\n}\n\nfunc loadConfig(path string) (Config, error) {\n\tcfg := Config{Addr: \":8080\", Workers: 4}\n\tdata, err := os.ReadFile(path)\n\tif err != nil {\n\t\treturn cfg, fmt.Errorf(\"read config: %w\", err)\n\t}\n\tjson.Unmarshal(data, &cfg)\n\treturn cfg, nil\n}\n\nvar _ = loadConfig\n\nfunc main() {}\n",
+            "kind": "defect",
+            "markers": [
+              "errcheck",
+              "G104",
+              "unchecked error",
+              "error return value.*(not checked|unchecked|ignored)",
+              "ignor(ed|es|ing) (the )?(returned )?error"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/unchecked-json-unmarshal/control",
+        "pair": "holdout/go/unchecked-json-unmarshal",
+        "language": "go",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n)\n\n// Config holds runtime settings.\ntype Config struct {\n\tAddr    string `json:\"addr\"`\n\tWorkers int    `json:\"workers\"`\n}\n\nfunc loadConfig(path string) (Config, error) {\n\tcfg := Config{Addr: \":8080\", Workers: 4}\n\tdata, err := os.ReadFile(path)\n\tif err != nil {\n\t\treturn cfg, fmt.Errorf(\"read config: %w\", err)\n\t}\n\tif err := json.Unmarshal(data, &cfg); err != nil {\n\t\treturn cfg, fmt.Errorf(\"parse config: %w\", err)\n\t}\n\treturn cfg, nil\n}\n\nvar _ = loadConfig\n\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/defer-close-in-loop/defect",
+        "pair": "holdout/go/defer-close-in-loop",
+        "language": "go",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"bufio\"\n\t\"os\"\n)\n\nfunc countLines(paths []string) (int, error) {\n\ttotal := 0\n\tfor _, p := range paths {\n\t\tf, err := os.Open(p)\n\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n\t\tdefer f.Close()\n\n\t\tsc := bufio.NewScanner(f)\n\t\tfor sc.Scan() {\n\t\t\ttotal++\n\t\t}\n\t\tif err := sc.Err(); err != nil {\n\t\t\treturn 0, err\n\t\t}\n\t}\n\treturn total, nil\n}\n\nvar _ = countLines\n\nfunc main() {}\n",
+            "kind": "defect",
+            "markers": [
+              "defer.*(in|inside) (a |the )?(for )?loop",
+              "deferInLoop",
+              "file (descriptor|handle)s? (leak|remain|stay|kept)",
+              "resource leak",
+              "not closed until"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/defer-close-in-loop/control",
+        "pair": "holdout/go/defer-close-in-loop",
+        "language": "go",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"bufio\"\n\t\"os\"\n)\n\nfunc countFileLines(p string) (n int, err error) {\n\tf, err := os.Open(p)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer func() {\n\t\tif cerr := f.Close(); cerr != nil && err == nil {\n\t\t\terr = cerr\n\t\t}\n\t}()\n\n\tsc := bufio.NewScanner(f)\n\tfor sc.Scan() {\n\t\tn++\n\t}\n\treturn n, sc.Err()\n}\n\nfunc countLines(paths []string) (int, error) {\n\ttotal := 0\n\tfor _, p := range paths {\n\t\tn, err := countFileLines(p)\n\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n\t\ttotal += n\n\t}\n\treturn total, nil\n}\n\nvar _ = countLines\n\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/tls-insecure-skip-verify/defect",
+        "pair": "holdout/go/tls-insecure-skip-verify",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"crypto/tls\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc newAPIClient(timeout time.Duration) *http.Client {\n\ttransport := &http.Transport{\n\t\tTLSClientConfig: &tls.Config{InsecureSkipVerify: true},\n\t\tMaxIdleConns:    20,\n\t\tIdleConnTimeout: 90 * time.Second,\n\t}\n\treturn &http.Client{Transport: transport, Timeout: timeout}\n}\n\nvar _ = newAPIClient\n\nfunc main() {}\n",
+            "kind": "defect",
+            "markers": [
+              "G402",
+              "InsecureSkipVerify",
+              "certificate (verification|validation)",
+              "TLS (verification|validation) (is )?disabled"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/tls-insecure-skip-verify/control",
+        "pair": "holdout/go/tls-insecure-skip-verify",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"crypto/tls\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc newAPIClient(timeout time.Duration) *http.Client {\n\ttransport := &http.Transport{\n\t\tTLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},\n\t\tMaxIdleConns:    20,\n\t\tIdleConnTimeout: 90 * time.Second,\n\t}\n\treturn &http.Client{Transport: transport, Timeout: timeout}\n}\n\nvar _ = newAPIClient\n\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/mutex-value-receiver/defect",
+        "pair": "holdout/go/mutex-value-receiver",
+        "language": "go",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport \"sync\"\n\n// RateCounter counts hits per key.\ntype RateCounter struct {\n\tmu   sync.Mutex\n\thits map[string]int\n}\n\n// NewRateCounter returns an empty counter.\nfunc NewRateCounter() *RateCounter {\n\treturn &RateCounter{hits: map[string]int{}}\n}\n\n// Hit records a hit for key and returns the new count.\nfunc (c RateCounter) Hit(key string) int {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\tc.hits[key]++\n\treturn c.hits[key]\n}\n\nfunc main() {\n\tc := NewRateCounter()\n\t_ = c.Hit(\"home\")\n}\n",
+            "kind": "defect",
+            "markers": [
+              "copylocks",
+              "passes lock by value",
+              "cop(y|ies|ied) (a |the )?(lock|mutex)",
+              "sync\\.Mutex.*(cop|by value)",
+              "pointer receiver"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/mutex-value-receiver/control",
+        "pair": "holdout/go/mutex-value-receiver",
+        "language": "go",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport \"sync\"\n\n// RateCounter counts hits per key.\ntype RateCounter struct {\n\tmu   sync.Mutex\n\thits map[string]int\n}\n\n// NewRateCounter returns an empty counter.\nfunc NewRateCounter() *RateCounter {\n\treturn &RateCounter{hits: map[string]int{}}\n}\n\n// Hit records a hit for key and returns the new count.\nfunc (c *RateCounter) Hit(key string) int {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\tc.hits[key]++\n\treturn c.hits[key]\n}\n\nfunc main() {\n\tc := NewRateCounter()\n\t_ = c.Hit(\"home\")\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/report-download-traversal/defect",
+        "pair": "holdout/go/report-download-traversal",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"net/http\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\nconst reportDir = \"/var/lib/app/reports\"\n\nfunc downloadReport(w http.ResponseWriter, r *http.Request) {\n\tname := r.URL.Query().Get(\"name\")\n\tdata, err := os.ReadFile(filepath.Join(reportDir, name))\n\tif err != nil {\n\t\thttp.Error(w, \"report not found\", http.StatusNotFound)\n\t\treturn\n\t}\n\tw.Header().Set(\"Content-Type\", \"application/pdf\")\n\t_, _ = w.Write(data)\n}\n\nfunc main() {\n\thttp.HandleFunc(\"/reports\", downloadReport)\n}\n",
+            "kind": "defect",
+            "markers": [
+              "G304",
+              "path traversal",
+              "directory traversal",
+              "file inclusion",
+              "CWE-22"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/report-download-traversal/control",
+        "pair": "holdout/go/report-download-traversal",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"net/http\"\n\t\"os\"\n)\n\nconst reportDir = \"/var/lib/app/reports\"\n\nfunc downloadReport(w http.ResponseWriter, r *http.Request) {\n\tname := r.URL.Query().Get(\"name\")\n\troot, err := os.OpenRoot(reportDir)\n\tif err != nil {\n\t\thttp.Error(w, \"reports unavailable\", http.StatusInternalServerError)\n\t\treturn\n\t}\n\tdefer func() { _ = root.Close() }()\n\n\tdata, err := root.ReadFile(name)\n\tif err != nil {\n\t\thttp.Error(w, \"report not found\", http.StatusNotFound)\n\t\treturn\n\t}\n\tw.Header().Set(\"Content-Type\", \"application/pdf\")\n\t_, _ = w.Write(data)\n}\n\nfunc main() {\n\thttp.HandleFunc(\"/reports\", downloadReport)\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/nil-map-word-tally/defect",
+        "pair": "holdout/go/nil-map-word-tally",
+        "language": "go",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport \"strings\"\n\nfunc tallyWords(words []string) map[string]int {\n\tvar counts map[string]int\n\tfor _, w := range words {\n\t\tkey := strings.ToLower(strings.TrimSpace(w))\n\t\tif key == \"\" {\n\t\t\tcontinue\n\t\t}\n\t\tcounts[key]++\n\t}\n\treturn counts\n}\n\nvar _ = tallyWords\n\nfunc main() {}\n",
+            "kind": "defect",
+            "markers": [
+              "SA5000",
+              "nil map",
+              "assignment to (entry in )?nil map",
+              "make\\(map"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/nil-map-word-tally/control",
+        "pair": "holdout/go/nil-map-word-tally",
+        "language": "go",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport \"strings\"\n\nfunc tallyWords(words []string) map[string]int {\n\tcounts := make(map[string]int, len(words))\n\tfor _, w := range words {\n\t\tkey := strings.ToLower(strings.TrimSpace(w))\n\t\tif key == \"\" {\n\t\t\tcontinue\n\t\t}\n\t\tcounts[key]++\n\t}\n\treturn counts\n}\n\nvar _ = tallyWords\n\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/inverted-session-expiry/defect",
+        "pair": "holdout/go/inverted-session-expiry",
+        "language": "go",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"errors\"\n\t\"time\"\n)\n\n// ErrSessionExpired is returned for sessions past their expiry.\nvar ErrSessionExpired = errors.New(\"session expired\")\n\n// Session is an authenticated browser session.\ntype Session struct {\n\tUserID    string\n\tExpiresAt time.Time\n}\n\nfunc validateSession(s Session, now time.Time) error {\n\tif s.UserID == \"\" {\n\t\treturn errors.New(\"session has no user\")\n\t}\n\tif now.Before(s.ExpiresAt) {\n\t\treturn ErrSessionExpired\n\t}\n\treturn nil\n}\n\nvar _ = validateSession\n\nfunc main() {}\n",
+            "kind": "defect",
+            "markers": [
+              "invert(ed)? (condition|comparison|check|logic)",
+              "(reversed|backwards|wrong) (comparison|condition|check)",
+              "(valid|unexpired|live) sessions? (are |is )?(rejected|treated as expired)",
+              "expired sessions? (are |is )?(accepted|allowed)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/go/inverted-session-expiry/control",
+        "pair": "holdout/go/inverted-session-expiry",
+        "language": "go",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"errors\"\n\t\"time\"\n)\n\n// ErrSessionExpired is returned for sessions past their expiry.\nvar ErrSessionExpired = errors.New(\"session expired\")\n\n// Session is an authenticated browser session.\ntype Session struct {\n\tUserID    string\n\tExpiresAt time.Time\n}\n\nfunc validateSession(s Session, now time.Time) error {\n\tif s.UserID == \"\" {\n\t\treturn errors.New(\"session has no user\")\n\t}\n\tif !now.Before(s.ExpiresAt) {\n\t\treturn ErrSessionExpired\n\t}\n\treturn nil\n}\n\nvar _ = validateSession\n\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/usize-to-u32-return/defect",
+        "pair": "holdout/rust/usize-to-u32-return",
+        "language": "rust",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Default)]\npub struct Inventory {\n    items: Vec<String>,\n}\n\nimpl Inventory {\n    pub fn add(&mut self, item: impl Into<String>) {\n        self.items.push(item.into());\n    }\n\n    pub fn count(&self) -> u32 {\n        self.items.len()\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "E0308",
+              "mismatched types",
+              "expected `u32`, found `usize`",
+              "expected u32"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/usize-to-u32-return/control",
+        "pair": "holdout/rust/usize-to-u32-return",
+        "language": "rust",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Default)]\npub struct Inventory {\n    items: Vec<String>,\n}\n\nimpl Inventory {\n    pub fn add(&mut self, item: impl Into<String>) {\n        self.items.push(item.into());\n    }\n\n    pub fn count(&self) -> usize {\n        self.items.len()\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/use-after-move-orders/defect",
+        "pair": "holdout/rust/use-after-move-orders",
+        "language": "rust",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct Order {\n    pub id: u64,\n    pub lines: Vec<String>,\n}\n\npub fn archive_orders(orders: Vec<Order>, archive: &mut Vec<Order>) -> usize {\n    archive.extend(orders);\n    orders.len()\n}\n",
+            "kind": "defect",
+            "markers": [
+              "E0382",
+              "moved value",
+              "use of moved",
+              "(used|borrowed) (here )?after (a |being )?move"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/use-after-move-orders/control",
+        "pair": "holdout/rust/use-after-move-orders",
+        "language": "rust",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct Order {\n    pub id: u64,\n    pub lines: Vec<String>,\n}\n\npub fn archive_orders(orders: Vec<Order>, archive: &mut Vec<Order>) -> usize {\n    let count = orders.len();\n    archive.extend(orders);\n    count\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/get-unchecked-lookup-table/defect",
+        "pair": "holdout/rust/get-unchecked-lookup-table",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Translate a byte through a lookup table.\npub fn lookup_byte(table: &[u8], index: usize) -> u8 {\n    // SAFETY: indexes come from the parsed header, which is always in range.\n    unsafe { *table.get_unchecked(index) }\n}\n\n/// Decode an input buffer through the table.\npub fn decode(table: &[u8], input: &[u8]) -> Vec<u8> {\n    input\n        .iter()\n        .map(|&b| lookup_byte(table, usize::from(b)))\n        .collect()\n}\n",
+            "kind": "defect",
+            "markers": [
+              "get_unchecked",
+              "undefined behaviou?r",
+              "out[- ]of[- ]bounds",
+              "bounds check",
+              "unsafe (block|code)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/get-unchecked-lookup-table/control",
+        "pair": "holdout/rust/get-unchecked-lookup-table",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Translate a byte through a lookup table.\npub fn lookup_byte(table: &[u8], index: usize) -> Option<u8> {\n    table.get(index).copied()\n}\n\n/// Decode an input buffer through the table, failing on out-of-range bytes.\npub fn decode(table: &[u8], input: &[u8]) -> Option<Vec<u8>> {\n    input\n        .iter()\n        .map(|&b| lookup_byte(table, usize::from(b)))\n        .collect()\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/sh-c-image-resize/defect",
+        "pair": "holdout/rust/sh-c-image-resize",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::io;\nuse std::process::Command;\n\npub fn resize_image(path: &str, width: u32) -> io::Result<bool> {\n    let status = Command::new(\"sh\")\n        .arg(\"-c\")\n        .arg(format!(\"convert {path} -resize {width}x {path}.thumb.png\"))\n        .status()?;\n    Ok(status.success())\n}\n",
+            "kind": "defect",
+            "markers": [
+              "command injection",
+              "shell injection",
+              "sh -c",
+              "shell (command|metachar|interpret)",
+              "CWE-78"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/sh-c-image-resize/control",
+        "pair": "holdout/rust/sh-c-image-resize",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::io;\nuse std::process::Command;\n\npub fn resize_image(path: &str, width: u32) -> io::Result<bool> {\n    if path.starts_with('-') {\n        return Err(io::Error::new(\n            io::ErrorKind::InvalidInput,\n            \"path must not start with '-'\",\n        ));\n    }\n    let status = Command::new(\"convert\")\n        .arg(path)\n        .arg(\"-resize\")\n        .arg(format!(\"{width}x\"))\n        .arg(format!(\"{path}.thumb.png\"))\n        .status()?;\n    Ok(status.success())\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/attachment-path-join/defect",
+        "pair": "holdout/rust/attachment-path-join",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::fs;\nuse std::io;\nuse std::path::Path;\n\n/// Read an attachment the client asked for by relative name.\npub fn read_attachment(storage_root: &Path, requested: &str) -> io::Result<Vec<u8>> {\n    let path = storage_root.join(requested);\n    fs::read(path)\n}\n",
+            "kind": "defect",
+            "markers": [
+              "path traversal",
+              "directory traversal",
+              "CWE-22",
+              "(untrusted|user[- ]controlled|unvalidated) path",
+              "absolute path"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/attachment-path-join/control",
+        "pair": "holdout/rust/attachment-path-join",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::fs;\nuse std::io;\nuse std::path::{Component, Path};\n\n/// Read an attachment the client asked for by relative name.\npub fn read_attachment(storage_root: &Path, requested: &str) -> io::Result<Vec<u8>> {\n    let requested_path = Path::new(requested);\n    let is_plain_relative = !requested.is_empty()\n        && requested_path\n            .components()\n            .all(|component| matches!(component, Component::Normal(_)));\n    if !is_plain_relative {\n        return Err(io::Error::new(\n            io::ErrorKind::InvalidInput,\n            \"invalid attachment path\",\n        ));\n    }\n    fs::read(storage_root.join(requested_path))\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/trailing-average-underflow/defect",
+        "pair": "holdout/rust/trailing-average-underflow",
+        "language": "rust",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Average of the last `window` samples.\npub fn trailing_average(samples: &[f64], window: usize) -> f64 {\n    let start = samples.len() - window;\n    let recent = &samples[start..];\n    recent.iter().sum::<f64>() / recent.len() as f64\n}\n",
+            "kind": "defect",
+            "markers": [
+              "underflow",
+              "attempt to subtract",
+              "arithmetic_side_effects",
+              "checked_sub",
+              "window.*(larger|greater|exceeds|longer)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/trailing-average-underflow/control",
+        "pair": "holdout/rust/trailing-average-underflow",
+        "language": "rust",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Average of the last `window` samples, or `None` when there are too few.\npub fn trailing_average(samples: &[f64], window: usize) -> Option<f64> {\n    if window == 0 {\n        return None;\n    }\n    let start = samples.len().checked_sub(window)?;\n    let recent = samples.get(start..)?;\n    let count = u32::try_from(recent.len()).ok()?;\n    Some(recent.iter().sum::<f64>() / f64::from(count))\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/reentrant-mutex-deadlock/defect",
+        "pair": "holdout/rust/reentrant-mutex-deadlock",
+        "language": "rust",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::collections::HashMap;\nuse std::sync::Mutex;\n\n#[derive(Debug)]\npub enum LedgerError {\n    Poisoned,\n    InsufficientFunds,\n}\n\n#[derive(Debug, Default)]\npub struct Ledger {\n    balances: Mutex<HashMap<String, i64>>,\n}\n\nimpl Ledger {\n    pub fn balance(&self, account: &str) -> Result<i64, LedgerError> {\n        let map = self.balances.lock().map_err(|_| LedgerError::Poisoned)?;\n        Ok(map.get(account).copied().unwrap_or(0))\n    }\n\n    pub fn withdraw(&self, account: &str, amount: i64) -> Result<i64, LedgerError> {\n        let mut map = self.balances.lock().map_err(|_| LedgerError::Poisoned)?;\n        let current = self.balance(account)?;\n        if current < amount {\n            return Err(LedgerError::InsufficientFunds);\n        }\n        map.insert(account.to_string(), current - amount);\n        Ok(current - amount)\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "deadlock",
+              "lock(s|ed)? twice",
+              "re-?entran",
+              "already (held|locked)",
+              "while (the |a )?(lock|mutex|guard) is (still )?held"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/reentrant-mutex-deadlock/control",
+        "pair": "holdout/rust/reentrant-mutex-deadlock",
+        "language": "rust",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::collections::HashMap;\nuse std::sync::Mutex;\n\n#[derive(Debug)]\npub enum LedgerError {\n    Poisoned,\n    InsufficientFunds,\n}\n\n#[derive(Debug, Default)]\npub struct Ledger {\n    balances: Mutex<HashMap<String, i64>>,\n}\n\nimpl Ledger {\n    pub fn balance(&self, account: &str) -> Result<i64, LedgerError> {\n        let map = self.balances.lock().map_err(|_| LedgerError::Poisoned)?;\n        Ok(map.get(account).copied().unwrap_or(0))\n    }\n\n    pub fn withdraw(&self, account: &str, amount: i64) -> Result<i64, LedgerError> {\n        let mut map = self.balances.lock().map_err(|_| LedgerError::Poisoned)?;\n        let current = map.get(account).copied().unwrap_or(0);\n        if current < amount {\n            return Err(LedgerError::InsufficientFunds);\n        }\n        let remaining = current - amount;\n        map.insert(account.to_string(), remaining);\n        Ok(remaining)\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/assert-true-ignored-test/defect",
+        "pair": "holdout/rust/assert-true-ignored-test",
+        "language": "rust",
+        "family": "test-integrity",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Normalize an email address by trimming it and lowercasing the domain.\npub fn normalize_email(input: &str) -> Option<String> {\n    let trimmed = input.trim();\n    let (local, domain) = trimmed.split_once('@')?;\n    if local.is_empty() || domain.is_empty() || domain.contains('@') {\n        return None;\n    }\n    let domain = domain.to_ascii_lowercase();\n    Some(format!(\"{local}@{domain}\"))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn lowercases_domain() {\n        let result = normalize_email(\"  Alice@Example.COM \");\n        assert!(true, \"normalized {result:?}\");\n    }\n\n    #[test]\n    #[ignore]\n    fn rejects_missing_local_part() {\n        assert_eq!(normalize_email(\"@example.com\"), None);\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "assertions_on_constants",
+              "assert!\\(true",
+              "always `?(passes|true|succeeds)",
+              "#\\[ignore\\]",
+              "ignored test"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/rust/assert-true-ignored-test/control",
+        "pair": "holdout/rust/assert-true-ignored-test",
+        "language": "rust",
+        "family": "test-integrity",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Normalize an email address by trimming it and lowercasing the domain.\npub fn normalize_email(input: &str) -> Option<String> {\n    let trimmed = input.trim();\n    let (local, domain) = trimmed.split_once('@')?;\n    if local.is_empty() || domain.is_empty() || domain.contains('@') {\n        return None;\n    }\n    let domain = domain.to_ascii_lowercase();\n    Some(format!(\"{local}@{domain}\"))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn lowercases_domain() {\n        let result = normalize_email(\"  Alice@Example.COM \");\n        assert_eq!(result.as_deref(), Some(\"Alice@example.com\"));\n    }\n\n    #[test]\n    fn rejects_missing_local_part() {\n        assert_eq!(normalize_email(\"@example.com\"), None);\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/string-to-atom-sort-param/defect",
+        "pair": "holdout/elixir/string-to-atom-sort-param",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/product_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.ProductController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  @products [\n    %{name: \"Lamp\", price: 40, stock: 3},\n    %{name: \"Desk\", price: 250, stock: 1},\n    %{name: \"Chair\", price: 120, stock: 7}\n  ]\n\n  def index(conn, params) do\n    sort_key = String.to_atom(Map.get(params, \"sort\", \"name\"))\n    products = Enum.sort_by(@products, &Map.fetch!(&1, sort_key))\n    json(conn, %{products: products})\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "String\\.to_atom",
+              "atom (exhaustion|table|leak)",
+              "DOS\\.StringToAtom",
+              "UnsafeToAtom",
+              "to_existing_atom"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/string-to-atom-sort-param/control",
+        "pair": "holdout/elixir/string-to-atom-sort-param",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/product_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.ProductController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  @products [\n    %{name: \"Lamp\", price: 40, stock: 3},\n    %{name: \"Desk\", price: 250, stock: 1},\n    %{name: \"Chair\", price: 120, stock: 7}\n  ]\n\n  def index(conn, params) do\n    sort_key = sort_key(Map.get(params, \"sort\"))\n    products = Enum.sort_by(@products, &Map.fetch!(&1, sort_key))\n    json(conn, %{products: products})\n  end\n\n  defp sort_key(\"price\"), do: :price\n  defp sort_key(\"stock\"), do: :stock\n  defp sort_key(_), do: :name\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/invoice-send-file-traversal/defect",
+        "pair": "holdout/elixir/invoice-send-file-traversal",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InvoiceController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  @invoice_dir \"/var/lib/loki/invoices\"\n\n  def download(conn, %{\"file\" => file}) do\n    path = Path.join(@invoice_dir, file)\n\n    if File.regular?(path) do\n      conn\n      |> put_resp_content_type(\"application/pdf\")\n      |> send_file(200, path)\n    else\n      send_resp(conn, 404, \"not found\")\n    end\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "Traversal",
+              "SendFile",
+              "CWE-22",
+              "(untrusted|user[- ]controlled|unvalidated) (file ?name|path)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/invoice-send-file-traversal/control",
+        "pair": "holdout/elixir/invoice-send-file-traversal",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InvoiceController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  @invoice_dir \"/var/lib/loki/invoices\"\n  @invoice_name ~r/\\A[A-Za-z0-9_-]+\\.pdf\\z/\n\n  def download(conn, %{\"file\" => file}) do\n    path = Path.join(@invoice_dir, file)\n\n    if Regex.match?(@invoice_name, file) and File.regular?(path) do\n      conn\n      |> put_resp_content_type(\"application/pdf\")\n      |> send_file(200, path)\n    else\n      send_resp(conn, 404, \"not found\")\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/system-cmd-sh-c/defect",
+        "pair": "holdout/elixir/system-cmd-sh-c",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/thumbnailer.ex",
+            "content": "defmodule LokiPhoenixFixture.Thumbnailer do\n  @moduledoc \"Generates thumbnails for uploaded images.\"\n\n  def thumbnail(source_path, width) do\n    output = source_path <> \".thumb.png\"\n\n    {_out, status} =\n      System.cmd(\"sh\", [\"-c\", \"convert #{source_path} -resize #{width}x #{output}\"],\n        stderr_to_stdout: true\n      )\n\n    if status == 0, do: {:ok, output}, else: {:error, status}\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "CI\\.System",
+              "CI\\.OS",
+              "command injection",
+              "shell injection",
+              "sh -c"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/system-cmd-sh-c/control",
+        "pair": "holdout/elixir/system-cmd-sh-c",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/thumbnailer.ex",
+            "content": "defmodule LokiPhoenixFixture.Thumbnailer do\n  @moduledoc \"Generates thumbnails for uploaded images.\"\n\n  def thumbnail(source_path, width)\n      when is_binary(source_path) and is_integer(width) and width > 0 do\n    if String.starts_with?(source_path, \"-\") do\n      {:error, :invalid_path}\n    else\n      output = source_path <> \".thumb.png\"\n\n      {_out, status} =\n        System.cmd(\"convert\", [source_path, \"-resize\", \"#{width}x\", output],\n          stderr_to_stdout: true\n        )\n\n      if status == 0, do: {:ok, output}, else: {:error, status}\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/cookie-binary-to-term/defect",
+        "pair": "holdout/elixir/cookie-binary-to-term",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/preferences_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.PreferencesController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, _params) do\n    conn = fetch_cookies(conn)\n\n    prefs =\n      case conn.cookies[\"prefs\"] do\n        nil -> %{}\n        encoded -> encoded |> Base.url_decode64!() |> :erlang.binary_to_term()\n      end\n\n    json(conn, %{preferences: prefs})\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "BinToTerm",
+              "binary_to_term",
+              "deserializ",
+              "remote code execution"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/cookie-binary-to-term/control",
+        "pair": "holdout/elixir/cookie-binary-to-term",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/preferences_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.PreferencesController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, _params) do\n    conn = fetch_cookies(conn)\n    json(conn, %{preferences: decode_prefs(conn.cookies[\"prefs\"])})\n  end\n\n  defp decode_prefs(nil), do: %{}\n\n  defp decode_prefs(encoded) do\n    with {:ok, raw} <- Base.url_decode64(encoded),\n         {:ok, %{} = prefs} <- Jason.decode(raw) do\n      prefs\n    else\n      _ -> %{}\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/send-resp-html-interpolation/defect",
+        "pair": "holdout/elixir/send-resp-html-interpolation",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/search_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.SearchController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def search(conn, params) do\n    query = Map.get(params, \"q\", \"\")\n\n    conn\n    |> put_resp_content_type(\"text/html\")\n    |> send_resp(200, \"<h1>Results for #{query}</h1><p>No matches yet.</p>\")\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "XSS",
+              "SendResp",
+              "cross[- ]site scripting",
+              "(unescaped|unsanitized) (html|input|user)",
+              "html_escape"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/send-resp-html-interpolation/control",
+        "pair": "holdout/elixir/send-resp-html-interpolation",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/search_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.SearchController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def search(conn, params) do\n    query =\n      params\n      |> Map.get(\"q\", \"\")\n      |> Phoenix.HTML.html_escape()\n      |> Phoenix.HTML.safe_to_string()\n\n    conn\n    |> put_resp_content_type(\"text/html\")\n    |> send_resp(200, \"<h1>Results for #{query}</h1><p>No matches yet.</p>\")\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/external-redirect-return-to/defect",
+        "pair": "holdout/elixir/external-redirect-return-to",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/session_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.SessionController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def complete(conn, params) do\n    return_to = Map.get(params, \"return_to\", \"/\")\n    redirect(conn, external: return_to)\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "open redirect",
+              "unvalidated redirect",
+              "CWE-601",
+              "external:",
+              "redirect.*(untrusted|user[- ]supplied|user[- ]controlled|attacker)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/external-redirect-return-to/control",
+        "pair": "holdout/elixir/external-redirect-return-to",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/session_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.SessionController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def complete(conn, params) do\n    redirect(conn, to: safe_return_path(Map.get(params, \"return_to\")))\n  end\n\n  defp safe_return_path(\"/\" <> rest = path) do\n    if String.starts_with?(rest, [\"/\", \"\\\\\"]), do: \"/\", else: path\n  end\n\n  defp safe_return_path(_), do: \"/\"\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/datetime-structural-sort/defect",
+        "pair": "holdout/elixir/datetime-structural-sort",
+        "language": "elixir",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/timeline.ex",
+            "content": "defmodule LokiPhoenixFixture.Timeline do\n  @moduledoc \"Orders activity events for the dashboard timeline.\"\n\n  @type event :: %{id: pos_integer(), title: String.t(), occurred_at: DateTime.t()}\n\n  @spec latest([event()], pos_integer()) :: [event()]\n  def latest(events, limit) do\n    events\n    |> Enum.sort_by(& &1.occurred_at, :desc)\n    |> Enum.take(limit)\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "structural(ly)? (comparison|compare|ordering|sort)",
+              "\\{:desc, DateTime\\}",
+              "DateTime\\.compare",
+              "compar(ing|e|es) (DateTime )?structs",
+              "term ordering"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/datetime-structural-sort/control",
+        "pair": "holdout/elixir/datetime-structural-sort",
+        "language": "elixir",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/timeline.ex",
+            "content": "defmodule LokiPhoenixFixture.Timeline do\n  @moduledoc \"Orders activity events for the dashboard timeline.\"\n\n  @type event :: %{id: pos_integer(), title: String.t(), occurred_at: DateTime.t()}\n\n  @spec latest([event()], pos_integer()) :: [event()]\n  def latest(events, limit) do\n    events\n    |> Enum.sort_by(& &1.occurred_at, {:desc, DateTime})\n    |> Enum.take(limit)\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/undefined-map-get-bang/defect",
+        "pair": "holdout/elixir/undefined-map-get-bang",
+        "language": "elixir",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/order_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.OrderController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, params) do\n    id = params |> Map.get!(\"id\") |> String.to_integer()\n    json(conn, %{id: id, status: \"pending\"})\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "undefined or private",
+              "Map\\.get!",
+              "is undefined",
+              "UndefinedFunctionError",
+              "undefined (remote )?function"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout/elixir/undefined-map-get-bang/control",
+        "pair": "holdout/elixir/undefined-map-get-bang",
+        "language": "elixir",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/order_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.OrderController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, params) do\n    case Integer.parse(Map.get(params, \"id\", \"\")) do\n      {id, \"\"} when id > 0 ->\n        json(conn, %{id: id, status: \"pending\"})\n\n      _ ->\n        conn\n        |> put_status(:bad_request)\n        |> json(%{error: \"invalid id\"})\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      }
+    ]
+  },
+  "identity": {
+    "/home/bryan/.cache/loki-bench/loki-dev8/loki.py": "def9b32be259974f2121eb50da8cb37da5e9b873153758688cb40605b14968be",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.credo.exs": "46191e8af593a4e08b1192b5a72855101bb6441ad0442032fce47359c582c7f4",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.golangci.yml": "317526e04c0c8915f9cd246728377998d7304b60a7db1d7c8ac98853aaa32d3e",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.oxlintrc.json": "347787d28a26caebe940f4eebdaf81d04d5d3f8b27572afb36ed7c9c44456503",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.ruff.toml": "d6d07f0831cd81efcd256041eb97021f48bd25006b79a79f7f1262a1cfc826b1",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/claude-settings.fragment.json": "35271180ec848eba5a094b5a7c9a85e6017bb528ebb963886bbb83246f69c230",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/codex-hooks.json": "fd3be120d6b09ec991d899e393a28b74fb7719a35774df09c37b192889681203",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/factory-hooks.json": "7806303e0e127a8fae14e04aa146038c98352e95e84b3313e4f434ef64081082",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/loki.json": "a397f86c9287ad96505a2e31ecaf898afdc0f3c8b0f83b3a9e6ef13d12507f88",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/loki.yml": "1af7be4162e2115aa122607d85a0656822b251dd425663ed1670d7c5614d6f58",
+    "/home/bryan/.cache/loki-bench/loki-dev8/shim/loki-omp.ts": "68e81b14736f0b6e22f369b39e8825d436c3f008405fd0754746592580d897e2",
+    "/home/bryan/.cache/loki-bench/loki-dev8/shim/loki.ts": "811c81d1bf3903712ee0119aece5c096aed0c978bb44a528f11890eaeb18d657",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/dist/index.js": "98abe5bec369d2392588291893a284c7a76481e2b9ccd5ba5519ee0a7bb042f0",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/dist/hook-entry.js": "aa2be9fc3a00e8184646980be1f3270f5efab9030172aa87fbf152de0f4ace75",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/dist/harness/server.js": "0080f1b14e3610bdc935a80bf3854e5de813438bf0d18f6b25800caf89e39bdb",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/corpus.py": "521db88fe97039554e7fa6e055805f6ba9b9e90783974c42fabb4dca7a452d7e",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/comprehensive.py": "bf5462eebadc1a5f0cb4ce0275e84697cd782359eb4d9ac1a5cd0cb8348a3c16",
+    "/home/bryan/.local/share/mise/installs/node/23.11.1/bin/node": "29427c49702b6da00e600c759e40575d72653e3fa962e6bd204a14619e98ea1c",
+    "/home/bryan/.cache/loki-bench/oxlint/node_modules/oxlint/bin/oxlint": "ecab4e2f1bebaab1a3306620bee562ec16e8cb83dd5fb739b94a5aae3c9e34bd",
+    "/home/bryan/.cache/loki-bench/ts/node_modules/typescript/lib/typescript.js": "3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/node_modules/@biomejs/biome/bin/biome": "84b3bc11895b48aa39258850383bfaf66399dab97df905df446681303d9d6798",
+    "/home/bryan/.cache/loki-bench/golangci/golangci-lint": "5a45f8385e298154d7967380608b73af28d6335cb09f34b9944df20d886dd939",
+    "/home/bryan/.cache/loki-bench/phoenix/mix.lock": "e7da3bd18e446611cc85c501d27cebf44207da4abd290cf4b1a336b1ca517649",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/index.ts": "d72d7e9f8c8f2c9557f7f8dec613b4235a2e15c9d7f43b8c8fc18688ae1f814f",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-chained-type-assertions.ts": "72f8e981520f94adac0ffbdab8f8e84e5f2a4595f14e4a6471be917a85a20a15",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-conditional-empty-object-spread.ts": "33f044030d208fcc10be73bb19c8172c275c5229df4b0ca8ec10f069bbe60062",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-known-value-widening.ts": "d631f9cb6a3629d1d9227a4568c66eb2e8e2b938a57cbec34b6b25fcb31bf62e",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-module-mocking.ts": "90cfc166a28e78544a934e4a000811330c1ea6d33d90cb309b1bed27e51e79f3",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-object-parameters.ts": "3d750130cf7520e7541cb758ebed0dfa603a0e482061a60ac3a12fe8821a4469",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-reflect-apply.ts": "f7920a332106252d6a24cdc917a2c1a433eb438792996ccceb5a25cd6e591dbb",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-reflect-get.ts": "95c5aa0f8e23b10d9345b1776082e08704ec6590298176a8ede8dfdb6e7cb56f",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-runtime-typeof.ts": "eed63d5667763ddbc48a6b83662e446f100c444cddefc3d066ac0015670590b8",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-shape-in-symbol-names.ts": "54aebfebb25c1f8f2ce181f8f82fd05413a0a63f7cdac52e9d570ea1cd284510",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unknown-parameters.ts": "ab5cd31a9a464dd12e4e930298fcd773c1c1badfaf66619915d5435b5d57db61",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unknown-returns.ts": "fca7a61334b902ec76736b6d8ad5b95a84a0d4366dcc7ae1bc44492523052f3b",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unknown-type-aliases.ts": "59df2bcc6fdc892e67650c64662c2ac03d0396c2dcce9c272891c94ba5a4c041",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unsafe-dictionary-type.ts": "bec8e540e05a749e06474b1c7bd93879747b3330f0b9c87fd1a3ffe959ace075",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-widen-then-assert.ts": "63f2c07cc42b8ad60a7e868efbd7b29e462b9ba960fbd07bbc8f590ef9e3f879",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/require-safety-comment-for-type-assertion.ts": "78bad368fcc137f0ed9d6f21626baed5c980fe3ea6d093c93ac4ed9858b9a309",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/shared/dictionary-types.ts": "a57b964ab55a39396c8922f400b0912e3479cb9d28de716a4a536abcf7283966",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/shared/lexical-type-parameters.ts": "1ae0aa3ec245f1dc43c4bbbd8be1e2e4230e5dc389d1ca4e8de8f51b62ceff29",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/shared/reflect-method.ts": "318f56b17d9063134860fe4c51c2e22cb0a55e7f421a0ff4ccedb5a9e9c2b2d9",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/holdout.py": "aab5f9121c7c41d5600b3fdf1e6e6f6d29558b1c5d9f8818920d1ff10b86e00a",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/holdout_cases.json": "4d25cd47461f896b9d3b4714a48eed7aa83eff9882cbb29aa3df136db6415177"
+  },
+  "runs": 1,
+  "seed": 11,
+  "case_filter": null,
+  "competitor_revision": "82307ea8611b6d70ac34457e6696ee4381ef32cb",
+  "loki_daemon": true,
+  "argv": [
+    "benchmarks/holdout.py",
+    "--interlinked",
+    "/home/bryan/.cache/loki-bench/interlinked-latest",
+    "--node",
+    "/home/bryan/.local/share/mise/installs/node/23.11.1/bin/node",
+    "--oxlint",
+    "/home/bryan/.cache/loki-bench/oxlint/node_modules/.bin/oxlint",
+    "--typescript",
+    "/home/bryan/.cache/loki-bench/ts/node_modules/typescript",
+    "--biome",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/node_modules/.bin/biome",
+    "--python-tools",
+    "/home/bryan/.cache/loki-bench/py/bin",
+    "--golangci",
+    "/home/bryan/.cache/loki-bench/golangci/golangci-lint",
+    "--phoenix",
+    "/home/bryan/.cache/loki-bench/phoenix",
+    "--hex-archive",
+    "/home/bryan/.mix/archives/hex-2.5.1",
+    "--erlang-bin",
+    "/home/bryan/.local/share/mise/installs/erlang/27.3.4.11/bin",
+    "--output",
+    "/home/bryan/.cache/loki-bench/out-h1-8",
+    "--competitor-revision",
+    "82307ea8611b6d70ac34457e6696ee4381ef32cb",
+    "--runs",
+    "1",
+    "--loki-daemon",
+    "--seed",
+    "11",
+    "--profiles",
+    "shared"
+  ],
+  "versions": {
+    "python": {
+      "exit": 0,
+      "stdout": "Python 3.14.7\n",
+      "stderr": "",
+      "ms": 30.959
+    },
+    "node": {
+      "exit": 0,
+      "stdout": "v23.11.1\n",
+      "stderr": "",
+      "ms": 38.838
+    },
+    "ruff": {
+      "exit": 0,
+      "stdout": "ruff 0.15.2\n",
+      "stderr": "",
+      "ms": 34.817
+    },
+    "mypy": {
+      "exit": 0,
+      "stdout": "mypy 1.19.1 (compiled: yes)\n",
+      "stderr": "",
+      "ms": 169.512
+    },
+    "oxlint": {
+      "exit": 0,
+      "stdout": "Version: 1.83.0\n\n",
+      "stderr": "",
+      "ms": 58.488
+    },
+    "typescript": {
+      "exit": 0,
+      "stdout": "Version 5.9.3\n",
+      "stderr": "",
+      "ms": 159.082
+    },
+    "biome": {
+      "exit": 0,
+      "stdout": "Version: 2.4.13\n\n",
+      "stderr": "",
+      "ms": 74.108
+    },
+    "go": {
+      "exit": 0,
+      "stdout": "go version go1.25.6 linux/amd64\n",
+      "stderr": "",
+      "ms": 30.715
+    },
+    "golangci": {
+      "exit": 0,
+      "stdout": "golangci-lint has version 2.6.2 built with go1.25.6 from (unknown, modified: ?, mod sum: \"h1:jkMSVv36JmyTENcEertckvimvjPcD5qxNM7W7qhECvI=\") on (unknown)\n",
+      "stderr": "",
+      "ms": 106.747
+    },
+    "rust": {
+      "exit": 0,
+      "stdout": "clippy 0.1.97\n",
+      "stderr": "",
+      "ms": 57.008
+    },
+    "elixir": {
+      "exit": 0,
+      "stdout": "Erlang/OTP 27 [erts-15.2.7.8] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]\n\nElixir 1.17.3 (compiled with Erlang/OTP 27)\n",
+      "stderr": "",
+      "ms": 221.533
+    }
+  },
+  "machine": {
+    "platform": "Linux-7.1.8-arch1-3-x86_64-with-glibc2.44",
+    "logical_cpus": 16,
+    "python": "3.14.7"
+  },
+  "schedule": [
+    [
+      "holdout/python/optional-profile-attr/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/non-exhaustive-shipping-switch/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/tautological-discount-test/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/tautological-discount-test/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/inverted-session-expiry/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/cookie-binary-to-term/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/postmessage-missing-origin-check/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/exec-thumbnail-command/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/system-cmd-sh-c/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/exec-thumbnail-command/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/floating-promise-remove-draft/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/deep-merge-prototype-pollution/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/assertion-free-currency-test/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/undefined-map-get-bang/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/send-resp-html-interpolation/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/exec-thumbnail-command/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/string-to-atom-sort-param/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/link-preview-ssrf/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/nullish-port-type-mismatch/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/defer-close-in-loop/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/tautological-discount-test/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/link-preview-ssrf/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/deep-merge-prototype-pollution/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/cookie-binary-to-term/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/system-cmd-sh-c/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/sprintf-sql-query/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/webhook-signature-eq/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/sh-c-image-resize/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/defer-close-in-loop/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/undefined-map-get-bang/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/floating-promise-remove-draft/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/system-cmd-sh-c/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/hardcoded-stripe-secret/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/upload-path-traversal/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/tls-insecure-skip-verify/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/unchecked-json-unmarshal/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/login-open-redirect/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/innerhtml-comment-render/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/cookie-binary-to-term/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/optional-profile-attr/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/postmessage-missing-origin-check/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/pickle-session-cookie/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/optional-profile-attr/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/link-preview-ssrf/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/floating-promise-remove-draft/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/postmessage-missing-origin-check/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/tls-insecure-skip-verify/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/invoice-send-file-traversal/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/usize-to-u32-return/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/invoice-send-file-traversal/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/pagination-off-by-one/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/mutable-default-cart/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/deep-merge-prototype-pollution/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/login-open-redirect/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/subprocess-shell-backup/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/focused-slugify-test/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/assert-true-ignored-test/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/hardcoded-stripe-secret/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/sh-c-image-resize/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/get-unchecked-lookup-table/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/hardcoded-stripe-secret/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/usize-to-u32-return/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/focused-slugify-test/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/new-function-formula/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/attachment-path-join/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/upload-path-traversal/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/subprocess-shell-backup/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/link-preview-ssrf/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/send-resp-html-interpolation/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/cookie-binary-to-term/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/nil-map-word-tally/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/inverted-session-expiry/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/pagination-off-by-one/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/defer-close-in-loop/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/inverted-session-expiry/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/external-redirect-return-to/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/tls-insecure-skip-verify/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/mutex-value-receiver/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/mutable-default-cart/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/nullish-port-type-mismatch/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/system-cmd-sh-c/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/external-redirect-return-to/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/javascript/assertion-free-currency-test/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/get-unchecked-lookup-table/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/new-function-formula/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/send-resp-html-interpolation/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/sh-c-image-resize/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/nil-map-word-tally/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/webhook-signature-eq/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/non-exhaustive-shipping-switch/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/trailing-average-underflow/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/use-after-move-orders/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/unchecked-json-unmarshal/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/mutable-default-cart/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/send-resp-html-interpolation/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/optional-profile-attr/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/attachment-path-join/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/string-to-atom-sort-param/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/sprintf-sql-query/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/login-open-redirect/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/attachment-path-join/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/innerhtml-comment-render/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/pagination-off-by-one/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/pickle-session-cookie/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/innerhtml-comment-render/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/tautological-discount-test/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/assertion-free-currency-test/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/sprintf-sql-query/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/md5-password-hash/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/get-unchecked-lookup-table/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/numeric-sort-without-comparator/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/invoice-send-file-traversal/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/login-open-redirect/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/datetime-structural-sort/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/exec-thumbnail-command/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/assert-true-ignored-test/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/non-exhaustive-shipping-switch/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/subprocess-shell-backup/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/report-download-traversal/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/reentrant-mutex-deadlock/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/md5-password-hash/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/datetime-structural-sort/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/sql-fstring-like-query/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/assertion-free-currency-test/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/tls-insecure-skip-verify/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/sql-fstring-like-query/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/nil-map-word-tally/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/use-after-move-orders/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/sprintf-sql-query/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/numeric-sort-without-comparator/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/trailing-average-underflow/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/unchecked-json-unmarshal/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/md5-password-hash/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/upload-path-traversal/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/reentrant-mutex-deadlock/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/numeric-sort-without-comparator/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/external-redirect-return-to/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/new-function-formula/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/focused-slugify-test/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/deep-merge-prototype-pollution/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/attachment-path-join/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/defer-close-in-loop/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/postmessage-missing-origin-check/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/report-download-traversal/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/webhook-signature-eq/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/sql-fstring-like-query/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/inverted-session-expiry/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/numeric-sort-without-comparator/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/new-function-formula/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/use-after-move-orders/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/nullish-port-type-mismatch/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/trailing-average-underflow/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/mutex-value-receiver/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/javascript/focused-slugify-test/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/report-download-traversal/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/subprocess-shell-backup/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/reentrant-mutex-deadlock/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/non-exhaustive-shipping-switch/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/datetime-structural-sort/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/pickle-session-cookie/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/mutable-default-cart/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/upload-path-traversal/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/use-after-move-orders/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/sql-fstring-like-query/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/assert-true-ignored-test/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/innerhtml-comment-render/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/external-redirect-return-to/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/invoice-send-file-traversal/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/undefined-map-get-bang/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/go/unchecked-json-unmarshal/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/reentrant-mutex-deadlock/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/pickle-session-cookie/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/string-to-atom-sort-param/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/get-unchecked-lookup-table/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/webhook-signature-eq/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/python/pagination-off-by-one/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/typescript/hardcoded-stripe-secret/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/mutex-value-receiver/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/python/md5-password-hash/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/datetime-structural-sort/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/assert-true-ignored-test/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/elixir/string-to-atom-sort-param/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/nil-map-word-tally/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/usize-to-u32-return/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/floating-promise-remove-draft/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/typescript/nullish-port-type-mismatch/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/trailing-average-underflow/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/rust/usize-to-u32-return/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout/elixir/undefined-map-get-bang/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/report-download-traversal/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/rust/sh-c-image-resize/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout/go/mutex-value-receiver/control",
+      "interlinked",
+      "shared"
+    ]
+  ],
+  "scope": "Independently authored holdout cases through installed Claude pre/post lifecycles; no models; no Bash payload execution.",
+  "configuration": "Loki shell guard and committed npm test grant; Interlinked balanced; shared analyzer paths.",
+  "isolation": "Fresh fixtures/homes/processes per repetition, network namespace, read-only host filesystem, fixture and private /tmp writable.",
+  "warmup": "Trial zero has no warmup. Later independent trials send two git-status pre-hook envelopes in the same session. No commands are executed; this warms startup, not compiler result caches.",
+  "limitations": [
+    "Author-written cases are not independent or representative of production.",
+    "First invocation is not an OS-cold disk/cache measurement.",
+    "Additional context can be advisory; post-write findings do not prevent bytes landing.",
+    "Generic denial without a target marker is not credited as targeted prevention.",
+    "Real host activation and explicit audit scans are separate from hook effectiveness.",
+    "Go/Rust audit commands have different product-defined scopes."
+  ]
+}

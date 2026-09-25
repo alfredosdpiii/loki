@@ -1,0 +1,165 @@
+{
+  "case": "exact-edit/javascript/disabled-suite/control",
+  "language": "javascript",
+  "family": "exact-edit",
+  "pair": "exact-edit/javascript/disabled-suite",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    919.376,
+    1334.425,
+    1393.855
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 367.176,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 367.176
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 718.519,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-pkzbn5i6/project/tsconfig.json'. Specified 'include' pa\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-pkzbn5i6/project/tsconfig.json'. Specified 'include' pa\n",
+            "ms": 718.519
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 509.99,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 509.99
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 798.904,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-b3k4ejmt/project/tsconfig.json'. Specified 'include' pa\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-b3k4ejmt/project/tsconfig.json'. Specified 'include' pa\n",
+            "ms": 798.904
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 557.8,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 557.8
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1097.379,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-j0x2pbbf/project/tsconfig.json'. Specified 'include' pa\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-j0x2pbbf/project/tsconfig.json'. Specified 'include' pa\n",
+            "ms": 1097.379
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 180.999
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 225.694
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 173.093
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 241.377
+    }
+  ]
+}

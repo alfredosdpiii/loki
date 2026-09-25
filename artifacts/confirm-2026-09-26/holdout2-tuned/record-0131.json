@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/elixir/csv-export-file-never-closed/defect",
+  "language": "elixir",
+  "family": "resource",
+  "pair": "holdout2/elixir/csv-export-file-never-closed",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    858.96
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4955309c7c7b50995d4ea9a596c19ce54ab2f21a56a4de79c29d89f7a8f4fd8f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 155.612,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/export.ex:6: loki/resource-leak: file handle file from File.open is never closed; use File.open/3 with a function or File.close\nloki: hook command failed\n",
+            "ms": 155.612
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

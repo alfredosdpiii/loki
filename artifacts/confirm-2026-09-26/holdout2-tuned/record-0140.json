@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/link-checker-shared-counter/defect",
+  "language": "python",
+  "family": "concurrency",
+  "pair": "holdout2/python/link-checker-shared-counter",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1626.157
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "a59bcd2f391a32dceb22b1d7b082a5b6d1b096e6f27ea5d945d42362f52619c9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 175.621,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 175.621
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2425.244,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2425.244
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

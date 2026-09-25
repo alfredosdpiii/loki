@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/python/redact-re-sub-flags-as-count/defect",
+  "language": "python",
+  "family": "api-misuse",
+  "pair": "holdout2/python/redact-re-sub-flags-as-count",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2024.844
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ea9cf952e98610a7296ad660ba7bea7c36559283c0a29276b1499c4cb09c2d1c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 247.346,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: B034: `re.sub` should pass `count` and `flags` as keyword arguments to avoid confusion due to unintuitive argument positions\nloki: hook command failed\n",
+            "ms": 247.346
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

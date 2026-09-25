@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/rust/payments-client-hardcoded-key/defect",
+  "language": "rust",
+  "family": "security",
+  "pair": "holdout2/rust/payments-client-hardcoded-key",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1152.74
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ef7bfcf43431cba443b5671e0079c7f392ecc56866fecf439eea89a3ea70d9c2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 241.504,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:1: loki/secret: hardcoded credential (Stripe live key); load it from the environment or a secret store and rotate the exposed value\nloki: hook command failed\n",
+            "ms": 241.504
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

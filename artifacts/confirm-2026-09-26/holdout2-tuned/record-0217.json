@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/price-preview-string-arg/control",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout2/typescript/price-preview-string-arg",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1075.103
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "0afcd32c30e541cb294b6792221cb7416cf699582b31f987147d743acc09ae74",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 249.578,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 249.578
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 577.49,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/checkout.ts:9:20: Prefer `Number(input.value)`. [Warning/unicorn(prefer-number-coercion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/checkout.ts:9:20: Prefer `Number(input.value)`. [Warning/unicorn(prefer-number-coercion)]\n",
+            "ms": 577.49
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

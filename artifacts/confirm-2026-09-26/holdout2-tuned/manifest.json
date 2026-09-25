@@ -1,0 +1,3671 @@
+{
+  "corpus": {
+    "version": "holdout2_cases",
+    "sha256": "27215b6ebb72353e4be4fa8bab91d7db5583de4b9450655d020cca53690f40c5",
+    "cases": [
+      {
+        "id": "holdout2/python/sqlite-order-filter-fstring/defect",
+        "pair": "holdout2/python/sqlite-order-filter-fstring",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Order lookup endpoints backed by SQLite.\"\"\"\n\nimport sqlite3\nfrom typing import Any\n\nSORT_COLUMNS = {\"newest\": \"created_at DESC\", \"total\": \"total_cents DESC\"}\n\n\ndef list_orders(\n    conn: sqlite3.Connection, params: dict[str, str]\n) -> list[dict[str, Any]]:\n    customer = params.get(\"customer\", \"\")\n    status = params.get(\"status\", \"open\")\n    order_by = SORT_COLUMNS.get(params.get(\"sort\", \"newest\"), \"created_at DESC\")\n    query = (\n        \"SELECT id, customer, status, total_cents FROM orders \"\n        f\"WHERE customer = '{customer}' AND status = '{status}' \"\n        f\"ORDER BY {order_by} LIMIT 50\"\n    )\n    cursor = conn.execute(query)\n    columns = [col[0] for col in cursor.description]\n    return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]\n",
+            "kind": "defect",
+            "markers": [
+              "S608",
+              "B608",
+              "sql injection",
+              "(string|f-string|format).*(sql|query)",
+              "CWE-89"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/sqlite-order-filter-fstring/control",
+        "pair": "holdout2/python/sqlite-order-filter-fstring",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Order lookup endpoints backed by SQLite.\"\"\"\n\nimport sqlite3\nfrom typing import Any\n\n_BASE = (\n    \"SELECT id, customer, status, total_cents FROM orders \"\n    \"WHERE customer = ? AND status = ? \"\n)\nQUERIES = {\n    \"newest\": _BASE + \"ORDER BY created_at DESC LIMIT 50\",\n    \"total\": _BASE + \"ORDER BY total_cents DESC LIMIT 50\",\n}\n\n\ndef list_orders(\n    conn: sqlite3.Connection, params: dict[str, str]\n) -> list[dict[str, Any]]:\n    customer = params.get(\"customer\", \"\")\n    status = params.get(\"status\", \"open\")\n    query = QUERIES.get(params.get(\"sort\", \"newest\"), QUERIES[\"newest\"])\n    cursor = conn.execute(query, (customer, status))\n    columns = [col[0] for col in cursor.description]\n    return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/git-log-shell-true/defect",
+        "pair": "holdout2/python/git-log-shell-true",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Helpers for summarising git history in the release CLI.\"\"\"\n\nimport subprocess\n\n\ndef commits_since(tag: str, repo_dir: str) -> list[str]:\n    \"\"\"Return one-line commit summaries between ``tag`` and HEAD.\"\"\"\n    output = subprocess.run(\n        f\"git log --oneline {tag}..HEAD\",\n        shell=True,\n        cwd=repo_dir,\n        capture_output=True,\n        text=True,\n        check=True,\n    ).stdout\n    return [line for line in output.splitlines() if line.strip()]\n\n\ndef release_notes(tag: str, repo_dir: str) -> str:\n    lines = commits_since(tag, repo_dir)\n    return \"\\n\".join(f\"- {line.split(' ', 1)[-1]}\" for line in lines)\n",
+            "kind": "defect",
+            "markers": [
+              "S602",
+              "B602",
+              "shell\\s*=\\s*True",
+              "(command|shell) injection",
+              "CWE-78"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/git-log-shell-true/control",
+        "pair": "holdout2/python/git-log-shell-true",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Helpers for summarising git history in the release CLI.\"\"\"\n\nimport re\nimport shutil\nimport subprocess\n\n_REF = re.compile(r\"[A-Za-z0-9][A-Za-z0-9._/-]*\")\n\n\ndef commits_since(tag: str, repo_dir: str) -> list[str]:\n    \"\"\"Return one-line commit summaries between ``tag`` and HEAD.\"\"\"\n    if not _REF.fullmatch(tag):\n        raise ValueError(f\"invalid tag name: {tag!r}\")\n    git = shutil.which(\"git\")\n    if git is None:\n        raise RuntimeError(\"git executable not found\")\n    output = subprocess.run(\n        [git, \"log\", \"--oneline\", f\"{tag}..HEAD\", \"--\"],\n        cwd=repo_dir,\n        capture_output=True,\n        text=True,\n        check=True,\n    ).stdout\n    return [line for line in output.splitlines() if line.strip()]\n\n\ndef release_notes(tag: str, repo_dir: str) -> str:\n    lines = commits_since(tag, repo_dir)\n    return \"\\n\".join(f\"- {line.split(' ', 1)[-1]}\" for line in lines)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/session-cookie-pickle/defect",
+        "pair": "holdout2/python/session-cookie-pickle",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Session cookie helpers for the account service.\"\"\"\n\nimport base64\nimport pickle\nfrom typing import Any\n\n\ndef dump_session(data: dict[str, Any]) -> str:\n    return base64.urlsafe_b64encode(pickle.dumps(data)).decode(\"ascii\")\n\n\ndef load_session(request: dict[str, Any]) -> dict[str, Any]:\n    raw = request.get(\"cookies\", {}).get(\"session\")\n    if not isinstance(raw, str) or not raw:\n        return {}\n    try:\n        data = pickle.loads(base64.urlsafe_b64decode(raw))\n    except (ValueError, pickle.UnpicklingError):\n        return {}\n    return data if isinstance(data, dict) else {}\n",
+            "kind": "defect",
+            "markers": [
+              "S301",
+              "B301",
+              "pickle",
+              "deserializ",
+              "CWE-502"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/session-cookie-pickle/control",
+        "pair": "holdout2/python/session-cookie-pickle",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Session cookie helpers for the account service.\"\"\"\n\nimport base64\nimport hashlib\nimport hmac\nimport json\nfrom typing import Any\n\n\ndef _sign(key: bytes, payload: bytes) -> str:\n    return hmac.new(key, payload, hashlib.sha256).hexdigest()\n\n\ndef dump_session(data: dict[str, Any], key: bytes) -> str:\n    payload = base64.urlsafe_b64encode(json.dumps(data, separators=(\",\", \":\")).encode())\n    return f\"{payload.decode('ascii')}.{_sign(key, payload)}\"\n\n\ndef load_session(request: dict[str, Any], key: bytes) -> dict[str, Any]:\n    raw = request.get(\"cookies\", {}).get(\"session\")\n    if not isinstance(raw, str) or \".\" not in raw:\n        return {}\n    payload, _, signature = raw.rpartition(\".\")\n    if not hmac.compare_digest(signature, _sign(key, payload.encode(\"ascii\"))):\n        return {}\n    try:\n        data = json.loads(base64.urlsafe_b64decode(payload))\n    except ValueError:\n        return {}\n    return data if isinstance(data, dict) else {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/mentions-mutable-default/defect",
+        "pair": "holdout2/python/mentions-mutable-default",
+        "language": "python",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Mention extraction for the notes service.\"\"\"\n\nfrom collections.abc import Callable\n\n\ndef collect_mentions(text: str, found: list[str] = []) -> list[str]:\n    for word in text.split():\n        if word.startswith(\"@\") and len(word) > 1:\n            handle = word[1:].rstrip(\".,!?:;\").lower()\n            if handle and handle not in found:\n                found.append(handle)\n    return found\n\n\ndef notify_mentions(note_text: str, send: Callable[[str], None]) -> int:\n    handles = collect_mentions(note_text)\n    for handle in handles:\n        send(handle)\n    return len(handles)\n",
+            "kind": "defect",
+            "markers": [
+              "B006",
+              "mutable (default|argument)",
+              "dangerous-default-value",
+              "W0102"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/mentions-mutable-default/control",
+        "pair": "holdout2/python/mentions-mutable-default",
+        "language": "python",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Mention extraction for the notes service.\"\"\"\n\nfrom collections.abc import Callable\n\n\ndef collect_mentions(text: str, found: list[str] | None = None) -> list[str]:\n    result = [] if found is None else list(found)\n    for word in text.split():\n        if word.startswith(\"@\") and len(word) > 1:\n            handle = word[1:].rstrip(\".,!?:;\").lower()\n            if handle and handle not in result:\n                result.append(handle)\n    return result\n\n\ndef notify_mentions(note_text: str, send: Callable[[str], None]) -> int:\n    handles = collect_mentions(note_text)\n    for handle in handles:\n        send(handle)\n    return len(handles)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/inviter-optional-user/defect",
+        "pair": "holdout2/python/inviter-optional-user",
+        "language": "python",
+        "family": "type-error",
+        "base": {
+          "users.py": "\"\"\"User directory.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass User:\n    id: int\n    email: str\n    display_name: str\n\n\n_USERS: dict[int, User] = {1: User(1, \"ada@example.com\", \"Ada\")}\n\n\ndef find_user(user_id: int) -> User | None:\n    return _USERS.get(user_id)\n"
+        },
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Invitation emails.\"\"\"\n\nfrom users import find_user\n\n\ndef invitation_email(inviter_id: int, recipient: str) -> dict[str, str]:\n    inviter = find_user(inviter_id)\n    return {\n        \"to\": recipient,\n        \"subject\": f\"{inviter.display_name} invited you to the workspace\",\n        \"reply_to\": inviter.email,\n    }\n",
+            "kind": "defect",
+            "markers": [
+              "union-attr",
+              "Item \\\"None\\\"",
+              "reportOptionalMemberAccess",
+              "(optional|none).*(has no )?attribute"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/inviter-optional-user/control",
+        "pair": "holdout2/python/inviter-optional-user",
+        "language": "python",
+        "family": "type-error",
+        "base": {
+          "users.py": "\"\"\"User directory.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass User:\n    id: int\n    email: str\n    display_name: str\n\n\n_USERS: dict[int, User] = {1: User(1, \"ada@example.com\", \"Ada\")}\n\n\ndef find_user(user_id: int) -> User | None:\n    return _USERS.get(user_id)\n"
+        },
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Invitation emails.\"\"\"\n\nfrom users import find_user\n\n\ndef invitation_email(inviter_id: int, recipient: str) -> dict[str, str]:\n    inviter = find_user(inviter_id)\n    if inviter is None:\n        raise LookupError(f\"unknown inviter {inviter_id}\")\n    return {\n        \"to\": recipient,\n        \"subject\": f\"{inviter.display_name} invited you to the workspace\",\n        \"reply_to\": inviter.email,\n    }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/inventory-csv-open-leak/defect",
+        "pair": "holdout2/python/inventory-csv-open-leak",
+        "language": "python",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"CSV import for the inventory CLI.\"\"\"\n\nimport csv\n\nEXPECTED_HEADER = [\"sku\", \"name\", \"quantity\"]\n\n\ndef load_inventory(path: str) -> dict[str, int]:\n    handle = open(path, newline=\"\", encoding=\"utf-8\")\n    reader = csv.reader(handle)\n    header = next(reader, None)\n    if header != EXPECTED_HEADER:\n        raise ValueError(f\"unexpected header in {path}: {header}\")\n    stock: dict[str, int] = {}\n    for sku, _name, quantity in reader:\n        stock[sku] = stock.get(sku, 0) + int(quantity)\n    handle.close()\n    return stock\n",
+            "kind": "defect",
+            "markers": [
+              "SIM115",
+              "R1732",
+              "consider-using-with",
+              "context manager",
+              "(file|handle).*(not closed|never closed|leak)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/inventory-csv-open-leak/control",
+        "pair": "holdout2/python/inventory-csv-open-leak",
+        "language": "python",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"CSV import for the inventory CLI.\"\"\"\n\nimport csv\n\nEXPECTED_HEADER = [\"sku\", \"name\", \"quantity\"]\n\n\ndef load_inventory(path: str) -> dict[str, int]:\n    stock: dict[str, int] = {}\n    with open(path, newline=\"\", encoding=\"utf-8\") as handle:\n        reader = csv.reader(handle)\n        header = next(reader, None)\n        if header != EXPECTED_HEADER:\n            raise ValueError(f\"unexpected header in {path}: {header}\")\n        for sku, _name, quantity in reader:\n            stock[sku] = stock.get(sku, 0) + int(quantity)\n    return stock\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/webhook-retry-swallow/defect",
+        "pair": "holdout2/python/webhook-retry-swallow",
+        "language": "python",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Outbound webhook delivery with retries.\"\"\"\n\nimport http.client\nimport json\nimport time\nfrom urllib.parse import urlsplit\n\n\ndef _post_once(url: str, body: bytes) -> int:\n    parts = urlsplit(url)\n    conn = http.client.HTTPSConnection(parts.netloc, timeout=5)\n    try:\n        conn.request(\n            \"POST\",\n            parts.path or \"/\",\n            body=body,\n            headers={\"Content-Type\": \"application/json\"},\n        )\n        return conn.getresponse().status\n    finally:\n        conn.close()\n\n\ndef deliver(url: str, event: dict[str, object], attempts: int = 3) -> bool:\n    body = json.dumps(event).encode()\n    for attempt in range(attempts):\n        try:\n            if _post_once(url, body) // 100 == 2:\n                return True\n        except Exception:\n            pass\n        time.sleep(2**attempt)\n    return True\n",
+            "kind": "defect",
+            "markers": [
+              "S110",
+              "BLE001",
+              "broad[- ]except",
+              "(swallow|silenc|suppress)\\w*.*(exception|error)",
+              "try-except-pass"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/webhook-retry-swallow/control",
+        "pair": "holdout2/python/webhook-retry-swallow",
+        "language": "python",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Outbound webhook delivery with retries.\"\"\"\n\nimport http.client\nimport json\nimport logging\nimport time\nfrom urllib.parse import urlsplit\n\nlog = logging.getLogger(__name__)\n\n\ndef _post_once(url: str, body: bytes) -> int:\n    parts = urlsplit(url)\n    conn = http.client.HTTPSConnection(parts.netloc, timeout=5)\n    try:\n        conn.request(\n            \"POST\",\n            parts.path or \"/\",\n            body=body,\n            headers={\"Content-Type\": \"application/json\"},\n        )\n        return conn.getresponse().status\n    finally:\n        conn.close()\n\n\ndef deliver(url: str, event: dict[str, object], attempts: int = 3) -> bool:\n    body = json.dumps(event).encode()\n    for attempt in range(attempts):\n        try:\n            status = _post_once(url, body)\n        except (OSError, http.client.HTTPException) as exc:\n            log.warning(\"webhook %s attempt %d failed: %s\", url, attempt + 1, exc)\n        else:\n            if status // 100 == 2:\n                return True\n            log.warning(\"webhook %s attempt %d returned %d\", url, attempt + 1, status)\n        time.sleep(2**attempt)\n    return False\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/discount-test-mocks-subject/defect",
+        "pair": "holdout2/python/discount-test-mocks-subject",
+        "language": "python",
+        "family": "test-integrity",
+        "base": {
+          "pricing.py": "\"\"\"Pricing rules.\"\"\"\n\n\ndef apply_discount(subtotal_cents: int, percent: int) -> int:\n    if not 0 <= percent <= 100:\n        raise ValueError(\"percent must be between 0 and 100\")\n    return subtotal_cents - (subtotal_cents * percent) // 100\n"
+        },
+        "steps": [
+          {
+            "path": "test_pricing.py",
+            "content": "import unittest\nfrom unittest import mock\n\nimport pricing\n\n\nclass ApplyDiscountTest(unittest.TestCase):\n    @mock.patch(\"pricing.apply_discount\", return_value=900)\n    def test_ten_percent_off(self, fake_discount: mock.MagicMock) -> None:\n        self.assertEqual(pricing.apply_discount(1000, 10), 900)\n        fake_discount.assert_called_once_with(1000, 10)\n\n    @mock.patch(\"pricing.apply_discount\", side_effect=ValueError(\"bad percent\"))\n    def test_rejects_out_of_range(self, _fake: mock.MagicMock) -> None:\n        with self.assertRaises(ValueError):\n            pricing.apply_discount(1000, 150)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+            "kind": "defect",
+            "markers": [
+              "mock\\w*.*(under test|itself|subject|same function)",
+              "over-?mock",
+              "tautolog",
+              "(never|doesn't|does not|not) (exercise|call|test)s? the real"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/discount-test-mocks-subject/control",
+        "pair": "holdout2/python/discount-test-mocks-subject",
+        "language": "python",
+        "family": "test-integrity",
+        "base": {
+          "pricing.py": "\"\"\"Pricing rules.\"\"\"\n\n\ndef apply_discount(subtotal_cents: int, percent: int) -> int:\n    if not 0 <= percent <= 100:\n        raise ValueError(\"percent must be between 0 and 100\")\n    return subtotal_cents - (subtotal_cents * percent) // 100\n"
+        },
+        "steps": [
+          {
+            "path": "test_pricing.py",
+            "content": "import unittest\n\nimport pricing\n\n\nclass ApplyDiscountTest(unittest.TestCase):\n    def test_ten_percent_off(self) -> None:\n        self.assertEqual(pricing.apply_discount(1000, 10), 900)\n\n    def test_rounds_discount_down(self) -> None:\n        self.assertEqual(pricing.apply_discount(999, 15), 850)\n\n    def test_rejects_out_of_range(self) -> None:\n        with self.assertRaises(ValueError):\n            pricing.apply_discount(1000, 150)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/attachment-download-traversal/defect",
+        "pair": "holdout2/python/attachment-download-traversal",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Attachment download handler.\"\"\"\n\nimport mimetypes\nimport os\n\nUPLOAD_ROOT = \"/srv/app/uploads\"\n\n\ndef download_attachment(request: dict[str, str]) -> tuple[bytes, str]:\n    name = request[\"filename\"]\n    path = os.path.join(UPLOAD_ROOT, request[\"account_id\"], name)\n    if not os.path.isfile(path):\n        raise FileNotFoundError(name)\n    content_type = mimetypes.guess_type(path)[0] or \"application/octet-stream\"\n    with open(path, \"rb\") as fh:\n        return fh.read(), content_type\n",
+            "kind": "defect",
+            "markers": [
+              "path traversal",
+              "directory traversal",
+              "CWE-22",
+              "(path|filename).*(user|untrusted|tainted)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/attachment-download-traversal/control",
+        "pair": "holdout2/python/attachment-download-traversal",
+        "language": "python",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Attachment download handler.\"\"\"\n\nimport mimetypes\nfrom pathlib import Path\n\nUPLOAD_ROOT = Path(\"/srv/app/uploads\")\n\n\ndef download_attachment(request: dict[str, str]) -> tuple[bytes, str]:\n    account_id = request[\"account_id\"]\n    name = request[\"filename\"]\n    if not account_id.isdigit():\n        raise FileNotFoundError(name)\n    root = (UPLOAD_ROOT / account_id).resolve()\n    path = (root / name).resolve()\n    if not path.is_relative_to(root) or not path.is_file():\n        raise FileNotFoundError(name)\n    content_type = mimetypes.guess_type(path.name)[0] or \"application/octet-stream\"\n    return path.read_bytes(), content_type\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/link-checker-shared-counter/defect",
+        "pair": "holdout2/python/link-checker-shared-counter",
+        "language": "python",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Parallel link checker for the docs CLI.\"\"\"\n\nimport urllib.request\nfrom concurrent.futures import ThreadPoolExecutor\n\n\nclass LinkReport:\n    def __init__(self) -> None:\n        self.checked = 0\n        self.broken: list[str] = []\n\n    def record(self, url: str, ok: bool) -> None:\n        self.checked += 1\n        if not ok:\n            self.broken.append(url)\n\n\ndef _is_alive(url: str) -> bool:\n    try:\n        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310\n            return bool(resp.status < 400)\n    except OSError:\n        return False\n\n\ndef check_links(urls: list[str], workers: int = 8) -> LinkReport:\n    report = LinkReport()\n    with ThreadPoolExecutor(max_workers=workers) as pool:\n        for url in urls:\n            pool.submit(lambda u: report.record(u, _is_alive(u)), url)\n    return report\n",
+            "kind": "defect",
+            "markers": [
+              "race condition",
+              "data race",
+              "thread.?safe",
+              "(without|missing|no) (a )?lock",
+              "unsynchroni[sz]ed"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/link-checker-shared-counter/control",
+        "pair": "holdout2/python/link-checker-shared-counter",
+        "language": "python",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Parallel link checker for the docs CLI.\"\"\"\n\nimport threading\nimport urllib.request\nfrom concurrent.futures import ThreadPoolExecutor\n\n\nclass LinkReport:\n    def __init__(self) -> None:\n        self.checked = 0\n        self.broken: list[str] = []\n        self._lock = threading.Lock()\n\n    def record(self, url: str, ok: bool) -> None:\n        with self._lock:\n            self.checked += 1\n            if not ok:\n                self.broken.append(url)\n\n\ndef _is_alive(url: str) -> bool:\n    try:\n        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310\n            return bool(resp.status < 400)\n    except OSError:\n        return False\n\n\ndef check_links(urls: list[str], workers: int = 8) -> LinkReport:\n    report = LinkReport()\n    with ThreadPoolExecutor(max_workers=workers) as pool:\n        for url, ok in zip(urls, pool.map(_is_alive, urls), strict=True):\n            report.record(url, ok)\n    return report\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/paginate-one-indexed-offset/defect",
+        "pair": "holdout2/python/paginate-one-indexed-offset",
+        "language": "python",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Pagination helpers for the admin API.\"\"\"\n\nfrom collections.abc import Sequence\nfrom dataclasses import dataclass\nfrom typing import Generic, TypeVar\n\nT = TypeVar(\"T\")\n\n\n@dataclass(frozen=True)\nclass Page(Generic[T]):\n    items: list[T]\n    page: int\n    total_pages: int\n\n\ndef paginate(rows: Sequence[T], page: int, per_page: int = 25) -> Page[T]:\n    \"\"\"Return the 1-indexed ``page`` of ``rows``.\"\"\"\n    if page < 1 or per_page < 1:\n        raise ValueError(\"page and per_page must be positive\")\n    total_pages = max(1, -(-len(rows) // per_page))\n    start = page * per_page\n    items = list(rows[start : start + per_page])\n    return Page(items=items, page=page, total_pages=total_pages)\n",
+            "kind": "defect",
+            "markers": [
+              "off.by.one",
+              "first page",
+              "(1|one)-(indexed|based)",
+              "skips? (the )?first"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/paginate-one-indexed-offset/control",
+        "pair": "holdout2/python/paginate-one-indexed-offset",
+        "language": "python",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Pagination helpers for the admin API.\"\"\"\n\nfrom collections.abc import Sequence\nfrom dataclasses import dataclass\nfrom typing import Generic, TypeVar\n\nT = TypeVar(\"T\")\n\n\n@dataclass(frozen=True)\nclass Page(Generic[T]):\n    items: list[T]\n    page: int\n    total_pages: int\n\n\ndef paginate(rows: Sequence[T], page: int, per_page: int = 25) -> Page[T]:\n    \"\"\"Return the 1-indexed ``page`` of ``rows``.\"\"\"\n    if page < 1 or per_page < 1:\n        raise ValueError(\"page and per_page must be positive\")\n    total_pages = max(1, -(-len(rows) // per_page))\n    start = (page - 1) * per_page\n    items = list(rows[start : start + per_page])\n    return Page(items=items, page=page, total_pages=total_pages)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/redact-re-sub-flags-as-count/defect",
+        "pair": "holdout2/python/redact-re-sub-flags-as-count",
+        "language": "python",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Redaction for support-ticket transcripts.\"\"\"\n\nimport re\n\n_SECRET_WORDS = (\"password\", \"passcode\", \"api key\", \"token\")\n_PATTERN = r\"\\b(\" + \"|\".join(re.escape(w) for w in _SECRET_WORDS) + r\")\\s*[:=]\\s*\\S+\"\n\n\ndef redact(text: str) -> str:\n    \"\"\"Mask values that follow credential-like labels, ignoring case.\"\"\"\n    return re.sub(_PATTERN, r\"\\1: [REDACTED]\", text, re.IGNORECASE)\n\n\ndef redact_transcript(lines: list[str]) -> list[str]:\n    return [redact(line) for line in lines]\n",
+            "kind": "defect",
+            "markers": [
+              "B034",
+              "re-sub-positional-args",
+              "(count|flags).*positional",
+              "positional.*(count|flags)",
+              "flags.*(passed|interpreted) as (the )?count"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/python/redact-re-sub-flags-as-count/control",
+        "pair": "holdout2/python/redact-re-sub-flags-as-count",
+        "language": "python",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\"\"\"Redaction for support-ticket transcripts.\"\"\"\n\nimport re\n\n_SECRET_WORDS = (\"password\", \"passcode\", \"api key\", \"token\")\n_PATTERN = r\"\\b(\" + \"|\".join(re.escape(w) for w in _SECRET_WORDS) + r\")\\s*[:=]\\s*\\S+\"\n\n\ndef redact(text: str) -> str:\n    \"\"\"Mask values that follow credential-like labels, ignoring case.\"\"\"\n    return re.sub(_PATTERN, r\"\\1: [REDACTED]\", text, flags=re.IGNORECASE)\n\n\ndef redact_transcript(lines: list[str]) -> list[str]:\n    return [redact(line) for line in lines]\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/comment-list-innerhtml/defect",
+        "pair": "holdout2/typescript/comment-list-innerhtml",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/comments.ts",
+            "content": "export interface Comment {\n  id: string;\n  author: string;\n  body: string;\n  createdAt: string;\n}\n\nexport function renderComments(list: HTMLElement, comments: readonly Comment[]): void {\n  list.innerHTML = comments\n    .map(\n      (c) =>\n        `<li data-id=\"${c.id}\"><strong>${c.author}</strong>` +\n        `<p>${c.body}</p><time datetime=\"${c.createdAt}\">${c.createdAt}</time></li>`,\n    )\n    .join(\"\");\n}\n",
+            "kind": "defect",
+            "markers": [
+              "innerHTML",
+              "\\bXSS\\b",
+              "cross.site scripting",
+              "no-unsanitized",
+              "CWE-79"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/comment-list-innerhtml/control",
+        "pair": "holdout2/typescript/comment-list-innerhtml",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/comments.ts",
+            "content": "export interface Comment {\n  id: string;\n  author: string;\n  body: string;\n  createdAt: string;\n}\n\nexport function renderComments(list: HTMLElement, comments: readonly Comment[]): void {\n  list.innerHTML = \"\";\n  for (const c of comments) {\n    const item = document.createElement(\"li\");\n    item.dataset.id = c.id;\n    const author = document.createElement(\"strong\");\n    author.textContent = c.author;\n    const body = document.createElement(\"p\");\n    body.textContent = c.body;\n    const time = document.createElement(\"time\");\n    time.dateTime = c.createdAt;\n    time.textContent = c.createdAt;\n    item.append(author, body, time);\n    list.append(item);\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/price-preview-string-arg/defect",
+        "pair": "holdout2/typescript/price-preview-string-arg",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {
+          "src/money.ts": "export function formatPrice(cents: number, currency: string): string {\n  return new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency }).format(cents / 100);\n}\n"
+        },
+        "steps": [
+          {
+            "path": "src/checkout.ts",
+            "content": "import { formatPrice } from \"./money\";\n\nexport function bindPricePreview(\n  input: HTMLInputElement,\n  output: HTMLElement,\n  currency = \"USD\",\n): void {\n  input.addEventListener(\"input\", () => {\n    const cents = input.value.trim() === \"\" ? \"0\" : input.value;\n    output.textContent = formatPrice(cents, currency);\n  });\n}\n",
+            "kind": "defect",
+            "markers": [
+              "TS2345",
+              "not assignable to parameter of type 'number'",
+              "Argument of type 'string'"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/price-preview-string-arg/control",
+        "pair": "holdout2/typescript/price-preview-string-arg",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {
+          "src/money.ts": "export function formatPrice(cents: number, currency: string): string {\n  return new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency }).format(cents / 100);\n}\n"
+        },
+        "steps": [
+          {
+            "path": "src/checkout.ts",
+            "content": "import { formatPrice } from \"./money\";\n\nexport function bindPricePreview(\n  input: HTMLInputElement,\n  output: HTMLElement,\n  currency = \"USD\",\n): void {\n  input.addEventListener(\"input\", () => {\n    const amount = Number.parseFloat(input.value);\n    output.textContent = Number.isFinite(amount)\n      ? formatPrice(Math.round(amount * 100), currency)\n      : \"\";\n  });\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/latency-p95-default-sort/defect",
+        "pair": "holdout2/typescript/latency-p95-default-sort",
+        "language": "typescript",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/metrics.ts",
+            "content": "export interface LatencySample {\n  route: string;\n  ms: number;\n}\n\nexport function percentile(samples: readonly LatencySample[], p: number): number {\n  if (samples.length === 0) return 0;\n  const sorted = samples.map((s) => s.ms).sort();\n  const rank = Math.ceil((p / 100) * sorted.length) - 1;\n  return sorted[Math.min(sorted.length - 1, Math.max(0, rank))] ?? 0;\n}\n\nexport function p95ByRoute(samples: readonly LatencySample[]): Map<string, number> {\n  const byRoute = new Map<string, LatencySample[]>();\n  for (const s of samples) {\n    const bucket = byRoute.get(s.route) ?? [];\n    bucket.push(s);\n    byRoute.set(s.route, bucket);\n  }\n  return new Map([...byRoute].map(([route, list]) => [route, percentile(list, 95)]));\n}\n",
+            "kind": "defect",
+            "markers": [
+              "require-array-sort-compare",
+              "useArraySortCompare",
+              "lexicograph",
+              "(compare|comparator) (function|fn|argument|callback)",
+              "sort.*(as strings|string order)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/latency-p95-default-sort/control",
+        "pair": "holdout2/typescript/latency-p95-default-sort",
+        "language": "typescript",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/metrics.ts",
+            "content": "export interface LatencySample {\n  route: string;\n  ms: number;\n}\n\nexport function percentile(samples: readonly LatencySample[], p: number): number {\n  if (samples.length === 0) return 0;\n  const sorted = samples.map((s) => s.ms).sort((a, b) => a - b);\n  const rank = Math.ceil((p / 100) * sorted.length) - 1;\n  return sorted[Math.min(sorted.length - 1, Math.max(0, rank))] ?? 0;\n}\n\nexport function p95ByRoute(samples: readonly LatencySample[]): Map<string, number> {\n  const byRoute = new Map<string, LatencySample[]>();\n  for (const s of samples) {\n    const bucket = byRoute.get(s.route) ?? [];\n    bucket.push(s);\n    byRoute.set(s.route, bucket);\n  }\n  return new Map([...byRoute].map(([route, list]) => [route, percentile(list, 95)]));\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/close-editor-floating-save/defect",
+        "pair": "holdout2/typescript/close-editor-floating-save",
+        "language": "typescript",
+        "family": "concurrency",
+        "base": {
+          "src/drafts.ts": "export interface Draft {\n  id: string;\n  text: string;\n}\n\nexport async function saveDraft(draft: Draft): Promise<void> {\n  const res = await fetch(`/api/drafts/${encodeURIComponent(draft.id)}`, {\n    method: \"PUT\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify(draft),\n  });\n  if (!res.ok) throw new Error(`save failed: ${String(res.status)}`);\n}\n"
+        },
+        "steps": [
+          {
+            "path": "src/editor.ts",
+            "content": "import { saveDraft, type Draft } from \"./drafts\";\n\nexport function closeEditor(draft: Draft, status: HTMLElement, onClosed: () => void): void {\n  status.textContent = \"Saving\u2026\";\n  saveDraft(draft);\n  status.textContent = \"Draft saved\";\n  onClosed();\n}\n",
+            "kind": "defect",
+            "markers": [
+              "no-floating-promises",
+              "floating promise",
+              "(not|never|isn't|is not) (being )?awaited",
+              "unhandled (promise )?rejection",
+              "no-misused-promises"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/close-editor-floating-save/control",
+        "pair": "holdout2/typescript/close-editor-floating-save",
+        "language": "typescript",
+        "family": "concurrency",
+        "base": {
+          "src/drafts.ts": "export interface Draft {\n  id: string;\n  text: string;\n}\n\nexport async function saveDraft(draft: Draft): Promise<void> {\n  const res = await fetch(`/api/drafts/${encodeURIComponent(draft.id)}`, {\n    method: \"PUT\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify(draft),\n  });\n  if (!res.ok) throw new Error(`save failed: ${String(res.status)}`);\n}\n"
+        },
+        "steps": [
+          {
+            "path": "src/editor.ts",
+            "content": "import { saveDraft, type Draft } from \"./drafts\";\n\nexport async function closeEditor(\n  draft: Draft,\n  status: HTMLElement,\n  onClosed: () => void,\n): Promise<void> {\n  const pending = saveDraft(draft);\n  status.textContent = \"Saving\u2026\";\n  try {\n    await pending;\n    status.textContent = \"Draft saved\";\n    onClosed();\n  } catch (err) {\n    status.textContent = err instanceof Error ? err.message : \"Save failed\";\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/login-next-open-redirect/defect",
+        "pair": "holdout2/typescript/login-next-open-redirect",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/login.ts",
+            "content": "const DEFAULT_LANDING = \"/dashboard\";\n\nexport function completeLogin(search: string, token: string): void {\n  sessionStorage.setItem(\"auth_token\", token);\n  const params = new URLSearchParams(search);\n  const next = params.get(\"next\") ?? DEFAULT_LANDING;\n  window.location.assign(next);\n}\n",
+            "kind": "defect",
+            "markers": [
+              "open redirect",
+              "unvalidated redirect",
+              "CWE-601",
+              "redirect.*(untrusted|user.controlled|validat)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/login-next-open-redirect/control",
+        "pair": "holdout2/typescript/login-next-open-redirect",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/login.ts",
+            "content": "const DEFAULT_LANDING = \"/dashboard\";\n\nexport function safeNextPath(raw: string | null, origin: string): string {\n  if (raw === null || !raw.startsWith(\"/\") || raw.startsWith(\"//\")) return DEFAULT_LANDING;\n  try {\n    const target = new URL(raw, origin);\n    if (target.origin !== origin) return DEFAULT_LANDING;\n    return `${target.pathname}${target.search}${target.hash}`;\n  } catch {\n    return DEFAULT_LANDING;\n  }\n}\n\nexport function completeLogin(search: string, token: string): void {\n  sessionStorage.setItem(\"auth_token\", token);\n  const params = new URLSearchParams(search);\n  window.location.assign(safeNextPath(params.get(\"next\"), window.location.origin));\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/settings-deep-merge-proto/defect",
+        "pair": "holdout2/typescript/settings-deep-merge-proto",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/settings.ts",
+            "content": "export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };\nexport type JsonObject = { [key: string]: Json };\n\nfunction isObject(v: Json | undefined): v is JsonObject {\n  return typeof v === \"object\" && v !== null && !Array.isArray(v);\n}\n\nexport function mergeSettings(target: JsonObject, patch: JsonObject): JsonObject {\n  for (const key of Object.keys(patch)) {\n    const incoming = patch[key];\n    const current = target[key];\n    if (isObject(incoming) && isObject(current)) {\n      mergeSettings(current, incoming);\n    } else {\n      target[key] = incoming;\n    }\n  }\n  return target;\n}\n\nexport function applyUserPreferences(defaults: JsonObject, body: string): JsonObject {\n  return mergeSettings(defaults, JSON.parse(body) as JsonObject);\n}\n",
+            "kind": "defect",
+            "markers": [
+              "prototype pollution",
+              "__proto__",
+              "CWE-1321",
+              "prototype-pollution"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/settings-deep-merge-proto/control",
+        "pair": "holdout2/typescript/settings-deep-merge-proto",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/settings.ts",
+            "content": "export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };\nexport type JsonObject = { [key: string]: Json };\n\nconst FORBIDDEN_KEYS = new Set([\"__proto__\", \"constructor\", \"prototype\"]);\n\nfunction isObject(v: Json | undefined): v is JsonObject {\n  return typeof v === \"object\" && v !== null && !Array.isArray(v);\n}\n\nexport function mergeSettings(target: JsonObject, patch: JsonObject): JsonObject {\n  for (const key of Object.keys(patch)) {\n    if (FORBIDDEN_KEYS.has(key)) continue;\n    const incoming = patch[key];\n    const current = Object.hasOwn(target, key) ? target[key] : undefined;\n    if (isObject(incoming) && isObject(current)) {\n      mergeSettings(current, incoming);\n    } else {\n      target[key] = incoming;\n    }\n  }\n  return target;\n}\n\nexport function applyUserPreferences(defaults: JsonObject, body: string): JsonObject {\n  return mergeSettings(defaults, JSON.parse(body) as JsonObject);\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/assignee-find-non-null/defect",
+        "pair": "holdout2/typescript/assignee-find-non-null",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/assignee.ts",
+            "content": "export interface Member {\n  id: string;\n  name: string;\n  role: \"owner\" | \"editor\" | \"viewer\";\n}\n\nexport function describeAssignee(members: readonly Member[], assigneeId: string): string {\n  const assignee = members.find((m) => m.id === assigneeId)!;\n  const suffix = assignee.role === \"owner\" ? \" (owner)\" : \"\";\n  return `${assignee.name}${suffix}`;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "no-non-null-assertion",
+              "non-null assertion",
+              "possibly '?undefined'?",
+              "TS18048",
+              "noNonNullAssertion"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/assignee-find-non-null/control",
+        "pair": "holdout2/typescript/assignee-find-non-null",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/assignee.ts",
+            "content": "export interface Member {\n  id: string;\n  name: string;\n  role: \"owner\" | \"editor\" | \"viewer\";\n}\n\nexport function describeAssignee(members: readonly Member[], assigneeId: string): string {\n  const assignee = members.find((m) => m.id === assigneeId);\n  if (assignee === undefined) return \"Unassigned\";\n  const suffix = assignee.role === \"owner\" ? \" (owner)\" : \"\";\n  return `${assignee.name}${suffix}`;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/shape-area-missing-case/defect",
+        "pair": "holdout2/typescript/shape-area-missing-case",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {
+          "src/shapes.ts": "export type Shape =\n  | { kind: \"circle\"; radius: number }\n  | { kind: \"rect\"; width: number; height: number }\n  | { kind: \"triangle\"; base: number; height: number };\n"
+        },
+        "steps": [
+          {
+            "path": "src/area.ts",
+            "content": "import type { Shape } from \"./shapes\";\n\nexport function area(shape: Shape): number {\n  switch (shape.kind) {\n    case \"circle\":\n      return Math.PI * shape.radius ** 2;\n    case \"rect\":\n      return shape.width * shape.height;\n  }\n}\n\nexport function totalArea(shapes: readonly Shape[]): number {\n  return shapes.reduce((sum, s) => sum + area(s), 0);\n}\n",
+            "kind": "defect",
+            "markers": [
+              "TS2366",
+              "lacks ending return",
+              "switch-exhaustiveness",
+              "not all (code )?paths",
+              "exhaustive"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/shape-area-missing-case/control",
+        "pair": "holdout2/typescript/shape-area-missing-case",
+        "language": "typescript",
+        "family": "type-error",
+        "base": {
+          "src/shapes.ts": "export type Shape =\n  | { kind: \"circle\"; radius: number }\n  | { kind: \"rect\"; width: number; height: number }\n  | { kind: \"triangle\"; base: number; height: number };\n"
+        },
+        "steps": [
+          {
+            "path": "src/area.ts",
+            "content": "import type { Shape } from \"./shapes\";\n\nexport function area(shape: Shape): number {\n  switch (shape.kind) {\n    case \"circle\":\n      return Math.PI * shape.radius ** 2;\n    case \"rect\":\n      return shape.width * shape.height;\n    case \"triangle\":\n      return (shape.base * shape.height) / 2;\n    default: {\n      const unreachable: never = shape;\n      throw new Error(`unknown shape: ${JSON.stringify(unreachable)}`);\n    }\n  }\n}\n\nexport function totalArea(shapes: readonly Shape[]): number {\n  return shapes.reduce((sum, s) => sum + area(s), 0);\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/presence-poller-interval-leak/defect",
+        "pair": "holdout2/typescript/presence-poller-interval-leak",
+        "language": "typescript",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/presence.ts",
+            "content": "export class PresencePoller {\n  private stopped = true;\n\n  constructor(\n    private readonly roomId: string,\n    private readonly onUpdate: (users: string[]) => void,\n    private readonly intervalMs = 5000,\n  ) {}\n\n  start(): void {\n    this.stopped = false;\n    setInterval(() => {\n      if (!this.stopped) void this.poll();\n    }, this.intervalMs);\n  }\n\n  stop(): void {\n    this.stopped = true;\n  }\n\n  private async poll(): Promise<void> {\n    const res = await fetch(`/api/rooms/${encodeURIComponent(this.roomId)}/presence`);\n    if (res.ok) this.onUpdate((await res.json()) as string[]);\n  }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "clearInterval",
+              "(interval|timer).*(never cleared|not cleared|leak)",
+              "(memory|resource|timer) leak"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/presence-poller-interval-leak/control",
+        "pair": "holdout2/typescript/presence-poller-interval-leak",
+        "language": "typescript",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/presence.ts",
+            "content": "export class PresencePoller {\n  private timer: number | undefined;\n\n  constructor(\n    private readonly roomId: string,\n    private readonly onUpdate: (users: string[]) => void,\n    private readonly intervalMs = 5000,\n  ) {}\n\n  start(): void {\n    if (this.timer !== undefined) return;\n    this.timer = setInterval(() => {\n      this.poll().catch(() => undefined);\n    }, this.intervalMs);\n  }\n\n  stop(): void {\n    clearInterval(this.timer);\n    this.timer = undefined;\n  }\n\n  private async poll(): Promise<void> {\n    const res = await fetch(`/api/rooms/${encodeURIComponent(this.roomId)}/presence`);\n    if (res.ok) this.onUpdate((await res.json()) as string[]);\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/metric-name-replace-first-only/defect",
+        "pair": "holdout2/typescript/metric-name-replace-first-only",
+        "language": "typescript",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/metric-name.ts",
+            "content": "const PARAM = /:[A-Za-z_]+/g;\n\n/** Turns \"/api/users/:id/orders\" into \"http.get.api.users.id.orders\". */\nexport function toMetricName(route: string, method: string): string {\n  const cleaned = route\n    .replace(/^\\/+|\\/+$/g, \"\")\n    .replace(PARAM, (m) => m.slice(1))\n    .replace(\"/\", \".\");\n  return `http.${method.toLowerCase()}.${cleaned || \"root\"}`;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "prefer-string-replace-all",
+              "replaceAll",
+              "only (replaces )?the first",
+              "first (occurrence|match)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/metric-name-replace-first-only/control",
+        "pair": "holdout2/typescript/metric-name-replace-first-only",
+        "language": "typescript",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/metric-name.ts",
+            "content": "const PARAM = /:[A-Za-z_]+/g;\n\n/** Turns \"/api/users/:id/orders\" into \"http.get.api.users.id.orders\". */\nexport function toMetricName(route: string, method: string): string {\n  const cleaned = route\n    .replace(/^\\/+|\\/+$/g, \"\")\n    .replace(PARAM, (m) => m.slice(1))\n    .replaceAll(\"/\", \".\");\n  return `http.${method.toLowerCase()}.${cleaned || \"root\"}`;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/webhook-signature-string-compare/defect",
+        "pair": "holdout2/typescript/webhook-signature-string-compare",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/webhook.ts",
+            "content": "const encoder = new TextEncoder();\n\nasync function hmacHex(secret: string, payload: string): Promise<string> {\n  const key = await crypto.subtle.importKey(\n    \"raw\",\n    encoder.encode(secret),\n    { name: \"HMAC\", hash: \"SHA-256\" },\n    false,\n    [\"sign\"],\n  );\n  const sig = await crypto.subtle.sign(\"HMAC\", key, encoder.encode(payload));\n  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, \"0\")).join(\"\");\n}\n\nexport async function verifyWebhook(\n  secret: string,\n  payload: string,\n  signatureHeader: string,\n): Promise<boolean> {\n  const expected = await hmacHex(secret, payload);\n  return signatureHeader === `sha256=${expected}`;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "timing (attack|side.channel)",
+              "constant.time",
+              "timingSafeEqual",
+              "CWE-208",
+              "possible-timing-attacks"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/webhook-signature-string-compare/control",
+        "pair": "holdout2/typescript/webhook-signature-string-compare",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/webhook.ts",
+            "content": "const encoder = new TextEncoder();\n\nfunction hexToBytes(hex: string): Uint8Array<ArrayBuffer> | null {\n  if (!/^(?:[0-9a-f]{2})+$/i.test(hex)) return null;\n  const out = new Uint8Array(hex.length / 2);\n  for (let i = 0; i < out.length; i += 1) {\n    out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);\n  }\n  return out;\n}\n\nexport async function verifyWebhook(\n  secret: string,\n  payload: string,\n  signatureHeader: string,\n): Promise<boolean> {\n  const provided = signatureHeader.startsWith(\"sha256=\") ? hexToBytes(signatureHeader.slice(7)) : null;\n  if (provided === null) return false;\n  const key = await crypto.subtle.importKey(\n    \"raw\",\n    encoder.encode(secret),\n    { name: \"HMAC\", hash: \"SHA-256\" },\n    false,\n    [\"verify\"],\n  );\n  return crypto.subtle.verify(\"HMAC\", key, provided, encoder.encode(payload));\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/tag-input-nested-quantifier/defect",
+        "pair": "holdout2/typescript/tag-input-nested-quantifier",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/tags.ts",
+            "content": "const TAG_LIST = /^([a-z0-9]+-?)+(,\\s*([a-z0-9]+-?)+)*$/i;\n\nexport function parseTags(input: string): string[] {\n  const trimmed = input.trim();\n  if (trimmed === \"\") return [];\n  if (!TAG_LIST.test(trimmed)) {\n    throw new Error(\"Tags may only contain letters, digits and dashes\");\n  }\n  return [...new Set(trimmed.split(\",\").map((t) => t.trim().toLowerCase()))];\n}\n",
+            "kind": "defect",
+            "markers": [
+              "ReDoS",
+              "catastrophic backtracking",
+              "super-linear",
+              "exponential (backtracking|time|runtime)",
+              "(slow|unsafe)-regex"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/typescript/tag-input-nested-quantifier/control",
+        "pair": "holdout2/typescript/tag-input-nested-quantifier",
+        "language": "typescript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/tags.ts",
+            "content": "const TAG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;\nconst MAX_INPUT = 500;\n\nexport function parseTags(input: string): string[] {\n  const trimmed = input.trim();\n  if (trimmed === \"\") return [];\n  if (trimmed.length > MAX_INPUT) throw new Error(\"Too many tags\");\n  const tags = trimmed.split(\",\").map((t) => t.trim().toLowerCase());\n  if (!tags.every((t) => TAG.test(t))) {\n    throw new Error(\"Tags may only contain letters, digits and dashes\");\n  }\n  return [...new Set(tags)];\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/cart-total-focused-test/defect",
+        "pair": "holdout2/javascript/cart-total-focused-test",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "cart.js": "export function cartTotal(items, taxRate = 0) {\n  if (taxRate < 0) throw new RangeError(\"taxRate must be non-negative\");\n  const subtotal = items.reduce((sum, item) => sum + item.priceCents * item.qty, 0);\n  return Math.round(subtotal * (1 + taxRate));\n}\n"
+        },
+        "steps": [
+          {
+            "path": "cart.test.js",
+            "content": "import { describe, expect, it } from \"vitest\";\nimport { cartTotal } from \"./cart.js\";\n\ndescribe(\"cartTotal\", () => {\n  it(\"returns 0 for an empty cart\", () => {\n    expect(cartTotal([])).toBe(0);\n  });\n\n  it.only(\"multiplies price by quantity\", () => {\n    expect(cartTotal([{ priceCents: 250, qty: 3 }])).toBe(750);\n  });\n\n  it(\"applies tax and rounds to the nearest cent\", () => {\n    expect(cartTotal([{ priceCents: 999, qty: 1 }], 0.0825)).toBe(1081);\n  });\n\n  it(\"rejects negative tax rates\", () => {\n    expect(() => cartTotal([], -0.1)).toThrow(RangeError);\n  });\n});\n",
+            "kind": "defect",
+            "markers": [
+              "no-focused-tests",
+              "\\.only\\b",
+              "focused (test|spec)",
+              "no-only-tests"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/cart-total-focused-test/control",
+        "pair": "holdout2/javascript/cart-total-focused-test",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "cart.js": "export function cartTotal(items, taxRate = 0) {\n  if (taxRate < 0) throw new RangeError(\"taxRate must be non-negative\");\n  const subtotal = items.reduce((sum, item) => sum + item.priceCents * item.qty, 0);\n  return Math.round(subtotal * (1 + taxRate));\n}\n"
+        },
+        "steps": [
+          {
+            "path": "cart.test.js",
+            "content": "import { describe, expect, it } from \"vitest\";\nimport { cartTotal } from \"./cart.js\";\n\ndescribe(\"cartTotal\", () => {\n  it(\"returns 0 for an empty cart\", () => {\n    expect(cartTotal([])).toBe(0);\n  });\n\n  it(\"multiplies price by quantity\", () => {\n    expect(cartTotal([{ priceCents: 250, qty: 3 }])).toBe(750);\n  });\n\n  it(\"applies tax and rounds to the nearest cent\", () => {\n    expect(cartTotal([{ priceCents: 999, qty: 1 }], 0.0825)).toBe(1081);\n  });\n\n  it(\"rejects negative tax rates\", () => {\n    expect(() => cartTotal([], -0.1)).toThrow(RangeError);\n  });\n});\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/fetch-user-unawaited-rejects/defect",
+        "pair": "holdout2/javascript/fetch-user-unawaited-rejects",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "users.js": "export async function fetchUser(id, fetchImpl = fetch) {\n  if (!Number.isInteger(id) || id <= 0) {\n    throw new TypeError(\"invalid user id\");\n  }\n  const res = await fetchImpl(`https://api.example.test/users/${id}`);\n  if (!res.ok) throw new Error(`user ${id} not found`);\n  return res.json();\n}\n"
+        },
+        "steps": [
+          {
+            "path": "users.test.js",
+            "content": "import { describe, expect, it, vi } from \"vitest\";\nimport { fetchUser } from \"./users.js\";\n\ndescribe(\"fetchUser\", () => {\n  it(\"returns the parsed user\", async () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 7 }) });\n    await expect(fetchUser(7, fakeFetch)).resolves.toEqual({ id: 7 });\n  });\n\n  it(\"rejects non-positive ids without calling the API\", () => {\n    const fakeFetch = vi.fn();\n    expect(fetchUser(0, fakeFetch)).rejects.toThrow(\"invalid user id\");\n    expect(fakeFetch).not.toHaveBeenCalled();\n  });\n\n  it(\"surfaces 404s as errors\", () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: false });\n    expect(fetchUser(3, fakeFetch)).rejects.toThrow(\"user 3 not found\");\n  });\n});\n",
+            "kind": "defect",
+            "markers": [
+              "valid-expect",
+              "(await|return)\\w*.*\\brejects\\b",
+              "\\brejects\\b.*(await|return)",
+              "(not|never) awaited",
+              "floating promise"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/fetch-user-unawaited-rejects/control",
+        "pair": "holdout2/javascript/fetch-user-unawaited-rejects",
+        "language": "javascript",
+        "family": "test-integrity",
+        "base": {
+          "users.js": "export async function fetchUser(id, fetchImpl = fetch) {\n  if (!Number.isInteger(id) || id <= 0) {\n    throw new TypeError(\"invalid user id\");\n  }\n  const res = await fetchImpl(`https://api.example.test/users/${id}`);\n  if (!res.ok) throw new Error(`user ${id} not found`);\n  return res.json();\n}\n"
+        },
+        "steps": [
+          {
+            "path": "users.test.js",
+            "content": "import { describe, expect, it, vi } from \"vitest\";\nimport { fetchUser } from \"./users.js\";\n\ndescribe(\"fetchUser\", () => {\n  it(\"returns the parsed user\", async () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 7 }) });\n    await expect(fetchUser(7, fakeFetch)).resolves.toEqual({ id: 7 });\n  });\n\n  it(\"rejects non-positive ids without calling the API\", async () => {\n    const fakeFetch = vi.fn();\n    await expect(fetchUser(0, fakeFetch)).rejects.toThrow(\"invalid user id\");\n    expect(fakeFetch).not.toHaveBeenCalled();\n  });\n\n  it(\"surfaces 404s as errors\", async () => {\n    const fakeFetch = vi.fn().mockResolvedValue({ ok: false });\n    await expect(fetchUser(3, fakeFetch)).rejects.toThrow(\"user 3 not found\");\n  });\n});\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/link-preview-ssrf/defect",
+        "pair": "holdout2/javascript/link-preview-ssrf",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "preview.js",
+            "content": "import http from \"node:http\";\n\nconst TITLE = /<title>([^<]{0,300})<\\/title>/i;\n\nexport function createPreviewServer() {\n  return http.createServer(async (req, res) => {\n    const target = new URL(req.url ?? \"/\", \"http://localhost\").searchParams.get(\"url\");\n    if (!target) {\n      res.writeHead(400).end(\"missing url\");\n      return;\n    }\n    try {\n      const upstream = await fetch(target, { redirect: \"follow\", signal: AbortSignal.timeout(5000) });\n      const html = await upstream.text();\n      const title = TITLE.exec(html)?.[1] ?? \"\";\n      res.writeHead(200, { \"content-type\": \"application/json\" }).end(JSON.stringify({ title }));\n    } catch {\n      res.writeHead(502).end(\"fetch failed\");\n    }\n  });\n}\n",
+            "kind": "defect",
+            "markers": [
+              "\\bSSRF\\b",
+              "server.side request forgery",
+              "CWE-918",
+              "(user|untrusted|tainted).*(url|fetch)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/link-preview-ssrf/control",
+        "pair": "holdout2/javascript/link-preview-ssrf",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "preview.js",
+            "content": "import http from \"node:http\";\n\nconst TITLE = /<title>([^<]{0,300})<\\/title>/i;\nconst ALLOWED_HOSTS = new Set([\"github.com\", \"docs.example.com\", \"blog.example.com\"]);\n\nfunction allowedTarget(raw) {\n  if (!raw || !URL.canParse(raw)) return null;\n  const url = new URL(raw);\n  return url.protocol === \"https:\" && ALLOWED_HOSTS.has(url.hostname) ? url : null;\n}\n\nexport function createPreviewServer() {\n  return http.createServer(async (req, res) => {\n    const target = allowedTarget(new URL(req.url ?? \"/\", \"http://localhost\").searchParams.get(\"url\"));\n    if (!target) {\n      res.writeHead(400).end(\"url not allowed\");\n      return;\n    }\n    try {\n      const upstream = await fetch(target, { redirect: \"error\", signal: AbortSignal.timeout(5000) });\n      const html = await upstream.text();\n      const title = TITLE.exec(html)?.[1] ?? \"\";\n      res.writeHead(200, { \"content-type\": \"application/json\" }).end(JSON.stringify({ title }));\n    } catch {\n      res.writeHead(502).end(\"fetch failed\");\n    }\n  });\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/thumbnail-exec-template/defect",
+        "pair": "holdout2/javascript/thumbnail-exec-template",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "thumbnail.js",
+            "content": "import { exec } from \"node:child_process\";\nimport { promisify } from \"node:util\";\n\nconst run = promisify(exec);\n\nexport async function makeThumbnail(uploadPath, width) {\n  const out = uploadPath.replace(/\\.\\w+$/, \"\") + `_${width}.png`;\n  await run(`convert \"${uploadPath}\" -resize ${width}x \"${out}\"`, { timeout: 30_000 });\n  return out;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "command injection",
+              "detect-child-process",
+              "child_process\\.exec\\b|\\bexec\\(\\) with",
+              "shell injection",
+              "CWE-78"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/thumbnail-exec-template/control",
+        "pair": "holdout2/javascript/thumbnail-exec-template",
+        "language": "javascript",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "thumbnail.js",
+            "content": "import { execFile } from \"node:child_process\";\nimport path from \"node:path\";\nimport { promisify } from \"node:util\";\n\nconst run = promisify(execFile);\n\nexport async function makeThumbnail(uploadPath, width) {\n  if (!Number.isInteger(width) || width < 16 || width > 4096) {\n    throw new RangeError(\"width must be an integer between 16 and 4096\");\n  }\n  const input = path.resolve(uploadPath);\n  const out = input.replace(/\\.\\w+$/, \"\") + `_${width}.png`;\n  await run(\"convert\", [input, \"-resize\", `${width}x`, out], { timeout: 30_000 });\n  return out;\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/pdf-sniff-handle-leak/defect",
+        "pair": "holdout2/javascript/pdf-sniff-handle-leak",
+        "language": "javascript",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "sniff.js",
+            "content": "import { Buffer } from \"node:buffer\";\nimport { open } from \"node:fs/promises\";\n\nconst MAGIC = Buffer.from(\"%PDF-\");\n\nexport async function isPdf(path) {\n  const handle = await open(path, \"r\");\n  const { bytesRead, buffer } = await handle.read(Buffer.alloc(MAGIC.length), 0, MAGIC.length, 0);\n  if (bytesRead < MAGIC.length) {\n    return false;\n  }\n  const matches = buffer.equals(MAGIC);\n  await handle.close();\n  return matches;\n}\n",
+            "kind": "defect",
+            "markers": [
+              "(file )?handle.*(leak|not closed|never closed)",
+              "resource leak",
+              "(close|closed).*(early return|all (code )?paths|finally)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/pdf-sniff-handle-leak/control",
+        "pair": "holdout2/javascript/pdf-sniff-handle-leak",
+        "language": "javascript",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "sniff.js",
+            "content": "import { Buffer } from \"node:buffer\";\nimport { open } from \"node:fs/promises\";\n\nconst MAGIC = Buffer.from(\"%PDF-\");\n\nexport async function isPdf(path) {\n  const handle = await open(path, \"r\");\n  try {\n    const { bytesRead, buffer } = await handle.read(Buffer.alloc(MAGIC.length), 0, MAGIC.length, 0);\n    if (bytesRead < MAGIC.length) {\n      return false;\n    }\n    return buffer.equals(MAGIC);\n  } finally {\n    await handle.close();\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/prune-sessions-splice-in-foreach/defect",
+        "pair": "holdout2/javascript/prune-sessions-splice-in-foreach",
+        "language": "javascript",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "sessions.js",
+            "content": "export class SessionStore {\n  constructor() {\n    this.sessions = [];\n  }\n\n  add(token, userId, ttlMs, now = Date.now()) {\n    this.sessions.push({ token, userId, expiresAt: now + ttlMs });\n  }\n\n  pruneExpired(now = Date.now()) {\n    let removed = 0;\n    this.sessions.forEach((session, index) => {\n      if (session.expiresAt <= now) {\n        this.sessions.splice(index, 1);\n        removed += 1;\n      }\n    });\n    return removed;\n  }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "(mutat|modif)\\w*.*(while|during) (iterat|loop)",
+              "skip(s|ped)? (the )?(next|adjacent|following)",
+              "splice.*(forEach|iterat|loop)",
+              "no-array-mutation"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/javascript/prune-sessions-splice-in-foreach/control",
+        "pair": "holdout2/javascript/prune-sessions-splice-in-foreach",
+        "language": "javascript",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "sessions.js",
+            "content": "export class SessionStore {\n  constructor() {\n    this.sessions = [];\n  }\n\n  add(token, userId, ttlMs, now = Date.now()) {\n    this.sessions.push({ token, userId, expiresAt: now + ttlMs });\n  }\n\n  pruneExpired(now = Date.now()) {\n    let removed = 0;\n    for (let index = this.sessions.length - 1; index >= 0; index -= 1) {\n      if (this.sessions[index].expiresAt <= now) {\n        this.sessions.splice(index, 1);\n        removed += 1;\n      }\n    }\n    return removed;\n  }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/snapshot-atomic-write-unchecked/defect",
+        "pair": "holdout2/go/snapshot-atomic-write-unchecked",
+        "language": "go",
+        "family": "data-loss",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"encoding/json\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\ntype snapshot struct {\n\tVersion int      `json:\"version\"`\n\tItems   []string `json:\"items\"`\n}\n\n// saveSnapshot atomically replaces path with the JSON encoding of v.\nfunc saveSnapshot(path string, v any) error {\n\ttmp, err := os.CreateTemp(filepath.Dir(path), \".snapshot-*\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tenc := json.NewEncoder(tmp)\n\tenc.SetIndent(\"\", \"  \")\n\tenc.Encode(v)\n\ttmp.Sync()\n\ttmp.Close()\n\treturn os.Rename(tmp.Name(), path)\n}\n\nfunc main() {\n\tif err := saveSnapshot(\"state.json\", snapshot{Version: 1, Items: os.Args[1:]}); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "errcheck",
+              "G104",
+              "(error|return value).*(not checked|unchecked|ignored|discarded)",
+              "Error return value of"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/snapshot-atomic-write-unchecked/control",
+        "pair": "holdout2/go/snapshot-atomic-write-unchecked",
+        "language": "go",
+        "family": "data-loss",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"encoding/json\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\ntype snapshot struct {\n\tVersion int      `json:\"version\"`\n\tItems   []string `json:\"items\"`\n}\n\n// saveSnapshot atomically replaces path with the JSON encoding of v.\nfunc saveSnapshot(path string, v any) (err error) {\n\ttmp, err := os.CreateTemp(filepath.Dir(path), \".snapshot-*\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer func() {\n\t\tif err != nil {\n\t\t\t_ = tmp.Close()\n\t\t\t_ = os.Remove(tmp.Name())\n\t\t}\n\t}()\n\tenc := json.NewEncoder(tmp)\n\tenc.SetIndent(\"\", \"  \")\n\tif err = enc.Encode(v); err != nil {\n\t\treturn err\n\t}\n\tif err = tmp.Sync(); err != nil {\n\t\treturn err\n\t}\n\tif err = tmp.Close(); err != nil {\n\t\treturn err\n\t}\n\treturn os.Rename(tmp.Name(), path)\n}\n\nfunc main() {\n\tif err := saveSnapshot(\"state.json\", snapshot{Version: 1, Items: os.Args[1:]}); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/head-sizes-concurrent-map-write/defect",
+        "pair": "holdout2/go/head-sizes-concurrent-map-write",
+        "language": "go",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"os\"\n\t\"sync\"\n\t\"time\"\n)\n\nvar client = &http.Client{Timeout: 10 * time.Second}\n\nfunc contentLength(url string) (int64, error) {\n\tresp, err := client.Head(url)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer resp.Body.Close()\n\treturn resp.ContentLength, nil\n}\n\nfunc fetchSizes(urls []string) map[string]int64 {\n\tsizes := make(map[string]int64, len(urls))\n\tvar wg sync.WaitGroup\n\tfor _, u := range urls {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tif n, err := contentLength(u); err == nil {\n\t\t\t\tsizes[u] = n\n\t\t\t}\n\t\t}()\n\t}\n\twg.Wait()\n\treturn sizes\n}\n\nfunc main() {\n\tfor u, n := range fetchSizes(os.Args[1:]) {\n\t\tfmt.Println(u, n)\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "data race",
+              "concurrent map (write|writes|access)",
+              "race condition",
+              "without (a )?(mutex|lock|synchroni[sz]ation)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/head-sizes-concurrent-map-write/control",
+        "pair": "holdout2/go/head-sizes-concurrent-map-write",
+        "language": "go",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"os\"\n\t\"sync\"\n\t\"time\"\n)\n\nvar client = &http.Client{Timeout: 10 * time.Second}\n\nfunc contentLength(url string) (int64, error) {\n\tresp, err := client.Head(url)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer resp.Body.Close()\n\treturn resp.ContentLength, nil\n}\n\nfunc fetchSizes(urls []string) map[string]int64 {\n\tsizes := make(map[string]int64, len(urls))\n\tvar (\n\t\tmu sync.Mutex\n\t\twg sync.WaitGroup\n\t)\n\tfor _, u := range urls {\n\t\twg.Go(func() {\n\t\t\tif n, err := contentLength(u); err == nil {\n\t\t\t\tmu.Lock()\n\t\t\t\tsizes[u] = n\n\t\t\t\tmu.Unlock()\n\t\t\t}\n\t\t})\n\t}\n\twg.Wait()\n\treturn sizes\n}\n\nfunc main() {\n\tfor u, n := range fetchSizes(os.Args[1:]) {\n\t\tfmt.Println(u, n)\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/line-count-defer-in-loop/defect",
+        "pair": "holdout2/go/line-count-defer-in-loop",
+        "language": "go",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\nfunc countLines(paths []string) (map[string]int, error) {\n\tcounts := make(map[string]int, len(paths))\n\tfor _, p := range paths {\n\t\tf, err := os.Open(p)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tdefer f.Close()\n\t\tsc := bufio.NewScanner(f)\n\t\tn := 0\n\t\tfor sc.Scan() {\n\t\t\tn++\n\t\t}\n\t\tif err := sc.Err(); err != nil {\n\t\t\treturn nil, fmt.Errorf(\"%s: %w\", p, err)\n\t\t}\n\t\tcounts[p] = n\n\t}\n\treturn counts, nil\n}\n\nfunc main() {\n\tcounts, err := countLines(os.Args[1:])\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(counts)\n}\n",
+            "kind": "defect",
+            "markers": [
+              "defer\\w*.*(loop|inside)",
+              "deferInLoop",
+              "SA9001",
+              "(file descriptor|fd|handle)s?.*(leak|exhaust)",
+              "too many open files"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/line-count-defer-in-loop/control",
+        "pair": "holdout2/go/line-count-defer-in-loop",
+        "language": "go",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\nfunc countFileLines(p string) (int, error) {\n\tf, err := os.Open(p)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\tdefer f.Close()\n\tsc := bufio.NewScanner(f)\n\tn := 0\n\tfor sc.Scan() {\n\t\tn++\n\t}\n\tif err := sc.Err(); err != nil {\n\t\treturn 0, fmt.Errorf(\"%s: %w\", p, err)\n\t}\n\treturn n, nil\n}\n\nfunc countLines(paths []string) (map[string]int, error) {\n\tcounts := make(map[string]int, len(paths))\n\tfor _, p := range paths {\n\t\tn, err := countFileLines(p)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tcounts[p] = n\n\t}\n\treturn counts, nil\n}\n\nfunc main() {\n\tcounts, err := countLines(os.Args[1:])\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(counts)\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/invoice-query-sprintf/defect",
+        "pair": "holdout2/go/invoice-query-sprintf",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"context\"\n\t\"database/sql\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\n// Invoice is a billing row.\ntype Invoice struct {\n\tID          int64\n\tAmountCents int64\n}\n\n// Store wraps the billing database.\ntype Store struct{ db *sql.DB }\n\n// FindInvoices lists a customer's invoices with the given status.\nfunc (s *Store) FindInvoices(ctx context.Context, customerID, status string) ([]Invoice, error) {\n\tq := fmt.Sprintf(\"SELECT id, amount_cents FROM invoices WHERE customer_id = '%s' AND status = '%s' ORDER BY id\", customerID, status)\n\trows, err := s.db.QueryContext(ctx, q)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tdefer rows.Close()\n\tvar out []Invoice\n\tfor rows.Next() {\n\t\tvar inv Invoice\n\t\tif err := rows.Scan(&inv.ID, &inv.AmountCents); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, inv)\n\t}\n\treturn out, rows.Err()\n}\n\nfunc run() error {\n\tdb, err := sql.Open(\"pgx\", os.Getenv(\"DATABASE_URL\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer db.Close()\n\tstore := &Store{db: db}\n\tinvoices, err := store.FindInvoices(context.Background(), os.Getenv(\"CUSTOMER_ID\"), \"open\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tfmt.Println(len(invoices), \"open invoices\")\n\treturn nil\n}\n\nfunc main() {\n\tif err := run(); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "G201",
+              "G202",
+              "sql injection",
+              "SQL string (formatting|concatenation)",
+              "CWE-89"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/invoice-query-sprintf/control",
+        "pair": "holdout2/go/invoice-query-sprintf",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"context\"\n\t\"database/sql\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n)\n\n// Invoice is a billing row.\ntype Invoice struct {\n\tID          int64\n\tAmountCents int64\n}\n\n// Store wraps the billing database.\ntype Store struct{ db *sql.DB }\n\n// FindInvoices lists a customer's invoices with the given status.\nfunc (s *Store) FindInvoices(ctx context.Context, customerID, status string) ([]Invoice, error) {\n\tconst q = \"SELECT id, amount_cents FROM invoices WHERE customer_id = $1 AND status = $2 ORDER BY id\"\n\trows, err := s.db.QueryContext(ctx, q, customerID, status)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tdefer rows.Close()\n\tvar out []Invoice\n\tfor rows.Next() {\n\t\tvar inv Invoice\n\t\tif err := rows.Scan(&inv.ID, &inv.AmountCents); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, inv)\n\t}\n\treturn out, rows.Err()\n}\n\nfunc run() error {\n\tdb, err := sql.Open(\"pgx\", os.Getenv(\"DATABASE_URL\"))\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer db.Close()\n\tstore := &Store{db: db}\n\tinvoices, err := store.FindInvoices(context.Background(), os.Getenv(\"CUSTOMER_ID\"), \"open\")\n\tif err != nil {\n\t\treturn err\n\t}\n\tfmt.Println(len(invoices), \"open invoices\")\n\treturn nil\n}\n\nfunc main() {\n\tif err := run(); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/api-client-insecure-skip-verify/defect",
+        "pair": "holdout2/go/api-client-insecure-skip-verify",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"crypto/tls\"\n\t\"crypto/x509\"\n\t\"errors\"\n\t\"log\"\n\t\"net/http\"\n\t\"os\"\n\t\"time\"\n)\n\nfunc newAPIClient(caFile string) (*http.Client, error) {\n\tpem, err := os.ReadFile(caFile)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tpool := x509.NewCertPool()\n\tif !pool.AppendCertsFromPEM(pem) {\n\t\treturn nil, errors.New(\"no certificates found in \" + caFile)\n\t}\n\t// Staging uses a self-signed intermediate; skip verification so the chain error goes away.\n\ttlsCfg := &tls.Config{RootCAs: pool, InsecureSkipVerify: true}\n\treturn &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 15 * time.Second}, nil\n}\n\nfunc main() {\n\tif _, err := newAPIClient(os.Getenv(\"API_CA_FILE\")); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "G402",
+              "InsecureSkipVerify",
+              "(certificate|TLS) verification",
+              "CWE-295"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/api-client-insecure-skip-verify/control",
+        "pair": "holdout2/go/api-client-insecure-skip-verify",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"crypto/tls\"\n\t\"crypto/x509\"\n\t\"errors\"\n\t\"log\"\n\t\"net/http\"\n\t\"os\"\n\t\"time\"\n)\n\nfunc newAPIClient(caFile string) (*http.Client, error) {\n\tpem, err := os.ReadFile(caFile)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tpool := x509.NewCertPool()\n\tif !pool.AppendCertsFromPEM(pem) {\n\t\treturn nil, errors.New(\"no certificates found in \" + caFile)\n\t}\n\ttlsCfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}\n\treturn &http.Client{Transport: &http.Transport{TLSClientConfig: tlsCfg}, Timeout: 15 * time.Second}, nil\n}\n\nfunc main() {\n\tif _, err := newAPIClient(os.Getenv(\"API_CA_FILE\")); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/rate-limiter-nil-map/defect",
+        "pair": "holdout2/go/rate-limiter-nil-map",
+        "language": "go",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// RateLimiter allows limit hits per key within a sliding window.\ntype RateLimiter struct {\n\tmu     sync.Mutex\n\tlimit  int\n\twindow time.Duration\n\thits   map[string][]time.Time\n}\n\n// NewRateLimiter builds a limiter.\nfunc NewRateLimiter(limit int, window time.Duration) *RateLimiter {\n\treturn &RateLimiter{limit: limit, window: window}\n}\n\n// Allow records a hit for key and reports whether it is within the limit.\nfunc (r *RateLimiter) Allow(key string, now time.Time) bool {\n\tr.mu.Lock()\n\tdefer r.mu.Unlock()\n\tcutoff := now.Add(-r.window)\n\tvar recent []time.Time\n\tfor _, t := range r.hits[key] {\n\t\tif t.After(cutoff) {\n\t\t\trecent = append(recent, t)\n\t\t}\n\t}\n\tif len(recent) >= r.limit {\n\t\tr.hits[key] = recent\n\t\treturn false\n\t}\n\tr.hits[key] = append(recent, now)\n\treturn true\n}\n\nfunc main() {\n\trl := NewRateLimiter(5, time.Minute)\n\tfmt.Println(rl.Allow(\"203.0.113.9\", time.Now()))\n}\n",
+            "kind": "defect",
+            "markers": [
+              "nil map",
+              "assignment to entry in nil map",
+              "SA5000",
+              "(map|hits).*(not initiali[sz]ed|uninitiali[sz]ed)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/rate-limiter-nil-map/control",
+        "pair": "holdout2/go/rate-limiter-nil-map",
+        "language": "go",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// RateLimiter allows limit hits per key within a sliding window.\ntype RateLimiter struct {\n\tmu     sync.Mutex\n\tlimit  int\n\twindow time.Duration\n\thits   map[string][]time.Time\n}\n\n// NewRateLimiter builds a limiter.\nfunc NewRateLimiter(limit int, window time.Duration) *RateLimiter {\n\treturn &RateLimiter{limit: limit, window: window, hits: make(map[string][]time.Time)}\n}\n\n// Allow records a hit for key and reports whether it is within the limit.\nfunc (r *RateLimiter) Allow(key string, now time.Time) bool {\n\tr.mu.Lock()\n\tdefer r.mu.Unlock()\n\tcutoff := now.Add(-r.window)\n\tvar recent []time.Time\n\tfor _, t := range r.hits[key] {\n\t\tif t.After(cutoff) {\n\t\t\trecent = append(recent, t)\n\t\t}\n\t}\n\tif len(recent) >= r.limit {\n\t\tr.hits[key] = recent\n\t\treturn false\n\t}\n\tr.hits[key] = append(recent, now)\n\treturn true\n}\n\nfunc main() {\n\trl := NewRateLimiter(5, time.Minute)\n\tfmt.Println(rl.Allow(\"203.0.113.9\", time.Now()))\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/batch-chunk-drops-last/defect",
+        "pair": "holdout2/go/batch-chunk-drops-last",
+        "language": "go",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\n// chunk splits items into consecutive batches of at most size elements.\nfunc chunk[T any](items []T, size int) [][]T {\n\tif size <= 0 {\n\t\treturn nil\n\t}\n\tvar batches [][]T\n\tfor start := 0; start < len(items)-1; start += size {\n\t\tend := min(start+size, len(items))\n\t\tbatches = append(batches, items[start:end])\n\t}\n\treturn batches\n}\n\nfunc main() {\n\tfor i, batch := range chunk(os.Args[1:], 25) {\n\t\tfmt.Printf(\"batch %d: %d ids\\n\", i, len(batch))\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "off.by.one",
+              "(last|final|trailing) (item|element|batch)",
+              "dropp?(ed|s)",
+              "len\\(items\\)\\s*-\\s*1"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/batch-chunk-drops-last/control",
+        "pair": "holdout2/go/batch-chunk-drops-last",
+        "language": "go",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\n// chunk splits items into consecutive batches of at most size elements.\nfunc chunk[T any](items []T, size int) [][]T {\n\tif size <= 0 {\n\t\treturn nil\n\t}\n\tvar batches [][]T\n\tfor start := 0; start < len(items); start += size {\n\t\tend := min(start+size, len(items))\n\t\tbatches = append(batches, items[start:end])\n\t}\n\treturn batches\n}\n\nfunc main() {\n\tfor i, batch := range chunk(os.Args[1:], 25) {\n\t\tfmt.Printf(\"batch %d: %d ids\\n\", i, len(batch))\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/load-timeout-ignores-second-result/defect",
+        "pair": "holdout2/go/load-timeout-ignores-second-result",
+        "language": "go",
+        "family": "type-error",
+        "base": {
+          "config.go": "package main\n\nimport (\n\t\"os\"\n\t\"strconv\"\n\t\"time\"\n)\n\n// LoadTimeout reads REQUEST_TIMEOUT_MS, falling back to def when unset.\nfunc LoadTimeout(def time.Duration) (time.Duration, error) {\n\traw := os.Getenv(\"REQUEST_TIMEOUT_MS\")\n\tif raw == \"\" {\n\t\treturn def, nil\n\t}\n\tms, err := strconv.Atoi(raw)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\treturn time.Duration(ms) * time.Millisecond, nil\n}\n"
+        },
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc main() {\n\ttimeout := LoadTimeout(5 * time.Second)\n\tclient := &http.Client{Timeout: timeout}\n\tfmt.Println(\"request timeout:\", client.Timeout)\n}\n",
+            "kind": "defect",
+            "markers": [
+              "assignment mismatch",
+              "returns 2 values",
+              "WrongResultCount",
+              "multiple-value"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/load-timeout-ignores-second-result/control",
+        "pair": "holdout2/go/load-timeout-ignores-second-result",
+        "language": "go",
+        "family": "type-error",
+        "base": {
+          "config.go": "package main\n\nimport (\n\t\"os\"\n\t\"strconv\"\n\t\"time\"\n)\n\n// LoadTimeout reads REQUEST_TIMEOUT_MS, falling back to def when unset.\nfunc LoadTimeout(def time.Duration) (time.Duration, error) {\n\traw := os.Getenv(\"REQUEST_TIMEOUT_MS\")\n\tif raw == \"\" {\n\t\treturn def, nil\n\t}\n\tms, err := strconv.Atoi(raw)\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\treturn time.Duration(ms) * time.Millisecond, nil\n}\n"
+        },
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"fmt\"\n\t\"log\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc main() {\n\ttimeout, err := LoadTimeout(5 * time.Second)\n\tif err != nil {\n\t\tlog.Fatalf(\"invalid REQUEST_TIMEOUT_MS: %v\", err)\n\t}\n\tclient := &http.Client{Timeout: timeout}\n\tfmt.Println(\"request timeout:\", client.Timeout)\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/plugin-unzip-zip-slip/defect",
+        "pair": "holdout2/go/plugin-unzip-zip-slip",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"archive/zip\"\n\t\"io\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\nconst maxEntryBytes = 64 << 20\n\nfunc extract(archive, dest string) error {\n\tr, err := zip.OpenReader(archive)\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer r.Close()\n\tfor _, f := range r.File {\n\t\ttarget := filepath.Join(dest, f.Name)\n\t\tif f.FileInfo().IsDir() {\n\t\t\tif err := os.MkdirAll(target, 0o750); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontinue\n\t\t}\n\t\tif err := writeEntry(f, target); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\treturn nil\n}\n\nfunc writeEntry(f *zip.File, target string) error {\n\tif err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {\n\t\treturn err\n\t}\n\trc, err := f.Open()\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer rc.Close()\n\tout, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif _, err := io.Copy(out, io.LimitReader(rc, maxEntryBytes)); err != nil {\n\t\t_ = out.Close()\n\t\treturn err\n\t}\n\treturn out.Close()\n}\n\nfunc main() {\n\tif len(os.Args) != 3 {\n\t\tlog.Fatal(\"usage: extract ARCHIVE DEST\")\n\t}\n\tif err := extract(os.Args[1], os.Args[2]); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "G305",
+              "zip ?slip",
+              "(path|file|directory) traversal",
+              "CWE-22"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/plugin-unzip-zip-slip/control",
+        "pair": "holdout2/go/plugin-unzip-zip-slip",
+        "language": "go",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "// Package main is a benchmark fixture.\npackage main\n\nimport (\n\t\"archive/zip\"\n\t\"fmt\"\n\t\"io\"\n\t\"log\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\nconst maxEntryBytes = 64 << 20\n\nfunc extract(archive, dest string) error {\n\tr, err := zip.OpenReader(archive)\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer r.Close()\n\tfor _, f := range r.File {\n\t\tif !filepath.IsLocal(f.Name) {\n\t\t\treturn fmt.Errorf(\"refusing unsafe archive path %q\", f.Name)\n\t\t}\n\t\ttarget := filepath.Join(dest, f.Name)\n\t\tif f.FileInfo().IsDir() {\n\t\t\tif err := os.MkdirAll(target, 0o750); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontinue\n\t\t}\n\t\tif err := writeEntry(f, target); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\treturn nil\n}\n\nfunc writeEntry(f *zip.File, target string) error {\n\tif err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {\n\t\treturn err\n\t}\n\trc, err := f.Open()\n\tif err != nil {\n\t\treturn err\n\t}\n\tdefer rc.Close()\n\tout, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif _, err := io.Copy(out, io.LimitReader(rc, maxEntryBytes)); err != nil {\n\t\t_ = out.Close()\n\t\treturn err\n\t}\n\treturn out.Close()\n}\n\nfunc main() {\n\tif len(os.Args) != 3 {\n\t\tlog.Fatal(\"usage: extract ARCHIVE DEST\")\n\t}\n\tif err := extract(os.Args[1], os.Args[2]); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/parse-size-test-self-compare/defect",
+        "pair": "holdout2/go/parse-size-test-self-compare",
+        "language": "go",
+        "family": "test-integrity",
+        "base": {
+          "size.go": "package main\n\nimport (\n\t\"fmt\"\n\t\"strconv\"\n\t\"strings\"\n)\n\n// ParseSize converts strings like \"512\", \"4K\" or \"3M\" into bytes.\nfunc ParseSize(s string) (int64, error) {\n\ts = strings.ToUpper(strings.TrimSpace(s))\n\tmult := int64(1)\n\tswitch {\n\tcase strings.HasSuffix(s, \"K\"):\n\t\tmult, s = 1<<10, strings.TrimSuffix(s, \"K\")\n\tcase strings.HasSuffix(s, \"M\"):\n\t\tmult, s = 1<<20, strings.TrimSuffix(s, \"M\")\n\t}\n\tn, err := strconv.ParseInt(s, 10, 64)\n\tif err != nil {\n\t\treturn 0, fmt.Errorf(\"parse size %q: %w\", s, err)\n\t}\n\treturn n * mult, nil\n}\n"
+        },
+        "steps": [
+          {
+            "path": "size_test.go",
+            "content": "package main\n\nimport \"testing\"\n\nfunc TestParseSize(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\tin   string\n\t\twant int64\n\t}{\n\t\t{\"bytes\", \"512\", 512},\n\t\t{\"kilobytes\", \"4K\", 4096},\n\t\t{\"lowercase megabytes\", \" 2m \", 2 << 20},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tgot, err := ParseSize(tc.in)\n\t\t\tif err != nil {\n\t\t\t\tt.Fatalf(\"ParseSize(%q) error: %v\", tc.in, err)\n\t\t\t}\n\t\t\tif tc.want != tc.want {\n\t\t\t\tt.Errorf(\"ParseSize(%q) = %d, want %d\", tc.in, got, tc.want)\n\t\t\t}\n\t\t})\n\t}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "SA4000",
+              "identical expressions",
+              "tautolog",
+              "compar(ed|es|ing|ison)? .*(to|with) itself",
+              "always (false|true)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/go/parse-size-test-self-compare/control",
+        "pair": "holdout2/go/parse-size-test-self-compare",
+        "language": "go",
+        "family": "test-integrity",
+        "base": {
+          "size.go": "package main\n\nimport (\n\t\"fmt\"\n\t\"strconv\"\n\t\"strings\"\n)\n\n// ParseSize converts strings like \"512\", \"4K\" or \"3M\" into bytes.\nfunc ParseSize(s string) (int64, error) {\n\ts = strings.ToUpper(strings.TrimSpace(s))\n\tmult := int64(1)\n\tswitch {\n\tcase strings.HasSuffix(s, \"K\"):\n\t\tmult, s = 1<<10, strings.TrimSuffix(s, \"K\")\n\tcase strings.HasSuffix(s, \"M\"):\n\t\tmult, s = 1<<20, strings.TrimSuffix(s, \"M\")\n\t}\n\tn, err := strconv.ParseInt(s, 10, 64)\n\tif err != nil {\n\t\treturn 0, fmt.Errorf(\"parse size %q: %w\", s, err)\n\t}\n\treturn n * mult, nil\n}\n"
+        },
+        "steps": [
+          {
+            "path": "size_test.go",
+            "content": "package main\n\nimport \"testing\"\n\nfunc TestParseSize(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\tin   string\n\t\twant int64\n\t}{\n\t\t{\"bytes\", \"512\", 512},\n\t\t{\"kilobytes\", \"4K\", 4096},\n\t\t{\"lowercase megabytes\", \" 2m \", 2 << 20},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tgot, err := ParseSize(tc.in)\n\t\t\tif err != nil {\n\t\t\t\tt.Fatalf(\"ParseSize(%q) error: %v\", tc.in, err)\n\t\t\t}\n\t\t\tif got != tc.want {\n\t\t\t\tt.Errorf(\"ParseSize(%q) = %d, want %d\", tc.in, got, tc.want)\n\t\t\t}\n\t\t})\n\t}\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/config-question-mark-on-option/defect",
+        "pair": "holdout2/rust/config-question-mark-on-option",
+        "language": "rust",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::collections::HashMap;\nuse std::fmt;\n\n#[derive(Debug, PartialEq, Eq)]\npub enum ConfigError {\n    Missing(&'static str),\n    Invalid(&'static str, String),\n}\n\nimpl fmt::Display for ConfigError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            Self::Missing(key) => write!(f, \"missing {key}\"),\n            Self::Invalid(key, why) => write!(f, \"invalid {key}: {why}\"),\n        }\n    }\n}\n\nimpl std::error::Error for ConfigError {}\n\npub struct ServerConfig {\n    pub host: String,\n    pub port: u16,\n}\n\npub fn parse_config(vars: &HashMap<String, String>) -> Result<ServerConfig, ConfigError> {\n    let host = vars.get(\"HOST\")?.clone();\n    let raw_port = vars.get(\"PORT\").ok_or(ConfigError::Missing(\"PORT\"))?;\n    let port = raw_port\n        .parse::<u16>()\n        .map_err(|e| ConfigError::Invalid(\"PORT\", e.to_string()))?;\n    Ok(ServerConfig { host, port })\n}\n",
+            "kind": "defect",
+            "markers": [
+              "E0277",
+              "the `\\?` operator can only be used on",
+              "`\\?`.*Option.*Result",
+              "Option.*in a (function|method) that returns `?Result"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/config-question-mark-on-option/control",
+        "pair": "holdout2/rust/config-question-mark-on-option",
+        "language": "rust",
+        "family": "type-error",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::collections::HashMap;\nuse std::fmt;\n\n#[derive(Debug, PartialEq, Eq)]\npub enum ConfigError {\n    Missing(&'static str),\n    Invalid(&'static str, String),\n}\n\nimpl fmt::Display for ConfigError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            Self::Missing(key) => write!(f, \"missing {key}\"),\n            Self::Invalid(key, why) => write!(f, \"invalid {key}: {why}\"),\n        }\n    }\n}\n\nimpl std::error::Error for ConfigError {}\n\npub struct ServerConfig {\n    pub host: String,\n    pub port: u16,\n}\n\npub fn parse_config(vars: &HashMap<String, String>) -> Result<ServerConfig, ConfigError> {\n    let host = vars\n        .get(\"HOST\")\n        .ok_or(ConfigError::Missing(\"HOST\"))?\n        .clone();\n    let raw_port = vars.get(\"PORT\").ok_or(ConfigError::Missing(\"PORT\"))?;\n    let port = raw_port\n        .parse::<u16>()\n        .map_err(|e| ConfigError::Invalid(\"PORT\", e.to_string()))?;\n    Ok(ServerConfig { host, port })\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/frame-field-get-unchecked/defect",
+        "pair": "holdout2/rust/frame-field-get-unchecked",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Decodes compact telemetry frames: byte 0 selects a metric from the\n/// negotiated table, bytes 1..5 carry a little-endian delta.\npub struct FrameDecoder<'a> {\n    metrics: &'a [u32],\n}\n\nimpl<'a> FrameDecoder<'a> {\n    pub fn new(metrics: &'a [u32]) -> Self {\n        Self { metrics }\n    }\n\n    pub fn decode(&self, frame: &[u8]) -> Option<(u32, i32)> {\n        let (&selector, rest) = frame.split_first()?;\n        let delta = i32::from_le_bytes(rest.get(..4)?.try_into().ok()?);\n        // Hot path: the selector comes straight off the wire, skip the bounds check.\n        let metric = unsafe { *self.metrics.get_unchecked(usize::from(selector)) };\n        Some((metric, delta))\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "get_unchecked",
+              "out.of.bounds",
+              "bounds.check",
+              "undefined behaviou?r",
+              "(unchecked|unsound) index"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/frame-field-get-unchecked/control",
+        "pair": "holdout2/rust/frame-field-get-unchecked",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Decodes compact telemetry frames: byte 0 selects a metric from the\n/// negotiated table, bytes 1..5 carry a little-endian delta.\npub struct FrameDecoder<'a> {\n    metrics: &'a [u32],\n}\n\nimpl<'a> FrameDecoder<'a> {\n    pub fn new(metrics: &'a [u32]) -> Self {\n        Self { metrics }\n    }\n\n    pub fn decode(&self, frame: &[u8]) -> Option<(u32, i32)> {\n        let (&selector, rest) = frame.split_first()?;\n        let delta = i32::from_le_bytes(rest.get(..4)?.try_into().ok()?);\n        let index = usize::from(selector);\n        if index >= self.metrics.len() {\n            return None;\n        }\n        // SAFETY: `index < self.metrics.len()` was checked immediately above.\n        let metric = unsafe { *self.metrics.get_unchecked(index) };\n        Some((metric, delta))\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/retry-header-unwrap/defect",
+        "pair": "holdout2/rust/retry-header-unwrap",
+        "language": "rust",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, PartialEq, Eq)]\npub struct RetryPolicy {\n    pub max_attempts: u32,\n    pub backoff_ms: u64,\n}\n\n/// Parses an `X-Retry-Policy` header such as `\"5; 250\"` sent by upstream services.\npub fn parse_retry_header(value: &str) -> RetryPolicy {\n    let (attempts, backoff) = value.split_once(';').unwrap_or((value, \"250\"));\n    let max_attempts = attempts.trim().parse().unwrap();\n    let backoff_ms = backoff.trim().parse().unwrap();\n    RetryPolicy {\n        max_attempts,\n        backoff_ms,\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "unwrap_used",
+              "\\.unwrap\\(\\)",
+              "(called|calling) `?(Option|Result)::unwrap",
+              "panic\\w* on (invalid|malformed|bad) (input|header)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/retry-header-unwrap/control",
+        "pair": "holdout2/rust/retry-header-unwrap",
+        "language": "rust",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::num::ParseIntError;\n\n#[derive(Debug, PartialEq, Eq)]\npub struct RetryPolicy {\n    pub max_attempts: u32,\n    pub backoff_ms: u64,\n}\n\n/// Parses an `X-Retry-Policy` header such as `\"5; 250\"` sent by upstream services.\npub fn parse_retry_header(value: &str) -> Result<RetryPolicy, ParseIntError> {\n    let (attempts, backoff) = value.split_once(';').unwrap_or((value, \"250\"));\n    let max_attempts = attempts.trim().parse()?;\n    let backoff_ms = backoff.trim().parse()?;\n    Ok(RetryPolicy {\n        max_attempts,\n        backoff_ms,\n    })\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/session-store-relock-deadlock/defect",
+        "pair": "holdout2/rust/session-store-relock-deadlock",
+        "language": "rust",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::collections::HashMap;\nuse std::sync::{Mutex, PoisonError};\n\npub struct SessionStore {\n    inner: Mutex<HashMap<String, u64>>,\n    max_sessions: usize,\n}\n\nimpl SessionStore {\n    pub fn new(max_sessions: usize) -> Self {\n        Self {\n            inner: Mutex::new(HashMap::new()),\n            max_sessions,\n        }\n    }\n\n    pub fn len(&self) -> usize {\n        self.inner\n            .lock()\n            .unwrap_or_else(PoisonError::into_inner)\n            .len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.len() == 0\n    }\n\n    /// Inserts a session unless the store is full.\n    pub fn insert(&self, token: String, user_id: u64) -> bool {\n        let mut sessions = self.inner.lock().unwrap_or_else(PoisonError::into_inner);\n        if sessions.contains_key(&token) || self.len() >= self.max_sessions {\n            return false;\n        }\n        sessions.insert(token, user_id);\n        true\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "deadlock",
+              "(already|re-?)(locked|entrant|acquir)",
+              "lock\\w*.*(held|twice|again)",
+              "mutex.*(twice|again|recursive)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/session-store-relock-deadlock/control",
+        "pair": "holdout2/rust/session-store-relock-deadlock",
+        "language": "rust",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::collections::HashMap;\nuse std::sync::{Mutex, PoisonError};\n\npub struct SessionStore {\n    inner: Mutex<HashMap<String, u64>>,\n    max_sessions: usize,\n}\n\nimpl SessionStore {\n    pub fn new(max_sessions: usize) -> Self {\n        Self {\n            inner: Mutex::new(HashMap::new()),\n            max_sessions,\n        }\n    }\n\n    pub fn len(&self) -> usize {\n        self.inner\n            .lock()\n            .unwrap_or_else(PoisonError::into_inner)\n            .len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.len() == 0\n    }\n\n    /// Inserts a session unless the store is full.\n    pub fn insert(&self, token: String, user_id: u64) -> bool {\n        let mut sessions = self.inner.lock().unwrap_or_else(PoisonError::into_inner);\n        if sessions.contains_key(&token) || sessions.len() >= self.max_sessions {\n            return false;\n        }\n        sessions.insert(token, user_id);\n        true\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/csv-export-bufwriter-no-flush/defect",
+        "pair": "holdout2/rust/csv-export-bufwriter-no-flush",
+        "language": "rust",
+        "family": "data-loss",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::fs::File;\nuse std::io::{self, BufWriter, Write};\nuse std::path::Path;\n\npub struct Row {\n    pub id: u64,\n    pub name: String,\n    pub score: f64,\n}\n\n/// Writes `rows` as CSV and returns how many data rows were written.\npub fn export_csv(path: &Path, rows: &[Row]) -> io::Result<usize> {\n    let mut out = BufWriter::new(File::create(path)?);\n    writeln!(out, \"id,name,score\")?;\n    for row in rows {\n        writeln!(\n            out,\n            \"{},{},{:.2}\",\n            row.id,\n            row.name.replace(',', \" \"),\n            row.score\n        )?;\n    }\n    Ok(rows.len())\n}\n",
+            "kind": "defect",
+            "markers": [
+              "\\bflush",
+              "BufWriter",
+              "(error|errors).*(on drop|when dropped|ignored|silently)",
+              "data loss"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/csv-export-bufwriter-no-flush/control",
+        "pair": "holdout2/rust/csv-export-bufwriter-no-flush",
+        "language": "rust",
+        "family": "data-loss",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::fs::File;\nuse std::io::{self, BufWriter, Write};\nuse std::path::Path;\n\npub struct Row {\n    pub id: u64,\n    pub name: String,\n    pub score: f64,\n}\n\n/// Writes `rows` as CSV and returns how many data rows were written.\npub fn export_csv(path: &Path, rows: &[Row]) -> io::Result<usize> {\n    let mut out = BufWriter::new(File::create(path)?);\n    writeln!(out, \"id,name,score\")?;\n    for row in rows {\n        writeln!(\n            out,\n            \"{},{},{:.2}\",\n            row.id,\n            row.name.replace(',', \" \"),\n            row.score\n        )?;\n    }\n    let file = out.into_inner().map_err(io::IntoInnerError::into_error)?;\n    file.sync_all()?;\n    Ok(rows.len())\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/payments-client-hardcoded-key/defect",
+        "pair": "holdout2/rust/payments-client-hardcoded-key",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "const PAYMENTS_API_KEY: &str = \"sk_live_51Hc9xQ2eZvKYlo2CkT7uW3pRmN8aB4\";\n\npub struct PaymentsClient {\n    base_url: String,\n    api_key: String,\n}\n\nimpl PaymentsClient {\n    pub fn new(base_url: impl Into<String>) -> Self {\n        Self {\n            base_url: base_url.into(),\n            api_key: PAYMENTS_API_KEY.to_owned(),\n        }\n    }\n\n    pub fn auth_header(&self) -> (&'static str, String) {\n        (\"Authorization\", format!(\"Bearer {}\", self.api_key))\n    }\n\n    pub fn charge_url(&self, charge_id: &str) -> String {\n        format!(\"{}/v1/charges/{charge_id}\", self.base_url)\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "hard.?coded",
+              "(api|access|secret) key",
+              "credential",
+              "CWE-798",
+              "secret.*(source|literal|committed)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/payments-client-hardcoded-key/control",
+        "pair": "holdout2/rust/payments-client-hardcoded-key",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::env::{self, VarError};\n\npub struct PaymentsClient {\n    base_url: String,\n    api_key: String,\n}\n\nimpl PaymentsClient {\n    pub fn from_env(base_url: impl Into<String>) -> Result<Self, VarError> {\n        let api_key = env::var(\"PAYMENTS_API_KEY\")?;\n        Ok(Self {\n            base_url: base_url.into(),\n            api_key,\n        })\n    }\n\n    pub fn auth_header(&self) -> (&'static str, String) {\n        (\"Authorization\", format!(\"Bearer {}\", self.api_key))\n    }\n\n    pub fn charge_url(&self, charge_id: &str) -> String {\n        format!(\"{}/v1/charges/{charge_id}\", self.base_url)\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/leaderboard-top-n-ascending/defect",
+        "pair": "holdout2/rust/leaderboard-top-n-ascending",
+        "language": "rust",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct Entry {\n    pub player: String,\n    pub score: u32,\n    pub finished_at: u64,\n}\n\n/// Returns the top `n` entries: highest score first, earliest finisher wins ties.\npub fn top_n(entries: &[Entry], n: usize) -> Vec<Entry> {\n    let mut ranked = entries.to_vec();\n    ranked.sort_by(|a, b| {\n        a.score\n            .cmp(&b.score)\n            .then_with(|| a.finished_at.cmp(&b.finished_at))\n    });\n    ranked.truncate(n);\n    ranked\n}\n",
+            "kind": "defect",
+            "markers": [
+              "ascending",
+              "descending",
+              "(lowest|highest) (score|first)",
+              "revers\\w* (order|comparison|comparator)",
+              "wrong (sort )?order"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/leaderboard-top-n-ascending/control",
+        "pair": "holdout2/rust/leaderboard-top-n-ascending",
+        "language": "rust",
+        "family": "semantic",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct Entry {\n    pub player: String,\n    pub score: u32,\n    pub finished_at: u64,\n}\n\n/// Returns the top `n` entries: highest score first, earliest finisher wins ties.\npub fn top_n(entries: &[Entry], n: usize) -> Vec<Entry> {\n    let mut ranked = entries.to_vec();\n    ranked.sort_by(|a, b| {\n        b.score\n            .cmp(&a.score)\n            .then_with(|| a.finished_at.cmp(&b.finished_at))\n    });\n    ranked.truncate(n);\n    ranked\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/registry-lazy-map-unused/defect",
+        "pair": "holdout2/rust/registry-lazy-map-unused",
+        "language": "rust",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Default)]\npub struct Registry {\n    handlers: Vec<String>,\n}\n\nimpl Registry {\n    /// Registers `name`, returning `false` if it was already present.\n    pub fn register(&mut self, name: &str) -> bool {\n        if self.handlers.iter().any(|h| h == name) {\n            return false;\n        }\n        self.handlers.push(name.to_owned());\n        true\n    }\n\n    pub fn len(&self) -> usize {\n        self.handlers.len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.handlers.is_empty()\n    }\n}\n\n/// Registers every name and returns how many were new.\npub fn register_all(registry: &mut Registry, names: &[&str]) -> usize {\n    let before = registry.len();\n    names.iter().map(|name| registry.register(name));\n    registry.len() - before\n}\n",
+            "kind": "defect",
+            "markers": [
+              "unused_must_use",
+              "lazy and do nothing",
+              "must be used",
+              "(iterator|Map)\\b.*(unused|not consumed|never consumed)",
+              "suspicious_map"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/registry-lazy-map-unused/control",
+        "pair": "holdout2/rust/registry-lazy-map-unused",
+        "language": "rust",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "#[derive(Debug, Default)]\npub struct Registry {\n    handlers: Vec<String>,\n}\n\nimpl Registry {\n    /// Registers `name`, returning `false` if it was already present.\n    pub fn register(&mut self, name: &str) -> bool {\n        if self.handlers.iter().any(|h| h == name) {\n            return false;\n        }\n        self.handlers.push(name.to_owned());\n        true\n    }\n\n    pub fn len(&self) -> usize {\n        self.handlers.len()\n    }\n\n    pub fn is_empty(&self) -> bool {\n        self.handlers.is_empty()\n    }\n}\n\n/// Registers every name and returns how many were new.\npub fn register_all(registry: &mut Registry, names: &[&str]) -> usize {\n    names.iter().filter(|name| registry.register(name)).count()\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/static-files-path-join-traversal/defect",
+        "pair": "holdout2/rust/static-files-path-join-traversal",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::fs;\nuse std::io;\nuse std::path::PathBuf;\n\npub struct StaticFiles {\n    root: PathBuf,\n}\n\nimpl StaticFiles {\n    pub fn new(root: impl Into<PathBuf>) -> Self {\n        Self { root: root.into() }\n    }\n\n    /// Serves `GET /static/<request_path>` from the asset root.\n    pub fn read(&self, request_path: &str) -> io::Result<Vec<u8>> {\n        let relative = request_path.trim_start_matches('/');\n        let full = self.root.join(relative);\n        fs::read(full)\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "path traversal",
+              "directory traversal",
+              "CWE-22",
+              "ParentDir",
+              "(untrusted|user).*(path|join)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/static-files-path-join-traversal/control",
+        "pair": "holdout2/rust/static-files-path-join-traversal",
+        "language": "rust",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "use std::fs;\nuse std::io;\nuse std::path::{Component, Path, PathBuf};\n\npub struct StaticFiles {\n    root: PathBuf,\n}\n\nimpl StaticFiles {\n    pub fn new(root: impl Into<PathBuf>) -> Self {\n        Self { root: root.into() }\n    }\n\n    /// Serves `GET /static/<request_path>` from the asset root.\n    pub fn read(&self, request_path: &str) -> io::Result<Vec<u8>> {\n        let mut full = self.root.clone();\n        for component in Path::new(request_path.trim_start_matches('/')).components() {\n            match component {\n                Component::Normal(part) => full.push(part),\n                Component::CurDir => {}\n                _ => return Err(io::Error::new(io::ErrorKind::NotFound, \"invalid path\")),\n            }\n        }\n        fs::read(full)\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/parse-version-assert-true/defect",
+        "pair": "holdout2/rust/parse-version-assert-true",
+        "language": "rust",
+        "family": "test-integrity",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Parses `\"1.2.3\"` or `\"v1.2.3\"` into its numeric parts.\npub fn parse_version(s: &str) -> Option<(u32, u32, u32)> {\n    let mut parts = s.trim().trim_start_matches('v').splitn(3, '.');\n    let major = parts.next()?.parse().ok()?;\n    let minor = parts.next()?.parse().ok()?;\n    let patch = parts.next()?.parse().ok()?;\n    Some((major, minor, patch))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn parses_prefixed_version() {\n        let parsed = parse_version(\"v1.12.3\");\n        assert!(true, \"parsed {parsed:?}\");\n    }\n\n    #[test]\n    fn rejects_non_numeric() {\n        let _ = parse_version(\"latest\");\n    }\n}\n",
+            "kind": "defect",
+            "markers": [
+              "assertions_on_constants",
+              "assertion is always",
+              "assert!\\(true",
+              "(no|without|missing) (real |meaningful )?assert",
+              "always pass",
+              "tautolog"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/rust/parse-version-assert-true/control",
+        "pair": "holdout2/rust/parse-version-assert-true",
+        "language": "rust",
+        "family": "test-integrity",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "/// Parses `\"1.2.3\"` or `\"v1.2.3\"` into its numeric parts.\npub fn parse_version(s: &str) -> Option<(u32, u32, u32)> {\n    let mut parts = s.trim().trim_start_matches('v').splitn(3, '.');\n    let major = parts.next()?.parse().ok()?;\n    let minor = parts.next()?.parse().ok()?;\n    let patch = parts.next()?.parse().ok()?;\n    Some((major, minor, patch))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn parses_prefixed_version() {\n        assert_eq!(parse_version(\"v1.12.3\"), Some((1, 12, 3)));\n    }\n\n    #[test]\n    fn rejects_non_numeric() {\n        assert_eq!(parse_version(\"latest\"), None);\n        assert_eq!(parse_version(\"1.2\"), None);\n    }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/report-sort-string-to-atom/defect",
+        "pair": "holdout2/elixir/report-sort-string-to-atom",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/report_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.ReportController do\n  @moduledoc \"Lists generated reports with caller-selected sorting.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @reports [\n    %{name: \"weekly-usage\", size: 1_204, owner: \"ops\"},\n    %{name: \"churn\", size: 88, owner: \"growth\"},\n    %{name: \"invoices\", size: 5_310, owner: \"billing\"}\n  ]\n\n  def index(conn, params) do\n    sort_key = String.to_atom(Map.get(params, \"sort\", \"name\"))\n    direction = String.to_atom(Map.get(params, \"dir\", \"asc\"))\n    reports = Enum.sort_by(@reports, &Map.get(&1, sort_key), direction)\n    json(conn, %{reports: reports})\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "String\\.to_atom",
+              "DOS\\.StringToAtom",
+              "atom (table )?exhaustion",
+              "to_existing_atom"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/report-sort-string-to-atom/control",
+        "pair": "holdout2/elixir/report-sort-string-to-atom",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/report_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.ReportController do\n  @moduledoc \"Lists generated reports with caller-selected sorting.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @reports [\n    %{name: \"weekly-usage\", size: 1_204, owner: \"ops\"},\n    %{name: \"churn\", size: 88, owner: \"growth\"},\n    %{name: \"invoices\", size: 5_310, owner: \"billing\"}\n  ]\n  @sort_keys %{\"name\" => :name, \"size\" => :size, \"owner\" => :owner}\n  @directions %{\"asc\" => :asc, \"desc\" => :desc}\n\n  def index(conn, params) do\n    sort_key = Map.get(@sort_keys, params[\"sort\"], :name)\n    direction = Map.get(@directions, params[\"dir\"], :asc)\n    reports = Enum.sort_by(@reports, &Map.fetch!(&1, sort_key), direction)\n    json(conn, %{reports: reports})\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/thumbnail-system-cmd-sh-c/defect",
+        "pair": "holdout2/elixir/thumbnail-system-cmd-sh-c",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/media/thumbnailer.ex",
+            "content": "defmodule LokiPhoenixFixture.Media.Thumbnailer do\n  @moduledoc \"Generates PNG thumbnails for uploaded images via ImageMagick.\"\n\n  @spec thumbnail(Path.t(), pos_integer()) :: {:ok, Path.t()} | {:error, String.t()}\n  def thumbnail(upload_path, width) do\n    out = Path.rootname(upload_path) <> \"_#{width}.png\"\n    command = \"convert #{upload_path} -resize #{width}x #{out}\"\n\n    case System.cmd(\"sh\", [\"-c\", command], stderr_to_stdout: true) do\n      {_output, 0} -> {:ok, out}\n      {output, status} -> {:error, \"convert exited #{status}: #{output}\"}\n    end\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "CI\\.System",
+              "command injection",
+              "sh -c",
+              "shell (injection|command)",
+              "CWE-78"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/thumbnail-system-cmd-sh-c/control",
+        "pair": "holdout2/elixir/thumbnail-system-cmd-sh-c",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/media/thumbnailer.ex",
+            "content": "defmodule LokiPhoenixFixture.Media.Thumbnailer do\n  @moduledoc \"Generates PNG thumbnails for uploaded images via ImageMagick.\"\n\n  @spec thumbnail(Path.t(), pos_integer()) :: {:ok, Path.t()} | {:error, String.t()}\n  def thumbnail(upload_path, width) when is_integer(width) and width in 16..4096 do\n    input = Path.expand(upload_path)\n    out = Path.rootname(input) <> \"_#{width}.png\"\n\n    case System.cmd(\"convert\", [input, \"-resize\", \"#{width}x\", out], stderr_to_stdout: true) do\n      {_output, 0} -> {:ok, out}\n      {output, status} -> {:error, \"convert exited #{status}: #{output}\"}\n    end\n  end\n\n  def thumbnail(_upload_path, width), do: {:error, \"invalid width: #{inspect(width)}\"}\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/invite-greeting-html-interpolation/defect",
+        "pair": "holdout2/elixir/invite-greeting-html-interpolation",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/greeting_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.GreetingController do\n  @moduledoc \"Landing page shown to users who follow an invitation link.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, %{\"name\" => name} = params) do\n    team = Map.get(params, \"team\", \"your team\")\n\n    html(conn, \"\"\"\n    <main>\n      <h1>Welcome, #{name}!</h1>\n      <p>You have been invited to join #{team}.</p>\n    </main>\n    \"\"\")\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "\\bXSS\\b",
+              "cross.site scripting",
+              "XSS\\.HTML",
+              "(unescaped|unsanitized|not escaped)",
+              "CWE-79"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/invite-greeting-html-interpolation/control",
+        "pair": "holdout2/elixir/invite-greeting-html-interpolation",
+        "language": "elixir",
+        "family": "security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/greeting_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.GreetingController do\n  @moduledoc \"Landing page shown to users who follow an invitation link.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  def show(conn, %{\"name\" => name} = params) do\n    team = Map.get(params, \"team\", \"your team\")\n\n    html(conn, \"\"\"\n    <main>\n      <h1>Welcome, #{escape(name)}!</h1>\n      <p>You have been invited to join #{escape(team)}.</p>\n    </main>\n    \"\"\")\n  end\n\n  defp escape(value) do\n    value |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/invoice-show-missing-owner-check/defect",
+        "pair": "holdout2/elixir/invoice-show-missing-owner-check",
+        "language": "elixir",
+        "family": "security",
+        "base": {
+          "lib/loki_phoenix_fixture/billing.ex": "defmodule LokiPhoenixFixture.Billing do\n  @moduledoc \"In-memory invoice store.\"\n\n  @invoices %{\n    \"inv_1\" => %{id: \"inv_1\", account_id: 1, total_cents: 1_200},\n    \"inv_2\" => %{id: \"inv_2\", account_id: 2, total_cents: 5_400}\n  }\n\n  @spec get_invoice(String.t()) :: {:ok, map()} | {:error, :not_found}\n  def get_invoice(id) do\n    case Map.fetch(@invoices, id) do\n      {:ok, invoice} -> {:ok, invoice}\n      :error -> {:error, :not_found}\n    end\n  end\nend\n"
+        },
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InvoiceController do\n  @moduledoc \"Invoice JSON API for signed-in customers.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Billing\n\n  def show(conn, %{\"id\" => id}) do\n    case Billing.get_invoice(id) do\n      {:ok, invoice} ->\n        json(conn, invoice)\n\n      {:error, :not_found} ->\n        conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "\\bIDOR\\b",
+              "insecure direct object",
+              "authori[sz]ation",
+              "(ownership|owner) check",
+              "access control"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/invoice-show-missing-owner-check/control",
+        "pair": "holdout2/elixir/invoice-show-missing-owner-check",
+        "language": "elixir",
+        "family": "security",
+        "base": {
+          "lib/loki_phoenix_fixture/billing.ex": "defmodule LokiPhoenixFixture.Billing do\n  @moduledoc \"In-memory invoice store.\"\n\n  @invoices %{\n    \"inv_1\" => %{id: \"inv_1\", account_id: 1, total_cents: 1_200},\n    \"inv_2\" => %{id: \"inv_2\", account_id: 2, total_cents: 5_400}\n  }\n\n  @spec get_invoice(String.t()) :: {:ok, map()} | {:error, :not_found}\n  def get_invoice(id) do\n    case Map.fetch(@invoices, id) do\n      {:ok, invoice} -> {:ok, invoice}\n      :error -> {:error, :not_found}\n    end\n  end\nend\n"
+        },
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InvoiceController do\n  @moduledoc \"Invoice JSON API for signed-in customers.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Billing\n\n  def show(conn, %{\"id\" => id}) do\n    account_id = conn.assigns.current_account.id\n\n    case Billing.get_invoice(id) do\n      {:ok, %{account_id: ^account_id} = invoice} ->\n        json(conn, invoice)\n\n      _not_found_or_not_owned ->\n        conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/feature-flags-file-read-match/defect",
+        "pair": "holdout2/elixir/feature-flags-file-read-match",
+        "language": "elixir",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/feature_flags.ex",
+            "content": "defmodule LokiPhoenixFixture.FeatureFlags do\n  @moduledoc \"Loads feature flags from a JSON file on disk.\"\n\n  @spec load(Path.t()) :: {:ok, map()} | {:error, term()}\n  def load(path) do\n    {:ok, body} = File.read(path)\n\n    case Jason.decode(body) do\n      {:ok, %{} = flags} -> {:ok, flags}\n      {:ok, _other} -> {:error, :not_an_object}\n      {:error, reason} -> {:error, reason}\n    end\n  end\n\n  @spec enabled?(map(), String.t()) :: boolean()\n  def enabled?(flags, name), do: Map.get(flags, name) == true\nend\n",
+            "kind": "defect",
+            "markers": [
+              "MatchError",
+              "\\{:error, *(reason|:enoent|_)",
+              "(pattern|match).*(fail|crash|raise)",
+              "(crash|raise)\\w* .*(missing|unreadable) file"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/feature-flags-file-read-match/control",
+        "pair": "holdout2/elixir/feature-flags-file-read-match",
+        "language": "elixir",
+        "family": "runtime-bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/feature_flags.ex",
+            "content": "defmodule LokiPhoenixFixture.FeatureFlags do\n  @moduledoc \"Loads feature flags from a JSON file on disk.\"\n\n  @spec load(Path.t()) :: {:ok, map()} | {:error, term()}\n  def load(path) do\n    with {:ok, body} <- File.read(path),\n         {:ok, decoded} <- Jason.decode(body) do\n      if is_map(decoded), do: {:ok, decoded}, else: {:error, :not_an_object}\n    end\n  end\n\n  @spec enabled?(map(), String.t()) :: boolean()\n  def enabled?(flags, name), do: Map.get(flags, name) == true\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/download-counter-agent-lost-update/defect",
+        "pair": "holdout2/elixir/download-counter-agent-lost-update",
+        "language": "elixir",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/download_counter.ex",
+            "content": "defmodule LokiPhoenixFixture.DownloadCounter do\n  @moduledoc \"Counts downloads per asset for the stats page.\"\n  use Agent\n\n  def start_link(_opts), do: Agent.start_link(fn -> %{} end, name: __MODULE__)\n\n  @spec increment(String.t()) :: pos_integer()\n  def increment(asset_id) do\n    counts = Agent.get(__MODULE__, & &1)\n    next = Map.get(counts, asset_id, 0) + 1\n    Agent.update(__MODULE__, &Map.put(&1, asset_id, next))\n    next\n  end\n\n  @spec count(String.t()) :: non_neg_integer()\n  def count(asset_id), do: Agent.get(__MODULE__, &Map.get(&1, asset_id, 0))\nend\n",
+            "kind": "defect",
+            "markers": [
+              "race condition",
+              "\\brace\\b",
+              "lost update",
+              "get_and_update",
+              "(atomic|read-modify-write)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/download-counter-agent-lost-update/control",
+        "pair": "holdout2/elixir/download-counter-agent-lost-update",
+        "language": "elixir",
+        "family": "concurrency",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/download_counter.ex",
+            "content": "defmodule LokiPhoenixFixture.DownloadCounter do\n  @moduledoc \"Counts downloads per asset for the stats page.\"\n  use Agent\n\n  def start_link(_opts), do: Agent.start_link(fn -> %{} end, name: __MODULE__)\n\n  @spec increment(String.t()) :: pos_integer()\n  def increment(asset_id) do\n    Agent.get_and_update(__MODULE__, fn counts ->\n      next = Map.get(counts, asset_id, 0) + 1\n      {next, Map.put(counts, asset_id, next)}\n    end)\n  end\n\n  @spec count(String.t()) :: non_neg_integer()\n  def count(asset_id), do: Agent.get(__MODULE__, &Map.get(&1, asset_id, 0))\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/csv-export-file-never-closed/defect",
+        "pair": "holdout2/elixir/csv-export-file-never-closed",
+        "language": "elixir",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/export.ex",
+            "content": "defmodule LokiPhoenixFixture.Export do\n  @moduledoc \"Writes user exports as CSV files.\"\n\n  @spec write_csv(Path.t(), [%{id: integer(), email: String.t()}]) :: :ok | {:error, File.posix()}\n  def write_csv(path, rows) do\n    with {:ok, file} <- File.open(path, [:write, :utf8]) do\n      IO.write(file, \"id,email\\n\")\n      Enum.each(rows, fn row -> IO.write(file, \"#{row.id},#{row.email}\\n\") end)\n      :ok\n    end\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "File\\.close",
+              "(not|never) closed",
+              "(file|descriptor|handle)\\w*.*leak",
+              "resource leak"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/csv-export-file-never-closed/control",
+        "pair": "holdout2/elixir/csv-export-file-never-closed",
+        "language": "elixir",
+        "family": "resource",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/export.ex",
+            "content": "defmodule LokiPhoenixFixture.Export do\n  @moduledoc \"Writes user exports as CSV files.\"\n\n  @spec write_csv(Path.t(), [%{id: integer(), email: String.t()}]) :: :ok | {:error, File.posix()}\n  def write_csv(path, rows) do\n    result =\n      File.open(path, [:write, :utf8], fn file ->\n        IO.write(file, \"id,email\\n\")\n        Enum.each(rows, fn row -> IO.write(file, \"#{row.id},#{row.email}\\n\") end)\n      end)\n\n    case result do\n      {:ok, :ok} -> :ok\n      {:error, reason} -> {:error, reason}\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/search-params-atom-keys/defect",
+        "pair": "holdout2/elixir/search-params-atom-keys",
+        "language": "elixir",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/search_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.SearchController do\n  @moduledoc \"Product search endpoint.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @default_limit 20\n  @max_limit 100\n\n  def index(conn, params) do\n    query = params |> Map.get(:q, \"\") |> String.trim()\n    limit = params |> Map.get(:limit, @default_limit) |> min(@max_limit)\n    json(conn, %{query: query, limit: limit, results: []})\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "atom keys?",
+              "string keys?",
+              "(always|returns?) (nil|the default)",
+              "params.*(string|binary)[- ]key"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/search-params-atom-keys/control",
+        "pair": "holdout2/elixir/search-params-atom-keys",
+        "language": "elixir",
+        "family": "api-misuse",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/search_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.SearchController do\n  @moduledoc \"Product search endpoint.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  @default_limit 20\n  @max_limit 100\n\n  def index(conn, params) do\n    query = params |> Map.get(\"q\", \"\") |> String.trim()\n    limit = params |> Map.get(\"limit\") |> parse_limit()\n    json(conn, %{query: query, limit: limit, results: []})\n  end\n\n  defp parse_limit(raw) when is_binary(raw) do\n    case Integer.parse(raw) do\n      {n, \"\"} when n > 0 -> min(n, @max_limit)\n      _ -> @default_limit\n    end\n  end\n\n  defp parse_limit(_raw), do: @default_limit\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/profile-fetch-user-wrong-arity/defect",
+        "pair": "holdout2/elixir/profile-fetch-user-wrong-arity",
+        "language": "elixir",
+        "family": "type-error",
+        "base": {
+          "lib/loki_phoenix_fixture/accounts.ex": "defmodule LokiPhoenixFixture.Accounts do\n  @moduledoc \"Account lookups.\"\n\n  @users %{1 => %{id: 1, name: \"Ada\", email: \"ada@example.com\"}}\n\n  @spec fetch_user(pos_integer()) :: {:ok, map()} | {:error, :not_found}\n  def fetch_user(id) do\n    case Map.fetch(@users, id) do\n      {:ok, user} -> {:ok, user}\n      :error -> {:error, :not_found}\n    end\n  end\nend\n"
+        },
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/profile_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.ProfileController do\n  @moduledoc \"Public profile JSON.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Accounts\n\n  def show(conn, %{\"id\" => id}) do\n    case Accounts.fetch_user(String.to_integer(id), preload: [:team]) do\n      {:ok, user} -> json(conn, Map.take(user, [:id, :name]))\n      {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "undefined or private",
+              "fetch_user/2",
+              "is undefined",
+              "UndefinedFunctionError"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/profile-fetch-user-wrong-arity/control",
+        "pair": "holdout2/elixir/profile-fetch-user-wrong-arity",
+        "language": "elixir",
+        "family": "type-error",
+        "base": {
+          "lib/loki_phoenix_fixture/accounts.ex": "defmodule LokiPhoenixFixture.Accounts do\n  @moduledoc \"Account lookups.\"\n\n  @users %{1 => %{id: 1, name: \"Ada\", email: \"ada@example.com\"}}\n\n  @spec fetch_user(pos_integer()) :: {:ok, map()} | {:error, :not_found}\n  def fetch_user(id) do\n    case Map.fetch(@users, id) do\n      {:ok, user} -> {:ok, user}\n      :error -> {:error, :not_found}\n    end\n  end\nend\n"
+        },
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/controllers/profile_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.ProfileController do\n  @moduledoc \"Public profile JSON.\"\n  use LokiPhoenixFixtureWeb, :controller\n\n  alias LokiPhoenixFixture.Accounts\n\n  def show(conn, %{\"id\" => raw_id}) do\n    with {id, \"\"} <- Integer.parse(raw_id),\n         {:ok, user} <- Accounts.fetch_user(id) do\n      json(conn, Map.take(user, [:id, :name]))\n    else\n      _ -> conn |> put_status(:not_found) |> json(%{error: \"not found\"})\n    end\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/audit-log-write-truncates/defect",
+        "pair": "holdout2/elixir/audit-log-write-truncates",
+        "language": "elixir",
+        "family": "data-loss",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/audit_log.ex",
+            "content": "defmodule LokiPhoenixFixture.AuditLog do\n  @moduledoc \"Appends audit events to a JSON-lines file.\"\n\n  @spec record(Path.t(), map()) :: :ok | {:error, File.posix()}\n  def record(path, event) do\n    line =\n      event\n      |> Map.put(:at, DateTime.utc_now() |> DateTime.to_iso8601())\n      |> Jason.encode!()\n\n    File.write(path, line <> \"\\n\")\n  end\nend\n",
+            "kind": "defect",
+            "markers": [
+              "\\[:append\\]|:append",
+              "overwrit",
+              "truncat",
+              "data loss"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "holdout2/elixir/audit-log-write-truncates/control",
+        "pair": "holdout2/elixir/audit-log-write-truncates",
+        "language": "elixir",
+        "family": "data-loss",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture/audit_log.ex",
+            "content": "defmodule LokiPhoenixFixture.AuditLog do\n  @moduledoc \"Appends audit events to a JSON-lines file.\"\n\n  @spec record(Path.t(), map()) :: :ok | {:error, File.posix()}\n  def record(path, event) do\n    line =\n      event\n      |> Map.put(:at, DateTime.utc_now() |> DateTime.to_iso8601())\n      |> Jason.encode!()\n\n    File.write(path, line <> \"\\n\", [:append])\n  end\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      }
+    ]
+  },
+  "identity": {
+    "/home/bryan/.cache/loki-bench/loki-dev8/loki.py": "def9b32be259974f2121eb50da8cb37da5e9b873153758688cb40605b14968be",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.credo.exs": "46191e8af593a4e08b1192b5a72855101bb6441ad0442032fce47359c582c7f4",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.golangci.yml": "317526e04c0c8915f9cd246728377998d7304b60a7db1d7c8ac98853aaa32d3e",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.oxlintrc.json": "347787d28a26caebe940f4eebdaf81d04d5d3f8b27572afb36ed7c9c44456503",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/.ruff.toml": "d6d07f0831cd81efcd256041eb97021f48bd25006b79a79f7f1262a1cfc826b1",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/claude-settings.fragment.json": "35271180ec848eba5a094b5a7c9a85e6017bb528ebb963886bbb83246f69c230",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/codex-hooks.json": "fd3be120d6b09ec991d899e393a28b74fb7719a35774df09c37b192889681203",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/factory-hooks.json": "7806303e0e127a8fae14e04aa146038c98352e95e84b3313e4f434ef64081082",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/loki.json": "a397f86c9287ad96505a2e31ecaf898afdc0f3c8b0f83b3a9e6ef13d12507f88",
+    "/home/bryan/.cache/loki-bench/loki-dev8/templates/loki.yml": "1af7be4162e2115aa122607d85a0656822b251dd425663ed1670d7c5614d6f58",
+    "/home/bryan/.cache/loki-bench/loki-dev8/shim/loki-omp.ts": "68e81b14736f0b6e22f369b39e8825d436c3f008405fd0754746592580d897e2",
+    "/home/bryan/.cache/loki-bench/loki-dev8/shim/loki.ts": "811c81d1bf3903712ee0119aece5c096aed0c978bb44a528f11890eaeb18d657",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/dist/index.js": "98abe5bec369d2392588291893a284c7a76481e2b9ccd5ba5519ee0a7bb042f0",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/dist/hook-entry.js": "aa2be9fc3a00e8184646980be1f3270f5efab9030172aa87fbf152de0f4ace75",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/dist/harness/server.js": "0080f1b14e3610bdc935a80bf3854e5de813438bf0d18f6b25800caf89e39bdb",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/corpus.py": "521db88fe97039554e7fa6e055805f6ba9b9e90783974c42fabb4dca7a452d7e",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/comprehensive.py": "bf5462eebadc1a5f0cb4ce0275e84697cd782359eb4d9ac1a5cd0cb8348a3c16",
+    "/home/bryan/.local/share/mise/installs/node/23.11.1/bin/node": "29427c49702b6da00e600c759e40575d72653e3fa962e6bd204a14619e98ea1c",
+    "/home/bryan/.cache/loki-bench/oxlint/node_modules/oxlint/bin/oxlint": "ecab4e2f1bebaab1a3306620bee562ec16e8cb83dd5fb739b94a5aae3c9e34bd",
+    "/home/bryan/.cache/loki-bench/ts/node_modules/typescript/lib/typescript.js": "3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/node_modules/@biomejs/biome/bin/biome": "84b3bc11895b48aa39258850383bfaf66399dab97df905df446681303d9d6798",
+    "/home/bryan/.cache/loki-bench/golangci/golangci-lint": "5a45f8385e298154d7967380608b73af28d6335cb09f34b9944df20d886dd939",
+    "/home/bryan/.cache/loki-bench/phoenix/mix.lock": "e7da3bd18e446611cc85c501d27cebf44207da4abd290cf4b1a336b1ca517649",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/index.ts": "d72d7e9f8c8f2c9557f7f8dec613b4235a2e15c9d7f43b8c8fc18688ae1f814f",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-chained-type-assertions.ts": "72f8e981520f94adac0ffbdab8f8e84e5f2a4595f14e4a6471be917a85a20a15",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-conditional-empty-object-spread.ts": "33f044030d208fcc10be73bb19c8172c275c5229df4b0ca8ec10f069bbe60062",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-known-value-widening.ts": "d631f9cb6a3629d1d9227a4568c66eb2e8e2b938a57cbec34b6b25fcb31bf62e",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-module-mocking.ts": "90cfc166a28e78544a934e4a000811330c1ea6d33d90cb309b1bed27e51e79f3",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-object-parameters.ts": "3d750130cf7520e7541cb758ebed0dfa603a0e482061a60ac3a12fe8821a4469",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-reflect-apply.ts": "f7920a332106252d6a24cdc917a2c1a433eb438792996ccceb5a25cd6e591dbb",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-reflect-get.ts": "95c5aa0f8e23b10d9345b1776082e08704ec6590298176a8ede8dfdb6e7cb56f",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-runtime-typeof.ts": "eed63d5667763ddbc48a6b83662e446f100c444cddefc3d066ac0015670590b8",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-shape-in-symbol-names.ts": "54aebfebb25c1f8f2ce181f8f82fd05413a0a63f7cdac52e9d570ea1cd284510",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unknown-parameters.ts": "ab5cd31a9a464dd12e4e930298fcd773c1c1badfaf66619915d5435b5d57db61",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unknown-returns.ts": "fca7a61334b902ec76736b6d8ad5b95a84a0d4366dcc7ae1bc44492523052f3b",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unknown-type-aliases.ts": "59df2bcc6fdc892e67650c64662c2ac03d0396c2dcce9c272891c94ba5a4c041",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-unsafe-dictionary-type.ts": "bec8e540e05a749e06474b1c7bd93879747b3330f0b9c87fd1a3ffe959ace075",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/no-widen-then-assert.ts": "63f2c07cc42b8ad60a7e868efbd7b29e462b9ba960fbd07bbc8f590ef9e3f879",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/rules/require-safety-comment-for-type-assertion.ts": "78bad368fcc137f0ed9d6f21626baed5c980fe3ea6d093c93ac4ed9858b9a309",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/shared/dictionary-types.ts": "a57b964ab55a39396c8922f400b0912e3479cb9d28de716a4a536abcf7283966",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/shared/lexical-type-parameters.ts": "1ae0aa3ec245f1dc43c4bbbd8be1e2e4230e5dc389d1ca4e8de8f51b62ceff29",
+    "/home/bryan/.cache/loki-bench/loki-dev8/vendor/anti-slop/shared/reflect-method.ts": "318f56b17d9063134860fe4c51c2e22cb0a55e7f421a0ff4ccedb5a9e9c2b2d9",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/holdout.py": "aab5f9121c7c41d5600b3fdf1e6e6f6d29558b1c5d9f8818920d1ff10b86e00a",
+    "/home/bryan/.cache/loki-bench/loki-dev8/benchmarks/holdout2_cases.json": "363d4e26503e85e2b577f85e2d563856fb30be5548287a350da0a208257482b5"
+  },
+  "runs": 1,
+  "seed": 13,
+  "case_filter": null,
+  "competitor_revision": "82307ea8611b6d70ac34457e6696ee4381ef32cb",
+  "loki_daemon": true,
+  "argv": [
+    "benchmarks/holdout.py",
+    "--interlinked",
+    "/home/bryan/.cache/loki-bench/interlinked-latest",
+    "--node",
+    "/home/bryan/.local/share/mise/installs/node/23.11.1/bin/node",
+    "--oxlint",
+    "/home/bryan/.cache/loki-bench/oxlint/node_modules/.bin/oxlint",
+    "--typescript",
+    "/home/bryan/.cache/loki-bench/ts/node_modules/typescript",
+    "--biome",
+    "/home/bryan/.cache/loki-bench/interlinked-latest/node_modules/.bin/biome",
+    "--python-tools",
+    "/home/bryan/.cache/loki-bench/py/bin",
+    "--golangci",
+    "/home/bryan/.cache/loki-bench/golangci/golangci-lint",
+    "--phoenix",
+    "/home/bryan/.cache/loki-bench/phoenix",
+    "--hex-archive",
+    "/home/bryan/.mix/archives/hex-2.5.1",
+    "--erlang-bin",
+    "/home/bryan/.local/share/mise/installs/erlang/27.3.4.11/bin",
+    "--output",
+    "/home/bryan/.cache/loki-bench/out-h2-8",
+    "--competitor-revision",
+    "82307ea8611b6d70ac34457e6696ee4381ef32cb",
+    "--runs",
+    "1",
+    "--loki-daemon",
+    "--seed",
+    "13",
+    "--profiles",
+    "shared"
+  ],
+  "versions": {
+    "python": {
+      "exit": 0,
+      "stdout": "Python 3.14.7\n",
+      "stderr": "",
+      "ms": 30.766
+    },
+    "node": {
+      "exit": 0,
+      "stdout": "v23.11.1\n",
+      "stderr": "",
+      "ms": 34.89
+    },
+    "ruff": {
+      "exit": 0,
+      "stdout": "ruff 0.15.2\n",
+      "stderr": "",
+      "ms": 34.421
+    },
+    "mypy": {
+      "exit": 0,
+      "stdout": "mypy 1.19.1 (compiled: yes)\n",
+      "stderr": "",
+      "ms": 172.861
+    },
+    "oxlint": {
+      "exit": 0,
+      "stdout": "Version: 1.83.0\n\n",
+      "stderr": "",
+      "ms": 59.486
+    },
+    "typescript": {
+      "exit": 0,
+      "stdout": "Version 5.9.3\n",
+      "stderr": "",
+      "ms": 159.588
+    },
+    "biome": {
+      "exit": 0,
+      "stdout": "Version: 2.4.13\n\n",
+      "stderr": "",
+      "ms": 73.871
+    },
+    "go": {
+      "exit": 0,
+      "stdout": "go version go1.25.6 linux/amd64\n",
+      "stderr": "",
+      "ms": 31.86
+    },
+    "golangci": {
+      "exit": 0,
+      "stdout": "golangci-lint has version 2.6.2 built with go1.25.6 from (unknown, modified: ?, mod sum: \"h1:jkMSVv36JmyTENcEertckvimvjPcD5qxNM7W7qhECvI=\") on (unknown)\n",
+      "stderr": "",
+      "ms": 105.48
+    },
+    "rust": {
+      "exit": 0,
+      "stdout": "clippy 0.1.97\n",
+      "stderr": "",
+      "ms": 57.012
+    },
+    "elixir": {
+      "exit": 0,
+      "stdout": "Erlang/OTP 27 [erts-15.2.7.8] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]\n\nElixir 1.17.3 (compiled with Erlang/OTP 27)\n",
+      "stderr": "",
+      "ms": 223.944
+    }
+  },
+  "machine": {
+    "platform": "Linux-7.1.8-arch1-3-x86_64-with-glibc2.44",
+    "logical_cpus": 16,
+    "python": "3.14.7"
+  },
+  "schedule": [
+    [
+      "holdout2/typescript/metric-name-replace-first-only/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invoice-show-missing-owner-check/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/link-preview-ssrf/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/tag-input-nested-quantifier/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/csv-export-bufwriter-no-flush/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invoice-show-missing-owner-check/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/latency-p95-default-sort/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/metric-name-replace-first-only/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/csv-export-bufwriter-no-flush/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/load-timeout-ignores-second-result/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/snapshot-atomic-write-unchecked/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/close-editor-floating-save/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invite-greeting-html-interpolation/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/leaderboard-top-n-ascending/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/snapshot-atomic-write-unchecked/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/git-log-shell-true/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/config-question-mark-on-option/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/registry-lazy-map-unused/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invite-greeting-html-interpolation/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/metric-name-replace-first-only/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/invoice-query-sprintf/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/line-count-defer-in-loop/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/redact-re-sub-flags-as-count/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/cart-total-focused-test/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/close-editor-floating-save/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/sqlite-order-filter-fstring/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/session-cookie-pickle/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/discount-test-mocks-subject/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/inviter-optional-user/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/invoice-query-sprintf/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/link-preview-ssrf/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/mentions-mutable-default/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/batch-chunk-drops-last/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/shape-area-missing-case/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/presence-poller-interval-leak/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/parse-version-assert-true/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/parse-version-assert-true/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/discount-test-mocks-subject/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/webhook-retry-swallow/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/assignee-find-non-null/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/sqlite-order-filter-fstring/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/prune-sessions-splice-in-foreach/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/comment-list-innerhtml/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/paginate-one-indexed-offset/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/price-preview-string-arg/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/price-preview-string-arg/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/load-timeout-ignores-second-result/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/csv-export-bufwriter-no-flush/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/invoice-query-sprintf/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/load-timeout-ignores-second-result/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/inventory-csv-open-leak/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/cart-total-focused-test/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invite-greeting-html-interpolation/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/parse-version-assert-true/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/batch-chunk-drops-last/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/mentions-mutable-default/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/fetch-user-unawaited-rejects/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/static-files-path-join-traversal/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/line-count-defer-in-loop/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/webhook-retry-swallow/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/webhook-signature-string-compare/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/tag-input-nested-quantifier/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/csv-export-file-never-closed/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/inventory-csv-open-leak/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/comment-list-innerhtml/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/shape-area-missing-case/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/api-client-insecure-skip-verify/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/webhook-retry-swallow/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/link-preview-ssrf/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/presence-poller-interval-leak/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/download-counter-agent-lost-update/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/settings-deep-merge-proto/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/head-sizes-concurrent-map-write/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/close-editor-floating-save/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/inviter-optional-user/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/paginate-one-indexed-offset/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/feature-flags-file-read-match/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/search-params-atom-keys/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/cart-total-focused-test/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/redact-re-sub-flags-as-count/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/audit-log-write-truncates/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/line-count-defer-in-loop/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/session-cookie-pickle/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/parse-size-test-self-compare/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/prune-sessions-splice-in-foreach/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/payments-client-hardcoded-key/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/link-checker-shared-counter/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/price-preview-string-arg/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/mentions-mutable-default/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/link-checker-shared-counter/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/inviter-optional-user/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/plugin-unzip-zip-slip/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/payments-client-hardcoded-key/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/rate-limiter-nil-map/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/fetch-user-unawaited-rejects/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/profile-fetch-user-wrong-arity/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/latency-p95-default-sort/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/snapshot-atomic-write-unchecked/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/leaderboard-top-n-ascending/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/settings-deep-merge-proto/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/rate-limiter-nil-map/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/shape-area-missing-case/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/presence-poller-interval-leak/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/line-count-defer-in-loop/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/session-cookie-pickle/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/report-sort-string-to-atom/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/discount-test-mocks-subject/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/mentions-mutable-default/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/config-question-mark-on-option/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/metric-name-replace-first-only/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/fetch-user-unawaited-rejects/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/thumbnail-system-cmd-sh-c/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/webhook-retry-swallow/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/thumbnail-system-cmd-sh-c/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/inventory-csv-open-leak/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/paginate-one-indexed-offset/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/assignee-find-non-null/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/load-timeout-ignores-second-result/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/snapshot-atomic-write-unchecked/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/retry-header-unwrap/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/git-log-shell-true/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/search-params-atom-keys/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/leaderboard-top-n-ascending/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/audit-log-write-truncates/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/git-log-shell-true/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/shape-area-missing-case/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/parse-size-test-self-compare/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/profile-fetch-user-wrong-arity/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/api-client-insecure-skip-verify/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/payments-client-hardcoded-key/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/report-sort-string-to-atom/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/csv-export-file-never-closed/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/retry-header-unwrap/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/webhook-signature-string-compare/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/session-store-relock-deadlock/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/link-preview-ssrf/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/paginate-one-indexed-offset/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/frame-field-get-unchecked/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/session-store-relock-deadlock/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/head-sizes-concurrent-map-write/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/link-checker-shared-counter/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/csv-export-file-never-closed/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/session-cookie-pickle/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/thumbnail-exec-template/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/sqlite-order-filter-fstring/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/cart-total-focused-test/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/prune-sessions-splice-in-foreach/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/registry-lazy-map-unused/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/download-counter-agent-lost-update/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/parse-size-test-self-compare/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/report-sort-string-to-atom/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/comment-list-innerhtml/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/plugin-unzip-zip-slip/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/static-files-path-join-traversal/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/close-editor-floating-save/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/static-files-path-join-traversal/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/head-sizes-concurrent-map-write/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/batch-chunk-drops-last/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/download-counter-agent-lost-update/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/fetch-user-unawaited-rejects/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/settings-deep-merge-proto/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invite-greeting-html-interpolation/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/payments-client-hardcoded-key/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/prune-sessions-splice-in-foreach/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/tag-input-nested-quantifier/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/login-next-open-redirect/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/parse-version-assert-true/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/invoice-query-sprintf/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/registry-lazy-map-unused/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/comment-list-innerhtml/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invoice-show-missing-owner-check/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/redact-re-sub-flags-as-count/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/api-client-insecure-skip-verify/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/pdf-sniff-handle-leak/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/session-store-relock-deadlock/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/pdf-sniff-handle-leak/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/attachment-download-traversal/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/parse-size-test-self-compare/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/rate-limiter-nil-map/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/pdf-sniff-handle-leak/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/csv-export-bufwriter-no-flush/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/thumbnail-system-cmd-sh-c/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/config-question-mark-on-option/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/plugin-unzip-zip-slip/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/webhook-signature-string-compare/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/discount-test-mocks-subject/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/frame-field-get-unchecked/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/presence-poller-interval-leak/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/config-question-mark-on-option/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/invoice-show-missing-owner-check/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/tag-input-nested-quantifier/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/retry-header-unwrap/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/thumbnail-exec-template/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/batch-chunk-drops-last/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/rate-limiter-nil-map/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/static-files-path-join-traversal/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/head-sizes-concurrent-map-write/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/search-params-atom-keys/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/webhook-signature-string-compare/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/login-next-open-redirect/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/attachment-download-traversal/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/thumbnail-exec-template/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/feature-flags-file-read-match/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/pdf-sniff-handle-leak/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/login-next-open-redirect/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/report-sort-string-to-atom/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/inventory-csv-open-leak/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/audit-log-write-truncates/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/settings-deep-merge-proto/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/sqlite-order-filter-fstring/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/go/plugin-unzip-zip-slip/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/profile-fetch-user-wrong-arity/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/python/attachment-download-traversal/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/javascript/thumbnail-exec-template/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/git-log-shell-true/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/assignee-find-non-null/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/registry-lazy-map-unused/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/price-preview-string-arg/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/feature-flags-file-read-match/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/go/api-client-insecure-skip-verify/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/inviter-optional-user/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/attachment-download-traversal/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/search-params-atom-keys/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/leaderboard-top-n-ascending/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/frame-field-get-unchecked/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/latency-p95-default-sort/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/download-counter-agent-lost-update/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/link-checker-shared-counter/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/retry-header-unwrap/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/latency-p95-default-sort/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/rust/frame-field-get-unchecked/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/python/redact-re-sub-flags-as-count/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/csv-export-file-never-closed/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/feature-flags-file-read-match/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/thumbnail-system-cmd-sh-c/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/audit-log-write-truncates/defect",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/elixir/profile-fetch-user-wrong-arity/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/rust/session-store-relock-deadlock/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/assignee-find-non-null/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "holdout2/typescript/login-next-open-redirect/control",
+      "loki",
+      "shared"
+    ]
+  ],
+  "scope": "Independently authored holdout cases through installed Claude pre/post lifecycles; no models; no Bash payload execution.",
+  "configuration": "Loki shell guard and committed npm test grant; Interlinked balanced; shared analyzer paths.",
+  "isolation": "Fresh fixtures/homes/processes per repetition, network namespace, read-only host filesystem, fixture and private /tmp writable.",
+  "warmup": "Trial zero has no warmup. Later independent trials send two git-status pre-hook envelopes in the same session. No commands are executed; this warms startup, not compiler result caches.",
+  "limitations": [
+    "Author-written cases are not independent or representative of production.",
+    "First invocation is not an OS-cold disk/cache measurement.",
+    "Additional context can be advisory; post-write findings do not prevent bytes landing.",
+    "Generic denial without a target marker is not credited as targeted prevention.",
+    "Real host activation and explicit audit scans are separate from hook effectiveness.",
+    "Go/Rust audit commands have different product-defined scopes."
+  ]
+}

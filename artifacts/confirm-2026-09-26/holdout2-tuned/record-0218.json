@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/elixir/feature-flags-file-read-match/defect",
+  "language": "elixir",
+  "family": "runtime-bug",
+  "pair": "holdout2/elixir/feature-flags-file-read-match",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    785.001
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b1965b2084a6b4477498cd2d8ac62c3fe448a2800c07ea49796d69cd28a73164",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 149.897,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/feature_flags.ex:6: loki/unhandled-error-tuple: {:ok, _} = File.read(...) raises MatchError on {:error, reason}; use case/with, or the ! variant deliberately\nloki: hook command failed\n",
+            "ms": 149.897
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

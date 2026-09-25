@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/static-files-path-join-traversal/control",
+  "language": "rust",
+  "family": "security",
+  "pair": "holdout2/rust/static-files-path-join-traversal",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1109.802
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "e76ea9852a5b1764d74a878a5aece195835f04c53dd217d8231915f66083c740",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 182.566,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 182.566
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 387.47,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 387.47
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

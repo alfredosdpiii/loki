@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/leaderboard-top-n-ascending/control",
+  "language": "rust",
+  "family": "semantic",
+  "pair": "holdout2/rust/leaderboard-top-n-ascending",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    743.413
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "a6f8f84ba322ea4421a9c7be4e3ad987d0644d3ab49777d977cb32eed9b834c2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 145.348,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 145.348
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 332.197,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 332.197
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

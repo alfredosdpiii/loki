@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/comment-list-innerhtml/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/comment-list-innerhtml",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1709.484
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "45aef2da47dd1026f44243175c78fa3e727787a3ede0e8af51f8e10655e113dc",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 367.64,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 367.64
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1038.73,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1038.73
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

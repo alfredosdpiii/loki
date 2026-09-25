@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/typescript/shape-area-missing-case/defect",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout2/typescript/shape-area-missing-case",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1223.659,
+    1452.65,
+    1336.67
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c047f88e53861044fa935c834ff0e1778e8baa73372f80d5cd1cd2acb0043add",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 248.291,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/area.ts:3: TS2366: Function lacks ending return statement and return type does not include 'undefined'.\nloki: hook command failed\n",
+            "ms": 248.291
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c047f88e53861044fa935c834ff0e1778e8baa73372f80d5cd1cd2acb0043add",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 303.329,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/area.ts:3: TS2366: Function lacks ending return statement and return type does not include 'undefined'.\nloki: hook command failed\n",
+            "ms": 303.329
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c047f88e53861044fa935c834ff0e1778e8baa73372f80d5cd1cd2acb0043add",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 262.419,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/area.ts:3: TS2366: Function lacks ending return statement and return type does not include 'undefined'.\nloki: hook command failed\n",
+            "ms": 262.419
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 141.021
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 157.638
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 121.728
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.849
+    }
+  ]
+}

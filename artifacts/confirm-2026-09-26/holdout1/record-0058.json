@@ -1,0 +1,42 @@
+{
+  "case": "holdout/rust/sh-c-image-resize/defect",
+  "language": "rust",
+  "family": "security",
+  "pair": "holdout/rust/sh-c-image-resize",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1115.796
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "a9fdab8578f59e524efb3b297feadca9bf209f2b1c6acb6af309020e0f1d24e1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 202.347,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:5: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 202.347
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

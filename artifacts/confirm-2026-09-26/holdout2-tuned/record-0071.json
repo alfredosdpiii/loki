@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/settings-deep-merge-proto/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/settings-deep-merge-proto",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1403.666
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b56f3ae8083fb8db1b10552db05963cf2b2e4334733736c78f1869fb5417be8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 269.021,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/settings.ts:8: loki/prototype-pollution: prototype pollution: recursive merge copies arbitrary keys; skip __proto__, constructor and prototype or use Object.create(null)\nloki: hook command failed\n",
+            "ms": 269.021
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

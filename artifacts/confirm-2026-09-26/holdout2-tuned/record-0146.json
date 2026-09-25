@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/javascript/prune-sessions-splice-in-foreach/control",
+  "language": "javascript",
+  "family": "runtime-bug",
+  "pair": "holdout2/javascript/prune-sessions-splice-in-foreach",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    857.588
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "fa1da5c360be348505f7f3f600b23706329767e64ab1b288c14d17a13fd82d0b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 395.151,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 395.151
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 815.063,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-bcyurlwr/project/tsconfig.json'. Specified 'include' path\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-bcyurlwr/project/tsconfig.json'. Specified 'include' path\n",
+            "ms": 815.063
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

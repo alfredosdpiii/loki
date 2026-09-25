@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/typescript/latency-p95-default-sort/control",
+  "language": "typescript",
+  "family": "semantic",
+  "pair": "holdout2/typescript/latency-p95-default-sort",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    929.27,
+    1149.267,
+    1415.247
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "7d07965383d536d183c5ac4a07e811ce9b3a7c6a9b985ec80dedf213d6bb1da2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 244.119,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 244.119
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 379.751,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/metrics.ts:8:43: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/metrics.ts:8:43: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\n",
+            "ms": 379.751
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "7d07965383d536d183c5ac4a07e811ce9b3a7c6a9b985ec80dedf213d6bb1da2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 250.101,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 250.101
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 389.281,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/metrics.ts:8:43: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/metrics.ts:8:43: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\n",
+            "ms": 389.281
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "7d07965383d536d183c5ac4a07e811ce9b3a7c6a9b985ec80dedf213d6bb1da2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 255.288,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 255.288
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 452.051,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/metrics.ts:8:43: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/metrics.ts:8:43: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\n",
+            "ms": 452.051
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.202
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 117.742
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 139.881
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 135.683
+    }
+  ]
+}

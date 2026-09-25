@@ -1,0 +1,42 @@
+{
+  "case": "typescript/async-promise/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/async-promise",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    583.614
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 116.775,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [async_promise_executor]. This edit INTRODUCES 1 violation(s) at L1 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-qh3_8qb4/project/src/main.ts. Fix the introduced line(s), then retry.\\nRemove the async keyword from the Promise executor. If you need to await inside, restructure to use async/await outside the Promise constructor.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: async_promise_executor \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 116.775
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/javascript/link-preview-ssrf/defect",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout2/javascript/link-preview-ssrf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    748.825,
+    1007.329,
+    905.303
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "cb5bd345342d3aadb8c0bc983f80be1496f80d3ad4ca7074003a0e2779eac0ec",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 347.209,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 347.209
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 525.526,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-ih_v0msa/project/tsconfig.json'. Specified 'include' pa\\noxlint advisory (not blocking):\\npreview.js:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-ih_v0msa/project/tsconfig.json'. Specified 'include' pa\noxlint advisory (not blocking):\npreview.js:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 525.526
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "cb5bd345342d3aadb8c0bc983f80be1496f80d3ad4ca7074003a0e2779eac0ec",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 336.624,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 336.624
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 537.634,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-2keggd5n/project/tsconfig.json'. Specified 'include' pa\\noxlint advisory (not blocking):\\npreview.js:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-2keggd5n/project/tsconfig.json'. Specified 'include' pa\noxlint advisory (not blocking):\npreview.js:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 537.634
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "cb5bd345342d3aadb8c0bc983f80be1496f80d3ad4ca7074003a0e2779eac0ec",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 360.972,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 360.972
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 532.458,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-lfilmv_w/project/tsconfig.json'. Specified 'include' pa\\noxlint advisory (not blocking):\\npreview.js:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-lfilmv_w/project/tsconfig.json'. Specified 'include' pa\noxlint advisory (not blocking):\npreview.js:3:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 532.458
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 116.4
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 132.534
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 117.457
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 120.995
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/go/plugin-unzip-zip-slip/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/plugin-unzip-zip-slip",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    3897.708,
+    3978.411,
+    3871.753
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "756b33e1a437e732f5c91338a25b071c9216ae71a55bfc5e0ca88bb4d4628c37",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 122.435,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 122.435
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1964.791,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:21:15: Error return value of `r.Close` is not checked (errcheck)\ngolangci-lint: main.go:26:13: G305: File traversal when extracting zip/tar archive (gosec)\nloki: hook command failed\n",
+            "ms": 1964.791
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "756b33e1a437e732f5c91338a25b071c9216ae71a55bfc5e0ca88bb4d4628c37",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 122.401,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 122.401
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1881.52,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:21:15: Error return value of `r.Close` is not checked (errcheck)\ngolangci-lint: main.go:26:13: G305: File traversal when extracting zip/tar archive (gosec)\nloki: hook command failed\n",
+            "ms": 1881.52
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "756b33e1a437e732f5c91338a25b071c9216ae71a55bfc5e0ca88bb4d4628c37",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 121.61,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 121.61
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1897.491,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:21:15: Error return value of `r.Close` is not checked (errcheck)\ngolangci-lint: main.go:26:13: G305: File traversal when extracting zip/tar archive (gosec)\nloki: hook command failed\n",
+            "ms": 1897.491
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.872
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.219
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 116.597
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 114.646
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/leaderboard-top-n-ascending/defect",
+  "language": "rust",
+  "family": "semantic",
+  "pair": "holdout2/rust/leaderboard-top-n-ascending",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    857.108
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "1ee8cd7cccf424aacab677ac95641d173046cacd7b8010647614dd89091528b7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 169.277,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 169.277
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 388.27,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 388.27
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

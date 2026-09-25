@@ -1,0 +1,42 @@
+{
+  "case": "javascript/focused-suite/defect",
+  "language": "javascript",
+  "family": "tests",
+  "pair": "javascript/focused-suite",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    814.649
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "61973d62a8d48d3ae0ad17d888e81a58b316074fc25402566460768c516a5ac0",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 434.395,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: jest(no-focused-tests): Unexpected focused test.\nchecks.test.js:1: vitest(no-focused-tests): Unexpected focused test.\nloki: hook command failed\n",
+            "ms": 434.395
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

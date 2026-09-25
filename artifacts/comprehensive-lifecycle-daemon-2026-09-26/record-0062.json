@@ -1,0 +1,123 @@
+{
+  "case": "typescript/finally-return/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/finally-return",
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    906.366,
+    1168.539,
+    1322.689
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "18fffb469af96755c3bf28741f4d2ad7611102bd8c6e4ce381277a66064b3569",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 162.733,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-unsafe-finally: unsafe finally: return in finally overrides try/catch control flow\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 162.733
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "18fffb469af96755c3bf28741f4d2ad7611102bd8c6e4ce381277a66064b3569",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 167.924,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-unsafe-finally: unsafe finally: return in finally overrides try/catch control flow\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 167.924
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "18fffb469af96755c3bf28741f4d2ad7611102bd8c6e4ce381277a66064b3569",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 172.465,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-unsafe-finally: unsafe finally: return in finally overrides try/catch control flow\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 172.465
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 121.86
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 119.076
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 117.33
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 118.856
+    }
+  ]
+}

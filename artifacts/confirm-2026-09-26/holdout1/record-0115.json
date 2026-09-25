@@ -1,0 +1,56 @@
+{
+  "case": "holdout/rust/assert-true-ignored-test/control",
+  "language": "rust",
+  "family": "test-integrity",
+  "pair": "holdout/rust/assert-true-ignored-test",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    773.583
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "ef8c7d467e92a2a998e87a553bf9f6fb7f6bd7d63ada8f27a6b9f835204c47b5",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 152.091,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 152.091
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 384.168,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 384.168
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

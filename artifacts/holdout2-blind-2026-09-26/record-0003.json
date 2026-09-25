@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/elixir/csv-export-file-never-closed/control",
+  "language": "elixir",
+  "family": "resource",
+  "pair": "holdout2/elixir/csv-export-file-never-closed",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    911.608,
+    1330.998,
+    2486.617
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "3e1628cb50e78cc3df6a27b4f1a2060c325b8bef3d4a789c0f3a4083afd9fdce",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 141.107,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 141.107
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1333.488,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED INFO lib/loki_phoenix_fixture/export.ex:7: Sobelow low: Traversal.FileModule: Directory Traversal in `File.open`\"}}\n",
+            "stderr": "NOT BLOCKED INFO lib/loki_phoenix_fixture/export.ex:7: Sobelow low: Traversal.FileModule: Directory Traversal in `File.open`\n",
+            "ms": 1333.488
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "3e1628cb50e78cc3df6a27b4f1a2060c325b8bef3d4a789c0f3a4083afd9fdce",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 168.13,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 168.13
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1184.232,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED INFO lib/loki_phoenix_fixture/export.ex:7: Sobelow low: Traversal.FileModule: Directory Traversal in `File.open`\"}}\n",
+            "stderr": "NOT BLOCKED INFO lib/loki_phoenix_fixture/export.ex:7: Sobelow low: Traversal.FileModule: Directory Traversal in `File.open`\n",
+            "ms": 1184.232
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "3e1628cb50e78cc3df6a27b4f1a2060c325b8bef3d4a789c0f3a4083afd9fdce",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 178.824,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 178.824
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1516.531,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED INFO lib/loki_phoenix_fixture/export.ex:7: Sobelow low: Traversal.FileModule: Directory Traversal in `File.open`\"}}\n",
+            "stderr": "NOT BLOCKED INFO lib/loki_phoenix_fixture/export.ex:7: Sobelow low: Traversal.FileModule: Directory Traversal in `File.open`\n",
+            "ms": 1516.531
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 173.963
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 168.697
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 207.544
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 202.248
+    }
+  ]
+}

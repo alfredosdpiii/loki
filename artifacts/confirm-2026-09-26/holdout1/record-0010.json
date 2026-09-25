@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/floating-promise-remove-draft/control",
+  "language": "typescript",
+  "family": "api-misuse",
+  "pair": "holdout/typescript/floating-promise-remove-draft",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1707.486
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "ae7fdc0c00976c2bf2e774e72b331ab3dd7e73f6444b7650b88489fd85f9e1b0",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 354.563,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 354.563
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 832.741,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 832.741
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

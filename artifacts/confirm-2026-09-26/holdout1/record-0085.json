@@ -1,0 +1,56 @@
+{
+  "case": "holdout/elixir/send-resp-html-interpolation/control",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout/elixir/send-resp-html-interpolation",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1770.041
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "592cc9021955a6fc0f7e07ec92fec21ffebe2561bd399f0052e174b1ae0d2b40",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 252.971,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 252.971
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1974.989,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:14: Sobelow medium: XSS.SendResp: XSS in `send_resp`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:14: Sobelow medium: XSS.SendResp: XSS in `send_resp`\n",
+            "ms": 1974.989
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

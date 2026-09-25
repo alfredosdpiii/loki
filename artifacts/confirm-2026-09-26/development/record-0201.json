@@ -1,0 +1,42 @@
+{
+  "case": "typescript/removed-export/defect",
+  "language": "typescript",
+  "family": "cross-file",
+  "pair": "typescript/removed-export",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1101.285
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b53f2655e42c2e914f976984f1091af50d9dc66f2e078c62b47f31ef63fc033d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 236.564,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: TS2305: Module '\"./api\"' has no exported member 'value'.\nloki: hook command failed\n",
+            "ms": 236.564
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

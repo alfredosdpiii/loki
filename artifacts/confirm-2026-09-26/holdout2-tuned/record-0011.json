@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/close-editor-floating-save/control",
+  "language": "typescript",
+  "family": "concurrency",
+  "pair": "holdout2/typescript/close-editor-floating-save",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1421.535
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "88597cc2656036ef28dde6179f894afa13c4d5a2dac0c2d9868fa4f507e6599d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 306.783,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 306.783
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 810.109,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 810.109
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

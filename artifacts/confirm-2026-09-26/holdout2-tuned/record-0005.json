@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/invoice-show-missing-owner-check/control",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout2/elixir/invoice-show-missing-owner-check",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1156.067
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "7c764b151b5763f04b0c35ea80f1263ff0c8748303bfc90cde020d6704c1d4ef",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 198.461,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 198.461
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1759.695,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1759.695
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

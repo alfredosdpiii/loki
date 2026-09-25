@@ -1,0 +1,165 @@
+{
+  "case": "holdout/elixir/send-resp-html-interpolation/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout/elixir/send-resp-html-interpolation",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    788.376,
+    1024.248,
+    1107.543
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "fe42b11d82f910a54b65a432fede448c8136221696b19f1e161d80ea88080574",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 135.491,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 135.491
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1203.583,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:10: Sobelow medium: XSS.SendResp: XSS in `send_resp`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:10: Sobelow medium: XSS.SendResp: XSS in `send_resp`\n",
+            "ms": 1203.583
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "fe42b11d82f910a54b65a432fede448c8136221696b19f1e161d80ea88080574",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 134.594,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 134.594
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1057.453,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:10: Sobelow medium: XSS.SendResp: XSS in `send_resp`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:10: Sobelow medium: XSS.SendResp: XSS in `send_resp`\n",
+            "ms": 1057.453
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "fe42b11d82f910a54b65a432fede448c8136221696b19f1e161d80ea88080574",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 132.228,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 132.228
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1079.246,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:10: Sobelow medium: XSS.SendResp: XSS in `send_resp`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/search_controller.ex:10: Sobelow medium: XSS.SendResp: XSS in `send_resp`\n",
+            "ms": 1079.246
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 128.465
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 126.832
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.955
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 119.507
+    }
+  ]
+}

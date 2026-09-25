@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/javascript/link-preview-ssrf/defect",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout2/javascript/link-preview-ssrf",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    594.973,
+    903.299,
+    940.042
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "cb5bd345342d3aadb8c0bc983f80be1496f80d3ad4ca7074003a0e2779eac0ec",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 129.383,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_hardcoded_localhost]. This edit INTRODUCES 1 violation(s) at L7 in /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-x0yjc4bx/project/preview.js. Fix the introduced line(s), then retry.\\n`localhost` / `127.0.0.1` baked into production source breaks in deploy and is a frequent dev-default leak. Read it from an env var (`process.env.API_URL`) or a config file, with a clear default for local dev.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_hardcoded_localhost \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-x0yjc4bx/project/preview.js\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-x0yjc4bx/project/preview.test.js first with a failing test, then write the implementation. (Searched: preview.test.js, __tests__/preview.test.js, preview.spec.js, __tests__/preview.spec.js.) Public surface to test (extracted from your content): createPreviewServer. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 129.383
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "cb5bd345342d3aadb8c0bc983f80be1496f80d3ad4ca7074003a0e2779eac0ec",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 122.25,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_hardcoded_localhost]. This edit INTRODUCES 1 violation(s) at L7 in /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-6ptttb1h/project/preview.js. Fix the introduced line(s), then retry.\\n`localhost` / `127.0.0.1` baked into production source breaks in deploy and is a frequent dev-default leak. Read it from an env var (`process.env.API_URL`) or a config file, with a clear default for local dev.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_hardcoded_localhost \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-6ptttb1h/project/preview.js\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-6ptttb1h/project/preview.test.js first with a failing test, then write the implementation. (Searched: preview.test.js, __tests__/preview.test.js, preview.spec.js, __tests__/preview.spec.js.) Public surface to test (extracted from your content): createPreviewServer. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 122.25
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "cb5bd345342d3aadb8c0bc983f80be1496f80d3ad4ca7074003a0e2779eac0ec",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 130.775,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_hardcoded_localhost]. This edit INTRODUCES 1 violation(s) at L7 in /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-6xnc920l/project/preview.js. Fix the introduced line(s), then retry.\\n`localhost` / `127.0.0.1` baked into production source breaks in deploy and is a frequent dev-default leak. Read it from an env var (`process.env.API_URL`) or a config file, with a clear default for local dev.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_hardcoded_localhost \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-6xnc920l/project/preview.js\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-final2/artifacts/tmp/b/b-6xnc920l/project/preview.test.js first with a failing test, then write the implementation. (Searched: preview.test.js, __tests__/preview.test.js, preview.spec.js, __tests__/preview.spec.js.) Public surface to test (extracted from your content): createPreviewServer. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 130.775
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 136.651
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 108.545
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 168.771
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 111.579
+    }
+  ]
+}

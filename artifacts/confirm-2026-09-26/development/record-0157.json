@@ -1,0 +1,56 @@
+{
+  "case": "javascript/focused-suite/control",
+  "language": "javascript",
+  "family": "tests",
+  "pair": "javascript/focused-suite",
+  "product": "interlinked",
+  "profile": "missing-js",
+  "setup_ms": [
+    584.884
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 137.852,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:test_missing_sut_import] /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:test_missing_sut_import] /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-f1u32j9p/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 137.852
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 5153.219,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for checks.test.js (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\n[interlinked:checks-deferred] [proven] NOT CHECKED: biome_lint for checks.test.js (not installed). Retry each deferred check after its prerequisites change; no clean verdict exists for check.",
+            "ms": 5153.219
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/search-params-atom-keys/control",
+  "language": "elixir",
+  "family": "api-misuse",
+  "pair": "holdout2/elixir/search-params-atom-keys",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1725.105
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "823ad7008d81bd89135dd61d57988066edc830c2316e76c8b4887f5ebf9f6377",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 339.122,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 339.122
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 3193.629,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 3193.629
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

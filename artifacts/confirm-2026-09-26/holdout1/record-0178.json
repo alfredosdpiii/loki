@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/md5-password-hash/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/md5-password-hash",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1633.611
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2256fe28bdc394c4caec424dfe796a91c2790bbad636404aa4ca7d9c13780d54",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 195.124,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "auth.py:17: loki/timing-compare: timing attack: signature or digest compared with ==; use hmac.compare_digest\nauth.py: S324: Probable use of insecure hash functions in `hashlib`: `md5`\nauth.py: S324: Probable use of insecure hash functions in `hashlib`: `md5`\nloki: hook command failed\n",
+            "ms": 195.124
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

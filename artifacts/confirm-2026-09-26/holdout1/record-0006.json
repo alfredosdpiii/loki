@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/postmessage-missing-origin-check/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/postmessage-missing-origin-check",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1393.118
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "f2638821a5719428c44c0c59de6b7384b2fc33344a957752414179bc4a269866",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 364.291,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 364.291
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 810.833,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/bridge.ts:8:30: Parameter `data` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function. [Warning/anti-slop(no-unknown-parameters)]\\nsrc/bridge.ts:10:5: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\\nsrc/bridge.ts:12:6: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\\nsrc/bridge.ts:13:5: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\\nsrc/bridge.ts:13:13: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/bridge.ts:8:30: Parameter `data` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function. [Warning/anti-slop(no-unknown-parameters)]\nsrc/bridge.ts:10:5: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\nsrc/bridge.ts:12:6: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\nsrc/bridge.ts:13:5: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\nsrc/bridge.ts:13:13: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 810.833
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

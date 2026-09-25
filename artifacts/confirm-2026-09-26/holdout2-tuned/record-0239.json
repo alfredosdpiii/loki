@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/login-next-open-redirect/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/login-next-open-redirect",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1003.855
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "15fa400301738340ba79d7a8252e9a4d3ca49decb9e6ca2b22089c61adabcb3c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 258.221,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 258.221
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 594.119,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 594.119
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

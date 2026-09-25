@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/line-count-defer-in-loop/defect",
+  "language": "go",
+  "family": "resource",
+  "pair": "holdout2/go/line-count-defer-in-loop",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5497.684
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "0a0695821298f1349e2e6e5dceef85a997fa2ea81d47c1158c0f830f6a8a2948",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 159.281,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 159.281
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 2635.39,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngolangci-lint: main.go:19:3: deferInLoop: Possible resource leak, 'defer' is called in the 'for' loop (gocritic)\nloki: hook command failed\n",
+            "ms": 2635.39
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

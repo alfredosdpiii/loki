@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/numeric-sort-without-comparator/control",
+  "language": "typescript",
+  "family": "semantic",
+  "pair": "holdout/typescript/numeric-sort-without-comparator",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1402.587
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "eb44f98bcabac99176d0365f0efa3b950e42aaa8bc91f5c56502f689b9d08878",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 369.04,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 369.04
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 824.041,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/leaderboard.ts:8:17: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/leaderboard.ts:8:17: Use `Array#toSorted()` instead of `Array#sort()`. [Warning/unicorn(no-array-sort)]\n",
+            "ms": 824.041
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

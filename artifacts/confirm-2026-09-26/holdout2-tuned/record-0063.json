@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/python/inventory-csv-open-leak/defect",
+  "language": "python",
+  "family": "resource",
+  "pair": "holdout2/python/inventory-csv-open-leak",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    3083.724
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "56a9ace6b88d360292140f079046bc3f69e68f0e5ee8ff8528ea8c53cb7b4171",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 255.582,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: SIM115: Use a context manager for opening files\nloki: hook command failed\n",
+            "ms": 255.582
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

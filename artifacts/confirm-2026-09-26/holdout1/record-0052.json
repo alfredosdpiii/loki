@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/deep-merge-prototype-pollution/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/deep-merge-prototype-pollution",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1584.123
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "768f63f8c4f8313ce81e5265299f45ee2407b9e9980320de3fbff9fcb2574e31",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 326.356,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 326.356
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 825.028,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/merge.ts:1:27: This dictionary's unknown value type gives callers no concrete value contract. Use an owner/schema-derived value type; parse external payloads before insertion. [Warning/anti-slop(no-unsafe-dictionary-type)]\\nsrc/merge.ts:5:31: Parameter `value` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function. [Warning/anti-slop(no-unknown-parameters)]\\nsrc/merge.ts:6:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/merge.ts:1:27: This dictionary's unknown value type gives callers no concrete value contract. Use an owner/schema-derived value type; parse external payloads before insertion. [Warning/anti-slop(no-unsafe-dictionary-type)]\nsrc/merge.ts:5:31: Parameter `value` leaves input unparsed. Accept a named domain type; run the expected schema or parser at the I/O boundary before calling this function. [Warning/anti-slop(no-unknown-parameters)]\nsrc/merge.ts:6:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\n",
+            "ms": 825.028
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

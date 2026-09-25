@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/payments-client-hardcoded-key/control",
+  "language": "rust",
+  "family": "security",
+  "pair": "holdout2/rust/payments-client-hardcoded-key",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1014.282
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "32b676f578ce98e0033b4decdc99d01c5b1d90c494ce896ce5cbc0f8e2894e9e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 209.077,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 209.077
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 413.834,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 413.834
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

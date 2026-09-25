@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/webhook-signature-string-compare/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/webhook-signature-string-compare",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1086.537
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4c261fd3567c98e185ebbc158fca53d115848ebefb59a3498d641709273144da",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 193.616,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/webhook.ts:21: loki/timing-compare: timing attack: signature or digest compared with ==; use crypto.timingSafeEqual\nloki: hook command failed\n",
+            "ms": 193.616
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

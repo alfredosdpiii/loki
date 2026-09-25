@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/typescript/login-next-open-redirect/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/login-next-open-redirect",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1181.083,
+    1518.034,
+    1501.876
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b9dc1f654ec14e3b85c071c85c4bacce698d35f78bc6d42b8b84b4b4e662b8ff",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 191.584,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/login.ts:7: loki/open-redirect: open redirect: unvalidated navigation target; check it against an allowlist of paths or origins\nloki: hook command failed\n",
+            "ms": 191.584
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b9dc1f654ec14e3b85c071c85c4bacce698d35f78bc6d42b8b84b4b4e662b8ff",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 202.397,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/login.ts:7: loki/open-redirect: open redirect: unvalidated navigation target; check it against an allowlist of paths or origins\nloki: hook command failed\n",
+            "ms": 202.397
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b9dc1f654ec14e3b85c071c85c4bacce698d35f78bc6d42b8b84b4b4e662b8ff",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 178.296,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/login.ts:7: loki/open-redirect: open redirect: unvalidated navigation target; check it against an allowlist of paths or origins\nloki: hook command failed\n",
+            "ms": 178.296
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 157.891
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 140.626
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 129.066
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 148.282
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/javascript/fetch-user-unawaited-rejects/defect",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout2/javascript/fetch-user-unawaited-rejects",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    956.579
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "566ba9549d60bbb7c85ed80767345ad786854be0d8de5de80553c6817acb85d6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 408.556,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 408.556
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 972.076,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: users.test.js:12:5: Async assertions must be awaited. [Error/jest(valid-expect)]\noxlint: users.test.js:18:5: Async assertions must be awaited. [Error/jest(valid-expect)]\noxlint: users.test.js:12:5: Async assertions must be awaited. [Error/vitest(valid-expect)]\noxlint: users.test.js:18:5: Async assertions must be awaited. [Error/vitest(valid-expect)]\nNOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-9kf8hrem/project/tsconfig.json'. Specified 'include' path\noxlint advisory (not blocking):\nusers.test.js:6:67: Async function has no `await` expression. [Warning/eslint(require-await)]\nloki: hook command failed\n",
+            "ms": 972.076
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

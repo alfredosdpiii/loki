@@ -1,0 +1,42 @@
+{
+  "case": "exact-edit/python/undefined-return/defect",
+  "language": "python",
+  "family": "exact-edit",
+  "pair": "exact-edit/python/undefined-return",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1813.335
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "32df1aab9621d7a87ef28ae57f08e3dd3196ed1e238add9ac6d3f648e72392b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 214.767,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: F821: Undefined name `missing_total`\nloki: hook command failed\n",
+            "ms": 214.767
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

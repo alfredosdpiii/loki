@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/sqlite-order-filter-fstring/control",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/sqlite-order-filter-fstring",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2012.637
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "bf3cb7f09f473a63f923a5ebc0ebd564b8a20262828b2ffabe1e629419961a2b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 219.047,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 219.047
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1892.288,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1892.288
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

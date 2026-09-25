@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/plugin-unzip-zip-slip/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/plugin-unzip-zip-slip",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    4810.205
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "756b33e1a437e732f5c91338a25b071c9216ae71a55bfc5e0ca88bb4d4628c37",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 152.819,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 152.819
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 4295.391,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 4295.391
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

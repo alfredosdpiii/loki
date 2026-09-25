@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/python/sqlite-order-filter-fstring/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/sqlite-order-filter-fstring",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1473.123,
+    1694.543,
+    1805.147
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2113db05e0c5dbf6cee8f8493dc7030d42a736f94d15cf842afe49cf2b3736ab",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 147.64,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S608: Possible SQL injection vector through string-based query construction\nloki: hook command failed\n",
+            "ms": 147.64
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2113db05e0c5dbf6cee8f8493dc7030d42a736f94d15cf842afe49cf2b3736ab",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 149.004,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S608: Possible SQL injection vector through string-based query construction\nloki: hook command failed\n",
+            "ms": 149.004
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "2113db05e0c5dbf6cee8f8493dc7030d42a736f94d15cf842afe49cf2b3736ab",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 143.957,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S608: Possible SQL injection vector through string-based query construction\nloki: hook command failed\n",
+            "ms": 143.957
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.813
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 120.783
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 125.129
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.733
+    }
+  ]
+}

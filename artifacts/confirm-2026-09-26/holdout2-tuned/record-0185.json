@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/discount-test-mocks-subject/control",
+  "language": "python",
+  "family": "test-integrity",
+  "pair": "holdout2/python/discount-test-mocks-subject",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1360.095
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "cf48da0053e63283ff6e5a1bd4f3ede97c4375f98ac91f545a331574a224ea23",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 144.992,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 144.992
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2131.455,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2131.455
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

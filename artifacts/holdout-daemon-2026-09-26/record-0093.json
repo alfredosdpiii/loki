@@ -1,0 +1,123 @@
+{
+  "case": "holdout/typescript/numeric-sort-without-comparator/defect",
+  "language": "typescript",
+  "family": "semantic",
+  "pair": "holdout/typescript/numeric-sort-without-comparator",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    971.805,
+    1336.539,
+    1234.431
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6833164ebc6de7ff9e31be241db13b9b01f3604dd3be45a8407da9dd881d399b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 216.492,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/leaderboard.ts:8: loki/numeric-sort: numeric array sorted without a comparator is ordered lexicographically (10 before 9); pass (a, b) => a - b\nloki: hook command failed\n",
+            "ms": 216.492
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6833164ebc6de7ff9e31be241db13b9b01f3604dd3be45a8407da9dd881d399b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 227.168,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/leaderboard.ts:8: loki/numeric-sort: numeric array sorted without a comparator is ordered lexicographically (10 before 9); pass (a, b) => a - b\nloki: hook command failed\n",
+            "ms": 227.168
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6833164ebc6de7ff9e31be241db13b9b01f3604dd3be45a8407da9dd881d399b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 260.896,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/leaderboard.ts:8: loki/numeric-sort: numeric array sorted without a comparator is ordered lexicographically (10 before 9); pass (a, b) => a - b\nloki: hook command failed\n",
+            "ms": 260.896
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 124.11
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.491
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 118.118
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 135.759
+    }
+  ]
+}

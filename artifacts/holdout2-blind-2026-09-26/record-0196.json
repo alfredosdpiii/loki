@@ -1,0 +1,165 @@
+{
+  "case": "holdout2/typescript/metric-name-replace-first-only/control",
+  "language": "typescript",
+  "family": "api-misuse",
+  "pair": "holdout2/typescript/metric-name-replace-first-only",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    970.761,
+    1211.586,
+    1326.139
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "276a04fcb9a4d618cccdc3c95924806b368af4ebff518f336aae1e75628b050b",
+      "post_modified_written_bytes": true,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 244.596,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 244.596
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 438.97,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/metric-name.ts:1:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\\nsrc/metric-name.ts:6:14: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/metric-name.ts:1:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\nsrc/metric-name.ts:6:14: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 438.97
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "276a04fcb9a4d618cccdc3c95924806b368af4ebff518f336aae1e75628b050b",
+      "post_modified_written_bytes": true,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 233.428,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 233.428
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 419.137,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/metric-name.ts:1:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\\nsrc/metric-name.ts:6:14: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/metric-name.ts:1:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\nsrc/metric-name.ts:6:14: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 419.137
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "276a04fcb9a4d618cccdc3c95924806b368af4ebff518f336aae1e75628b050b",
+      "post_modified_written_bytes": true,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 218.204,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 218.204
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 395.599,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/metric-name.ts:1:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\\nsrc/metric-name.ts:6:14: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/metric-name.ts:1:15: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\nsrc/metric-name.ts:6:14: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 395.599
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 116.835
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 122.109
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 118.284
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 116.286
+    }
+  ]
+}

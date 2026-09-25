@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/report-sort-string-to-atom/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout2/elixir/report-sort-string-to-atom",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    907.652
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "e134abdc9e647053f6d974b50f11356bd3486605e6db8e5fb708e41987586ecf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 148.338,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 148.338
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1117.538,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/report_controller.ex:12: Sobelow medium: DOS.StringToAtom: Unsafe `String.to_atom`\\nNOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/report_controller.ex:13: Sobelow medium: DOS.StringToAtom: Unsafe `String.to_atom`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/report_controller.ex:12: Sobelow medium: DOS.StringToAtom: Unsafe `String.to_atom`\nNOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/report_controller.ex:13: Sobelow medium: DOS.StringToAtom: Unsafe `String.to_atom`\n",
+            "ms": 1117.538
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

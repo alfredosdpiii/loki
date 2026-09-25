@@ -1,0 +1,56 @@
+{
+  "case": "holdout/javascript/assertion-free-currency-test/defect",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout/javascript/assertion-free-currency-test",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1340.499
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1ef1ddc934b26dd5ac93855b9752f3cac997435d01f678a28581d7a325d9eabf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 524.851,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 524.851
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1131.64,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/jest(valid-expect)]\noxlint: currency.test.js:7:5: Expect must have a corresponding matcher call. [Error/vitest(valid-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/jest(expect-expect)]\noxlint: currency.test.js:10:3: Test has no assertions [Error/vitest(expect-expect)]\nNOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-qjrb462y/project/tsconfig.json'. Specified 'include' path\nloki: hook command failed\n",
+            "ms": 1131.64
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

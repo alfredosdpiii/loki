@@ -1,0 +1,123 @@
+{
+  "case": "holdout/typescript/hardcoded-stripe-secret/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/hardcoded-stripe-secret",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1326.754,
+    1521.385,
+    1582.703
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b078b4c4843a922d2682343e20a445afe2dcc953394be8cdc838cc44eb265473",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 217.591,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/payments.ts:1: loki/secret: hardcoded credential (Stripe live key); load it from the environment or a secret store and rotate the exposed value\nloki: hook command failed\n",
+            "ms": 217.591
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b078b4c4843a922d2682343e20a445afe2dcc953394be8cdc838cc44eb265473",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 246.494,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/payments.ts:1: loki/secret: hardcoded credential (Stripe live key); load it from the environment or a secret store and rotate the exposed value\nloki: hook command failed\n",
+            "ms": 246.494
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b078b4c4843a922d2682343e20a445afe2dcc953394be8cdc838cc44eb265473",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 257.922,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/payments.ts:1: loki/secret: hardcoded credential (Stripe live key); load it from the environment or a secret store and rotate the exposed value\nloki: hook command failed\n",
+            "ms": 257.922
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 169.525
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 152.467
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 148.922
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 175.339
+    }
+  ]
+}

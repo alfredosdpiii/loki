@@ -1,0 +1,165 @@
+{
+  "case": "holdout/elixir/invoice-send-file-traversal/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout/elixir/invoice-send-file-traversal",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    830.287,
+    1169.641,
+    1149.061
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "ce01f71903bae9d8f97ea80524f5596062b22381258f932075c882a24183168d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 140.341,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 140.341
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1215.368,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex:13: Sobelow medium: Traversal.SendFile: Directory Traversal in `send_file`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex:13: Sobelow medium: Traversal.SendFile: Directory Traversal in `send_file`\n",
+            "ms": 1215.368
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "ce01f71903bae9d8f97ea80524f5596062b22381258f932075c882a24183168d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 145.88,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 145.88
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1237.648,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex:13: Sobelow medium: Traversal.SendFile: Directory Traversal in `send_file`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex:13: Sobelow medium: Traversal.SendFile: Directory Traversal in `send_file`\n",
+            "ms": 1237.648
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "ce01f71903bae9d8f97ea80524f5596062b22381258f932075c882a24183168d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 128.626,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 128.626
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1465.295,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex:13: Sobelow medium: Traversal.SendFile: Directory Traversal in `send_file`\"}}\n",
+            "stderr": "NOT BLOCKED WARN lib/loki_phoenix_fixture_web/controllers/invoice_controller.ex:13: Sobelow medium: Traversal.SendFile: Directory Traversal in `send_file`\n",
+            "ms": 1465.295
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 115.607
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 204.053
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 154.657
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 126.056
+    }
+  ]
+}

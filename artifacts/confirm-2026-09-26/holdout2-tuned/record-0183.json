@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/go/plugin-unzip-zip-slip/defect",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/plugin-unzip-zip-slip",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    4368.865
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "5834b792da631968bb10ddb86c65d18da4274113c4aa07552562e63c6def8668",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 158.853,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "main.go:22: loki/zip-slip: path traversal (zip slip): archive entry name joined into a path without checking it stays inside the destination; use filepath.IsLocal\nloki: hook command failed\n",
+            "ms": 158.853
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

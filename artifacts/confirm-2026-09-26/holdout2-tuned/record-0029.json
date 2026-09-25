@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/invoice-query-sprintf/control",
+  "language": "go",
+  "family": "security",
+  "pair": "holdout2/go/invoice-query-sprintf",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5959.787
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "2a4315f25c50d2131da0e8041d3d1f9eb5c23789cfe9d1bbbb7917e32d1f83c4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 197.854,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 197.854
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2974.93,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2974.93
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

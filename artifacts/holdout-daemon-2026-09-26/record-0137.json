@@ -1,0 +1,123 @@
+{
+  "case": "holdout/typescript/nullish-port-type-mismatch/defect",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout/typescript/nullish-port-type-mismatch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1247.665,
+    1497.84,
+    1437.491
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6f8e14fd0a2c9003b121389adb1b1505203ddae0d62dd779ea2eb450ec3d8341",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 269.489,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/config.ts:9: TS2322: Type 'string | 8080' is not assignable to type 'number'.\n  Type 'string' is not assignable to type 'number'.\nloki: hook command failed\n",
+            "ms": 269.489
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6f8e14fd0a2c9003b121389adb1b1505203ddae0d62dd779ea2eb450ec3d8341",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 265.564,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/config.ts:9: TS2322: Type 'string | 8080' is not assignable to type 'number'.\n  Type 'string' is not assignable to type 'number'.\nloki: hook command failed\n",
+            "ms": 265.564
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6f8e14fd0a2c9003b121389adb1b1505203ddae0d62dd779ea2eb450ec3d8341",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 255.321,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/config.ts:9: TS2322: Type 'string | 8080' is not assignable to type 'number'.\n  Type 'string' is not assignable to type 'number'.\nloki: hook command failed\n",
+            "ms": 255.321
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 141.365
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 142.477
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 142.057
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 132.292
+    }
+  ]
+}

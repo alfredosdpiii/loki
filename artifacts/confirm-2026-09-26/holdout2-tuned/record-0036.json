@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/rust/parse-version-assert-true/defect",
+  "language": "rust",
+  "family": "test-integrity",
+  "pair": "holdout2/rust/parse-version-assert-true",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    993.989
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "e684e859feeb00724a489eee215eedd0a5281c628a2ecb8bdc0a3d22d8efe94f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 186.152,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 186.152
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 419.554,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/lib.rs:17: clippy::assertions_on_constants: this assertion is always `true`\nloki: hook command failed\n",
+            "ms": 419.554
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout/go/defer-close-in-loop/control",
+  "language": "go",
+  "family": "resource",
+  "pair": "holdout/go/defer-close-in-loop",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    6581.574
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "2878fdaeccd1b1d9a45e95b5138ea19de8fef8dcb94dbe5c1115618b08775f31",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 281.911,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 281.911
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2602.505,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2602.505
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

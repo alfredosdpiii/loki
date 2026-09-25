@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/typescript/comment-list-innerhtml/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/comment-list-innerhtml",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1711.104
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "8c80977b3f572646d0f3cd40de2386d94c8eb6d58ec6864da3a8be7918e24191",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 307.534,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/comments.ts:9: loki/unsanitized-html: cross-site scripting (XSS): non-literal HTML assigned to innerHTML; use textContent or a sanitizer\nloki: hook command failed\n",
+            "ms": 307.534
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

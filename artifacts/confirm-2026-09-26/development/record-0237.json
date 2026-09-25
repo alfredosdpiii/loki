@@ -1,0 +1,42 @@
+{
+  "case": "python/shell-interpolation/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/shell-interpolation",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1429.073
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 136.471,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S602: `subprocess` call with `shell=True` identified, security issue\nloki: hook command failed\n",
+            "ms": 136.471
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

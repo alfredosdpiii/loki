@@ -1,0 +1,56 @@
+{
+  "case": "holdout/rust/trailing-average-underflow/defect",
+  "language": "rust",
+  "family": "runtime-bug",
+  "pair": "holdout/rust/trailing-average-underflow",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1160.755
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "05fd7ce450da19782af8897e3200fba6a9773b8c1ce594a67432df7b0d29299b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 219.875,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 219.875
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 440.408,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 440.408
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

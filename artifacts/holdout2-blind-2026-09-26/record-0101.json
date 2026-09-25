@@ -1,0 +1,123 @@
+{
+  "case": "holdout2/rust/frame-field-get-unchecked/defect",
+  "language": "rust",
+  "family": "security",
+  "pair": "holdout2/rust/frame-field-get-unchecked",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    719.703,
+    965.038,
+    927.483
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ad87babf13d21b3a37a2dcfed0a2e272d59b964848a962e4c542322e23900e16",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 127.509,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:16: loki/unchecked-index: get_unchecked index is not bounds-checked in this function; an out-of-bounds index is undefined behaviour\nloki: hook command failed\n",
+            "ms": 127.509
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ad87babf13d21b3a37a2dcfed0a2e272d59b964848a962e4c542322e23900e16",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 149.242,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:16: loki/unchecked-index: get_unchecked index is not bounds-checked in this function; an out-of-bounds index is undefined behaviour\nloki: hook command failed\n",
+            "ms": 149.242
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ad87babf13d21b3a37a2dcfed0a2e272d59b964848a962e4c542322e23900e16",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 121.575,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/lib.rs:16: loki/unchecked-index: get_unchecked index is not bounds-checked in this function; an out-of-bounds index is undefined behaviour\nloki: hook command failed\n",
+            "ms": 121.575
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 115.301
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.069
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 114.927
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 111.233
+    }
+  ]
+}

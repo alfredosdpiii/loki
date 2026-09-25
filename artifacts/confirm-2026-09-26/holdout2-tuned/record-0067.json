@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/python/webhook-retry-swallow/control",
+  "language": "python",
+  "family": "runtime-bug",
+  "pair": "holdout2/python/webhook-retry-swallow",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2415.445
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "35188c891ad3fe1cce697f1c1a5db5ebb4c1acc1489c97f32445276d372960ff",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 249.832,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 249.832
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 880.447,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 880.447
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

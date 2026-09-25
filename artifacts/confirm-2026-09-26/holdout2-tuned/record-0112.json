@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/python/webhook-retry-swallow/defect",
+  "language": "python",
+  "family": "runtime-bug",
+  "pair": "holdout2/python/webhook-retry-swallow",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1480.613
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "91d366fdde52b975347cea7b93f9b1b1fbe368ee3de91ab01f2116e34cf62a62",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 149.856,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S110: `try`-`except`-`pass` detected, consider logging the exception\nloki: hook command failed\n",
+            "ms": 149.856
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

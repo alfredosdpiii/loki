@@ -1,0 +1,56 @@
+{
+  "case": "holdout/typescript/non-exhaustive-shipping-switch/control",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout/typescript/non-exhaustive-shipping-switch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1651.223
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "7b068e9aaf49cc24c4e37ce26455dee5ce0e124803ad9344c8dd6de7cc6f87f3",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 368.392,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 368.392
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1092.615,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1092.615
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/javascript/thumbnail-exec-template/control",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout2/javascript/thumbnail-exec-template",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    759.017
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "682682ccdab8954864515689b98af63edd7aca134952d61f656fbec8e81e5266",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 351.711,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 351.711
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 714.751,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\\n                            ^\\n\\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-y13wbrxv/project/tsconfig.json'. Specified 'include' path\\noxlint advisory (not blocking):\\nthumbnail.js:12:29: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\"}}\n",
+            "stderr": "NOT CHECKED typescript types: typescript: checker unavailable: [eval]:80\n  if (parsed.errors.length) throw new Error(parsed.errors.map(d =>\n                            ^\n\nError: No inputs were found in config file '/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-y13wbrxv/project/tsconfig.json'. Specified 'include' path\noxlint advisory (not blocking):\nthumbnail.js:12:29: Use the 'u' flag. [Warning/eslint(require-unicode-regexp)]\n",
+            "ms": 714.751
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

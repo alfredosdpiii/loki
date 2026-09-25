@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/typescript/settings-deep-merge-proto/control",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout2/typescript/settings-deep-merge-proto",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1076.559
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "d29ef0dfa9aed404276f33ba5c93191f7fee22b0f1efb18bdca12c078cc1ffed",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 265.574,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 265.574
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 631.828,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"oxlint advisory (not blocking):\\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\"}}\n",
+            "stderr": "oxlint advisory (not blocking):\nsrc/settings.ts:7:10: A `typeof` check narrows a representation without establishing its contract. Parse input at its I/O boundary, then branch on the domain value. [Warning/anti-slop(no-runtime-typeof)]\nsrc/settings.ts:25:34: This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement. [Warning/anti-slop(require-safety-comment-for-type-assertion)]\n",
+            "ms": 631.828
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

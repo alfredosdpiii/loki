@@ -1,0 +1,74 @@
+{
+  "identity_unchanged": true,
+  "groups": {
+    "shared/loki": {
+      "outcomes": {
+        "prevented": 36,
+        "admitted": 55,
+        "detected_after_write": 10,
+        "missed": 1
+      },
+      "steps": 102,
+      "errors": [],
+      "coverage_warning_steps": 4,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 428.86249999999995,
+        "p95": 2152.386,
+        "max": 3651.5730000000003
+      }
+    },
+    "missing-js/interlinked": {
+      "outcomes": {
+        "admitted": 20,
+        "detected_after_write": 8,
+        "prevented": 6,
+        "missed": 3,
+        "false_post_block": 1
+      },
+      "steps": 38,
+      "errors": [],
+      "coverage_warning_steps": 32,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 10800.129,
+        "p95": 11392.393,
+        "max": 11445.831
+      }
+    },
+    "missing-js/loki": {
+      "outcomes": {
+        "prevented": 17,
+        "admitted": 21
+      },
+      "steps": 38,
+      "errors": [],
+      "coverage_warning_steps": 38,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 549.509,
+        "p95": 1073.15,
+        "max": 1267.454
+      }
+    },
+    "shared/interlinked": {
+      "outcomes": {
+        "missed": 24,
+        "admitted": 54,
+        "prevented": 10,
+        "detected_after_write": 13,
+        "false_post_block": 1
+      },
+      "steps": 102,
+      "errors": [],
+      "coverage_warning_steps": 50,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 449.965,
+        "p95": 6826.211,
+        "max": 7845.1179999999995
+      }
+    }
+  },
+  "corpus_sha256": "4648d3277a8453fd45f1b6834b38cba26e207891528d8755a7447284c49aada3"
+}

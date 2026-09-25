@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/javascript/fetch-user-unawaited-rejects/defect",
+  "language": "javascript",
+  "family": "test-integrity",
+  "pair": "holdout2/javascript/fetch-user-unawaited-rejects",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    616.151
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "566ba9549d60bbb7c85ed80767345ad786854be0d8de5de80553c6817acb85d6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 142.108,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [unawaited_async_assertion]. This edit INTRODUCES 2 violation(s) at L12, L18 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-6mzl4ifc/project/users.test.js. Fix the introduced line(s), then retry.\\nAn unawaited expect(...).rejects/.resolves chain is a floating promise \u2014 vitest/jest cannot fail the test when the matcher fails. Prefix it with await (inside an async test), or return it from the test callback. If the chain is stored first, await the stored promise before the test ends.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: unawaited_async_assertion \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 142.108
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

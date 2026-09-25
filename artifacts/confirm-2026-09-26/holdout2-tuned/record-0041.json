@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/javascript/prune-sessions-splice-in-foreach/control",
+  "language": "javascript",
+  "family": "runtime-bug",
+  "pair": "holdout2/javascript/prune-sessions-splice-in-foreach",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    903.25
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "fa1da5c360be348505f7f3f600b23706329767e64ab1b288c14d17a13fd82d0b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 262.057,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:tdd] new source file \\\"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js\\\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.test.js first with a failing test, then write the implementation. (Searched: sessions.test.js, __tests__/sessions.test.js, sessions.spec.js, __tests__/sessions.spec.js.) Public surface to test (extracted from your content): SessionStore. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \\\"// interlinked-tdd: exempt\\\" as the first line. (test_first_mode \\\"warn\\\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\\n[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.test.js first with a failing test, then write the implementation. (Searched: sessions.test.js, __tests__/sessions.test.js, sessions.spec.js, __tests__/sessions.spec.js.) Public surface to test (extracted from your content): SessionStore. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\n[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-fdf_rgfy/project/sessions.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 262.057
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1203.516,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:cyclomatic] sessions.js: 3 fns, \u03a3CC 5 (\u0394+5), max pruneExpired=3 (cap 25); fn\u0394 3; \u0394 fns: pruneExpired new=3, constructor new=1, add new=1; cog\u03a3 3\\n[interlinked:function-tokens] sessions.js: 3 fns, max SessionStore.pruneExpired=73 (\u0394+73), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:no_test_file] [proven] No test file found for sessions.js\\nno test file found (checked: sessions.test.js, sessions.spec.js, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in sessions.js\\n  L1: unused export 'SessionStore' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\\n[interlinked:untestable_time_in_source] [heuristic] 2 untestable time in source issue(s) in sessions.js\\n  L6: untestable nondeterminism (Date.now(): add(token, userId, ttlMs, now = Date.now()) {\\n  L10: untestable nondeterminism (Date.now(): pruneExpired(now = Date.now()) {\\n\u2192 Inject a clock or RNG instead of calling the global directly. Pattern: take `clock: () => number` (or `randomUUID: () => string`) as a constructor / function parameter with a default of `Date.now` / `crypto.randomUUID`. Tests pass a deterministic fake; production gets the real one. Without this, every code path that touches the call becomes flaky to test.\"}}",
+            "stderr": "[interlinked:cyclomatic] sessions.js: 3 fns, \u03a3CC 5 (\u0394+5), max pruneExpired=3 (cap 25); fn\u0394 3; \u0394 fns: pruneExpired new=3, constructor new=1, add new=1; cog\u03a3 3\n[interlinked:function-tokens] sessions.js: 3 fns, max SessionStore.pruneExpired=73 (\u0394+73), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:no_test_file] [proven] No test file found for sessions.js\nno test file found (checked: sessions.test.js, sessions.spec.js, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in sessions.js\n  L1: unused export 'SessionStore' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\n[interlinked:untestable_time_in_source] [heuristic] 2 untestable time in source issue(s) in sessions.js\n  L6: untestable nondeterminism (Date.now(): add(token, userId, ttlMs, now = Date.now()) {\n  L10: untestable nondeterminism (Date.now(): pruneExpired(now = Date.now()) {\n\u2192 Inject a clock or RNG instead of calling the global directly. Pattern: take `clock: () => number` (or `randomUUID: () => string`) as a constructor / function parameter with a default of `Date.now` / `crypto.randomUUID`. Tests pass a deterministic fake; production gets the real one. Without this, every code path that touches the call becomes flaky to test.",
+            "ms": 1203.516
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

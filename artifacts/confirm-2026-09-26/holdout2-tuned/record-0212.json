@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/python/attachment-download-traversal/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout2/python/attachment-download-traversal",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1520.203
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "c6045d9c2f1ace0c22e82dd601438aab1621412cfe82f88aa73fa9523efb8bbf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 159.962,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py:11: loki/path-traversal: path traversal: file path built from request data; take the base name or resolve it and check it stays under the intended directory\nloki: hook command failed\n",
+            "ms": 159.962
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

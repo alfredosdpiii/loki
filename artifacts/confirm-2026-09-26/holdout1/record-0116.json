@@ -1,0 +1,42 @@
+{
+  "case": "holdout/typescript/non-exhaustive-shipping-switch/defect",
+  "language": "typescript",
+  "family": "type-error",
+  "pair": "holdout/typescript/non-exhaustive-shipping-switch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1397.704
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "802cda206e14680c595237bb7efe3a0dbc7a79c9dc147cad5d04d51f2581ffd2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 260.423,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/shipping.ts:3: TS2366: Function lacks ending return statement and return type does not include 'undefined'.\nloki: hook command failed\n",
+            "ms": 260.423
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/parse-size-test-self-compare/control",
+  "language": "go",
+  "family": "test-integrity",
+  "pair": "holdout2/go/parse-size-test-self-compare",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5591.097
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "f95d90b1c611cc8a44817ac4cf5fb0dfcd4015ac47bf698634add30a81ca4992",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 167.825,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 167.825
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2206.859,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2206.859
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

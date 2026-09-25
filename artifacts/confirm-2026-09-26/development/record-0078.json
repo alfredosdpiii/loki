@@ -1,0 +1,42 @@
+{
+  "case": "python/eval-input/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/eval-input",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2278.327
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "b3d5d98adfd1bb41b73e3278652f05f54dfdc049a101e467f6bcde5a2b0a03f2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 204.807,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "app.py: S307: Use of possibly insecure function; consider using `ast.literal_eval`\nloki: hook command failed\n",
+            "ms": 204.807
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

@@ -1,0 +1,123 @@
+{
+  "case": "holdout/typescript/deep-merge-prototype-pollution/defect",
+  "language": "typescript",
+  "family": "security",
+  "pair": "holdout/typescript/deep-merge-prototype-pollution",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1141.163,
+    1330.78,
+    1414.601
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "7a6c2325c67d831a86684f0123b40db8712373bfd7b80c7c8bb03d14baecd1d8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 165.411,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/merge.ts:7: loki/prototype-pollution: prototype pollution: recursive merge copies arbitrary keys; skip __proto__, constructor and prototype or use Object.create(null)\nloki: hook command failed\n",
+            "ms": 165.411
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "7a6c2325c67d831a86684f0123b40db8712373bfd7b80c7c8bb03d14baecd1d8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 172.844,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/merge.ts:7: loki/prototype-pollution: prototype pollution: recursive merge copies arbitrary keys; skip __proto__, constructor and prototype or use Object.create(null)\nloki: hook command failed\n",
+            "ms": 172.844
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "7a6c2325c67d831a86684f0123b40db8712373bfd7b80c7c8bb03d14baecd1d8",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 190.429,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/merge.ts:7: loki/prototype-pollution: prototype pollution: recursive merge copies arbitrary keys; skip __proto__, constructor and prototype or use Object.create(null)\nloki: hook command failed\n",
+            "ms": 190.429
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.078
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 120.16
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 125.726
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 132.635
+    }
+  ]
+}

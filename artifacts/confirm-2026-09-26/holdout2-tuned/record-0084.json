@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/javascript/prune-sessions-splice-in-foreach/defect",
+  "language": "javascript",
+  "family": "runtime-bug",
+  "pair": "holdout2/javascript/prune-sessions-splice-in-foreach",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1365.084
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "0bce685f1eafe3a00afdce87d7f9414e2060fd4531623ced4a58fb93e3be3e9a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 434.66,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "sessions.js:12: loki/mutation-during-iteration: this.sessions is spliced while forEach iterates it, which skips the next element; filter into a new array instead\nloki: hook command failed\n",
+            "ms": 434.66
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

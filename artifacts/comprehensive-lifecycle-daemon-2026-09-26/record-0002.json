@@ -1,0 +1,123 @@
+{
+  "case": "exact-edit/javascript/disabled-suite/defect",
+  "language": "javascript",
+  "family": "exact-edit",
+  "pair": "exact-edit/javascript/disabled-suite",
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    803.337,
+    1099.174,
+    1111.84
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 328.207,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: no-disabled-tests: disabled test (.skip) removes coverage\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 328.207
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 309.852,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: no-disabled-tests: disabled test (.skip) removes coverage\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 309.852
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 362.786,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: no-disabled-tests: disabled test (.skip) removes coverage\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 362.786
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 121.802
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 125.282
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 148.329
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 158.219
+    }
+  ]
+}

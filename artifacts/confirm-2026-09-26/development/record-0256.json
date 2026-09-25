@@ -1,0 +1,42 @@
+{
+  "case": "typescript/async-promise/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/async-promise",
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    1030.319
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 180.596,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: no-async-promise-executor: async Promise executor functions are not allowed\nNOT CHECKED pre-write content: missing oxlint for content preview; built-in fallback rules applied\nloki: hook command failed\n",
+            "ms": 180.596
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

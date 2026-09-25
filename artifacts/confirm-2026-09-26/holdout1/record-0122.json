@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/sql-fstring-like-query/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/sql-fstring-like-query",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    1693.168
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "6a707fc919e293cc6c01aab825af3ce2413b3404666f5d4be0ee157fa9543770",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 188.662,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "repository.py: S608: Possible SQL injection vector through string-based query construction\nloki: hook command failed\n",
+            "ms": 188.662
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

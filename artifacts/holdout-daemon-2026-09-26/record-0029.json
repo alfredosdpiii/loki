@@ -1,0 +1,123 @@
+{
+  "case": "holdout/elixir/system-cmd-sh-c/defect",
+  "language": "elixir",
+  "family": "security",
+  "pair": "holdout/elixir/system-cmd-sh-c",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    836.663,
+    1003.08,
+    1149.099
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "559bf41046cad58d6e35bc1e5e2c8891bbc708609b53dc47bebc96f68e53043d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 136.034,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/thumbnailer.ex:8: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 136.034
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "559bf41046cad58d6e35bc1e5e2c8891bbc708609b53dc47bebc96f68e53043d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 134.046,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/thumbnailer.ex:8: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 134.046
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "559bf41046cad58d6e35bc1e5e2c8891bbc708609b53dc47bebc96f68e53043d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 131.211,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "lib/loki_phoenix_fixture/thumbnailer.ex:8: loki/command-injection: shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately\nloki: hook command failed\n",
+            "ms": 131.211
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 121.27
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 127.952
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 120.676
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 123.875
+    }
+  ]
+}

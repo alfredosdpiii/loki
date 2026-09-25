@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/elixir/audit-log-write-truncates/defect",
+  "language": "elixir",
+  "family": "data-loss",
+  "pair": "holdout2/elixir/audit-log-write-truncates",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    899.975
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "67b6f0fb77ac06773714a953c558481a5a130c284c408f25558308bb67d46e62",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 151.666,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 151.666
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1042.45,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT BLOCKED INFO lib/loki_phoenix_fixture/audit_log.ex:11: Sobelow low: Traversal.FileModule: Directory Traversal in `File.write`\"}}\n",
+            "stderr": "NOT BLOCKED INFO lib/loki_phoenix_fixture/audit_log.ex:11: Sobelow low: Traversal.FileModule: Directory Traversal in `File.write`\n",
+            "ms": 1042.45
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

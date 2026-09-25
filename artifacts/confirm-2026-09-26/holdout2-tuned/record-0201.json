@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/javascript/thumbnail-exec-template/control",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout2/javascript/thumbnail-exec-template",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    684.833
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "682682ccdab8954864515689b98af63edd7aca134952d61f656fbec8e81e5266",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 216.839,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:tdd] new source file \\\"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js\\\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.test.js first with a failing test, then write the implementation. (Searched: thumbnail.test.js, __tests__/thumbnail.test.js, thumbnail.spec.js, __tests__/thumbnail.spec.js.) Public surface to test (extracted from your content): makeThumbnail. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \\\"// interlinked-tdd: exempt\\\" as the first line. (test_first_mode \\\"warn\\\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\\n[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.test.js first with a failing test, then write the implementation. (Searched: thumbnail.test.js, __tests__/thumbnail.test.js, thumbnail.spec.js, __tests__/thumbnail.spec.js.) Public surface to test (extracted from your content): makeThumbnail. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)\n[interlinked:self_import] NOT MEASURED for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js: no project reachable from /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-wbz3ixw4/project/thumbnail.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 216.839
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 780.093,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:cyclomatic] thumbnail.js: 1 fns, \u03a3CC 4 (\u0394+4), max makeThumbnail=4 (cap 25); fn\u0394 1; \u0394 fns: makeThumbnail new=4; cog\u03a3 2\\n[interlinked:function-tokens] thumbnail.js: 1 fns, max makeThumbnail=91 (\u0394+91), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:no_test_file] [proven] No test file found for thumbnail.js\\nno test file found (checked: thumbnail.test.js, thumbnail.spec.js, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in thumbnail.js\\n  L7: unused export 'makeThumbnail' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\\n[interlinked:ubs_magic_number_no_const] [heuristic] 1 ubs magic number no const issue(s) in thumbnail.js\\n  L8: if (!Number.isInteger(width) || width < 16 || width > 4096) {\\n\u2192 `setTimeout(fn, 5000)` tells nobody what `5000` represents. Hoist into a named constant (`const RETRY_DELAY_MS = 5000`) so cold readers see intent without grepping for the value.\"}}",
+            "stderr": "[interlinked:cyclomatic] thumbnail.js: 1 fns, \u03a3CC 4 (\u0394+4), max makeThumbnail=4 (cap 25); fn\u0394 1; \u0394 fns: makeThumbnail new=4; cog\u03a3 2\n[interlinked:function-tokens] thumbnail.js: 1 fns, max makeThumbnail=91 (\u0394+91), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:no_test_file] [proven] No test file found for thumbnail.js\nno test file found (checked: thumbnail.test.js, thumbnail.spec.js, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in thumbnail.js\n  L7: unused export 'makeThumbnail' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\n[interlinked:ubs_magic_number_no_const] [heuristic] 1 ubs magic number no const issue(s) in thumbnail.js\n  L8: if (!Number.isInteger(width) || width < 16 || width > 4096) {\n\u2192 `setTimeout(fn, 5000)` tells nobody what `5000` represents. Hoist into a named constant (`const RETRY_DELAY_MS = 5000`) so cold readers see intent without grepping for the value.",
+            "ms": 780.093
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

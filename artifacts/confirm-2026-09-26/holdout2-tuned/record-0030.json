@@ -1,0 +1,42 @@
+{
+  "case": "holdout2/javascript/link-preview-ssrf/control",
+  "language": "javascript",
+  "family": "security",
+  "pair": "holdout2/javascript/link-preview-ssrf",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    771.675
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "29a213967473f6ed4f1c3d057062b591965502a6098ebff4136cd9dd97c3925e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 213.74,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [ubs_hardcoded_localhost]. This edit INTRODUCES 1 violation(s) at L14 in /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-x7v0vgpg/project/preview.js. Fix the introduced line(s), then retry.\\n`localhost` / `127.0.0.1` baked into production source breaks in deploy and is a frequent dev-default leak. Read it from an env var (`process.env.API_URL`) or a config file, with a clear default for local dev.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: ubs_hardcoded_localhost \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "[interlinked:tdd] new source file \"/home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-x7v0vgpg/project/preview.js\" has no companion test. The configured test-first policy applies to new JS/TS and Python source files. Create /home/bryan/.cache/loki-bench/loki-dev8/artifacts/tmp/b/b-x7v0vgpg/project/preview.test.js first with a failing test, then write the implementation. (Searched: preview.test.js, __tests__/preview.test.js, preview.spec.js, __tests__/preview.spec.js.) Public surface to test (extracted from your content): createPreviewServer. Companion names are discovery hints, not proof of behavioral coverage. Retain tests for established public behavior and new requirements. Use interlinked tests readiness <language> if the runner is missing, and interlinked tests review at the change boundary. If this file has no testable surface, add \"// interlinked-tdd: exempt\" as the first line. (test_first_mode \"warn\": advisory here \u2014 strict mode blocks this. interlinked mode strict to enforce.)",
+            "ms": 213.74
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

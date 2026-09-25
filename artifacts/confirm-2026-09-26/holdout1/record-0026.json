@@ -1,0 +1,42 @@
+{
+  "case": "holdout/python/webhook-signature-eq/defect",
+  "language": "python",
+  "family": "security",
+  "pair": "holdout/python/webhook-signature-eq",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    2199.63
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1b82f05ab973159ea6e083d7e5e2620dfbf9eaaff214c67a9bc26de4355f1311",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 209.719,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "webhooks.py:11: loki/timing-compare: timing attack: signature or digest compared with ==; use hmac.compare_digest\nloki: hook command failed\n",
+            "ms": 209.719
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

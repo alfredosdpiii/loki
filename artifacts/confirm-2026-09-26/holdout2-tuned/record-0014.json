@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/snapshot-atomic-write-unchecked/control",
+  "language": "go",
+  "family": "data-loss",
+  "pair": "holdout2/go/snapshot-atomic-write-unchecked",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    5881.794
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "40866adb6a726328d4803cbf583fd3d3363706dcbf0266bc8da47b7cc1c21793",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 188.007,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 188.007
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 3370.003,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 3370.003
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}

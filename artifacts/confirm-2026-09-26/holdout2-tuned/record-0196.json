@@ -1,0 +1,56 @@
+{
+  "case": "holdout2/go/head-sizes-concurrent-map-write/defect",
+  "language": "go",
+  "family": "concurrency",
+  "pair": "holdout2/go/head-sizes-concurrent-map-write",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    3727.833
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "186493af7d92548a44a5bf4a511d8dcd8d68601580cc76677acb5077b048949f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 144.983,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 144.983
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 7609.657,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 7609.657
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": []
+}
