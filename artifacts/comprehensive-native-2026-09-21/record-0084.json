@@ -1,0 +1,165 @@
+{
+  "case": "python/eval-input/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/eval-input",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    202.169,
+    358.567,
+    362.705
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "b3d5d98adfd1bb41b73e3278652f05f54dfdc049a101e467f6bcde5a2b0a03f2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 80.358,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 80.358
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 121.372,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S307: Use of possibly insecure function; consider using `ast.literal_eval`\nloki: hook command failed\n",
+            "ms": 121.372
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "b3d5d98adfd1bb41b73e3278652f05f54dfdc049a101e467f6bcde5a2b0a03f2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 82.372,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 82.372
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 119.818,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S307: Use of possibly insecure function; consider using `ast.literal_eval`\nloki: hook command failed\n",
+            "ms": 119.818
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "b3d5d98adfd1bb41b73e3278652f05f54dfdc049a101e467f6bcde5a2b0a03f2",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 79.565,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 79.565
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 122.047,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S307: Use of possibly insecure function; consider using `ast.literal_eval`\nloki: hook command failed\n",
+            "ms": 122.047
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 78.422
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 79.677
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.8
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 78.732
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "case": "typescript/syntax/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/syntax",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    231.535,
+    409.091,
+    413.943
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 143.778,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\n",
+            "ms": 143.778
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 356.45,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x Unexpected token\noxlint: ,-[src/main.ts:1:22]\noxlint: 1 | export const value = ;\noxlint: :                      ^\noxlint: `----\noxlint: Found 0 warnings and 1 error.\noxlint: Finished in 135ms on 1 file with 263 rules using 16 threads.\noxlint: (node:15) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:15) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8z_i3__w/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\noxlint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.\noxlint: To eliminate this warning, add \"type\": \"module\" to /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8z_i3__w/project/package.json.\nloki: hook command failed\n",
+            "ms": 356.45
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 167.173,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\n",
+            "ms": 167.173
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 369.109,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x Unexpected token\noxlint: ,-[src/main.ts:1:22]\noxlint: 1 | export const value = ;\noxlint: :                      ^\noxlint: `----\noxlint: Found 0 warnings and 1 error.\noxlint: Finished in 136ms on 1 file with 263 rules using 16 threads.\noxlint: (node:15) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:15) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/Projects/personal/loki/artifacts/tmp/b/b-md0700o1/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\noxlint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.\noxlint: To eliminate this warning, add \"type\": \"module\" to /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-md0700o1/project/package.json.\nloki: hook command failed\n",
+            "ms": 369.109
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 175.021,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\n",
+            "ms": 175.021
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 505.889,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\noxlint: x Unexpected token\noxlint: ,-[src/main.ts:1:22]\noxlint: 1 | export const value = ;\noxlint: :                      ^\noxlint: `----\noxlint: Found 0 warnings and 1 error.\noxlint: Finished in 143ms on 1 file with 263 rules using 16 threads.\noxlint: (node:15) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\noxlint: (Use `node --trace-warnings ...` to show where the warning was created)\noxlint: (node:15) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/bryan/Projects/personal/loki/artifacts/tmp/b/b-bdg2y2lk/project/.loki/oxlint/anti-slop/index.ts is not specified and it doesn't parse as CommonJS.\noxlint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.\noxlint: To eliminate this warning, add \"type\": \"module\" to /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-bdg2y2lk/project/package.json.\nloki: hook command failed\n",
+            "ms": 505.889
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 89.87
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 91.676
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.759
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 102.468
+    }
+  ]
+}

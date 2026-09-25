@@ -1,0 +1,165 @@
+{
+  "case": "elixir/atom-from-request/control",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/atom-from-request",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    433.308,
+    565.75,
+    633.626
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "3f69b365ad68d460a445c51c4f5bc0c867d64913564571160f215feda1ab7d39",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 93.932,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 93.932
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1702.28,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1702.28
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "3f69b365ad68d460a445c51c4f5bc0c867d64913564571160f215feda1ab7d39",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 104.01,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 104.01
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1648.131,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1648.131
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "3f69b365ad68d460a445c51c4f5bc0c867d64913564571160f215feda1ab7d39",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 123.767,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 123.767
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 1990.047,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 1990.047
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 88.48
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 89.148
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 104.562
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 108.56
+    }
+  ]
+}

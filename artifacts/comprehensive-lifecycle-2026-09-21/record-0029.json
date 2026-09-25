@@ -1,0 +1,123 @@
+{
+  "case": "admission/documentation-redirect",
+  "language": "none",
+  "family": "admission",
+  "pair": null,
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    239.309,
+    385.362,
+    380.75
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "6924d2b5d90ac35ffb815bc442adf8117a118b7292ed5c519bbb6f836b420894",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 89.227,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review\nloki: shell guard failed\n",
+            "ms": 89.227
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "6924d2b5d90ac35ffb815bc442adf8117a118b7292ed5c519bbb6f836b420894",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 83.32,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review\nloki: shell guard failed\n",
+            "ms": 83.32
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "6924d2b5d90ac35ffb815bc442adf8117a118b7292ed5c519bbb6f836b420894",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 84.67,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review\nloki: shell guard failed\n",
+            "ms": 84.67
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.127
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.869
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.761
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 82.531
+    }
+  ]
+}

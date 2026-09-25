@@ -1,0 +1,165 @@
+{
+  "case": "exact-edit/python/undefined-return/control",
+  "language": "python",
+  "family": "exact-edit",
+  "pair": "exact-edit/python/undefined-return",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    223.689,
+    373.537,
+    373.137
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "979b1ad0b22f7a5bd261f61a58d30c89da15fb47bda84714f26e4fd9d9ea3cab",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 80.512,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 80.512
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 108.479,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 108.479
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "979b1ad0b22f7a5bd261f61a58d30c89da15fb47bda84714f26e4fd9d9ea3cab",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 84.267,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 84.267
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 115.178,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 115.178
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "979b1ad0b22f7a5bd261f61a58d30c89da15fb47bda84714f26e4fd9d9ea3cab",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 82.728,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 82.728
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 104.678,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 104.678
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 85.561
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.204
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.669
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 82.372
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "case": "go/discarded-error/defect",
+  "language": "go",
+  "family": "bug",
+  "pair": "go/discarded-error",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    224.273,
+    388.577,
+    400.91
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "3ea2faaf2e38bdeb3f4cfab55ed8768c80f8fd92f4aa2f7478533bd57d99684c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 90.942,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 90.942
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2722.719,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2722.719
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "3ea2faaf2e38bdeb3f4cfab55ed8768c80f8fd92f4aa2f7478533bd57d99684c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 91.622,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 91.622
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2707.579,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2707.579
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "3ea2faaf2e38bdeb3f4cfab55ed8768c80f8fd92f4aa2f7478533bd57d99684c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 89.073,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 89.073
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 2757.292,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 2757.292
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[go]\ngolangci-lint: main.go:6:15: Error return value of `os.Remove` is not checked (errcheck)\ngolangci-lint: func main() { _ = os.Remove(\"unused\") }\ngolangci-lint: ^\ngolangci-lint: 1 issues:\ngolangci-lint: * errcheck: 1\n",
+      "stderr": "",
+      "ms": 1187.762,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.236
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 85.31
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.675
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 85.976
+    }
+  ]
+}

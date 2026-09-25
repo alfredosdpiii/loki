@@ -1,0 +1,174 @@
+{
+  "case": "rust/type-mismatch/defect",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/type-mismatch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    230.504,
+    367.383,
+    360.466
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "4a1a00813d95843b2f3d28c180ba2b765bfedc9173873baeba7cd740f668e1e9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 79.753,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 79.753
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 108.462,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 108.462
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "4a1a00813d95843b2f3d28c180ba2b765bfedc9173873baeba7cd740f668e1e9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 80.032,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 80.032
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 104.804,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 104.804
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "4a1a00813d95843b2f3d28c180ba2b765bfedc9173873baeba7cd740f668e1e9",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 79.891,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 79.891
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 113.883,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 113.883
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[rust]\ncargo: Checking guardrail_fixture v0.1.0 (/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-cc6av2_f/project)\ncargo: error[E0308]: mismatched types\ncargo: --> src/lib.rs:2:5\ncargo: |\ncargo: 1 | pub fn count() -> u32 {\ncargo: |                   --- expected `u32` because of return type\ncargo: 2 |     \"five\"\ncargo: |     ^^^^^^ expected `u32`, found `&str`\ncargo: For more information about this error, try `rustc --explain E0308`.\ncargo: error: could not compile `guardrail_fixture` (lib) due to 1 previous error\ncargo: warning: build failed, waiting for other jobs to finish...\ncargo: error: could not compile `guardrail_fixture` (lib test) due to 1 previous error\n",
+      "stderr": "",
+      "ms": 193.237,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 80.43
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 81.345
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 80.09
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 80.659
+    }
+  ]
+}

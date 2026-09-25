@@ -1,0 +1,144 @@
+{
+  "case": "rust/type-mismatch/control",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/type-mismatch",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 104.073,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "22d0a840639a6b1753edbb488a6928fb8d0ced568cd2936a97830a4d22e29bd6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 83.438,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 83.438
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 111.048,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 111.048
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "22d0a840639a6b1753edbb488a6928fb8d0ced568cd2936a97830a4d22e29bd6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 83.82,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 83.82
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 109.318,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 109.318
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "22d0a840639a6b1753edbb488a6928fb8d0ced568cd2936a97830a4d22e29bd6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 82.558,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 82.558
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 110.518,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 110.518
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 193.846,
+      "kind": "control",
+      "targeted": false
+    }
+  ]
+}

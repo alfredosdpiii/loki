@@ -1,0 +1,165 @@
+{
+  "case": "typescript/assignment-type/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/assignment-type",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    259.73,
+    457.271,
+    533.8
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5350430e45b8ea1775b10b8887b73d6e2aedadb5f60efe19929f173d1ba46273",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 173.795,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 173.795
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1110.635,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/main.ts: TS2322: Type 'string' is not assignable to type 'number'.\nloki: hook command failed\n",
+            "ms": 1110.635
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5350430e45b8ea1775b10b8887b73d6e2aedadb5f60efe19929f173d1ba46273",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 164.358,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 164.358
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1125.007,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/main.ts: TS2322: Type 'string' is not assignable to type 'number'.\nloki: hook command failed\n",
+            "ms": 1125.007
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5350430e45b8ea1775b10b8887b73d6e2aedadb5f60efe19929f173d1ba46273",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 170.557,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 170.557
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1116.815,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/main.ts: TS2322: Type 'string' is not assignable to type 'number'.\nloki: hook command failed\n",
+            "ms": 1116.815
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 106.157
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 98.428
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 115.213
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 113.638
+    }
+  ]
+}

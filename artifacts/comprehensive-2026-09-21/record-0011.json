@@ -1,0 +1,144 @@
+{
+  "case": "go/format-type/control",
+  "language": "go",
+  "family": "bug",
+  "pair": "go/format-type",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 117.205,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "67f3f734c8bd8963c50bd4e4fa0c9a1995a5587741cd948dd3454a4200758196",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 93.045,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 93.045
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 3205.596,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 3205.596
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "67f3f734c8bd8963c50bd4e4fa0c9a1995a5587741cd948dd3454a4200758196",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 101.598,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 101.598
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 183.768,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 183.768
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "67f3f734c8bd8963c50bd4e4fa0c9a1995a5587741cd948dd3454a4200758196",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 101.719,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 101.719
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 168.129,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 168.129
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 1397.698,
+      "kind": "control",
+      "targeted": false
+    }
+  ]
+}

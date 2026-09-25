@@ -1,0 +1,165 @@
+{
+  "case": "elixir/code-from-request/defect",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/code-from-request",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    357.116,
+    530.229,
+    549.228
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "82dafeea90677efe4f2e0ab8bcd39d608b554876c995a575693f099cbdbfef90",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 84.392,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 84.392
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1358.893,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nlib/loki_phoenix_fixture_web/input_controller.ex:5: Sobelow high: RCE.CodeModule: Code Execution in `Code.eval_string`\nloki: hook command failed\n",
+            "ms": 1358.893
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "82dafeea90677efe4f2e0ab8bcd39d608b554876c995a575693f099cbdbfef90",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 81.257,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 81.257
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1348.671,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nlib/loki_phoenix_fixture_web/input_controller.ex:5: Sobelow high: RCE.CodeModule: Code Execution in `Code.eval_string`\nloki: hook command failed\n",
+            "ms": 1348.671
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "82dafeea90677efe4f2e0ab8bcd39d608b554876c995a575693f099cbdbfef90",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 82.361,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 82.361
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1341.45,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nlib/loki_phoenix_fixture_web/input_controller.ex:5: Sobelow high: RCE.CodeModule: Code Execution in `Code.eval_string`\nloki: hook command failed\n",
+            "ms": 1341.45
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 83.191
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 83.041
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 93.719
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.314
+    }
+  ]
+}

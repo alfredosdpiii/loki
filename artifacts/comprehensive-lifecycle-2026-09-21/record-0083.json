@@ -1,0 +1,123 @@
+{
+  "case": "typescript/async-promise/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/async-promise",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    210.639,
+    395.162,
+    379.547
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 129.615,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: eslint(no-async-promise-executor): Promise executor functions should not be `async`.\nloki: hook command failed\n",
+            "ms": 129.615
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 135.757,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: eslint(no-async-promise-executor): Promise executor functions should not be `async`.\nloki: hook command failed\n",
+            "ms": 135.757
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "407856c79a9154fb109e870583995dd23a16aabc839cbf6898a8f33239131a21",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 132.976,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:1: eslint(no-async-promise-executor): Promise executor functions should not be `async`.\nloki: hook command failed\n",
+            "ms": 132.976
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.295
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 92.329
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 83.119
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.493
+    }
+  ]
+}

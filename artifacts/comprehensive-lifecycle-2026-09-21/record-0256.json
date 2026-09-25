@@ -1,0 +1,123 @@
+{
+  "case": "admission/policy-write",
+  "language": "none",
+  "family": "admission",
+  "pair": null,
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    256.514,
+    457.637,
+    475.697
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 98.423,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: protected file: .claude/settings.json (set LOKI_ALLOW_PROTECTED=1 to override)\nloki: hook command failed\n",
+            "ms": 98.423
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 104.454,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: protected file: .claude/settings.json (set LOKI_ALLOW_PROTECTED=1 to override)\nloki: hook command failed\n",
+            "ms": 104.454
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 103.891,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: protected file: .claude/settings.json (set LOKI_ALLOW_PROTECTED=1 to override)\nloki: hook command failed\n",
+            "ms": 103.891
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 111.412
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 106.419
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 106.09
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 112.514
+    }
+  ]
+}

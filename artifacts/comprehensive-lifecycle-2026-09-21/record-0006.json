@@ -1,0 +1,288 @@
+{
+  "case": "workflow/typescript/multi-file-repair",
+  "language": "typescript",
+  "family": "workflow",
+  "pair": null,
+  "product": "loki",
+  "profile": "missing-js",
+  "setup_ms": [
+    216.555,
+    399.029,
+    412.693
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 92.101,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\n",
+            "ms": 92.101
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 113.943,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing node_modules/.bin/oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing node_modules/.bin/oxlint\n",
+            "ms": 113.943
+          }
+        ]
+      }
+    },
+    {
+      "step": 1,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "48d74dc943466d1e4acea7f3d50b6b9db90edf2aa59ed4909314a497f65db30b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 92.913,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\n",
+            "ms": 92.913
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 107.099,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing node_modules/.bin/oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing node_modules/.bin/oxlint\n",
+            "ms": 107.099
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 93.542,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\n",
+            "ms": 93.542
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 105.558,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing node_modules/.bin/oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing node_modules/.bin/oxlint\n",
+            "ms": 105.558
+          }
+        ]
+      }
+    },
+    {
+      "step": 1,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "48d74dc943466d1e4acea7f3d50b6b9db90edf2aa59ed4909314a497f65db30b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 92.038,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\n",
+            "ms": 92.038
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 107.15,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing node_modules/.bin/oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing node_modules/.bin/oxlint\n",
+            "ms": 107.15
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 92.161,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\n",
+            "ms": 92.161
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 106.792,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing node_modules/.bin/oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing node_modules/.bin/oxlint\n",
+            "ms": 106.792
+          }
+        ]
+      }
+    },
+    {
+      "step": 1,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "48d74dc943466d1e4acea7f3d50b6b9db90edf2aa59ed4909314a497f65db30b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 94.7,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: missing node_modules/.bin/oxlint for content preview\n",
+            "ms": 94.7
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 107.924,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"NOT CHECKED typescript: missing node_modules/.bin/oxlint\"}}\n",
+            "stderr": "NOT CHECKED typescript: missing node_modules/.bin/oxlint\n",
+            "ms": 107.924
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 89.521
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 89.839
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 88.746
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 94.952
+    }
+  ]
+}

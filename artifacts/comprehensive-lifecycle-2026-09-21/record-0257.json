@@ -1,0 +1,165 @@
+{
+  "case": "scale/10000-tracked-files",
+  "language": "python",
+  "family": "scale",
+  "pair": null,
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    2457.895,
+    2842.167,
+    2736.314
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "b1d436ad6b97377777648ec1e11f33df1a8fd8ac09b732146fa85fd4ef325033",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 2138.825,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: coverage/red-green/CRAP gate is ON for python but could not run for app.py (no parseable coverage at /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-bn9m8ngx/project/.interlinked/.cov-overlay-Vt4nyS/.interlinked/coverage/python-hPBXjE/coverage.json \u2014 did pytest run with pytest-cov (--cov --cov-report=json)?) \u2014 install the coverage provider (pytest-cov for js/ts, pytest-cov for python) to enforce; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: coverage/red-green/CRAP gate is ON for python but could not run for app.py (no parseable coverage at /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-bn9m8ngx/project/.interlinked/.cov-overlay-Vt4nyS/.interlinked/coverage/python-hPBXjE/coverage.json \u2014 did pytest run with pytest-cov (--cov --cov-report=json)?) \u2014 install the coverage provider (pytest-cov for js/ts, pytest-cov for python) to enforce; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 2138.825
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 445.501,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] app.py: 1 fns, max total=7 (\u03940), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] app.py: 1 fns, max total=7 (\u03940), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 445.501
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "b1d436ad6b97377777648ec1e11f33df1a8fd8ac09b732146fa85fd4ef325033",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1978.667,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: coverage/red-green/CRAP gate is ON for python but could not run for app.py (no parseable coverage at /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-gd8us_oq/project/.interlinked/.cov-overlay-9BESAt/.interlinked/coverage/python-H7RrFS/coverage.json \u2014 did pytest run with pytest-cov (--cov --cov-report=json)?) \u2014 install the coverage provider (pytest-cov for js/ts, pytest-cov for python) to enforce; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: coverage/red-green/CRAP gate is ON for python but could not run for app.py (no parseable coverage at /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-gd8us_oq/project/.interlinked/.cov-overlay-9BESAt/.interlinked/coverage/python-H7RrFS/coverage.json \u2014 did pytest run with pytest-cov (--cov --cov-report=json)?) \u2014 install the coverage provider (pytest-cov for js/ts, pytest-cov for python) to enforce; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 1978.667
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 398.001,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] app.py: 1 fns, max total=7 (\u03940), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] app.py: 1 fns, max total=7 (\u03940), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 398.001
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "b1d436ad6b97377777648ec1e11f33df1a8fd8ac09b732146fa85fd4ef325033",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 1924.037,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: coverage/red-green/CRAP gate is ON for python but could not run for app.py (no parseable coverage at /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-7lrjyiq8/project/.interlinked/.cov-overlay-Az3K08/.interlinked/coverage/python-vBCDZs/coverage.json \u2014 did pytest run with pytest-cov (--cov --cov-report=json)?) \u2014 install the coverage provider (pytest-cov for js/ts, pytest-cov for python) to enforce; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: coverage/red-green/CRAP gate is ON for python but could not run for app.py (no parseable coverage at /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-7lrjyiq8/project/.interlinked/.cov-overlay-Az3K08/.interlinked/coverage/python-vBCDZs/coverage.json \u2014 did pytest run with pytest-cov (--cov --cov-report=json)?) \u2014 install the coverage provider (pytest-cov for js/ts, pytest-cov for python) to enforce; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 1924.037
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 435.798,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] app.py: 1 fns, max total=7 (\u03940), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] app.py: 1 fns, max total=7 (\u03940), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 435.798
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 323.628
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 237.382
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 298.346
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 227.707
+    }
+  ]
+}

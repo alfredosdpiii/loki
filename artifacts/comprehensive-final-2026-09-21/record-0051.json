@@ -1,0 +1,93 @@
+{
+  "case": "javascript/disabled-suite/defect",
+  "language": "javascript",
+  "family": "tests",
+  "pair": "javascript/disabled-suite",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": 670.488,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 113.363,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [disabled_tests]. This edit INTRODUCES 1 violation(s) at L1 in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-a7kk7i4l/project/checks.test.js. Fix the introduced line(s), then retry.\\nRemove the skip marker \u2014 a disabled test masks regressions. If the skip is genuinely temporary, add `// interlinked-ignore: disabled_tests \u2014 <reason>` (audited).\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: disabled_tests \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 113.363
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 90.83,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:58:33.193Z. Coordinate via MCP messages.\"}}",
+            "stderr": "",
+            "ms": 90.83
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 90.581,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:58:33.193Z. Coordinate via MCP messages.\"}}",
+            "stderr": "",
+            "ms": 90.581
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

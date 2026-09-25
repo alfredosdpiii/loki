@@ -1,0 +1,165 @@
+{
+  "case": "python/shell-interpolation/control",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/shell-interpolation",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    255.77,
+    435.852,
+    427.701
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "c68fb9aafe0fb2ed51dcfdab9022e4411800b98f0be7ff1a2117ae71cbdc154e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 92.769,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 92.769
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 141.258,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S603: `subprocess` call: check for execution of untrusted input\nloki: hook command failed\n",
+            "ms": 141.258
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "c68fb9aafe0fb2ed51dcfdab9022e4411800b98f0be7ff1a2117ae71cbdc154e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 100.445,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 100.445
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 144.494,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S603: `subprocess` call: check for execution of untrusted input\nloki: hook command failed\n",
+            "ms": 144.494
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "false_post_block",
+      "bytes_landed": true,
+      "proposed_sha256": "c68fb9aafe0fb2ed51dcfdab9022e4411800b98f0be7ff1a2117ae71cbdc154e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 98.275,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 98.275
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 141.964,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S603: `subprocess` call: check for execution of untrusted input\nloki: hook command failed\n",
+            "ms": 141.964
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 93.956
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 96.268
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 94.501
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 94.262
+    }
+  ]
+}

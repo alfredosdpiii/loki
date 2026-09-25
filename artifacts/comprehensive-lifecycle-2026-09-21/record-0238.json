@@ -1,0 +1,165 @@
+{
+  "case": "typescript/syntax/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/syntax",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    712.451,
+    958.908,
+    947.744
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 191.433,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8u3j3gox/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8u3j3gox/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8u3j3gox/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8u3j3gox/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8u3j3gox/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-8u3j3gox/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 191.433
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 6344.954,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"decision\":\"block\",\"reason\":\"[interlinked:typescript] [proven] typescript found new issues in src/main.ts\\nsrc/main.ts(1): TS1109: Expression expected.\\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\\n\\n\u2014 Advisory findings (not blocking; address when convenient) \u2014\\n\\n[interlinked:biome_lint] [proven] biome_lint found issues in src/main.ts\\nsrc/main.ts(1): parse: file does not parse\\n\u2192 Fix the lint issues above by changing the code, not by adding suppression comments. Do NOT add `biome-ignore` comments \u2014 rewrite the code so it passes the check cleanly.\\n\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\"}",
+            "stderr": "[interlinked:function-tokens:not-measured] src/main.ts: typescript exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:typescript] [proven] typescript found new issues in src/main.ts\nsrc/main.ts(1): TS1109: Expression expected.\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\n[interlinked:biome_lint] [proven] biome_lint found issues in src/main.ts\nsrc/main.ts(1): parse: file does not parse\n\u2192 Fix the lint issues above by changing the code, not by adding suppression comments. Do NOT add `biome-ignore` comments \u2014 rewrite the code so it passes the check cleanly.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.",
+            "ms": 6344.954
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 128.242,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ivmvnedp/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ivmvnedp/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ivmvnedp/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ivmvnedp/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ivmvnedp/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ivmvnedp/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 128.242
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 6216.851,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"decision\":\"block\",\"reason\":\"[interlinked:typescript] [proven] typescript found new issues in src/main.ts\\nsrc/main.ts(1): TS1109: Expression expected.\\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\\n\\n\u2014 Advisory findings (not blocking; address when convenient) \u2014\\n\\n[interlinked:biome_lint] [proven] biome_lint found issues in src/main.ts\\nsrc/main.ts(1): parse: file does not parse\\n\u2192 Fix the lint issues above by changing the code, not by adding suppression comments. Do NOT add `biome-ignore` comments \u2014 rewrite the code so it passes the check cleanly.\\n\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\"}",
+            "stderr": "[interlinked:function-tokens:not-measured] src/main.ts: typescript exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:typescript] [proven] typescript found new issues in src/main.ts\nsrc/main.ts(1): TS1109: Expression expected.\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\n[interlinked:biome_lint] [proven] biome_lint found issues in src/main.ts\nsrc/main.ts(1): parse: file does not parse\n\u2192 Fix the lint issues above by changing the code, not by adding suppression comments. Do NOT add `biome-ignore` comments \u2014 rewrite the code so it passes the check cleanly.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.",
+            "ms": 6216.851
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 133.951,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ax5dtlha/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ax5dtlha/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ax5dtlha/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ax5dtlha/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ax5dtlha/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-ax5dtlha/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 133.951
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 6265.943,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"decision\":\"block\",\"reason\":\"[interlinked:typescript] [proven] typescript found new issues in src/main.ts\\nsrc/main.ts(1): TS1109: Expression expected.\\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\\n\\n\u2014 Advisory findings (not blocking; address when convenient) \u2014\\n\\n[interlinked:biome_lint] [proven] biome_lint found issues in src/main.ts\\nsrc/main.ts(1): parse: file does not parse\\n\u2192 Fix the lint issues above by changing the code, not by adding suppression comments. Do NOT add `biome-ignore` comments \u2014 rewrite the code so it passes the check cleanly.\\n\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\"}",
+            "stderr": "[interlinked:function-tokens:not-measured] src/main.ts: typescript exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:typescript] [proven] typescript found new issues in src/main.ts\nsrc/main.ts(1): TS1109: Expression expected.\n\u2192 Fix the type errors above. Use proper types (interfaces, generics, branded types). Do NOT use `as any`, `@ts-ignore`, or `@ts-expect-error` to suppress \u2014 fix the actual types.\n[interlinked:biome_lint] [proven] biome_lint found issues in src/main.ts\nsrc/main.ts(1): parse: file does not parse\n\u2192 Fix the lint issues above by changing the code, not by adding suppression comments. Do NOT add `biome-ignore` comments \u2014 rewrite the code so it passes the check cleanly.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'value' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.",
+            "ms": 6265.943
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 151.501
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 113.682
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 148.618
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 115.184
+    }
+  ]
+}

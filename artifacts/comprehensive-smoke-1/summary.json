@@ -1,0 +1,56 @@
+{
+  "identity_unchanged": true,
+  "groups": {
+    "shared/interlinked": {
+      "outcomes": {
+        "admitted": 5,
+        "missed": 3,
+        "detected_after_write": 1
+      },
+      "steps": 9,
+      "errors": [
+        {
+          "case": "elixir/decode-untrusted-term/control",
+          "error": "RuntimeError: {\"command\": [\"mix\", \"format\", \"-\"], \"exit\": 1, \"stdout\": \"Mix requires the Hex package manager to fetch dependencies\\nShall I install Hex? (if running non-interactively, use \\\"mix local.hex --force\\\") [Yn] \", \"stderr\": \"warning: the VM is running with native name encoding of latin1 which may cause Elixir to malfunction as it expects utf8. Please ensure your locale is set to UTF-8 (which can be verified by running \\\"locale\\\" in your shell) or set the ELIXIR_ERL_OPTIONS=\\\"+fnu\\\" environment variable\\n** (Mix) Could not find an SCM for dependency :sobelow from LokiPhoenixFixture.MixProject\\n\", \"ms\": 270.035}"
+        },
+        {
+          "case": "elixir/decode-untrusted-term/defect",
+          "error": "RuntimeError: {\"command\": [\"mix\", \"format\", \"-\"], \"exit\": 1, \"stdout\": \"Mix requires the Hex package manager to fetch dependencies\\nShall I install Hex? (if running non-interactively, use \\\"mix local.hex --force\\\") [Yn] \", \"stderr\": \"warning: the VM is running with native name encoding of latin1 which may cause Elixir to malfunction as it expects utf8. Please ensure your locale is set to UTF-8 (which can be verified by running \\\"locale\\\" in your shell) or set the ELIXIR_ERL_OPTIONS=\\\"+fnu\\\" environment variable\\n** (Mix) Could not find an SCM for dependency :sobelow from LokiPhoenixFixture.MixProject\\n\", \"ms\": 282.1}"
+        }
+      ],
+      "coverage_warning_steps": 6,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 346.956,
+        "p95": 5803.321,
+        "max": 5803.321
+      }
+    },
+    "shared/loki": {
+      "outcomes": {
+        "detected_after_write": 2,
+        "missed": 2,
+        "admitted": 5
+      },
+      "steps": 9,
+      "errors": [
+        {
+          "case": "elixir/decode-untrusted-term/control",
+          "error": "RuntimeError: {\"command\": [\"mix\", \"format\", \"-\"], \"exit\": 1, \"stdout\": \"Mix requires the Hex package manager to fetch dependencies\\nShall I install Hex? (if running non-interactively, use \\\"mix local.hex --force\\\") [Yn] \", \"stderr\": \"warning: the VM is running with native name encoding of latin1 which may cause Elixir to malfunction as it expects utf8. Please ensure your locale is set to UTF-8 (which can be verified by running \\\"locale\\\" in your shell) or set the ELIXIR_ERL_OPTIONS=\\\"+fnu\\\" environment variable\\n** (Mix) Could not find an SCM for dependency :sobelow from LokiPhoenixFixture.MixProject\\n\", \"ms\": 462.787}"
+        },
+        {
+          "case": "elixir/decode-untrusted-term/defect",
+          "error": "RuntimeError: {\"command\": [\"mix\", \"format\", \"-\"], \"exit\": 1, \"stdout\": \"Mix requires the Hex package manager to fetch dependencies\\nShall I install Hex? (if running non-interactively, use \\\"mix local.hex --force\\\") [Yn] \", \"stderr\": \"warning: the VM is running with native name encoding of latin1 which may cause Elixir to malfunction as it expects utf8. Please ensure your locale is set to UTF-8 (which can be verified by running \\\"locale\\\" in your shell) or set the ELIXIR_ERL_OPTIONS=\\\"+fnu\\\" environment variable\\n** (Mix) Could not find an SCM for dependency :sobelow from LokiPhoenixFixture.MixProject\\n\", \"ms\": 305.388}"
+        }
+      ],
+      "coverage_warning_steps": 0,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 286.007,
+        "p95": 3694.183,
+        "max": 3694.183
+      }
+    }
+  },
+  "corpus_sha256": "dd33559f774d28a0fb94608425c01ae872f07e4d27bcfb50483b840da92476a7"
+}

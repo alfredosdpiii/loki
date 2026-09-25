@@ -1,0 +1,2003 @@
+{
+  "corpus": {
+    "version": 2,
+    "sha256": "4648d3277a8453fd45f1b6834b38cba26e207891528d8755a7447284c49aada3",
+    "cases": [
+      {
+        "id": "python/undefined-return/defect",
+        "pair": "python/undefined-return",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return missing_total\n",
+            "kind": "defect",
+            "markers": [
+              "F821",
+              "undefined.name",
+              "not defined"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/undefined-return/control",
+        "pair": "python/undefined-return",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return 42\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/mutable-default/defect",
+        "pair": "python/mutable-default",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def collect(value, items=[]):\n    items.append(value)\n    return items\n",
+            "kind": "defect",
+            "markers": [
+              "B006",
+              "mutable.*default"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/mutable-default/control",
+        "pair": "python/mutable-default",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def collect(value, items=None):\n    if items is None:\n        items = []\n    items.append(value)\n    return items\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/eval-input/defect",
+        "pair": "python/eval-input",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def parse(text):\n    return eval(text)\n",
+            "kind": "defect",
+            "markers": [
+              "S307",
+              "(?:unsafe|dangerous).*eval",
+              "eval.*(?:unsafe|dangerous)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/eval-input/control",
+        "pair": "python/eval-input",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "import json\n\n\ndef parse(text):\n    return json.loads(text)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/shell-interpolation/defect",
+        "pair": "python/shell-interpolation",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "import subprocess\n\n\ndef run(name):\n    return subprocess.run(f\"echo {name}\", shell=True, check=True)\n",
+            "kind": "defect",
+            "markers": [
+              "S602",
+              "shell=True",
+              "shell.injection"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/shell-interpolation/control",
+        "pair": "python/shell-interpolation",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "import subprocess\n\n\ndef run(name):\n    return subprocess.run([\"/bin/echo\", name], check=True)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/sql-interpolation/defect",
+        "pair": "python/sql-interpolation",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def find(cursor, name):\n    return cursor.execute(f\"SELECT id FROM users WHERE name = '{name}'\")\n",
+            "kind": "defect",
+            "markers": [
+              "S608",
+              "SQL.injection"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/sql-interpolation/control",
+        "pair": "python/sql-interpolation",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def find(cursor, name):\n    return cursor.execute(\"SELECT id FROM users WHERE name = ?\", (name,))\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/unsafe-deserialization/defect",
+        "pair": "python/unsafe-deserialization",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "import pickle\n\n\ndef parse(data):\n    return pickle.loads(data)\n",
+            "kind": "defect",
+            "markers": [
+              "S301",
+              "pickle",
+              "deserializ"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/unsafe-deserialization/control",
+        "pair": "python/unsafe-deserialization",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "import json\n\n\ndef parse(data):\n    return json.loads(data)\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/broad-exception-loss/defect",
+        "pair": "python/broad-exception-loss",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def read(value):\n    try:\n        return int(value)\n    except Exception:\n        pass\n",
+            "kind": "defect",
+            "markers": [
+              "S110",
+              "except.*pass",
+              "swallow"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/broad-exception-loss/control",
+        "pair": "python/broad-exception-loss",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def read(value):\n    try:\n        return int(value)\n    except ValueError:\n        return None\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/return-type/defect",
+        "pair": "python/return-type",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def count() -> int:\n    return \"three\"\n",
+            "kind": "defect",
+            "markers": [
+              "return.value",
+              "incompatible.*return",
+              "expected.*int"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/return-type/control",
+        "pair": "python/return-type",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def count() -> int:\n    return 3\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/syntax/defect",
+        "pair": "python/syntax",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def count(:\n    return 3\n",
+            "kind": "defect",
+            "markers": [
+              "syntax",
+              "expected.*parameter"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/syntax/control",
+        "pair": "python/syntax",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def count():\n    return 3\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/authorization-from-request/defect",
+        "pair": "python/authorization-from-request",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def allowed(request, user):\n    return request[\"is_admin\"] is True\n",
+            "kind": "defect",
+            "markers": [
+              "authorization",
+              "trust.*(?:request|client)",
+              "privilege"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "python/authorization-from-request/control",
+        "pair": "python/authorization-from-request",
+        "language": "python",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def allowed(request, user):\n    return user[\"is_admin\"] is True\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/assignment-type/defect",
+        "pair": "typescript/assignment-type",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const attempts: number = \"three\";\n",
+            "kind": "defect",
+            "markers": [
+              "TS2322",
+              "not assignable to type"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/assignment-type/control",
+        "pair": "typescript/assignment-type",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const attempts: number = 3;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/argument-type/defect",
+        "pair": "typescript/argument-type",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "function double(value: number) { return value * 2; }\nexport const result = double(\"two\");\n",
+            "kind": "defect",
+            "markers": [
+              "TS2345",
+              "not assignable.*parameter"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/argument-type/control",
+        "pair": "typescript/argument-type",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "function double(value: number) { return value * 2; }\nexport const result = double(2);\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/null-access/defect",
+        "pair": "typescript/null-access",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function length(value: string | null) { return value.length; }\n",
+            "kind": "defect",
+            "markers": [
+              "TS18047",
+              "possibly.*null"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/null-access/control",
+        "pair": "typescript/null-access",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function length(value: string | null) { return value?.length; }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/swallowed-error/defect",
+        "pair": "typescript/swallowed-error",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function parse(text: string) {\n  try { return JSON.parse(text); } catch {}\n}\n",
+            "kind": "defect",
+            "markers": [
+              "no-empty",
+              "empty.*(?:catch|block)",
+              "swallow"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/swallowed-error/control",
+        "pair": "typescript/swallowed-error",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function parse(text: string) {\n  try { return JSON.parse(text); } catch { return null; }\n}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/async-promise/defect",
+        "pair": "typescript/async-promise",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const pending = new Promise(async resolve => { resolve(1); });\n",
+            "kind": "defect",
+            "markers": [
+              "no-async-promise-executor",
+              "async.*executor"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/async-promise/control",
+        "pair": "typescript/async-promise",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const pending = new Promise(resolve => { resolve(1); });\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/finally-return/defect",
+        "pair": "typescript/finally-return",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function run() { try { throw new Error('failed'); } finally { return 1; } }\n",
+            "kind": "defect",
+            "markers": [
+              "no-unsafe-finally",
+              "unsafe.*finally",
+              "finally.*(?:return|override)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/finally-return/control",
+        "pair": "typescript/finally-return",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function run() { try { throw new Error('failed'); } finally { console.error('cleanup'); } }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/dom-injection/defect",
+        "pair": "typescript/dom-injection",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function show(node: HTMLElement, input: string) { node.innerHTML = input; }\n",
+            "kind": "defect",
+            "markers": [
+              "no-unsanitized",
+              "cross.site.scripting",
+              "\\bXSS\\b"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/dom-injection/control",
+        "pair": "typescript/dom-injection",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function show(node: HTMLElement, input: string) { node.textContent = input; }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/redirect-from-input/defect",
+        "pair": "typescript/redirect-from-input",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function navigate(input: string) { location.href = input; }\n",
+            "kind": "defect",
+            "markers": [
+              "open.redirect",
+              "unvalidated.redirect"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/redirect-from-input/control",
+        "pair": "typescript/redirect-from-input",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export function navigate(input: string) { if (input === '/home') location.href = '/home'; }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/syntax/defect",
+        "pair": "typescript/syntax",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const value = ;\n",
+            "kind": "defect",
+            "markers": [
+              "parse",
+              "syntax",
+              "expression expected",
+              "unexpected"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/syntax/control",
+        "pair": "typescript/syntax",
+        "language": "typescript",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const value = 1;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/cross-file-contract/defect",
+        "pair": "typescript/cross-file-contract",
+        "language": "typescript",
+        "family": "cross-file",
+        "base": {
+          "src/api.ts": "export function amount() { return 4; }\n",
+          "src/main.ts": "import { amount } from './api';\nexport const value: number = amount();\n"
+        },
+        "steps": [
+          {
+            "path": "src/api.ts",
+            "content": "export function amount() { return \"five\"; }\n",
+            "kind": "defect",
+            "markers": [
+              "TS2322",
+              "not assignable to type"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/cross-file-contract/control",
+        "pair": "typescript/cross-file-contract",
+        "language": "typescript",
+        "family": "cross-file",
+        "base": {
+          "src/api.ts": "export function amount() { return 4; }\n",
+          "src/main.ts": "import { amount } from './api';\nexport const value: number = amount();\n"
+        },
+        "steps": [
+          {
+            "path": "src/api.ts",
+            "content": "export function amount() { return 5; }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/removed-export/defect",
+        "pair": "typescript/removed-export",
+        "language": "typescript",
+        "family": "cross-file",
+        "base": {
+          "src/api.ts": "export const value = 4;\n",
+          "src/main.ts": "import { value } from './api';\nexport { value };\n"
+        },
+        "steps": [
+          {
+            "path": "src/api.ts",
+            "content": "export const other = 4;\n",
+            "kind": "defect",
+            "markers": [
+              "TS2305",
+              "no exported member",
+              "missing.*export"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "typescript/removed-export/control",
+        "pair": "typescript/removed-export",
+        "language": "typescript",
+        "family": "cross-file",
+        "base": {
+          "src/api.ts": "export const value = 4;\n",
+          "src/main.ts": "import { value } from './api';\nexport { value };\n"
+        },
+        "steps": [
+          {
+            "path": "src/api.ts",
+            "content": "export const value = 5;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "javascript/disabled-suite/defect",
+        "pair": "javascript/disabled-suite",
+        "language": "javascript",
+        "family": "tests",
+        "base": {},
+        "steps": [
+          {
+            "path": "checks.test.js",
+            "content": "import { describe, it, expect } from \"vitest\"; describe.skip(\"suite\", () => { it(\"adds\", () => { expect(2 + 2).toBe(4); }); });\n",
+            "kind": "defect",
+            "markers": [
+              "disabled.test",
+              "skip",
+              "disabled.*suite"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "javascript/disabled-suite/control",
+        "pair": "javascript/disabled-suite",
+        "language": "javascript",
+        "family": "tests",
+        "base": {},
+        "steps": [
+          {
+            "path": "checks.test.js",
+            "content": "import { describe, it, expect } from \"vitest\"; describe(\"suite\", () => { it(\"adds\", () => { expect(2 + 2).toBe(4); }); });\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "javascript/focused-suite/defect",
+        "pair": "javascript/focused-suite",
+        "language": "javascript",
+        "family": "tests",
+        "base": {},
+        "steps": [
+          {
+            "path": "checks.test.js",
+            "content": "import { describe, it, expect } from \"vitest\"; describe.only(\"suite\", () => { it(\"adds\", () => { expect(2 + 2).toBe(4); }); });\n",
+            "kind": "defect",
+            "markers": [
+              "focused.test",
+              "only",
+              "focused.*suite"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "javascript/focused-suite/control",
+        "pair": "javascript/focused-suite",
+        "language": "javascript",
+        "family": "tests",
+        "base": {},
+        "steps": [
+          {
+            "path": "checks.test.js",
+            "content": "import { describe, it, expect } from \"vitest\"; describe(\"suite\", () => { it(\"adds\", () => { expect(2 + 2).toBe(4); }); });\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/format-type/defect",
+        "pair": "go/format-type",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"%d\", \"text\") }\n",
+            "kind": "defect",
+            "markers": [
+              "Printf",
+              "format.*(?:type|string)",
+              "printf"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/format-type/control",
+        "pair": "go/format-type",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"%s\", \"text\") }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/undefined-name/defect",
+        "pair": "go/undefined-name",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nfunc main() { missing() }\n",
+            "kind": "defect",
+            "markers": [
+              "undefined.*missing",
+              "undeclared"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/undefined-name/control",
+        "pair": "go/undefined-name",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nfunc main() {}\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/discarded-error/defect",
+        "pair": "go/discarded-error",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nimport \"os\"\nfunc main() { _ = os.Remove(\"unused\") }\n",
+            "kind": "defect",
+            "markers": [
+              "errcheck",
+              "error.*(?:not checked|ignored|unchecked)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/discarded-error/control",
+        "pair": "go/discarded-error",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nimport \"os\"\nfunc main() { if err := os.Remove(\"unused\"); err != nil { panic(err) } }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/duration-square/defect",
+        "pair": "go/duration-square",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nimport \"time\"\nfunc scale(d time.Duration) time.Duration { return d * time.Second }\nfunc main() { _ = scale(time.Second) }\n",
+            "kind": "defect",
+            "markers": [
+              "durationcheck",
+              "duration.*(?:multipli|duration)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "go/duration-square/control",
+        "pair": "go/duration-square",
+        "language": "go",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "main.go",
+            "content": "package main\nimport \"time\"\nfunc scale(d time.Duration) time.Duration { return d }\nfunc main() { _ = scale(time.Second) }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/type-mismatch/defect",
+        "pair": "rust/type-mismatch",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn count() -> u32 { \"five\" }\n",
+            "kind": "defect",
+            "markers": [
+              "E0308",
+              "mismatched types"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/type-mismatch/control",
+        "pair": "rust/type-mismatch",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn count() -> u32 { 5 }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/use-after-move/defect",
+        "pair": "rust/use-after-move",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn count() -> usize { let a = String::from(\"x\"); let b = a; a.len() + b.len() }\n",
+            "kind": "defect",
+            "markers": [
+              "E0382",
+              "borrow of moved value"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/use-after-move/control",
+        "pair": "rust/use-after-move",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn count() -> usize { let a = String::from(\"x\"); let b = &a; a.len() + b.len() }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/ignored-result/defect",
+        "pair": "rust/ignored-result",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn read() { std::fs::read_to_string(\"unused\"); }\n",
+            "kind": "defect",
+            "markers": [
+              "unused_must_use",
+              "unused.*Result",
+              "must be used"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/ignored-result/control",
+        "pair": "rust/ignored-result",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn read() -> std::io::Result<String> { std::fs::read_to_string(\"unused\") }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/placeholder/defect",
+        "pair": "rust/placeholder",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn count() -> u32 { todo!() }\n",
+            "kind": "defect",
+            "markers": [
+              "todo",
+              "placeholder",
+              "unimplemented"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "rust/placeholder/control",
+        "pair": "rust/placeholder",
+        "language": "rust",
+        "family": "bug",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/lib.rs",
+            "content": "pub fn count() -> u32 { 5 }\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/decode-untrusted-term/defect",
+        "pair": "elixir/decode-untrusted-term",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"data\" => data}), do: :erlang.binary_to_term(data)\nend\n",
+            "kind": "defect",
+            "markers": [
+              "BinToTerm",
+              "binary_to_term",
+              "deserialization"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/decode-untrusted-term/control",
+        "pair": "elixir/decode-untrusted-term",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"data\" => data}), do: Jason.decode(data)\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/code-from-request/defect",
+        "pair": "elixir/code-from-request",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"data\" => data}), do: Code.eval_string(data)\nend\n",
+            "kind": "defect",
+            "markers": [
+              "CodeModule",
+              "code.execution",
+              "eval_string"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/code-from-request/control",
+        "pair": "elixir/code-from-request",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"data\" => data}), do: Jason.decode(data)\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/atom-from-request/defect",
+        "pair": "elixir/atom-from-request",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"data\" => data}), do: String.to_atom(data)\nend\n",
+            "kind": "defect",
+            "markers": [
+              "StringToAtom",
+              "UnsafeToAtom",
+              "atom.*exhaust"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/atom-from-request/control",
+        "pair": "elixir/atom-from-request",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"data\" => data}), do: data in [\"one\", \"two\"]\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/ssrf/defect",
+        "pair": "elixir/ssrf",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, %{\"url\" => url}), do: :httpc.request(String.to_charlist(url))\nend\n",
+            "kind": "defect",
+            "markers": [
+              "\\bSSRF\\b",
+              "server.side.request",
+              "untrusted.*URL"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/ssrf/control",
+        "pair": "elixir/ssrf",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, _params), do: :httpc.request(~c\"https://example.invalid/\")\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/request-authorization/defect",
+        "pair": "elixir/request-authorization",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(_conn, params), do: params[\"admin\"] == true\nend\n",
+            "kind": "defect",
+            "markers": [
+              "authorization",
+              "privilege",
+              "trust.*(?:request|client)"
+            ],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "elixir/request-authorization/control",
+        "pair": "elixir/request-authorization",
+        "language": "elixir",
+        "family": "phoenix-security",
+        "base": {},
+        "steps": [
+          {
+            "path": "lib/loki_phoenix_fixture_web/input_controller.ex",
+            "content": "defmodule LokiPhoenixFixtureWeb.InputController do\n  @moduledoc false\n  use LokiPhoenixFixtureWeb, :controller\n\n  def handle(conn, _params), do: conn.assigns.current_user.admin?\nend\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "admission/outside-root",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": "../outside.py",
+            "content": "value = 1\n",
+            "kind": "defect",
+            "markers": [
+              "outside",
+              "escape",
+              "root"
+            ],
+            "tool": "Write",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/policy-write",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": ".claude/settings.json",
+            "content": "{}\n",
+            "kind": "defect",
+            "markers": [
+              "protect",
+              "policy",
+              "hook"
+            ],
+            "tool": "Write",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/policy-via-symlink",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": "policy-link",
+            "content": "{}\n",
+            "kind": "defect",
+            "markers": [
+              "protect",
+              "policy",
+              "symlink",
+              "hook"
+            ],
+            "tool": "Write",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/ordinary-doc",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": "notes.md",
+            "content": "A plain project note.\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/reset-hard",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": null,
+            "content": "git reset --hard",
+            "kind": "defect",
+            "markers": [
+              "destructive",
+              "reset",
+              "blocked"
+            ],
+            "tool": "Bash",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/source-redirect",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": null,
+            "content": "printf 'x' > app.py",
+            "kind": "defect",
+            "markers": [
+              "shell",
+              "redirect",
+              "write"
+            ],
+            "tool": "Bash",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/status",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": null,
+            "content": "git status --short",
+            "kind": "control",
+            "markers": [],
+            "tool": "Bash",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/reviewed-test",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": null,
+            "content": "npm test",
+            "kind": "control",
+            "markers": [],
+            "tool": "Bash",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "admission/documentation-redirect",
+        "pair": null,
+        "language": "none",
+        "family": "admission",
+        "base": {},
+        "steps": [
+          {
+            "path": null,
+            "content": "printf 'note' > notes.txt",
+            "kind": "control",
+            "markers": [],
+            "tool": "Bash",
+            "admission_only": true
+          }
+        ]
+      },
+      {
+        "id": "debt/python/shift",
+        "pair": null,
+        "language": "python",
+        "family": "existing-debt",
+        "base": {
+          "app.py": "def read():\n    return missing\n"
+        },
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "\n\ndef read():\n    return missing\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "workflow/python/break-repair",
+        "pair": null,
+        "language": "python",
+        "family": "workflow",
+        "base": {
+          "app.py": "def read():\n    return 4\n"
+        },
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def read():\n    return missing\n",
+            "kind": "defect",
+            "markers": [
+              "F821",
+              "undefined.name",
+              "not defined"
+            ],
+            "tool": "Write"
+          },
+          {
+            "path": "app.py",
+            "content": "def read():\n    return 5\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "debt/typescript/shift",
+        "pair": null,
+        "language": "typescript",
+        "family": "existing-debt",
+        "base": {
+          "src/main.ts": "export const value: number = \"old\";\n"
+        },
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "\n\nexport const value: number = \"old\";\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "workflow/typescript/break-repair",
+        "pair": null,
+        "language": "typescript",
+        "family": "workflow",
+        "base": {
+          "src/main.ts": "export const value: number = 4;\n"
+        },
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const value: number = \"old\";\n",
+            "kind": "defect",
+            "markers": [
+              "TS2322",
+              "not assignable"
+            ],
+            "tool": "Write"
+          },
+          {
+            "path": "src/main.ts",
+            "content": "export const value: number = 5;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "control/literal",
+        "pair": null,
+        "language": "typescript",
+        "family": "lexical-control",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const example = \"catch {} test.skip() debugger;\";\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "control/comment",
+        "pair": null,
+        "language": "typescript",
+        "family": "lexical-control",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "// catch {} and debugger; are documentation.\nexport const value = 1;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "control/regex",
+        "pair": null,
+        "language": "typescript",
+        "family": "lexical-control",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const pattern = /catch \\{\\}/;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "control/test-assertion",
+        "pair": null,
+        "language": "python",
+        "family": "lexical-control",
+        "base": {},
+        "steps": [
+          {
+            "path": "test_app.py",
+            "content": "def test_value():\n    assert 2 + 2 == 4\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "scale/10-tracked-files",
+        "pair": null,
+        "language": "python",
+        "family": "scale",
+        "tracked_files": 10,
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return 43\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "scale/1000-tracked-files",
+        "pair": null,
+        "language": "python",
+        "family": "scale",
+        "tracked_files": 1000,
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return 43\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "scale/10000-tracked-files",
+        "pair": null,
+        "language": "python",
+        "family": "scale",
+        "tracked_files": 10000,
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return 43\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      },
+      {
+        "id": "exact-edit/python/undefined-return/defect",
+        "pair": "exact-edit/python/undefined-return",
+        "language": "python",
+        "family": "exact-edit",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return missing_total\n",
+            "kind": "defect",
+            "markers": [
+              "F821",
+              "undefined.name",
+              "not defined"
+            ],
+            "tool": "Edit"
+          }
+        ]
+      },
+      {
+        "id": "exact-edit/python/undefined-return/control",
+        "pair": "exact-edit/python/undefined-return",
+        "language": "python",
+        "family": "exact-edit",
+        "base": {},
+        "steps": [
+          {
+            "path": "app.py",
+            "content": "def total():\n    return 42\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Edit"
+          }
+        ]
+      },
+      {
+        "id": "exact-edit/typescript/assignment-type/defect",
+        "pair": "exact-edit/typescript/assignment-type",
+        "language": "typescript",
+        "family": "exact-edit",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const attempts: number = \"three\";\n",
+            "kind": "defect",
+            "markers": [
+              "TS2322",
+              "not assignable to type"
+            ],
+            "tool": "Edit"
+          }
+        ]
+      },
+      {
+        "id": "exact-edit/typescript/assignment-type/control",
+        "pair": "exact-edit/typescript/assignment-type",
+        "language": "typescript",
+        "family": "exact-edit",
+        "base": {},
+        "steps": [
+          {
+            "path": "src/main.ts",
+            "content": "export const attempts: number = 3;\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Edit"
+          }
+        ]
+      },
+      {
+        "id": "exact-edit/javascript/disabled-suite/defect",
+        "pair": "exact-edit/javascript/disabled-suite",
+        "language": "javascript",
+        "family": "exact-edit",
+        "base": {},
+        "steps": [
+          {
+            "path": "checks.test.js",
+            "content": "import { describe, it, expect } from \"vitest\"; describe.skip(\"suite\", () => { it(\"adds\", () => { expect(2 + 2).toBe(4); }); });\n",
+            "kind": "defect",
+            "markers": [
+              "disabled.test",
+              "skip",
+              "disabled.*suite"
+            ],
+            "tool": "Edit"
+          }
+        ]
+      },
+      {
+        "id": "exact-edit/javascript/disabled-suite/control",
+        "pair": "exact-edit/javascript/disabled-suite",
+        "language": "javascript",
+        "family": "exact-edit",
+        "base": {},
+        "steps": [
+          {
+            "path": "checks.test.js",
+            "content": "import { describe, it, expect } from \"vitest\"; describe(\"suite\", () => { it(\"adds\", () => { expect(2 + 2).toBe(4); }); });\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Edit"
+          }
+        ]
+      },
+      {
+        "id": "workflow/typescript/multi-file-repair",
+        "pair": null,
+        "language": "typescript",
+        "family": "workflow",
+        "base": {
+          "src/api.ts": "export function amount() { return 4; }\n",
+          "src/main.ts": "import { amount } from './api';\nexport const value: number = amount();\n"
+        },
+        "steps": [
+          {
+            "path": "src/api.ts",
+            "content": "export function amount() { return \"five\"; }\n",
+            "kind": "defect",
+            "markers": [
+              "TS2322",
+              "not assignable"
+            ],
+            "tool": "Write"
+          },
+          {
+            "path": "src/main.ts",
+            "content": "import { amount } from './api';\nexport const value: string | number = amount();\n",
+            "kind": "control",
+            "markers": [],
+            "tool": "Write"
+          }
+        ]
+      }
+    ]
+  },
+  "identity": {
+    "/home/bryan/Projects/personal/loki/loki.py": "f024cd238d652417d9f0cba46bfa3bcff8e1237f362b8db37a40fd7ce823e1e5",
+    "/home/bryan/Projects/personal/loki/templates/.credo.exs": "46191e8af593a4e08b1192b5a72855101bb6441ad0442032fce47359c582c7f4",
+    "/home/bryan/Projects/personal/loki/templates/.golangci.yml": "4321831294d4b223e7553796513577a6e307907546e5695f6eea1b812bd5be10",
+    "/home/bryan/Projects/personal/loki/templates/.oxlintrc.json": "e6465b210e4c3badd8b97fdeb7e9444e2e36b4d36408f90be9ca929e6fcf6a7b",
+    "/home/bryan/Projects/personal/loki/templates/.ruff.toml": "410343e24be5028a82bc5067adb752eb35c518eade591f3c2b154e2c7b5d76a9",
+    "/home/bryan/Projects/personal/loki/templates/claude-settings.fragment.json": "35271180ec848eba5a094b5a7c9a85e6017bb528ebb963886bbb83246f69c230",
+    "/home/bryan/Projects/personal/loki/templates/codex-hooks.json": "fd3be120d6b09ec991d899e393a28b74fb7719a35774df09c37b192889681203",
+    "/home/bryan/Projects/personal/loki/templates/factory-hooks.json": "7806303e0e127a8fae14e04aa146038c98352e95e84b3313e4f434ef64081082",
+    "/home/bryan/Projects/personal/loki/templates/loki.json": "a397f86c9287ad96505a2e31ecaf898afdc0f3c8b0f83b3a9e6ef13d12507f88",
+    "/home/bryan/Projects/personal/loki/templates/loki.yml": "1af7be4162e2115aa122607d85a0656822b251dd425663ed1670d7c5614d6f58",
+    "/home/bryan/Projects/personal/loki/shim/loki-omp.ts": "68e81b14736f0b6e22f369b39e8825d436c3f008405fd0754746592580d897e2",
+    "/home/bryan/Projects/personal/loki/shim/loki.ts": "811c81d1bf3903712ee0119aece5c096aed0c978bb44a528f11890eaeb18d657",
+    "/tmp/loki-interlinked-current-xBxVj0/dist/index.js": "acdecf2e12d11e8480ba296d0871a20292da6d304f6147b602a8dc40e7fe5a2a",
+    "/tmp/loki-interlinked-current-xBxVj0/dist/hook-entry.js": "7821caaefe0b613475e948c10ded6574e0b163023ddfd367619a915ea08d71f9",
+    "/tmp/loki-interlinked-current-xBxVj0/dist/harness/server.js": "c967d28bb445f9f6246e7107a876d9b88f4fcc20d50055c336d222afdd67c61e",
+    "/home/bryan/Projects/personal/loki/benchmarks/corpus.py": "521db88fe97039554e7fa6e055805f6ba9b9e90783974c42fabb4dca7a452d7e",
+    "/home/bryan/Projects/personal/loki/benchmarks/comprehensive.py": "340d78405831cb4971fce85515e476a555de843f7956ffa0fddfa3f52741def9",
+    "/home/bryan/.local/share/mise/installs/node/23.11.1/bin/node": "29427c49702b6da00e600c759e40575d72653e3fa962e6bd204a14619e98ea1c",
+    "/tmp/loki-oxlint-preview-Qr83jB/node_modules/oxlint/bin/oxlint": "ecab4e2f1bebaab1a3306620bee562ec16e8cb83dd5fb739b94a5aae3c9e34bd",
+    "/tmp/loki-typecheck-Iba0Rx/node_modules/typescript/lib/typescript.js": "3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675",
+    "/tmp/loki-interlinked-current-xBxVj0/node_modules/@biomejs/biome/bin/biome": "84b3bc11895b48aa39258850383bfaf66399dab97df905df446681303d9d6798",
+    "/tmp/loki-golangci-rules-JGSxtA/golangci-lint": "5a45f8385e298154d7967380608b73af28d6335cb09f34b9944df20d886dd939",
+    "/tmp/loki-phoenix-verification-Wh9Vil/mix.lock": "e7da3bd18e446611cc85c501d27cebf44207da4abd290cf4b1a336b1ca517649",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/index.ts": "d72d7e9f8c8f2c9557f7f8dec613b4235a2e15c9d7f43b8c8fc18688ae1f814f",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-chained-type-assertions.ts": "72f8e981520f94adac0ffbdab8f8e84e5f2a4595f14e4a6471be917a85a20a15",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-conditional-empty-object-spread.ts": "33f044030d208fcc10be73bb19c8172c275c5229df4b0ca8ec10f069bbe60062",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-known-value-widening.ts": "d631f9cb6a3629d1d9227a4568c66eb2e8e2b938a57cbec34b6b25fcb31bf62e",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-module-mocking.ts": "90cfc166a28e78544a934e4a000811330c1ea6d33d90cb309b1bed27e51e79f3",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-object-parameters.ts": "3d750130cf7520e7541cb758ebed0dfa603a0e482061a60ac3a12fe8821a4469",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-reflect-apply.ts": "f7920a332106252d6a24cdc917a2c1a433eb438792996ccceb5a25cd6e591dbb",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-reflect-get.ts": "95c5aa0f8e23b10d9345b1776082e08704ec6590298176a8ede8dfdb6e7cb56f",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-runtime-typeof.ts": "eed63d5667763ddbc48a6b83662e446f100c444cddefc3d066ac0015670590b8",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-shape-in-symbol-names.ts": "54aebfebb25c1f8f2ce181f8f82fd05413a0a63f7cdac52e9d570ea1cd284510",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-unknown-parameters.ts": "ab5cd31a9a464dd12e4e930298fcd773c1c1badfaf66619915d5435b5d57db61",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-unknown-returns.ts": "fca7a61334b902ec76736b6d8ad5b95a84a0d4366dcc7ae1bc44492523052f3b",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-unknown-type-aliases.ts": "59df2bcc6fdc892e67650c64662c2ac03d0396c2dcce9c272891c94ba5a4c041",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-unsafe-dictionary-type.ts": "bec8e540e05a749e06474b1c7bd93879747b3330f0b9c87fd1a3ffe959ace075",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/no-widen-then-assert.ts": "63f2c07cc42b8ad60a7e868efbd7b29e462b9ba960fbd07bbc8f590ef9e3f879",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/rules/require-safety-comment-for-type-assertion.ts": "78bad368fcc137f0ed9d6f21626baed5c980fe3ea6d093c93ac4ed9858b9a309",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/shared/dictionary-types.ts": "a57b964ab55a39396c8922f400b0912e3479cb9d28de716a4a536abcf7283966",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/shared/lexical-type-parameters.ts": "1ae0aa3ec245f1dc43c4bbbd8be1e2e4230e5dc389d1ca4e8de8f51b62ceff29",
+    "/home/bryan/Projects/personal/loki/vendor/anti-slop/shared/reflect-method.ts": "318f56b17d9063134860fe4c51c2e22cb0a55e7f421a0ff4ccedb5a9e9c2b2d9"
+  },
+  "runs": 1,
+  "seed": 20260921,
+  "case_filter": "^elixir/decode-untrusted-term/",
+  "argv": [
+    "benchmarks/comprehensive.py",
+    "--interlinked",
+    "/tmp/loki-interlinked-current-xBxVj0",
+    "--node",
+    "/home/bryan/.local/share/mise/installs/node/23.11.1/bin/node",
+    "--oxlint",
+    "/tmp/loki-oxlint-preview-Qr83jB/node_modules/.bin/oxlint",
+    "--typescript",
+    "/tmp/loki-typecheck-Iba0Rx/node_modules/typescript",
+    "--biome",
+    "/tmp/loki-interlinked-current-xBxVj0/node_modules/.bin/biome",
+    "--python-tools",
+    "/tmp/loki-benchmark-python-hni_6b0v/bin",
+    "--golangci",
+    "/tmp/loki-golangci-rules-JGSxtA/golangci-lint",
+    "--phoenix",
+    "/tmp/loki-phoenix-verification-Wh9Vil",
+    "--hex-archive",
+    "/home/bryan/.mix/archives/hex-2.5.1",
+    "--output",
+    "/home/bryan/Projects/personal/loki/artifacts/comprehensive-smoke-3",
+    "--runs",
+    "1",
+    "--profiles",
+    "shared",
+    "--case",
+    "^elixir/decode-untrusted-term/"
+  ],
+  "versions": {
+    "python": {
+      "exit": 0,
+      "stdout": "Python 3.14.7\n",
+      "stderr": "",
+      "ms": 14.575
+    },
+    "node": {
+      "exit": 0,
+      "stdout": "v23.11.1\n",
+      "stderr": "",
+      "ms": 17.303
+    },
+    "ruff": {
+      "exit": 0,
+      "stdout": "ruff 0.15.2\n",
+      "stderr": "",
+      "ms": 14.46
+    },
+    "mypy": {
+      "exit": 0,
+      "stdout": "mypy 1.19.1 (compiled: yes)\n",
+      "stderr": "",
+      "ms": 141.106
+    },
+    "oxlint": {
+      "exit": 0,
+      "stdout": "Version: 1.83.0\n\n",
+      "stderr": "",
+      "ms": 36.263
+    },
+    "typescript": {
+      "exit": 0,
+      "stdout": "Version 5.9.3\n",
+      "stderr": "",
+      "ms": 105.112
+    },
+    "biome": {
+      "exit": 0,
+      "stdout": "Version: 2.4.13\n\n",
+      "stderr": "",
+      "ms": 38.584
+    },
+    "go": {
+      "exit": 0,
+      "stdout": "go version go1.25.6 linux/amd64\n",
+      "stderr": "",
+      "ms": 17.943
+    },
+    "golangci": {
+      "exit": 0,
+      "stdout": "golangci-lint has version 2.6.2 built with go1.25.6 from (unknown, modified: ?, mod sum: \"h1:jkMSVv36JmyTENcEertckvimvjPcD5qxNM7W7qhECvI=\") on (unknown)\n",
+      "stderr": "",
+      "ms": 63.045
+    },
+    "rust": {
+      "exit": 0,
+      "stdout": "clippy 0.1.97\n",
+      "stderr": "",
+      "ms": 37.34
+    },
+    "elixir": {
+      "exit": 0,
+      "stdout": "Erlang/OTP 29 [erts-17.0.6] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]\n\nElixir 1.17.3 (compiled with Erlang/OTP 27)\n",
+      "stderr": "",
+      "ms": 162.582
+    }
+  },
+  "machine": {
+    "platform": "Linux-7.1.8-arch1-3-x86_64-with-glibc2.44",
+    "logical_cpus": 16,
+    "python": "3.14.7"
+  },
+  "schedule": [
+    [
+      "elixir/decode-untrusted-term/control",
+      "interlinked",
+      "shared"
+    ],
+    [
+      "elixir/decode-untrusted-term/control",
+      "loki",
+      "shared"
+    ],
+    [
+      "elixir/decode-untrusted-term/defect",
+      "loki",
+      "shared"
+    ],
+    [
+      "elixir/decode-untrusted-term/defect",
+      "interlinked",
+      "shared"
+    ]
+  ],
+  "scope": "Synthetic installed Claude pre/post lifecycles; no models; no Bash payload execution.",
+  "configuration": "Loki shell guard and committed npm test grant; Interlinked balanced; shared analyzer paths.",
+  "isolation": "Fresh fixtures/homes, network namespace, read-only host filesystem, fixture and private /tmp writable.",
+  "limitations": [
+    "Author-written cases are not independent or representative of production.",
+    "First invocation is not an OS-cold disk/cache measurement.",
+    "Additional context can be advisory; post-write findings do not prevent bytes landing.",
+    "Generic denial without a target marker is not credited as targeted prevention.",
+    "Real host activation and explicit audit scans are separate from hook effectiveness.",
+    "Go/Rust audit commands have different product-defined scopes."
+  ]
+}

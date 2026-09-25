@@ -1,0 +1,174 @@
+{
+  "case": "rust/use-after-move/defect",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/use-after-move",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    224.455,
+    396.129,
+    378.884
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "77b5096beef67300aef07af9b6d081e1ce524396ede9c3cd320c980aec8e7f8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 87.121,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 87.121
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 129.731,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 129.731
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "77b5096beef67300aef07af9b6d081e1ce524396ede9c3cd320c980aec8e7f8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 85.167,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 85.167
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 116.687,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 116.687
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "77b5096beef67300aef07af9b6d081e1ce524396ede9c3cd320c980aec8e7f8a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 89.141,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 89.141
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 115.716,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 115.716
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[rust]\ncargo: Checking guardrail_fixture v0.1.0 (/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-a7qtet8g/project)\ncargo: error[E0382]: borrow of moved value: `a`\ncargo: --> src/lib.rs:4:5\ncargo: |\ncargo: 2 |     let a = String::from(\"x\");\ncargo: |         - move occurs because `a` has type `std::string::String`, which does not implement the `Copy` trait\ncargo: 3 |     let b = a;\ncargo: |             - value moved here\ncargo: 4 |     a.len() + b.len()\ncargo: |     ^ value borrowed here after move\ncargo: |\ncargo: help: consider cloning the value if the performance cost is acceptable\ncargo: |\ncargo: 3 |     let b = a.clone();\ncargo: |              ++++++++\ncargo: For more information about this error, try `rustc --explain E0382`.\ncargo: error: could not compile `guardrail_fixture` (lib) due to 1 previous error\ncargo: warning: build failed, waiting for other jobs to finish...\ncargo: error: could not compile `guardrail_fixture` (lib test) due to 1 previous error\n",
+      "stderr": "",
+      "ms": 235.009,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 84.417
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 83.014
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 87.804
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 83.005
+    }
+  ]
+}

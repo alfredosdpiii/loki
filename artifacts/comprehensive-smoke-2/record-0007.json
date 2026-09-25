@@ -1,0 +1,53 @@
+{
+  "case": "typescript/assignment-type/control",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/assignment-type",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 109.537,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "4745b32b0fe4ffe9c15b708c46662f1da5a3d7ca8319acea0e33e6044681273b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 133.715,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 133.715
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 314.796,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 314.796
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

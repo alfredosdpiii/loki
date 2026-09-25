@@ -1,0 +1,165 @@
+{
+  "case": "typescript/removed-export/control",
+  "language": "typescript",
+  "family": "cross-file",
+  "pair": "typescript/removed-export",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    600.932,
+    768.855,
+    766.077
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "24d35aa530be9f3bc9442219e8421e3aa38354fc6b25544e9eb201d63d2c452a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 129.796,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-r664n19a/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-r664n19a/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-r664n19a/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-r664n19a/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-r664n19a/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-r664n19a/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 129.796
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 5919.762,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 5919.762
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "24d35aa530be9f3bc9442219e8421e3aa38354fc6b25544e9eb201d63d2c452a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 98.645,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-raohvl7y/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-raohvl7y/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-raohvl7y/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-raohvl7y/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-raohvl7y/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-raohvl7y/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 98.645
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 5929.801,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 5929.801
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "24d35aa530be9f3bc9442219e8421e3aa38354fc6b25544e9eb201d63d2c452a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 99.516,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-l2m575rv/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-l2m575rv/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-l2m575rv/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-l2m575rv/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-l2m575rv/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-l2m575rv/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 99.516
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 5951.576,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 5951.576
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 110.419
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 81.81
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 109.922
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 83.573
+    }
+  ]
+}

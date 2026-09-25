@@ -1,0 +1,174 @@
+{
+  "case": "rust/ignored-result/defect",
+  "language": "rust",
+  "family": "bug",
+  "pair": "rust/ignored-result",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    200.107,
+    363.21,
+    362.979
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "718138bb905abb4e33d4771de77fe600901d8a866d32313cca40c1a0a5ca8de7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 79.095,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 79.095
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 109.092,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 109.092
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "718138bb905abb4e33d4771de77fe600901d8a866d32313cca40c1a0a5ca8de7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 81.631,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 81.631
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 107.214,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 107.214
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "718138bb905abb4e33d4771de77fe600901d8a866d32313cca40c1a0a5ca8de7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 82.753,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 82.753
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 108.576,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 108.576
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[rust]\ncargo: Checking guardrail_fixture v0.1.0 (/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-2lp2e4iz/project)\ncargo: error: unused `std::result::Result` that must be used\ncargo: --> src/lib.rs:2:5\ncargo: |\ncargo: 2 |     std::fs::read_to_string(\"unused\");\ncargo: |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ncargo: |\ncargo: = note: this `Result` may be an `Err` variant, which should be handled\ncargo: = note: `-D unused-must-use` implied by `-D warnings`\ncargo: = help: to override `-D warnings` add `#[allow(unused_must_use)]`\ncargo: help: use `let _ = ...` to ignore the resulting value\ncargo: |\ncargo: 2 |     let _ = std::fs::read_to_string(\"unused\");\ncargo: |     +++++++\ncargo: error: could not compile `guardrail_fixture` (lib test) due to 1 previous error\ncargo: warning: build failed, waiting for other jobs to finish...\ncargo: error: could not compile `guardrail_fixture` (lib) due to 1 previous error\n",
+      "stderr": "",
+      "ms": 199.423,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 79.127
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 81.595
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 79.651
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 80.812
+    }
+  ]
+}

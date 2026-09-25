@@ -1,0 +1,165 @@
+{
+  "case": "exact-edit/javascript/disabled-suite/control",
+  "language": "javascript",
+  "family": "exact-edit",
+  "pair": "exact-edit/javascript/disabled-suite",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    573.403,
+    828.788,
+    793.643
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 124.899,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:self_import] NOT MEASURED for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js: no project reachable from /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:test_missing_sut_import] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:self_import] NOT MEASURED for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js: no project reachable from /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:test_missing_sut_import] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-c9d5ldgo/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 124.899
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 641.285,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to checks.test.js, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to checks.test.js, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.",
+            "ms": 641.285
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 110.507,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:self_import] NOT MEASURED for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js: no project reachable from /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:test_missing_sut_import] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:self_import] NOT MEASURED for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js: no project reachable from /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:test_missing_sut_import] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-xnod59c3/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 110.507
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 658.237,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to checks.test.js, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to checks.test.js, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.",
+            "ms": 658.237
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "05c2d629d3203b98ef373a9253dbf67e9ed6f007f4f6e58d8336f45e4abe50d1",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 103.448,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:self_import] NOT MEASURED for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js: no project reachable from /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:test_missing_sut_import] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:self_import] NOT MEASURED for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js: no project reachable from /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/tsconfig.json (its references and sibling tsconfig*.json files) claims this file by its files/include patterns; it may be a transitive member of one of them, which root patterns cannot decide, so the owning project \u2014 and its compiler options \u2014 could not be established and module resolution did not run (it never picks a project by guess). A self-import in this edit was neither found nor cleared. List the file in its project's `files`/`include`, or shorten the reference graph, to restore it.\n[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:test_missing_sut_import] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js has 1 violation(s) at L1 \u2014 `foo.test.ts` should import `./foo` (or a parent-dir variant) so that the test exercises real code from the SUT. If the test is testing a different file, rename it (e.g., `something-else.test.ts`); if the SUT lives elsewhere, fix the import path. As written, the test claims to cover code it doesn't touch.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for js but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5tzysliy/project/checks.test.js; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 103.448
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 628.512,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to checks.test.js, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.\"}}",
+            "stderr": "[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-contract-review] [heuristic] checks.test.js: Assertions, mocks or skips changed. Compare old and new expectations with the requirement; retain old invocation modes unless explicitly replaced. Text matching is advisory and may include moved or parameterized tests.\n[interlinked:trajectory] reb_blind_edit_unread_file (medium, shadow \u2014 would nudge): Multi-line edit to checks.test.js, which this session never read or grepped. Editing unseen content risks clobbering context the file's surroundings depend on \u2014 read the region first.\n[interlinked:trajectory] reb_cold_start_first_edit_zero_reads (low, shadow \u2014 would nudge): First edit of the session with zero reads and zero searches beforehand \u2014 editing an existing file cold. Orient first (read the file or search for its usages) unless the change was fully specified upfront.",
+            "ms": 628.512
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 140.973
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 92.565
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 113.017
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 88.94
+    }
+  ]
+}

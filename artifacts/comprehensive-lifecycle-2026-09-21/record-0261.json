@@ -1,0 +1,174 @@
+{
+  "case": "go/undefined-name/defect",
+  "language": "go",
+  "family": "bug",
+  "pair": "go/undefined-name",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    258.027,
+    434.533,
+    478.023
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "d494096054979d45c86a28bf86da801e2ad27b4c3ec1d1158731bfc4575b30bc",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 100.226,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 100.226
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3480.332,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: vet: ./main.go:4:15: undefined: missing\nloki: hook command failed\n",
+            "ms": 3480.332
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "d494096054979d45c86a28bf86da801e2ad27b4c3ec1d1158731bfc4575b30bc",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 100.417,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 100.417
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3448.539,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: vet: ./main.go:4:15: undefined: missing\nloki: hook command failed\n",
+            "ms": 3448.539
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "d494096054979d45c86a28bf86da801e2ad27b4c3ec1d1158731bfc4575b30bc",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 109.463,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 109.463
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 3385.528,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: vet: ./main.go:4:15: undefined: missing\nloki: hook command failed\n",
+            "ms": 3385.528
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[go]\ngolangci-lint: main.go:1: : # example.invalid/loki/benchmark\ngolangci-lint: ./main.go:4:15: undefined: missing (typecheck)\ngolangci-lint: // Package main is a benchmark fixture.\ngolangci-lint: 1 issues:\ngolangci-lint: * typecheck: 1\n",
+      "stderr": "",
+      "ms": 593.626,
+      "kind": "defect",
+      "targeted": true
+    }
+  ],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 100.304
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 96.934
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 103.515
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.275
+    }
+  ]
+}

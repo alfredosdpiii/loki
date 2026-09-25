@@ -1,0 +1,53 @@
+{
+  "case": "elixir/decode-untrusted-term/control",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/decode-untrusted-term",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": 765.419,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "90df594ed9f1ed785ead9f999234cb1bc5fcf30d30cfd9dee2609dc3dc8d19b4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 128.616,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:ephemeral] /tmp/loki-comprehensive-bs6vctmt/project/lib/loki_phoenix_fixture_web/input_controller.ex written to the ephemeral scratchpad (recorded in .interlinked/ephemeral-writes.jsonl). If this is a manifest staged to route an edit around a gate, pipe it on stdin instead of persisting it \u2014 and if a gate is forcing the detour, that gate is the bug worth reporting.\\n[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+            "stderr": "[interlinked:ephemeral] /tmp/loki-comprehensive-bs6vctmt/project/lib/loki_phoenix_fixture_web/input_controller.ex written to the ephemeral scratchpad (recorded in .interlinked/ephemeral-writes.jsonl). If this is a manifest staged to route an edit around a gate, pipe it on stdin instead of persisting it \u2014 and if a gate is forcing the detour, that gate is the bug worth reporting.\n[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+            "ms": 128.616
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 110.515,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable",
+            "ms": 110.515
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

@@ -1,0 +1,165 @@
+{
+  "case": "elixir/decode-untrusted-term/control",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/decode-untrusted-term",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    700.83,
+    865.009,
+    932.433
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "90df594ed9f1ed785ead9f999234cb1bc5fcf30d30cfd9dee2609dc3dc8d19b4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 97.142,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+            "stderr": "[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+            "ms": 97.142
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 98.435,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable",
+            "ms": 98.435
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "90df594ed9f1ed785ead9f999234cb1bc5fcf30d30cfd9dee2609dc3dc8d19b4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 84.343,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+            "stderr": "[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+            "ms": 84.343
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 100.936,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable",
+            "ms": 100.936
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "90df594ed9f1ed785ead9f999234cb1bc5fcf30d30cfd9dee2609dc3dc8d19b4",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 83.743,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+            "stderr": "[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+            "ms": 83.743
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 97.553,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] lib/loki_phoenix_fixture_web/input_controller.ex: ex exact adapter unavailable",
+            "ms": 97.553
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\\n[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json\n[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 119.804
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\\n[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short\n[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+      "ms": 85.699
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\\n[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json\n[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 107.533
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\\n[interlinked:setup] TypeScript files found but no tsconfig.json exists\\n  fix: Run `npx tsc --init` to create a tsconfig.json\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short\n[interlinked:setup] TypeScript files found but no tsconfig.json exists\n  fix: Run `npx tsc --init` to create a tsconfig.json",
+      "ms": 82.1
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "case": "go/format-type/defect",
+  "language": "go",
+  "family": "bug",
+  "pair": "go/format-type",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 117.76,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5cf51810eb5573aa2868fab40bc2742b8bd49f2320d602b6b30bf15f5da26d4b",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 87.969,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 87.969
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 2713.848,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\ngo vet: # example.invalid/loki/benchmark\ngo vet: # [example.invalid/loki/benchmark]\ngo vet: ./main.go:6:27: fmt.Printf format %d has arg \"text\" of wrong type string\nloki: hook command failed\n",
+            "ms": 2713.848
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [
+    {
+      "exit": 1,
+      "stdout": "[go]\ngolangci-lint: main.go:6:27: printf: fmt.Printf format %d has arg \"text\" of wrong type string (govet)\ngolangci-lint: func main() { fmt.Printf(\"%d\", \"text\") }\ngolangci-lint: ^\ngolangci-lint: 1 issues:\ngolangci-lint: * govet: 1\n",
+      "stderr": "",
+      "ms": 1182.141,
+      "kind": "defect",
+      "targeted": true
+    }
+  ]
+}

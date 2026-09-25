@@ -1,0 +1,165 @@
+{
+  "case": "typescript/syntax/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/syntax",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    204.456,
+    366.028,
+    364.476
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 126.223,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\n",
+            "ms": 126.223
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 857.831,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/main.ts: TS1109: Expression expected.\nloki: hook command failed\n",
+            "ms": 857.831
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 116.516,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\n",
+            "ms": 116.516
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 849.032,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/main.ts: TS1109: Expression expected.\nloki: hook command failed\n",
+            "ms": 849.032
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "cc78ba69680cfa4bec7fd42e1c6860f7b0c070437d339e4745d61951c4f95e36",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 123.057,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\"}}\n",
+            "stderr": "NOT CHECKED pre-write content: unpositioned Oxlint preview diagnostic\n",
+            "ms": 123.057
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 850.04,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nsrc/main.ts: TS1109: Expression expected.\nloki: hook command failed\n",
+            "ms": 850.04
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 80.542
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 78.649
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 78.172
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 81.198
+    }
+  ]
+}

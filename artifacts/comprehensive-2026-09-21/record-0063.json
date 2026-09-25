@@ -1,0 +1,93 @@
+{
+  "case": "typescript/swallowed-error/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/swallowed-error",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": 607.954,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1bdb9d1e29cca9e71ae0dbc9bce7df68695e3d7a3c194d2f9f002b6782121852",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 117.128,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"BLOCKED by pre-block rule [empty_catch]. This edit INTRODUCES 1 violation(s) at L2 in /tmp/loki-comprehensive-z3bxq1s_/project/src/main.ts. Fix the introduced line(s), then retry.\\nEmpty catch blocks silently swallow errors. Handle the error explicitly, rethrow it, or log it \u2014 silent failures are a leading cause of production bugs.\\nIf a flagged line is deliberate, mark it: `// interlinked-ignore: empty_catch \u2014 <why>` on the line above (counted by the suppression ratchet), or add a file entry to .interlinked/verify-suppressions.json.\"}}",
+            "stderr": "",
+            "ms": 117.128
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "1bdb9d1e29cca9e71ae0dbc9bce7df68695e3d7a3c194d2f9f002b6782121852",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 103.855,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:49:37.953Z. Coordinate via MCP messages.\"}}",
+            "stderr": "",
+            "ms": 103.855
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "1bdb9d1e29cca9e71ae0dbc9bce7df68695e3d7a3c194d2f9f002b6782121852",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 111.493,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:49:37.953Z. Coordinate via MCP messages.\"}}",
+            "stderr": "",
+            "ms": 111.493
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

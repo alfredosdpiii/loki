@@ -1,0 +1,107 @@
+{
+  "case": "typescript/redirect-from-input/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/redirect-from-input",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": 633.034,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "ea42f37dc072b5965bdf6dea30db8626c48dbe0355bc793e1eba7d37cc79592a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 139.592,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /tmp/loki-comprehensive-262p2way/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /tmp/loki-comprehensive-262p2way/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:new_export_without_importer] /tmp/loki-comprehensive-262p2way/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\\n[interlinked:ubs_unchecked_redirect] /tmp/loki-comprehensive-262p2way/project/src/main.ts has 1 violation(s) at L1 \u2014 Open-redirect bugs let attackers craft links that go through your domain before bouncing to a phishing site. Validate the redirect target against an allowlist or ensure it's a relative path (`url.startsWith('/')`) before redirecting.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /tmp/loki-comprehensive-262p2way/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /tmp/loki-comprehensive-262p2way/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /tmp/loki-comprehensive-262p2way/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:new_export_without_importer] /tmp/loki-comprehensive-262p2way/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\n[interlinked:ubs_unchecked_redirect] /tmp/loki-comprehensive-262p2way/project/src/main.ts has 1 violation(s) at L1 \u2014 Open-redirect bugs let attackers craft links that go through your domain before bouncing to a phishing site. Validate the redirect target against an allowlist or ensure it's a relative path (`url.startsWith('/')`) before redirecting.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /tmp/loki-comprehensive-262p2way/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 139.592
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 5939.753,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:cyclomatic] src/main.ts: 1 fns, \u03a3CC 1 (\u0394+1), max navigate=1 (cap 25); fn\u0394 1; \u0394 fns: navigate new=1; cog\u03a3 0 (\u03940); ast\u0394 16\\n[interlinked:function-tokens] src/main.ts: 1 fns, max navigate=16 (\u0394+16), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:missing_return_types] [proven] 1 exported function(s) without return type annotations in src/main.ts\\n  L1: export function navigate(input: string) { location.href = input; }\\n\u2192 Add explicit return type annotations to all exported functions. This improves API documentation, enables better type inference for consumers, and catches accidental return type changes.\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'navigate' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\"}}",
+            "stderr": "[interlinked:cyclomatic] src/main.ts: 1 fns, \u03a3CC 1 (\u0394+1), max navigate=1 (cap 25); fn\u0394 1; \u0394 fns: navigate new=1; cog\u03a3 0 (\u03940); ast\u0394 16\n[interlinked:function-tokens] src/main.ts: 1 fns, max navigate=16 (\u0394+16), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:missing_return_types] [proven] 1 exported function(s) without return type annotations in src/main.ts\n  L1: export function navigate(input: string) { location.href = input; }\n\u2192 Add explicit return type annotations to all exported functions. This improves API documentation, enables better type inference for consumers, and catches accidental return type changes.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'navigate' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.",
+            "ms": 5939.753
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "ea42f37dc072b5965bdf6dea30db8626c48dbe0355bc793e1eba7d37cc79592a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 91.363,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:48:51.892Z. Coordinate via MCP messages.\"}}",
+            "stderr": "[interlinked:sequence] [proven] file_overwrite_after_other_agent: About to write /tmp/loki-comprehensive-262p2way/project/src/main.ts, but claude wrote it within the last hour and this session has not read it. Read the current contents first to confirm the overwrite is intended, or acknowledge with `// interlinked: defer file_overwrite_after_other_agent -- <reason>`.\n  context: claude wrote /tmp/loki-comprehensive-262p2way/project/src/main.ts at 2026-09-20T17:43:51.999Z\n  evidence: /tmp/loki-comprehensive-262p2way/project/src/main.ts\n  evidence: 2026-09-20T17:43:51.999Z",
+            "ms": 91.363
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "ea42f37dc072b5965bdf6dea30db8626c48dbe0355bc793e1eba7d37cc79592a",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 82.997,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:48:51.892Z. Coordinate via MCP messages.\"}}",
+            "stderr": "[interlinked:sequence] [proven] file_overwrite_after_other_agent: About to write /tmp/loki-comprehensive-262p2way/project/src/main.ts, but claude wrote it within the last hour and this session has not read it. Read the current contents first to confirm the overwrite is intended, or acknowledge with `// interlinked: defer file_overwrite_after_other_agent -- <reason>`.\n  context: claude wrote /tmp/loki-comprehensive-262p2way/project/src/main.ts at 2026-09-20T17:43:51.999Z\n  evidence: /tmp/loki-comprehensive-262p2way/project/src/main.ts\n  evidence: 2026-09-20T17:43:51.999Z",
+            "ms": 82.997
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

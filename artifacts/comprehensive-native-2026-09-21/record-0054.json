@@ -1,0 +1,165 @@
+{
+  "case": "python/syntax/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/syntax",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    505.794,
+    777.984,
+    699.385
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "585dec13083342ceeab5c29d6cee44335263c0ac0726cb2a77d2f39f3294185d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 142.471,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 142.471
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 496.528,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] app.py: python exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:python_typecheck] python_typecheck found issues in app.py\\napp.py(1): Invalid syntax\\n[interlinked:ruff_lint] ruff_lint found issues in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py (while checking app.py)\\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py(1): invalid-syntax: Expected a parameter or the end of the parameter list\\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py(1): invalid-syntax: Expected `)`, found newline\\n[interlinked:ruff_format] ruff_format found issues in app.py\\napp.py(1): ruff format failed (exit 2): no stderr \u2014 format NOT validated for this change\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: python_simplification for app.py (L1: Python simplification NOT CHECKED: isolated Python parser unavailable, timed out, or source could not be parsed.). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] app.py: python exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:python_typecheck] python_typecheck found issues in app.py\napp.py(1): Invalid syntax\n[interlinked:ruff_lint] ruff_lint found issues in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py (while checking app.py)\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py(1): invalid-syntax: Expected a parameter or the end of the parameter list\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4uehb7co/project/app.py(1): invalid-syntax: Expected `)`, found newline\n[interlinked:ruff_format] ruff_format found issues in app.py\napp.py(1): ruff format failed (exit 2): no stderr \u2014 format NOT validated for this change\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:checks-deferred] [proven] NOT CHECKED: python_simplification for app.py (L1: Python simplification NOT CHECKED: isolated Python parser unavailable, timed out, or source could not be parsed.). Retry each deferred check after its prerequisites change; no clean verdict exists for check.",
+            "ms": 496.528
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "585dec13083342ceeab5c29d6cee44335263c0ac0726cb2a77d2f39f3294185d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 107.454,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 107.454
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 461.47,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] app.py: python exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:python_typecheck] python_typecheck found issues in app.py\\napp.py(1): Invalid syntax\\n[interlinked:ruff_lint] ruff_lint found issues in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py (while checking app.py)\\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py(1): invalid-syntax: Expected a parameter or the end of the parameter list\\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py(1): invalid-syntax: Expected `)`, found newline\\n[interlinked:ruff_format] ruff_format found issues in app.py\\napp.py(1): ruff format failed (exit 2): no stderr \u2014 format NOT validated for this change\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: python_simplification for app.py (L1: Python simplification NOT CHECKED: isolated Python parser unavailable, timed out, or source could not be parsed.). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] app.py: python exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:python_typecheck] python_typecheck found issues in app.py\napp.py(1): Invalid syntax\n[interlinked:ruff_lint] ruff_lint found issues in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py (while checking app.py)\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py(1): invalid-syntax: Expected a parameter or the end of the parameter list\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-urxzdg9y/project/app.py(1): invalid-syntax: Expected `)`, found newline\n[interlinked:ruff_format] ruff_format found issues in app.py\napp.py(1): ruff format failed (exit 2): no stderr \u2014 format NOT validated for this change\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:checks-deferred] [proven] NOT CHECKED: python_simplification for app.py (L1: Python simplification NOT CHECKED: isolated Python parser unavailable, timed out, or source could not be parsed.). Retry each deferred check after its prerequisites change; no clean verdict exists for check.",
+            "ms": 461.47
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "585dec13083342ceeab5c29d6cee44335263c0ac0726cb2a77d2f39f3294185d",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 101.971,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 101.971
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": true,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 469.473,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens:not-measured] app.py: python exact adapter unavailable\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:python_typecheck] python_typecheck found issues in app.py\\napp.py(1): Invalid syntax\\n[interlinked:ruff_lint] ruff_lint found issues in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py (while checking app.py)\\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py(1): invalid-syntax: Expected a parameter or the end of the parameter list\\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py(1): invalid-syntax: Expected `)`, found newline\\n[interlinked:ruff_format] ruff_format found issues in app.py\\napp.py(1): ruff format failed (exit 2): no stderr \u2014 format NOT validated for this change\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:checks-deferred] [proven] NOT CHECKED: python_simplification for app.py (L1: Python simplification NOT CHECKED: isolated Python parser unavailable, timed out, or source could not be parsed.). Retry each deferred check after its prerequisites change; no clean verdict exists for check.\"}}",
+            "stderr": "[interlinked:function-tokens:not-measured] app.py: python exact adapter unavailable\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:python_typecheck] python_typecheck found issues in app.py\napp.py(1): Invalid syntax\n[interlinked:ruff_lint] ruff_lint found issues in /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py (while checking app.py)\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py(1): invalid-syntax: Expected a parameter or the end of the parameter list\n/home/bryan/Projects/personal/loki/artifacts/tmp/b/b-5gh9j95r/project/app.py(1): invalid-syntax: Expected `)`, found newline\n[interlinked:ruff_format] ruff_format found issues in app.py\napp.py(1): ruff format failed (exit 2): no stderr \u2014 format NOT validated for this change\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:checks-deferred] [proven] NOT CHECKED: python_simplification for app.py (L1: Python simplification NOT CHECKED: isolated Python parser unavailable, timed out, or source could not be parsed.). Retry each deferred check after its prerequisites change; no clean verdict exists for check.",
+            "ms": 469.473
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 112.268
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 81.753
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 106.579
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 81.58
+    }
+  ]
+}

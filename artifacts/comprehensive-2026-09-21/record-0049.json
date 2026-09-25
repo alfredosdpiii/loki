@@ -1,0 +1,93 @@
+{
+  "case": "admission/status",
+  "language": "none",
+  "family": "admission",
+  "pair": null,
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 115.24,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": false,
+      "proposed_sha256": "c96885f0a85f64c61b0d76510ca80e4a19be674e163a73b68a0a3d57f4dc15b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 85.821,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 85.821
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "admitted",
+      "bytes_landed": false,
+      "proposed_sha256": "c96885f0a85f64c61b0d76510ca80e4a19be674e163a73b68a0a3d57f4dc15b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 95.517,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 95.517
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "admitted",
+      "bytes_landed": false,
+      "proposed_sha256": "c96885f0a85f64c61b0d76510ca80e4a19be674e163a73b68a0a3d57f4dc15b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 83.745,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 83.745
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

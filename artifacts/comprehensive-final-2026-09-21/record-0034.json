@@ -1,0 +1,93 @@
+{
+  "case": "exact-edit/javascript/disabled-suite/defect",
+  "language": "javascript",
+  "family": "exact-edit",
+  "pair": "exact-edit/javascript/disabled-suite",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 217.349,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 135.067,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: jest(no-disabled-tests): Disabled test suite\nchecks.test.js:1: vitest(no-disabled-tests): Disabled test suite\nloki: hook command failed\n",
+            "ms": 135.067
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 144.837,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: jest(no-disabled-tests): Disabled test suite\nchecks.test.js:1: vitest(no-disabled-tests): Disabled test suite\nloki: hook command failed\n",
+            "ms": 144.837
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "3f684240782cf3fbfb0803b608dd5f2021999bd93f437dbc6e4b31b639617557",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 131.091,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "checks.test.js:1: jest(no-disabled-tests): Disabled test suite\nchecks.test.js:1: vitest(no-disabled-tests): Disabled test suite\nloki: hook command failed\n",
+            "ms": 131.091
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

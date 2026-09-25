@@ -1,0 +1,2859 @@
+{
+  "groups": {
+    "shared/interlinked": {
+      "counts": {
+        "defects": 14,
+        "caught": 10,
+        "prevented": 3,
+        "controls": 15,
+        "false_blocks": 1,
+        "control_feedback": 15,
+        "coverage_warning": 26,
+        "errors": 0,
+        "inconsistent": 0
+      },
+      "latency": {
+        "first-invocation": {
+          "pre_ms": {
+            "n": 29,
+            "median": 130.78,
+            "p95": 163.89,
+            "max": 165.6
+          },
+          "post_ms": {
+            "n": 26,
+            "median": 5922.63,
+            "p95": 6172.23,
+            "max": 6209.28
+          },
+          "total_ms": {
+            "n": 29,
+            "median": 6051.83,
+            "p95": 6337.82,
+            "max": 6373.17
+          }
+        },
+        "startup-warmed": {
+          "pre_ms": {
+            "n": 58,
+            "median": 107.42,
+            "p95": 138.46,
+            "max": 186.27
+          },
+          "post_ms": {
+            "n": 52,
+            "median": 5933.63,
+            "p95": 6199.69,
+            "max": 6263.41
+          },
+          "total_ms": {
+            "n": 58,
+            "median": 6037.97,
+            "p95": 6319.24,
+            "max": 6405.1
+          }
+        }
+      }
+    },
+    "shared/loki": {
+      "counts": {
+        "defects": 14,
+        "caught": 12,
+        "prevented": 3,
+        "controls": 15,
+        "false_blocks": 0,
+        "control_feedback": 0,
+        "coverage_warning": 1,
+        "errors": 0,
+        "inconsistent": 0
+      },
+      "latency": {
+        "first-invocation": {
+          "pre_ms": {
+            "n": 29,
+            "median": 130.49,
+            "p95": 173.79,
+            "max": 204.38
+          },
+          "post_ms": {
+            "n": 26,
+            "median": 1094.01,
+            "p95": 1732.79,
+            "max": 2030.27
+          },
+          "total_ms": {
+            "n": 29,
+            "median": 1216.83,
+            "p95": 1883.99,
+            "max": 2234.64
+          }
+        },
+        "startup-warmed": {
+          "pre_ms": {
+            "n": 58,
+            "median": 128.49,
+            "p95": 169.81,
+            "max": 203.19
+          },
+          "post_ms": {
+            "n": 52,
+            "median": 1107.87,
+            "p95": 1509.34,
+            "max": 1548.59
+          },
+          "total_ms": {
+            "n": 58,
+            "median": 1226.31,
+            "p95": 1666.35,
+            "max": 1718.4
+          }
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "case": "workflow/typescript/break-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 170.741,
+          "post_ms": 1292.811,
+          "total_ms": 1463.552
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 145.249,
+          "post_ms": 1105.67,
+          "total_ms": 1250.919
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 157.279,
+          "post_ms": 1089.444,
+          "total_ms": 1246.723
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/break-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 168.88,
+          "post_ms": 1398.932,
+          "total_ms": 1567.812
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 157.009,
+          "post_ms": 1509.336,
+          "total_ms": 1666.345
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 156.711,
+          "post_ms": 1380.135,
+          "total_ms": 1536.846
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/redirect-from-input/defect",
+      "step": 0,
+      "pair": "typescript/redirect-from-input",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 152.51,
+          "post_ms": 1731.485,
+          "total_ms": 1883.995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 165.601,
+          "post_ms": 1528.906,
+          "total_ms": 1694.507
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 163.063,
+          "post_ms": 1469.401,
+          "total_ms": 1632.464
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/redirect-from-input/control",
+      "step": 0,
+      "pair": "typescript/redirect-from-input",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 150.055,
+          "post_ms": 1402.098,
+          "total_ms": 1552.153
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 156.116,
+          "post_ms": 1423.898,
+          "total_ms": 1580.014
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 169.807,
+          "post_ms": 1548.591,
+          "total_ms": 1718.398
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/break-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 140.623,
+          "post_ms": 6093.589,
+          "total_ms": 6234.2119999999995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 138.461,
+          "post_ms": 6166.993,
+          "total_ms": 6305.454000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 119.55,
+          "post_ms": 6199.693,
+          "total_ms": 6319.243
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/break-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 104.619,
+          "post_ms": 420.356,
+          "total_ms": 524.975
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 101.292,
+          "post_ms": 432.152,
+          "total_ms": 533.444
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 99.809,
+          "post_ms": 425.61,
+          "total_ms": 525.419
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/cross-file-contract/defect",
+      "step": 0,
+      "pair": "typescript/cross-file-contract",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 163.889,
+          "post_ms": 6209.28,
+          "total_ms": 6373.169
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 121.301,
+          "post_ms": 6134.051,
+          "total_ms": 6255.352000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 137.171,
+          "post_ms": 6138.023,
+          "total_ms": 6275.194
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/assignment-type/defect",
+      "step": 0,
+      "pair": "typescript/assignment-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 173.795,
+          "post_ms": 1110.635,
+          "total_ms": 1284.43
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 164.358,
+          "post_ms": 1125.007,
+          "total_ms": 1289.365
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 170.557,
+          "post_ms": 1116.815,
+          "total_ms": 1287.372
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/argument-type/defect",
+      "step": 0,
+      "pair": "typescript/argument-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 152.126,
+          "post_ms": 6128.538,
+          "total_ms": 6280.664
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 141.694,
+          "post_ms": 6263.408,
+          "total_ms": 6405.102000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.462,
+          "post_ms": 6131.037,
+          "total_ms": 6259.499
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 165.597,
+          "post_ms": 6172.225,
+          "total_ms": 6337.822
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 126.798,
+          "post_ms": 6120.203,
+          "total_ms": 6247.001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 119.352,
+          "post_ms": 6214.662,
+          "total_ms": 6334.014
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 118.973,
+          "post_ms": 483.602,
+          "total_ms": 602.5749999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.42,
+          "post_ms": 453.951,
+          "total_ms": 559.371
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.311,
+          "post_ms": 455.418,
+          "total_ms": 563.729
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/typescript/assignment-type/defect",
+      "step": 0,
+      "pair": "exact-edit/typescript/assignment-type",
+      "family": "exact-edit",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 163.514,
+          "post_ms": 6171.766,
+          "total_ms": 6335.28
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 127.847,
+          "post_ms": 6171.78,
+          "total_ms": 6299.6269999999995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 129.868,
+          "post_ms": 6088.64,
+          "total_ms": 6218.508000000001
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/assignment-type/control",
+      "step": 0,
+      "pair": "typescript/assignment-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 147.559,
+          "post_ms": 6098.215,
+          "total_ms": 6245.774
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 136.312,
+          "post_ms": 6021.258,
+          "total_ms": 6157.57
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 186.269,
+          "post_ms": 6016.761,
+          "total_ms": 6203.030000000001
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/argument-type/control",
+      "step": 0,
+      "pair": "typescript/argument-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 150.55,
+          "post_ms": 6074.15,
+          "total_ms": 6224.7
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 111.836,
+          "post_ms": 5968.762,
+          "total_ms": 6080.598
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.562,
+          "post_ms": 5933.783,
+          "total_ms": 6043.345
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/syntax/defect",
+      "step": 0,
+      "pair": "typescript/syntax",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 144.575,
+          "post_ms": 5947.518,
+          "total_ms": 6092.093
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 102.424,
+          "post_ms": 5932.575,
+          "total_ms": 6034.999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.048,
+          "post_ms": 5948.189,
+          "total_ms": 6051.237
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/redirect-from-input/defect",
+      "step": 0,
+      "pair": "typescript/redirect-from-input",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 129.216,
+          "post_ms": 5936.871,
+          "total_ms": 6066.087
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 112.784,
+          "post_ms": 5962.642,
+          "total_ms": 6075.4259999999995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 115.1,
+          "post_ms": 5985.495,
+          "total_ms": 6100.595
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/redirect-from-input/control",
+      "step": 0,
+      "pair": "typescript/redirect-from-input",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 130.78,
+          "post_ms": 5921.077,
+          "total_ms": 6051.857
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 108.14,
+          "post_ms": 5933.469,
+          "total_ms": 6041.609
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 111.302,
+          "post_ms": 5968.098,
+          "total_ms": 6079.4
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/null-access/control",
+      "step": 0,
+      "pair": "typescript/null-access",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 138.508,
+          "post_ms": 5913.322,
+          "total_ms": 6051.83
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 104.765,
+          "post_ms": 5909.128,
+          "total_ms": 6013.893
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.829,
+          "post_ms": 5978.082,
+          "total_ms": 6103.911
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/finally-return/control",
+      "step": 0,
+      "pair": "typescript/finally-return",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 124.878,
+          "post_ms": 5942.664,
+          "total_ms": 6067.5419999999995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.549,
+          "post_ms": 5912.92,
+          "total_ms": 6022.469
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 119.339,
+          "post_ms": 5910.784,
+          "total_ms": 6030.123
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/argument-type/control",
+      "step": 0,
+      "pair": "typescript/argument-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 126.739,
+          "post_ms": 1136.175,
+          "total_ms": 1262.914
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.128,
+          "post_ms": 1111.023,
+          "total_ms": 1231.1509999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.684,
+          "post_ms": 1182.086,
+          "total_ms": 1316.77
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/null-access/defect",
+      "step": 0,
+      "pair": "typescript/null-access",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 120.08,
+          "post_ms": 882.664,
+          "total_ms": 1002.744
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.22,
+          "post_ms": 867.119,
+          "total_ms": 1001.339
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 115.787,
+          "post_ms": 914.533,
+          "total_ms": 1030.32
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/removed-export/control",
+      "step": 0,
+      "pair": "typescript/removed-export",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 129.796,
+          "post_ms": 5919.762,
+          "total_ms": 6049.558
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 98.645,
+          "post_ms": 5929.801,
+          "total_ms": 6028.446000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 99.516,
+          "post_ms": 5951.576,
+          "total_ms": 6051.092
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/swallowed-error/defect",
+      "step": 0,
+      "pair": "typescript/swallowed-error",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 103.044,
+          "post_ms": null,
+          "total_ms": 103.044
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 94.477,
+          "post_ms": null,
+          "total_ms": 94.477
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 94.465,
+          "post_ms": null,
+          "total_ms": 94.465
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/async-promise/control",
+      "step": 0,
+      "pair": "typescript/async-promise",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 137.048,
+          "post_ms": 5907.124,
+          "total_ms": 6044.172
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 116.074,
+          "post_ms": 5921.385,
+          "total_ms": 6037.459
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 110.128,
+          "post_ms": 5948.511,
+          "total_ms": 6058.639
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/syntax/control",
+      "step": 0,
+      "pair": "typescript/syntax",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 125.003,
+          "post_ms": 1091.823,
+          "total_ms": 1216.826
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 142.817,
+          "post_ms": 1126.73,
+          "total_ms": 1269.547
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.389,
+          "post_ms": 1183.645,
+          "total_ms": 1309.0339999999999
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/cross-file-contract/control",
+      "step": 0,
+      "pair": "typescript/cross-file-contract",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 130.765,
+          "post_ms": 1153.024,
+          "total_ms": 1283.7889999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 131.785,
+          "post_ms": 1168.406,
+          "total_ms": 1300.191
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.789,
+          "post_ms": 1117.397,
+          "total_ms": 1246.186
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/removed-export/control",
+      "step": 0,
+      "pair": "typescript/removed-export",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 128.881,
+          "post_ms": 1122.476,
+          "total_ms": 1251.3570000000002
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 133.715,
+          "post_ms": 1149.45,
+          "total_ms": 1283.165
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 129.527,
+          "post_ms": 1089.97,
+          "total_ms": 1219.497
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/async-promise/defect",
+      "step": 0,
+      "pair": "typescript/async-promise",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 121.626,
+          "post_ms": null,
+          "total_ms": 121.626
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 126.905,
+          "post_ms": null,
+          "total_ms": 126.905
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 122.304,
+          "post_ms": null,
+          "total_ms": 122.304
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/cross-file-contract/control",
+      "step": 0,
+      "pair": "typescript/cross-file-contract",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 132.785,
+          "post_ms": 5982.741,
+          "total_ms": 6115.526
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 106.069,
+          "post_ms": 5927.561,
+          "total_ms": 6033.63
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 101.454,
+          "post_ms": 5928.361,
+          "total_ms": 6029.815
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/removed-export/defect",
+      "step": 0,
+      "pair": "typescript/removed-export",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 119.839,
+          "post_ms": 959.107,
+          "total_ms": 1078.946
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 123.385,
+          "post_ms": 872.486,
+          "total_ms": 995.871
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 122.209,
+          "post_ms": 880.937,
+          "total_ms": 1003.146
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/async-promise/defect",
+      "step": 0,
+      "pair": "typescript/async-promise",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 111.578,
+          "post_ms": null,
+          "total_ms": 111.578
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 92.622,
+          "post_ms": null,
+          "total_ms": 92.622
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 91.396,
+          "post_ms": null,
+          "total_ms": 91.396
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/swallowed-error/control",
+      "step": 0,
+      "pair": "typescript/swallowed-error",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 118.924,
+          "post_ms": 1088.467,
+          "total_ms": 1207.391
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.789,
+          "post_ms": 1090.809,
+          "total_ms": 1219.598
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 126.277,
+          "post_ms": 1185.112,
+          "total_ms": 1311.3890000000001
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/null-access/defect",
+      "step": 0,
+      "pair": "typescript/null-access",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 137.206,
+          "post_ms": 5924.18,
+          "total_ms": 6061.386
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.255,
+          "post_ms": 5910.129,
+          "total_ms": 6017.384
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 109.606,
+          "post_ms": 5979.974,
+          "total_ms": 6089.58
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/dom-injection/control",
+      "step": 0,
+      "pair": "typescript/dom-injection",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 125.389,
+          "post_ms": 1096.201,
+          "total_ms": 1221.59
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 126.992,
+          "post_ms": 1113.325,
+          "total_ms": 1240.317
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 137.418,
+          "post_ms": 1164.449,
+          "total_ms": 1301.8670000000002
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/dom-injection/control",
+      "step": 0,
+      "pair": "typescript/dom-injection",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 129.454,
+          "post_ms": 5905.485,
+          "total_ms": 6034.938999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.576,
+          "post_ms": 5912.692,
+          "total_ms": 6020.268
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 104.995,
+          "post_ms": 5957.575,
+          "total_ms": 6062.57
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/syntax/control",
+      "step": 0,
+      "pair": "typescript/syntax",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 119.115,
+          "post_ms": 5891.806,
+          "total_ms": 6010.920999999999
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.593,
+          "post_ms": 5887.682,
+          "total_ms": 5984.275
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 97.534,
+          "post_ms": 5963.354,
+          "total_ms": 6060.888
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/syntax/defect",
+      "step": 0,
+      "pair": "typescript/syntax",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 126.223,
+          "post_ms": 857.831,
+          "total_ms": 984.054
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 116.516,
+          "post_ms": 849.032,
+          "total_ms": 965.548
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 123.057,
+          "post_ms": 850.04,
+          "total_ms": 973.097
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/assignment-type/defect",
+      "step": 0,
+      "pair": "typescript/assignment-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 139.779,
+          "post_ms": 5900.666,
+          "total_ms": 6040.445
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 113.552,
+          "post_ms": 5909.251,
+          "total_ms": 6022.803
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.29,
+          "post_ms": 5872.641,
+          "total_ms": 5977.931
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "debt/typescript/shift",
+      "step": 0,
+      "pair": null,
+      "family": "existing-debt",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 133.101,
+          "post_ms": 1097.654,
+          "total_ms": 1230.755
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.772,
+          "post_ms": 1075.251,
+          "total_ms": 1196.023
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 121.391,
+          "post_ms": 1110.666,
+          "total_ms": 1232.057
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/cross-file-contract/defect",
+      "step": 0,
+      "pair": "typescript/cross-file-contract",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 139.552,
+          "post_ms": 944.648,
+          "total_ms": 1084.2
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 123.516,
+          "post_ms": 869.715,
+          "total_ms": 993.231
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.112,
+          "post_ms": 873.211,
+          "total_ms": 991.323
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/dom-injection/defect",
+      "step": 0,
+      "pair": "typescript/dom-injection",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 113.657,
+          "post_ms": null,
+          "total_ms": 113.657
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 101.374,
+          "post_ms": null,
+          "total_ms": 101.374
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 94.694,
+          "post_ms": null,
+          "total_ms": 94.694
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/removed-export/defect",
+      "step": 0,
+      "pair": "typescript/removed-export",
+      "family": "cross-file",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [
+        {
+          "repetition": 0,
+          "from": "detected_after_write",
+          "to": "missed"
+        },
+        {
+          "repetition": 1,
+          "from": "detected_after_write",
+          "to": "missed"
+        },
+        {
+          "repetition": 2,
+          "from": "detected_after_write",
+          "to": "missed"
+        }
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 123.106,
+          "post_ms": 5889.508,
+          "total_ms": 6012.614
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.468,
+          "post_ms": 5904.764,
+          "total_ms": 6001.232
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.263,
+          "post_ms": 5914.1,
+          "total_ms": 6019.363
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/async-promise/control",
+      "step": 0,
+      "pair": "typescript/async-promise",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 127.143,
+          "post_ms": 1081.963,
+          "total_ms": 1209.106
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 117.623,
+          "post_ms": 1123.415,
+          "total_ms": 1241.038
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.485,
+          "post_ms": 1109.264,
+          "total_ms": 1229.7489999999998
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/typescript/assignment-type/defect",
+      "step": 0,
+      "pair": "exact-edit/typescript/assignment-type",
+      "family": "exact-edit",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 121.92,
+          "post_ms": 847.301,
+          "total_ms": 969.221
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 121.355,
+          "post_ms": 854.368,
+          "total_ms": 975.7230000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 121.728,
+          "post_ms": 881.814,
+          "total_ms": 1003.5419999999999
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/typescript/assignment-type/control",
+      "step": 0,
+      "pair": "exact-edit/typescript/assignment-type",
+      "family": "exact-edit",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 135.839,
+          "post_ms": 1086.009,
+          "total_ms": 1221.848
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.996,
+          "post_ms": 1055.541,
+          "total_ms": 1174.537
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.556,
+          "post_ms": 1069.179,
+          "total_ms": 1187.7350000000001
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/finally-return/defect",
+      "step": 0,
+      "pair": "typescript/finally-return",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 128.14,
+          "post_ms": null,
+          "total_ms": 128.14
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 134.997,
+          "post_ms": null,
+          "total_ms": 134.997
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.45,
+          "post_ms": null,
+          "total_ms": 128.45
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/finally-return/defect",
+      "step": 0,
+      "pair": "typescript/finally-return",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 125.37,
+          "post_ms": 5893.472,
+          "total_ms": 6018.842
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.393,
+          "post_ms": 5881.967,
+          "total_ms": 5985.36
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 103.474,
+          "post_ms": 5958.314,
+          "total_ms": 6061.7880000000005
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "exact-edit/typescript/assignment-type/control",
+      "step": 0,
+      "pair": "exact-edit/typescript/assignment-type",
+      "family": "exact-edit",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 121.282,
+          "post_ms": 5872.019,
+          "total_ms": 5993.301
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 100.792,
+          "post_ms": 5890.775,
+          "total_ms": 5991.567
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 105.84,
+          "post_ms": 5932.64,
+          "total_ms": 6038.4800000000005
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/finally-return/control",
+      "step": 0,
+      "pair": "typescript/finally-return",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 130.889,
+          "post_ms": 1081.647,
+          "total_ms": 1212.536
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 126.097,
+          "post_ms": 1055.507,
+          "total_ms": 1181.604
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 117.165,
+          "post_ms": 1129.455,
+          "total_ms": 1246.62
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/dom-injection/defect",
+      "step": 0,
+      "pair": "typescript/dom-injection",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "provisional_outcomes": [
+        "missed"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 124.401,
+          "post_ms": 1081.703,
+          "total_ms": 1206.104
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 129.089,
+          "post_ms": 1067.703,
+          "total_ms": 1196.792
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 122.351,
+          "post_ms": 1100.521,
+          "total_ms": 1222.8719999999998
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/null-access/control",
+      "step": 0,
+      "pair": "typescript/null-access",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 128.916,
+          "post_ms": 1070.125,
+          "total_ms": 1199.041
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.919,
+          "post_ms": 1096.714,
+          "total_ms": 1217.633
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 124.074,
+          "post_ms": 1069.76,
+          "total_ms": 1193.834
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "debt/typescript/shift",
+      "step": 0,
+      "pair": null,
+      "family": "existing-debt",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "false_post_block"
+      ],
+      "provisional_outcomes": [
+        "false_post_block"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": true,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 119.516,
+          "post_ms": 5892.901,
+          "total_ms": 6012.4169999999995
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 96.369,
+          "post_ms": 5877.189,
+          "total_ms": 5973.558
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 98.275,
+          "post_ms": 6048.732,
+          "total_ms": 6147.007
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 149.659,
+          "post_ms": 1732.793,
+          "total_ms": 1882.4519999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 203.193,
+          "post_ms": 1325.615,
+          "total_ms": 1528.808
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 140.265,
+          "post_ms": 972.05,
+          "total_ms": 1112.315
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 204.376,
+          "post_ms": 2030.267,
+          "total_ms": 2234.643
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 155.802,
+          "post_ms": 1161.667,
+          "total_ms": 1317.4689999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.426,
+          "post_ms": 1191.613,
+          "total_ms": 1320.039
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/argument-type/defect",
+      "step": 0,
+      "pair": "typescript/argument-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "detected_after_write"
+      ],
+      "provisional_outcomes": [
+        "detected_after_write"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 131.214,
+          "post_ms": 915.092,
+          "total_ms": 1046.306
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 133.899,
+          "post_ms": 896.398,
+          "total_ms": 1030.297
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 136.14,
+          "post_ms": 995.141,
+          "total_ms": 1131.281
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/swallowed-error/defect",
+      "step": 0,
+      "pair": "typescript/swallowed-error",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "prevented"
+      ],
+      "provisional_outcomes": [
+        "prevented"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": true,
+      "prevented_all_runs": true,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 149.429,
+          "post_ms": null,
+          "total_ms": 149.429
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 125.735,
+          "post_ms": null,
+          "total_ms": 125.735
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 132.248,
+          "post_ms": null,
+          "total_ms": 132.248
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/assignment-type/control",
+      "step": 0,
+      "pair": "typescript/assignment-type",
+      "family": "bug",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 130.488,
+          "post_ms": 1129.737,
+          "total_ms": 1260.2250000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 128.532,
+          "post_ms": 1106.475,
+          "total_ms": 1235.0069999999998
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 159.745,
+          "post_ms": 1164.535,
+          "total_ms": 1324.2800000000002
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "typescript/swallowed-error/control",
+      "step": 0,
+      "pair": "typescript/swallowed-error",
+      "family": "bug",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "provisional_outcomes": [
+        "admitted"
+      ],
+      "scoring_corrections": [],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 142.998,
+          "post_ms": 5926.348,
+          "total_ms": 6069.346
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 113.76,
+          "post_ms": 5926.658,
+          "total_ms": 6040.418000000001
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 107.884,
+          "post_ms": 5898.143,
+          "total_ms": 6006.027
+        }
+      ],
+      "scans": []
+    }
+  ],
+  "reporter_sha256": "9d514fb73572fa1f8b85bfca8ada17ca7899c414e3e4bb7dcb51298a9fa4281b"
+}

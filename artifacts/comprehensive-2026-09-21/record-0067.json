@@ -1,0 +1,135 @@
+{
+  "case": "exact-edit/python/undefined-return/defect",
+  "language": "python",
+  "family": "exact-edit",
+  "pair": "exact-edit/python/undefined-return",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 131.515,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "32df1aab9621d7a87ef28ae57f08e3dd3196ed1e238add9ac6d3f648e72392b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 93.628,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 93.628
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 141.652,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: F821: Undefined name `missing_total`\nloki: hook command failed\n",
+            "ms": 141.652
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "32df1aab9621d7a87ef28ae57f08e3dd3196ed1e238add9ac6d3f648e72392b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 100.83,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 100.83
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 128.322,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: F821: Undefined name `missing_total`\nloki: hook command failed\n",
+            "ms": 128.322
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "32df1aab9621d7a87ef28ae57f08e3dd3196ed1e238add9ac6d3f648e72392b6",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 91.215,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 91.215
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 125.252,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: F821: Undefined name `missing_total`\nloki: hook command failed\n",
+            "ms": 125.252
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

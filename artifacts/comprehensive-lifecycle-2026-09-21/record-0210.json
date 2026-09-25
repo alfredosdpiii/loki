@@ -1,0 +1,165 @@
+{
+  "case": "python/shell-interpolation/control",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/shell-interpolation",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": [
+    686.269,
+    898.699,
+    909.999
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c68fb9aafe0fb2ed51dcfdab9022e4411800b98f0be7ff1a2117ae71cbdc154e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 208.874,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-i00sg464/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-i00sg464/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 208.874
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 229.611,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] app.py: 1 fns, max run=21 (\u0394+14), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] app.py: 1 fns, max run=21 (\u0394+14), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 229.611
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c68fb9aafe0fb2ed51dcfdab9022e4411800b98f0be7ff1a2117ae71cbdc154e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 152.685,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-i83sftpa/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-i83sftpa/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 152.685
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 182.284,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] app.py: 1 fns, max run=21 (\u0394+14), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] app.py: 1 fns, max run=21 (\u0394+14), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 182.284
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c68fb9aafe0fb2ed51dcfdab9022e4411800b98f0be7ff1a2117ae71cbdc154e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 175.474,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4vapfnf2/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:coverage] WARNING: per-edit coverage gate is ON for python but no supported test runner (pytest (+pytest-cov)) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-4vapfnf2/project/app.py; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 175.474
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 216.364,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:function-tokens] app.py: 1 fns, max run=21 (\u0394+14), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:no_test_file] [proven] No test file found for app.py\\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:function-tokens] app.py: 1 fns, max run=21 (\u0394+14), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in python3: pytest, pytest-cov, coverage. Inspect prerequisites with interlinked tests readiness python --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite python --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:no_test_file] [proven] No test file found for app.py\nno test file found (checked: app.test.py, app.spec.py, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 216.364
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 132.618
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 101.976
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.\"}}",
+      "stderr": "[interlinked:sandbox] Bash sandbox evidence=unknown: no enabled Claude sandbox setting was found. Sandboxing limits blast radius but does not roll back writes inside the workspace; Interlinked still judges the observed filesystem ChangeSet after the call.",
+      "ms": 145.341
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\\n  context: same Bash command run 2 prior times\\n  evidence: git status --short\"}}",
+      "stderr": "[interlinked:sequence] [proven] same_command_thrice_no_observe: Same Bash command about to run for the third time: `git status --short\u2026`. No intervening file read between runs \u2014 agent is repeating without observing the result. Read the output of the previous run before re-issuing, or rephrase the goal.\n  context: same Bash command run 2 prior times\n  evidence: git status --short",
+      "ms": 112.398
+    }
+  ]
+}

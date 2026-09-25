@@ -1,0 +1,107 @@
+{
+  "case": "typescript/cross-file-contract/defect",
+  "language": "typescript",
+  "family": "cross-file",
+  "pair": "typescript/cross-file-contract",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": 583.928,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "missed",
+      "bytes_landed": true,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 128.637,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 128.637
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 6032.191,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:cyclomatic] src/api.ts: 1 fns, \u03a3CC 1 (\u03940), max amount=1 (cap 25); cog\u03a3 0 (\u03940); ast\u0394 2\\n[interlinked:function-tokens] src/api.ts: 1 fns, max amount=10 (\u03940), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:missing_return_types] [proven] 1 exported function(s) without return type annotations in src/api.ts\\n  L1: export function amount() { return \\\"five\\\"; }\\n\u2192 Add explicit return type annotations to all exported functions. This improves API documentation, enables better type inference for consumers, and catches accidental return type changes.\\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\"}}",
+            "stderr": "[interlinked:cyclomatic] src/api.ts: 1 fns, \u03a3CC 1 (\u03940), max amount=1 (cap 25); cog\u03a3 0 (\u03940); ast\u0394 2\n[interlinked:function-tokens] src/api.ts: 1 fns, max amount=10 (\u03940), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:missing_return_types] [proven] 1 exported function(s) without return type annotations in src/api.ts\n  L1: export function amount() { return \"five\"; }\n\u2192 Add explicit return type annotations to all exported functions. This improves API documentation, enables better type inference for consumers, and catches accidental return type changes.\n[interlinked:no_test_file] [proven] No test file found for src/api.ts\nno test file found (checked: api.test.ts, api.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.",
+            "ms": 6032.191
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 87.27,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:48:44.905Z. Coordinate via MCP messages.\"}}",
+            "stderr": "[interlinked:sequence] [proven] file_overwrite_after_other_agent: About to write /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts, but claude wrote it within the last hour and this session has not read it. Read the current contents first to confirm the overwrite is intended, or acknowledge with `// interlinked: defer file_overwrite_after_other_agent -- <reason>`.\n  context: claude wrote /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts at 2026-09-20T17:43:45.008Z\n  evidence: /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts\n  evidence: 2026-09-20T17:43:45.008Z",
+            "ms": 87.27
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "c41597c9a7bc1e3f28c9fb3e4d0f2dc3f0a1ecbe66846435bd5894d3b5129563",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 90.3,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:48:44.905Z. Coordinate via MCP messages.\"}}",
+            "stderr": "[interlinked:sequence] [proven] file_overwrite_after_other_agent: About to write /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts, but claude wrote it within the last hour and this session has not read it. Read the current contents first to confirm the overwrite is intended, or acknowledge with `// interlinked: defer file_overwrite_after_other_agent -- <reason>`.\n  context: claude wrote /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts at 2026-09-20T17:43:45.008Z\n  evidence: /tmp/loki-comprehensive-5bqrt1yj/project/src/api.ts\n  evidence: 2026-09-20T17:43:45.008Z",
+            "ms": 90.3
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

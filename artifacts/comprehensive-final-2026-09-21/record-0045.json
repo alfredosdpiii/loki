@@ -1,0 +1,93 @@
+{
+  "case": "admission/source-redirect",
+  "language": "none",
+  "family": "admission",
+  "pair": null,
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 215.865,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4e96102c40e4c63867e6f51b4aa0dd749dca8a871d7e51266dc0c4b5f62dc134",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 87.911,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review\nloki: shell guard failed\n",
+            "ms": 87.911
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4e96102c40e4c63867e6f51b4aa0dd749dca8a871d7e51266dc0c4b5f62dc134",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 93.655,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review\nloki: shell guard failed\n",
+            "ms": 93.655
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "4e96102c40e4c63867e6f51b4aa0dd749dca8a871d7e51266dc0c4b5f62dc134",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 88.279,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review\nloki: shell guard failed\n",
+            "ms": 88.279
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

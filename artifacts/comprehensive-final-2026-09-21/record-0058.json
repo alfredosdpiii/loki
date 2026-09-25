@@ -1,0 +1,107 @@
+{
+  "case": "typescript/redirect-from-input/control",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/redirect-from-input",
+  "product": "interlinked",
+  "profile": "shared",
+  "setup_ms": 585.895,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "admitted",
+      "bytes_landed": true,
+      "proposed_sha256": "c4f7451dc570423ca6f0ec2b541f02ef884303ba069afa9133626ba2ab44b83c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": true,
+        "feedback_present": true,
+        "ms": 136.388,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \\\"not looked at\\\", not \\\"clean\\\"; the PostToolUse tsc pass is the backstop.\\n[interlinked:new_export_without_importer] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)\"}}",
+            "stderr": "[interlinked:biome-overlay] NOT CHECKED \u2014 external PreTool checks are deferred for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts; PostToolUse runs the on-disk check without blocking the daemon event loop.\n[interlinked:tsc-overlay] NOT CHECKED \u2014 the type-checker was unavailable for this edit of /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts (external PreTool checks are deferred to the admitted PostToolUse path). Zero findings here means \"not looked at\", not \"clean\"; the PostToolUse tsc pass is the backstop.\n[interlinked:new_export_without_importer] /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts has 1 violation(s) at L1 \u2014 Keep extracted helpers private (drop the `export`) unless a sibling module imports them; if the importer lands in the next edit, no action is needed.\n[interlinked:coverage] WARNING: per-edit coverage gate is ON for ts but no supported test runner (vitest or jest) was detected in this repo \u2014 skipping the gate for /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts; this edit was NOT coverage-checked. (further edits will not repeat this notice this session)",
+            "ms": 136.388
+          }
+        ]
+      },
+      "post": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 6117.689,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[interlinked:cyclomatic] src/main.ts: 1 fns, \u03a3CC 2 (\u0394+2), max navigate=2 (cap 25); fn\u0394 1; \u0394 fns: navigate new=2; cog\u03a3 1 (\u0394+1); ast\u0394 21\\n[interlinked:function-tokens] src/main.ts: 1 fns, max navigate=22 (\u0394+22), cap 500; tokenizer interlinked-code-v2\\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\\n[interlinked:missing_return_types] [proven] 1 exported function(s) without return type annotations in src/main.ts\\n  L1: export function navigate(input: string) { if (input === '/home') location.href = '/home'; }\\n\u2192 Add explicit return type annotations to all exported functions. This improves API documentation, enables better type inference for consumers, and catches accidental return type changes.\\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\\n  L1: unused export 'navigate' (no references anywhere) \u2014 delete the declaration, or document as public API\\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\\n[interlinked:magic_literal_in_conditional] [heuristic] 1 magic literal in conditional issue(s) in src/main.ts\\n  L1: export function navigate(input: string) { if (input === '/home') location.href = '/home'; }\\n\u2192 Extract the literal into a named constant or enum so the conditional reads as intent. `if (status === ORDER_FULFILLED)` tells a cold reader what branch they're in; `if (status === 2)` forces them to grep for where 2 is defined.\"}}",
+            "stderr": "[interlinked:cyclomatic] src/main.ts: 1 fns, \u03a3CC 2 (\u0394+2), max navigate=2 (cap 25); fn\u0394 1; \u0394 fns: navigate new=2; cog\u03a3 1 (\u0394+1); ast\u0394 21\n[interlinked:function-tokens] src/main.ts: 1 fns, max navigate=22 (\u0394+22), cap 500; tokenizer interlinked-code-v2\n[interlinked:test-contract-review] [heuristic] Derive expected results from supplied requirements/examples before inspecting implementation output. Preserve existing invocation modes when extending behavior. Use tests contracts import/inspect/run for executable public examples; tests review for changed expectations. Passing tests or coverage alone cannot validate their expected answers.\n[interlinked:test-readiness] Test evidence is unavailable in typescript: project-resolvable vitest. Inspect prerequisites with interlinked tests readiness typescript --json. No test layout was detected. Inspect custom layouts; otherwise retain executable assertions for the public contract, boundary/error cases and established behavior before extending it. Run interlinked tests suite typescript --json after adding tests. An ad hoc example or a test filename alone is not regression protection.\n[interlinked:missing_return_types] [proven] 1 exported function(s) without return type annotations in src/main.ts\n  L1: export function navigate(input: string) { if (input === '/home') location.href = '/home'; }\n\u2192 Add explicit return type annotations to all exported functions. This improves API documentation, enables better type inference for consumers, and catches accidental return type changes.\n[interlinked:no_test_file] [proven] No test file found for src/main.ts\nno test file found (checked: main.test.ts, main.spec.ts, __tests__/)\n\u2192 No companion test was found under the checked naming conventions; this does not establish missing behavioral coverage. Inspect the project's test layout and run relevant behavior. Add public-contract tests using its language and runner where coverage is missing.\n[interlinked:dead_exports] [heuristic] 1 dead exports issue(s) in src/main.ts\n  L1: unused export 'navigate' (no references anywhere) \u2014 delete the declaration, or document as public API\n\u2192 Either remove the unused export (so the public surface reflects what's actually consumed) or leave a comment explaining that it's deliberately part of the public API for external consumers. Cold readers \u2014 including agents \u2014 waste time trying to understand handles that nothing actually uses.\n[interlinked:magic_literal_in_conditional] [heuristic] 1 magic literal in conditional issue(s) in src/main.ts\n  L1: export function navigate(input: string) { if (input === '/home') location.href = '/home'; }\n\u2192 Extract the literal into a named constant or enum so the conditional reads as intent. `if (status === ORDER_FULFILLED)` tells a cold reader what branch they're in; `if (status === 2)` forces them to grep for where 2 is defined.",
+            "ms": 6117.689
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "c4f7451dc570423ca6f0ec2b541f02ef884303ba069afa9133626ba2ab44b83c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 102.077,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:59:13.508Z. Coordinate via MCP messages.\"}}",
+            "stderr": "[interlinked:sequence] [proven] file_overwrite_after_other_agent: About to write /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts, but claude wrote it within the last hour and this session has not read it. Read the current contents first to confirm the overwrite is intended, or acknowledge with `// interlinked: defer file_overwrite_after_other_agent -- <reason>`.\n  context: claude wrote /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts at 2026-09-20T17:54:13.622Z\n  evidence: /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts\n  evidence: 2026-09-20T17:54:13.622Z",
+            "ms": 102.077
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "c4f7451dc570423ca6f0ec2b541f02ef884303ba069afa9133626ba2ab44b83c",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 93.252,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"File reserved by session-bench-0. Expires 2026-09-20T17:59:13.508Z. Coordinate via MCP messages.\"}}",
+            "stderr": "[interlinked:sequence] [proven] file_overwrite_after_other_agent: About to write /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts, but claude wrote it within the last hour and this session has not read it. Read the current contents first to confirm the overwrite is intended, or acknowledge with `// interlinked: defer file_overwrite_after_other_agent -- <reason>`.\n  context: claude wrote /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts at 2026-09-20T17:54:13.622Z\n  evidence: /home/bryan/Projects/personal/loki/artifacts/tmp/b/b-id3fxstn/project/src/main.ts\n  evidence: 2026-09-20T17:54:13.622Z",
+            "ms": 93.252
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

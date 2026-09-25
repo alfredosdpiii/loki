@@ -1,0 +1,123 @@
+{
+  "case": "admission/reset-hard",
+  "language": "none",
+  "family": "admission",
+  "pair": null,
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    225.407,
+    417.415,
+    393.261
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "4d5136ce648d45dd2f32cdd81c1a43ba8d37f8e90c0045e6a9e6f3dd5b438e53",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 90.875,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell command requires review; use verified file tools for writes\nloki: shell guard failed\n",
+            "ms": 90.875
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "4d5136ce648d45dd2f32cdd81c1a43ba8d37f8e90c0045e6a9e6f3dd5b438e53",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 97.593,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell command requires review; use verified file tools for writes\nloki: shell guard failed\n",
+            "ms": 97.593
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "blocked_unrelated",
+      "bytes_landed": false,
+      "proposed_sha256": "4d5136ce648d45dd2f32cdd81c1a43ba8d37f8e90c0045e6a9e6f3dd5b438e53",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 84.581,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: shell command requires review; use verified file tools for writes\nloki: shell guard failed\n",
+            "ms": 84.581
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 91.118
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 95.667
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 88.265
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.893
+    }
+  ]
+}

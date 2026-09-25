@@ -1,0 +1,123 @@
+{
+  "case": "typescript/swallowed-error/defect",
+  "language": "typescript",
+  "family": "bug",
+  "pair": "typescript/swallowed-error",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": [
+    234.346,
+    385.894,
+    402.143
+  ],
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1bdb9d1e29cca9e71ae0dbc9bce7df68695e3d7a3c194d2f9f002b6782121852",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 224.382,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: eslint(no-empty): Unexpected empty block statements\nloki: hook command failed\n",
+            "ms": 224.382
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1bdb9d1e29cca9e71ae0dbc9bce7df68695e3d7a3c194d2f9f002b6782121852",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 149.155,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: eslint(no-empty): Unexpected empty block statements\nloki: hook command failed\n",
+            "ms": 149.155
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "startup-warmed",
+      "outcome": "prevented",
+      "bytes_landed": false,
+      "proposed_sha256": "1bdb9d1e29cca9e71ae0dbc9bce7df68695e3d7a3c194d2f9f002b6782121852",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 145.161,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "src/main.ts:2: eslint(no-empty): Unexpected empty block statements\nloki: hook command failed\n",
+            "ms": 145.161
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": [],
+  "warmups": [
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 90.203
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 86.829
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 93.293
+    },
+    {
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "ms": 88.941
+    }
+  ]
+}

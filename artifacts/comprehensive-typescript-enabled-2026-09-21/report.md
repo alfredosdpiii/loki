@@ -1,0 +1,104 @@
+# Installed-hook lifecycle benchmark
+
+This is a synthetic, author-written benchmark, not an independent product ranking.
+Both products ran unchanged. Repeated timings are not extra accuracy cases.
+A caught defect requires a matching diagnostic on every repetition.
+Post-write detection means the bytes already landed.
+
+Corpus version: 2.
+Corpus SHA-256: `4648d3277a8453fd45f1b6834b38cba26e207891528d8755a7447284c49aada3`.
+Repetitions: 3. Schedule seed: 20260921.
+Loki shell guard and committed npm test grant; Interlinked balanced; shared analyzer paths.
+Loki project type-check opt-in: enabled.
+
+## Matched results
+
+| Profile / product | Caught defects | Prevented before write | False blocks | Control feedback | Coverage warnings | Infrastructure errors |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| shared/interlinked | 10/14 | 3/14 | 1/15 | 15/15 | 26/29 | 0 |
+| shared/loki | 12/14 | 3/14 | 0/15 | 0/15 | 1/29 | 0 |
+
+Control feedback includes legitimate advisory and unavailable-coverage notices.
+It is not a false-positive count. False blocks include any blocked repetition.
+Infrastructure errors stay in denominators and earn no detection credit.
+
+## Shared-analyzer results by language
+
+| Language | Product | Caught | Pre-write | False blocks |
+| --- | --- | ---: | ---: | ---: |
+| typescript | loki | 12/14 | 3/14 | 0/15 |
+| typescript | interlinked | 10/14 | 3/14 | 1/15 |
+
+## Paired cases
+
+A successful pair catches the defect on every run and never blocks its control.
+Pair counts exclude standalone admission, scaling, debt, and workflow cases.
+
+| Profile / product | Successful pairs |
+| --- | ---: |
+| shared/interlinked | 9/12 |
+| shared/loki | 10/12 |
+
+## Hook latency
+
+Milliseconds, including process and sandbox startup. Post-write latency excludes denied writes.
+First invocation uses a fresh product process/fixture, not cold OS page caches.
+Startup-warmed trials use their own fresh fixture/daemon, with two git-status hook envelopes first. No compiler-result cache is prewarmed.
+Pooled timings mix languages and different amounts of work; do not treat them as a speed ranking.
+
+| Profile / product | Cache | Pre median / p95 | Post median / p95 | Total median / p95 |
+| --- | --- | ---: | ---: | ---: |
+| shared/interlinked | first-invocation | 130.78 / 163.89 | 5922.63 / 6172.23 | 6051.83 / 6337.82 |
+| shared/interlinked | startup-warmed | 107.42 / 138.46 | 5933.63 / 6199.69 | 6037.97 / 6319.24 |
+| shared/loki | first-invocation | 130.49 / 173.79 | 1094.01 / 1732.79 | 1216.83 / 1883.99 |
+| shared/loki | startup-warmed | 128.49 / 169.81 | 1107.87 / 1509.34 | 1226.31 / 1666.35 |
+
+## Explicit Go/Rust audit commands
+
+Separate from ordinary hooks. Loki runs `scan --base HEAD`; Interlinked runs `verify --json`.
+The commands have product-defined scopes. No claim of identical internal checks.
+
+| Product | Targeted defects found | Controls exiting zero |
+| --- | ---: | ---: |
+| loki | 0/0 | 0/0 |
+| interlinked | 0/0 | 0/0 |
+
+## Misses and unrelated blocks
+
+- loki: `typescript/redirect-from-input/defect` step 0: missed.
+- interlinked: `typescript/cross-file-contract/defect` step 0: missed.
+- interlinked: `workflow/typescript/multi-file-repair` step 0: missed.
+- interlinked: `typescript/redirect-from-input/defect` step 0: missed.
+- interlinked: `typescript/removed-export/defect` step 0: missed.
+- loki: `typescript/dom-injection/defect` step 0: missed.
+
+## False blocks and instability
+
+- shared/interlinked: `debt/typescript/shift` step 0: false_post_block.
+
+## Scoring audit
+
+The final scorer decodes native JSON and matches diagnostic lines, not regexes spanning escaped newlines. It excludes Node module-format notices from targeted detection. Raw records retain provisional outcomes.
+Corrections are listed below and in scorecard.json.
+
+- shared/interlinked `typescript/removed-export/defect`: ['detected_after_write'] -> ['missed'].
+
+## Coverage and limitations
+
+Steps with post-hook byte changes: {}.
+Steps with unexpected pre-hook byte changes: 0.
+
+- Author-written cases are not independent or representative of production.
+- First invocation is not an OS-cold disk/cache measurement.
+- Additional context can be advisory; post-write findings do not prevent bytes landing.
+- Generic denial without a target marker is not credited as targeted prevention.
+- Real host activation and explicit audit scans are separate from hook effectiveness.
+- Go/Rust audit commands have different product-defined scopes.
+- Cases include intentional policy violations, compiler errors, and semantic security gaps.
+- No live model writes, production repositories, long-running autonomous sessions, or cloud services.
+- The missing-JS profile removes project-local JS tools; it is not a no-tools machine.
+- The main profile supplies Biome's recommended config to both products and uses installed product policy otherwise.
+- Source formatting for Go, Rust, and Elixir happens before each proposed edit, outside measured hook time.
+- Native command hooks are invoked as installed. Separate live-host probes only establish startup activation.
+
+Raw handler output, exact corpus, schedule, tool versions, hashes, and audit output are in adjacent JSON files.

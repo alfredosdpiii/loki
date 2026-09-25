@@ -1,0 +1,135 @@
+{
+  "case": "python/unsafe-deserialization/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/unsafe-deserialization",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 124.03,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "9d4afec7d119827bf64077f2970f8e070bc6cf1a8b95920a2d80891cb12412cf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 93.088,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 93.088
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 144.867,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 144.867
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "9d4afec7d119827bf64077f2970f8e070bc6cf1a8b95920a2d80891cb12412cf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 102.127,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 102.127
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 146.67,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 146.67
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "9d4afec7d119827bf64077f2970f8e070bc6cf1a8b95920a2d80891cb12412cf",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 99.639,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 99.639
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 129.8,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S301: `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue\nloki: hook command failed\n",
+            "ms": 129.8
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

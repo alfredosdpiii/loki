@@ -1,0 +1,40 @@
+{
+  "identity_unchanged": true,
+  "groups": {
+    "shared/interlinked": {
+      "outcomes": {
+        "admitted": 26,
+        "detected_after_write": 12,
+        "missed": 12,
+        "prevented": 1
+      },
+      "steps": 51,
+      "errors": [],
+      "coverage_warning_steps": 17,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 304.598,
+        "p95": 1196.085,
+        "max": 1250.512
+      }
+    },
+    "shared/loki": {
+      "outcomes": {
+        "missed": 10,
+        "admitted": 25,
+        "detected_after_write": 15,
+        "false_post_block": 1
+      },
+      "steps": 51,
+      "errors": [],
+      "coverage_warning_steps": 0,
+      "inconsistent_cases": [],
+      "latency_ms": {
+        "median": 208.425,
+        "p95": 2562.9210000000003,
+        "max": 2662.964
+      }
+    }
+  },
+  "corpus_sha256": "4648d3277a8453fd45f1b6834b38cba26e207891528d8755a7447284c49aada3"
+}

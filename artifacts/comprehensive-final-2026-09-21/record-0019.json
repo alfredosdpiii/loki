@@ -1,0 +1,135 @@
+{
+  "case": "python/shell-interpolation/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/shell-interpolation",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 248.244,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 107.407,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 107.407
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 158.585,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S602: `subprocess` call with `shell=True` identified, security issue\nloki: hook command failed\n",
+            "ms": 158.585
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 104.772,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 104.772
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 143.497,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S602: `subprocess` call with `shell=True` identified, security issue\nloki: hook command failed\n",
+            "ms": 143.497
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "143a98fa06192d012de56a78850b73caee962c03f21bbdf8d385c0373a55755f",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 89.284,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 89.284
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 132.405,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S602: `subprocess` call with `shell=True` identified, security issue\nloki: hook command failed\n",
+            "ms": 132.405
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

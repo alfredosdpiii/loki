@@ -1,0 +1,474 @@
+{
+  "scope": "installed commands, not live agents or production security",
+  "engine_sha256": "f024cd238d652417d9f0cba46bfa3bcff8e1237f362b8db37a40fd7ce823e1e5",
+  "lock_sha256": "e7da3bd18e446611cc85c501d27cebf44207da4abd290cf4b1a336b1ca517649",
+  "versions": {
+    "elixir": "Erlang/OTP 27 [erts-15.2.7.8] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]\n\nElixir 1.17.3 (compiled with Erlang/OTP 27)",
+    "git": "git version 2.55.0"
+  },
+  "environment": {
+    "mix_env": "dev"
+  },
+  "sobelow_block": "low",
+  "events": [
+    {
+      "case": "valid edit with existing debt",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2223.64,
+      "samples_ms": [
+        2223.64
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3437967933.1737097218.95251>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.2126522479.2273705985.61508>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "old findings shifted down",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2297.83,
+      "samples_ms": [
+        2297.83
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.1017578128.2811101186.50356>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.1482610172.3347709953.80044>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "unsafe deserialization",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": "Misc.BinToTerm",
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 2,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2235.99,
+      "samples_ms": [
+        2235.99
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3913605303.4152492034.205265>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.1454179800.126746626.128731>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "unsafe deserialization repair",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2269.68,
+      "samples_ms": [
+        2269.68
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3117440645.931528706.162792>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.3593310498.1200750594.81333>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "controller SQL injection",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": "SQL.Query",
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 2,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2180.8,
+      "samples_ms": [
+        2180.8
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3997822380.2005532675.147077>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.3615935690.2542141441.58516>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "controller SQL injection repair",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2139.89,
+      "samples_ms": [
+        2139.89
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.4095496414.3079536643.141537>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.1790033195.3616145412.35128>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "controller code evaluation",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": "RCE.CodeModule",
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 2,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2160.41,
+      "samples_ms": [
+        2160.41
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3622157442.4153540612.124108>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.1081359913.395182084.28582>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "controller code evaluation repair",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2243.78,
+      "samples_ms": [
+        2243.78
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.137317088.1199964161.92917>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.2004061520.1469186049.29937>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "controller atom exhaustion",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": "DOS.StringToAtom",
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 2,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2246.51,
+      "samples_ms": [
+        2246.51
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3114906959.2273968132.56933>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.1608132698.2810576900.52148>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "controller atom exhaustion repair",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2212.89,
+      "samples_ms": [
+        2212.89
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.3291021537.3347972097.83461>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.71538882.3884580865.37257>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "caller-controlled URL",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": null,
+      "expectation_met": false,
+      "security_scope": "known coverage gap",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2190.71,
+      "samples_ms": [
+        2190.71
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.2144424088.127008770.8726>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.2101646317.663355396.209778>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "caller-controlled URL repair",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2179.84,
+      "samples_ms": [
+        2179.84
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.2320045536.1468399619.45282>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.2643291085.1737359364.167723>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "client-controlled authorization",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": null,
+      "expectation_met": false,
+      "security_scope": "known coverage gap",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2235.99,
+      "samples_ms": [
+        2235.99
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.278067578.2542403586.42039>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.4191723970.2811363332.203648>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "client-controlled authorization repair",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": null,
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 0,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2184.52,
+      "samples_ms": [
+        2184.52
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.1473410001.3616407554.148939>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.3261716695.4153016324.69139>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "plain helper code evaluation",
+      "stage": "post-write",
+      "pre_exit": 0,
+      "exit": 2,
+      "coverage_available": false,
+      "expected_rule": "RCE.CodeModule",
+      "targeted_finding": false,
+      "security_block": false,
+      "expected_exit": 2,
+      "expectation_met": false,
+      "security_scope": "behavioral regression",
+      "bytes_landed_before_check": true,
+      "hook_preserved_written_bytes": true,
+      "median_ms": 2256.57,
+      "samples_ms": [
+        2256.57
+      ],
+      "diagnostic": "loki: post-write check failed; files are already changed.\nmix format: ==> file_system\nmix format: Compiling 7 files (.ex)\nmix format: Generated file_system app\nmix format: ==> mime\nmix format: Compiling 1 file (.ex)\nmix format: Generated mime app\nmix format: ==> bunt\nmix format: Compiling 2 files (.ex)\nmix format: Generated bunt app\nmix format: ==> jason\nmix format: Compiling 10 files (.ex)\nmix format: Generated jason app\nmix format: ==> plug_crypto\nmix format: Compiling 5 files (.ex)\nmix format: Generated plug_crypto app\nmix format: ==> sobelow\nmix format: Compiling 51 files (.ex)\nmix format: == Compilation error in file lib/sobelow/parse.ex ==\nmix format: ** (ArgumentError) cannot escape #Reference<0.2918783534.395444225.45473>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\nmix format: (elixir 1.17.3) src/elixir_quote.erl:500: :elixir_quote.argument_error/1\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:149: :elixir_quote.do_escape/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:355: :elixir_quote.do_quote/2\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:409: :elixir_quote.do_quote_simple_list/3\nmix format: (elixir 1.17.3) src/elixir_quote.erl:162: :elixir_quote.do_escape/2\nmix format: could not compile dependency :sobelow, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile sobelow --force\", update it with \"mix deps.update sobelow\" or clean it with \"mix deps.clean sobelow\"\nNOT CHECKED Credo: Credo unavailable: warning: Execution halted during Elixir.Credo.Execution.Task.ConvertCLIOptionsToConfig! Unrecognized error: {:badconfig, nil, %ArgumentError{message: \"cannot escape #Reference<0.1689332832.932052993.40002>. The supported values are: lists, tuples, maps, atoms, numbers, bitstrings, PIDs and remote functions in the format &Mod.fun/arity\"}}\n  (credo 1.7.12) lib/credo/execution/task/convert_cli_options_to_config.ex:20: Credo.Execution.Task.ConvertCLIOptionsToConfig.error/2\n  (credo 1.7.12) lib/credo/execution/task.ex:138: Credo.Execution.Task.do_run/3\n  (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n  (credo 1.7.12) lib/credo.ex:30: Credo.run/1\n  (credo 1.7.12) lib/credo/cli.ex:41: Credo.CLI.run_to_halt/1\n  (elixir 1.17.3) src/elixir.erl:386: :elixir.eval_external_handler/3\n\n\nNOT CHECKED Sobelow: Sobelow failed (exit 1)\nloki: hook command failed\n",
+      "model_context": ""
+    },
+    {
+      "case": "valid component",
+      "stage": "explicit project tier",
+      "compile_status": "PASS",
+      "expected_compile_exit": 0,
+      "expectation_met": true,
+      "whole_gate_exit": 1,
+      "whole_gate_note": "Existing debt can fail other checks.",
+      "ms": 3088.06,
+      "checks": [
+        {
+          "tool": "format",
+          "status": "PASS",
+          "output": "==> file_system\nCompiling 7 files (.ex)\nGenerated file_system app\n==> mime\nCompiling 1 file (.ex)\nGenerated mime app\n==> bunt\nCompiling 2 files (.ex)\nGenerated bunt app\n==> jason\nCompiling 10 files (.ex)\nGenerated jason app\n==> sobelow\nCompiling 51 files (.ex)\nGenerated sobelow app\n==> plug_crypto\nCompiling 5 files (.ex)\nGenerated plug_crypto app",
+          "duration_ms": 1886.98
+        },
+        {
+          "tool": "credo",
+          "status": "FAIL",
+          "output": "{\n  \"issues\": [\n    {\n      \"category\": \"readability\",\n      \"check\": \"Credo.Check.Readability.ModuleDoc\",\n      \"column\": 11,\n      \"column_end\": 18,\n      \"filename\": \"lib/old_debt.ex\",\n      \"line_no\": 1,\n      \"message\": \"Modules should have a @moduledoc tag.\",\n      \"priority\": 1,\n      \"scope\": \"OldDebt\",\n      \"trigger\": \"OldDebt\"\n    }\n  ]\n}",
+          "duration_ms": 373.03
+        },
+        {
+          "tool": "compile",
+          "status": "PASS",
+          "output": "Compiling 5 files (.ex)\nGenerated loki_phoenix_fixture app",
+          "duration_ms": 426.95
+        },
+        {
+          "tool": "sobelow",
+          "status": "PASS",
+          "output": "{\n  \"findings\": {\n    \"high_confidence\": [],\n    \"low_confidence\": [],\n    \"medium_confidence\": []\n  },\n  \"sobelow_version\": \"0.14.1\",\n  \"total_findings\": 0\n}",
+          "duration_ms": 333.72
+        }
+      ]
+    },
+    {
+      "case": "missing required component attr",
+      "stage": "explicit project tier",
+      "compile_status": "FAIL",
+      "expected_compile_exit": 1,
+      "expectation_met": true,
+      "whole_gate_exit": 1,
+      "whole_gate_note": "Existing debt can fail other checks.",
+      "ms": 1437.81,
+      "checks": [
+        {
+          "tool": "format",
+          "status": "PASS",
+          "output": "",
+          "duration_ms": 343.13
+        },
+        {
+          "tool": "credo",
+          "status": "FAIL",
+          "output": "{\n  \"issues\": [\n    {\n      \"category\": \"readability\",\n      \"check\": \"Credo.Check.Readability.ModuleDoc\",\n      \"column\": 11,\n      \"column_end\": 18,\n      \"filename\": \"lib/old_debt.ex\",\n      \"line_no\": 1,\n      \"message\": \"Modules should have a @moduledoc tag.\",\n      \"priority\": 1,\n      \"scope\": \"OldDebt\",\n      \"trigger\": \"OldDebt\"\n    }\n  ]\n}",
+          "duration_ms": 372.63
+        },
+        {
+          "tool": "compile",
+          "status": "FAIL",
+          "output": "Compiling 1 file (.ex)\nwarning: missing required attribute \"name\" for component LokiPhoenixFixtureWeb.Components.greeting/1\n    \u2502\n 15 \u2502     <.greeting />\n    \u2502     ~~~~~~~~~~~~~\n    \u2502\n    \u2514\u2500 lib/loki_phoenix_fixture_web/components.ex:15: (file)\n\nCompilation failed due to warnings while using the --warnings-as-errors option",
+          "duration_ms": 344.26
+        },
+        {
+          "tool": "sobelow",
+          "status": "PASS",
+          "output": "{\n  \"findings\": {\n    \"high_confidence\": [],\n    \"low_confidence\": [],\n    \"medium_confidence\": []\n  },\n  \"sobelow_version\": \"0.14.1\",\n  \"total_findings\": 0\n}",
+          "duration_ms": 305.44
+        }
+      ]
+    },
+    {
+      "case": "malformed HEEx",
+      "stage": "explicit project tier",
+      "compile_status": "FAIL",
+      "expected_compile_exit": 1,
+      "expectation_met": true,
+      "whole_gate_exit": 1,
+      "whole_gate_note": "Existing debt can fail other checks.",
+      "ms": 1431.47,
+      "checks": [
+        {
+          "tool": "format",
+          "status": "FAIL",
+          "output": "mix format failed for file: lib/loki_phoenix_fixture_web/components.ex\n** (Phoenix.LiveView.TagEngine.Tokenizer.ParseError) lib/loki_phoenix_fixture_web/components.ex:1:11: unmatched closing tag. Expected </p> for <p> at line 1, got: </section>\n    (phoenix_live_view 1.2.12) lib/phoenix_live_view/html_formatter.ex:336: Phoenix.LiveView.HTMLFormatter.format/2\n    (elixir 1.17.3) lib/enum.ex:2531: Enum.\"-reduce/3-lists^foldl/2-0-\"/3\n    (elixir 1.17.3) lib/code/formatter.ex:1366: Code.Formatter.maybe_sigil_to_algebra/4\n    (elixir 1.17.3) lib/code/formatter.ex:504: Code.Formatter.quoted_to_algebra/3\n    (elixir 1.17.3) lib/code/formatter.ex:589: anonymous fn/3 in Code.Formatter.block_args_to_algebra/4\n    (elixir 1.17.3) lib/code/formatter.ex:2015: Code.Formatter.each_quoted_to_algebra_without_comments/4\n    (elixir 1.17.3) lib/code/formatter.ex:2001: Code.Formatter.quoted_to_algebra_with_comments/6\n    (elixir 1.17.3) lib/code/formatter.ex:594: Code.Formatter.block_args_to_algebra/4",
+          "duration_ms": 321.27
+        },
+        {
+          "tool": "credo",
+          "status": "FAIL",
+          "output": "{\n  \"issues\": [\n    {\n      \"category\": \"readability\",\n      \"check\": \"Credo.Check.Readability.ModuleDoc\",\n      \"column\": 11,\n      \"column_end\": 18,\n      \"filename\": \"lib/old_debt.ex\",\n      \"line_no\": 1,\n      \"message\": \"Modules should have a @moduledoc tag.\",\n      \"priority\": 1,\n      \"scope\": \"OldDebt\",\n      \"trigger\": \"OldDebt\"\n    }\n  ]\n}",
+          "duration_ms": 406.75
+        },
+        {
+          "tool": "compile",
+          "status": "FAIL",
+          "output": "Compiling 1 file (.ex)\n== Compilation error in file lib/loki_phoenix_fixture_web/components.ex ==\n** (Phoenix.LiveView.TagEngine.Tokenizer.ParseError) lib/loki_phoenix_fixture_web/components.ex:9:15: unmatched closing tag. Expected </p> for <p> at line 9, got: </section>\n    (phoenix_live_view 1.2.12) lib/phoenix_live_view/tag_engine/parser.ex:68: Phoenix.LiveView.TagEngine.Parser.parse!/2\n    (phoenix_live_view 1.2.12) lib/phoenix_live_view/tag_engine.ex:50: Phoenix.LiveView.TagEngine.compile/2\n    (phoenix_live_view 1.2.12) expanding macro: Phoenix.Component.sigil_H/2\n    lib/loki_phoenix_fixture_web/components.ex:8: LokiPhoenixFixtureWeb.Components.greeting/1",
+          "duration_ms": 323.23
+        },
+        {
+          "tool": "sobelow",
+          "status": "PASS",
+          "output": "{\n  \"findings\": {\n    \"high_confidence\": [],\n    \"low_confidence\": [],\n    \"medium_confidence\": []\n  },\n  \"sobelow_version\": \"0.14.1\",\n  \"total_findings\": 0\n}",
+          "duration_ms": 310.82
+        }
+      ]
+    },
+    {
+      "case": "component repair",
+      "stage": "explicit project tier",
+      "compile_status": "PASS",
+      "expected_compile_exit": 0,
+      "expectation_met": true,
+      "whole_gate_exit": 1,
+      "whole_gate_note": "Existing debt can fail other checks.",
+      "ms": 1363.51,
+      "checks": [
+        {
+          "tool": "format",
+          "status": "PASS",
+          "output": "",
+          "duration_ms": 288.48
+        },
+        {
+          "tool": "credo",
+          "status": "FAIL",
+          "output": "{\n  \"issues\": [\n    {\n      \"category\": \"readability\",\n      \"check\": \"Credo.Check.Readability.ModuleDoc\",\n      \"column\": 11,\n      \"column_end\": 18,\n      \"filename\": \"lib/old_debt.ex\",\n      \"line_no\": 1,\n      \"message\": \"Modules should have a @moduledoc tag.\",\n      \"priority\": 1,\n      \"scope\": \"OldDebt\",\n      \"trigger\": \"OldDebt\"\n    }\n  ]\n}",
+          "duration_ms": 376.18
+        },
+        {
+          "tool": "compile",
+          "status": "PASS",
+          "output": "Compiling 1 file (.ex)",
+          "duration_ms": 329.95
+        },
+        {
+          "tool": "sobelow",
+          "status": "PASS",
+          "output": "{\n  \"findings\": {\n    \"high_confidence\": [],\n    \"low_confidence\": [],\n    \"medium_confidence\": []\n  },\n  \"sobelow_version\": \"0.14.1\",\n  \"total_findings\": 0\n}",
+          "duration_ms": 299.8
+        }
+      ]
+    }
+  ]
+}

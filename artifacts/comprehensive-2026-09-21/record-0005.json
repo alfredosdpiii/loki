@@ -1,0 +1,93 @@
+{
+  "case": "elixir/atom-from-request/control",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/atom-from-request",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 234.457,
+  "events": [
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "3f69b365ad68d460a445c51c4f5bc0c867d64913564571160f215feda1ab7d39",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 107.194,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: invalid hook input: loki: rule_packs must contain known rule-pack names\nloki: hook command failed\n",
+            "ms": 107.194
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "3f69b365ad68d460a445c51c4f5bc0c867d64913564571160f215feda1ab7d39",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 92.391,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: invalid hook input: loki: rule_packs must contain known rule-pack names\nloki: hook command failed\n",
+            "ms": 92.391
+          }
+        ]
+      },
+      "post": null
+    },
+    {
+      "step": 0,
+      "kind": "control",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "false_block",
+      "bytes_landed": false,
+      "proposed_sha256": "3f69b365ad68d460a445c51c4f5bc0c867d64913564571160f215feda1ab7d39",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "deny",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 96.195,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: invalid hook input: loki: rule_packs must contain known rule-pack names\nloki: hook command failed\n",
+            "ms": 96.195
+          }
+        ]
+      },
+      "post": null
+    }
+  ],
+  "audit_scans": []
+}

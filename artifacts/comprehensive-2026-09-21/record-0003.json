@@ -1,0 +1,135 @@
+{
+  "case": "python/broad-exception-loss/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/broad-exception-loss",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 112.744,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1c873575de460c53cfdb9525d01530ee5f83ce29367ed0d48393360d8b6a992e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 92.071,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 92.071
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 123.323,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S110: `try`-`except`-`pass` detected, consider logging the exception\nloki: hook command failed\n",
+            "ms": 123.323
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1c873575de460c53cfdb9525d01530ee5f83ce29367ed0d48393360d8b6a992e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 90.911,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 90.911
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 144.82,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S110: `try`-`except`-`pass` detected, consider logging the exception\nloki: hook command failed\n",
+            "ms": 144.82
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "1c873575de460c53cfdb9525d01530ee5f83ce29367ed0d48393360d8b6a992e",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 91.704,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 91.704
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 123.147,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: S110: `try`-`except`-`pass` detected, consider logging the exception\nloki: hook command failed\n",
+            "ms": 123.147
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

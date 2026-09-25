@@ -1,0 +1,135 @@
+{
+  "case": "python/mutable-default/defect",
+  "language": "python",
+  "family": "bug",
+  "pair": "python/mutable-default",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 223.908,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5f7cd76ad52495cc11a9213be16996b6072ef0e657ef92f7c88ecfd5c4e361e7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 86.012,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 86.012
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 131.254,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: B006: Do not use mutable data structures for argument defaults\nloki: hook command failed\n",
+            "ms": 131.254
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 1,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5f7cd76ad52495cc11a9213be16996b6072ef0e657ef92f7c88ecfd5c4e361e7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 98.707,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 98.707
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 151.756,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: B006: Do not use mutable data structures for argument defaults\nloki: hook command failed\n",
+            "ms": 151.756
+          }
+        ]
+      }
+    },
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 2,
+      "cache_state": "repeated",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "5f7cd76ad52495cc11a9213be16996b6072ef0e657ef92f7c88ecfd5c4e361e7",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 110.151,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 110.151
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 161.208,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\napp.py: B006: Do not use mutable data structures for argument defaults\nloki: hook command failed\n",
+            "ms": 161.208
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}

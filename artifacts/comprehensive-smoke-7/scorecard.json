@@ -1,0 +1,375 @@
+{
+  "groups": {
+    "shared/interlinked": {
+      "counts": {
+        "defects": 1,
+        "caught": 0,
+        "prevented": 0,
+        "controls": 2,
+        "false_blocks": 0,
+        "control_feedback": 2,
+        "coverage_warning": 3,
+        "errors": 0,
+        "inconsistent": 0
+      },
+      "latency": {
+        "first-invocation": {
+          "pre_ms": {
+            "n": 3,
+            "median": 129.33,
+            "p95": 148.88,
+            "max": 148.88
+          },
+          "post_ms": {
+            "n": 3,
+            "median": 5975.8,
+            "p95": 6042.59,
+            "max": 6042.59
+          },
+          "total_ms": {
+            "n": 3,
+            "median": 6105.13,
+            "p95": 6191.47,
+            "max": 6191.47
+          }
+        },
+        "startup-warmed": {
+          "pre_ms": {
+            "n": 6,
+            "median": 116.24,
+            "p95": 136.54,
+            "max": 136.54
+          },
+          "post_ms": {
+            "n": 6,
+            "median": 6003.64,
+            "p95": 6115.23,
+            "max": 6115.23
+          },
+          "total_ms": {
+            "n": 6,
+            "median": 6119.87,
+            "p95": 6239.49,
+            "max": 6239.49
+          }
+        }
+      }
+    },
+    "shared/loki": {
+      "counts": {
+        "defects": 1,
+        "caught": 0,
+        "prevented": 0,
+        "controls": 2,
+        "false_blocks": 0,
+        "control_feedback": 0,
+        "coverage_warning": 0,
+        "errors": 0,
+        "inconsistent": 0
+      },
+      "latency": {
+        "first-invocation": {
+          "pre_ms": {
+            "n": 3,
+            "median": 185.85,
+            "p95": 214.7,
+            "max": 214.7
+          },
+          "post_ms": {
+            "n": 3,
+            "median": 379.13,
+            "p95": 412.37,
+            "max": 412.37
+          },
+          "total_ms": {
+            "n": 3,
+            "median": 563.37,
+            "p95": 593.83,
+            "max": 593.83
+          }
+        },
+        "startup-warmed": {
+          "pre_ms": {
+            "n": 6,
+            "median": 151.67,
+            "p95": 158.08,
+            "max": 158.08
+          },
+          "post_ms": {
+            "n": 6,
+            "median": 443.49,
+            "p95": 465.37,
+            "max": 465.37
+          },
+          "total_ms": {
+            "n": 6,
+            "median": 598.68,
+            "p95": 620.45,
+            "max": 620.45
+          }
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 129.33,
+          "post_ms": 5975.8,
+          "total_ms": 6105.13
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 113.794,
+          "post_ms": 6022.445,
+          "total_ms": 6136.239
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 118.68,
+          "post_ms": 5984.828,
+          "total_ms": 6103.508000000001
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 89.942,
+          "post_ms": 362.504,
+          "total_ms": 452.446
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 98.542,
+          "post_ms": 418.268,
+          "total_ms": 516.81
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 89.743,
+          "post_ms": 381.919,
+          "total_ms": 471.662
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 0,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "defect",
+      "outcomes": [
+        "missed"
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 214.703,
+          "post_ms": 379.126,
+          "total_ms": 593.829
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 150.659,
+          "post_ms": 465.372,
+          "total_ms": 616.031
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 148.93,
+          "post_ms": 378.406,
+          "total_ms": 527.336
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "workflow/typescript/multi-file-repair",
+      "step": 1,
+      "pair": null,
+      "family": "workflow",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 185.849,
+          "post_ms": 377.518,
+          "total_ms": 563.367
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 158.079,
+          "post_ms": 431.357,
+          "total_ms": 589.436
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 151.047,
+          "post_ms": 402.237,
+          "total_ms": 553.284
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "control/regex",
+      "step": 0,
+      "pair": null,
+      "family": "lexical-control",
+      "language": "typescript",
+      "product": "loki",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": false,
+      "feedback": false,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 147.7,
+          "post_ms": 412.366,
+          "total_ms": 560.066
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 157.07,
+          "post_ms": 463.381,
+          "total_ms": 620.451
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 152.298,
+          "post_ms": 455.628,
+          "total_ms": 607.9259999999999
+        }
+      ],
+      "scans": []
+    },
+    {
+      "case": "control/regex",
+      "step": 0,
+      "pair": null,
+      "family": "lexical-control",
+      "language": "typescript",
+      "product": "interlinked",
+      "profile": "shared",
+      "kind": "control",
+      "outcomes": [
+        "admitted"
+      ],
+      "caught_all_runs": false,
+      "prevented_all_runs": false,
+      "false_block_any_run": false,
+      "inconsistent": false,
+      "error": null,
+      "coverage_warning": true,
+      "feedback": true,
+      "post_modified": false,
+      "pre_modified": false,
+      "samples": [
+        {
+          "cache_state": "first-invocation",
+          "pre_ms": 148.88,
+          "post_ms": 6042.586,
+          "total_ms": 6191.466
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 120.499,
+          "post_ms": 6115.234,
+          "total_ms": 6235.733
+        },
+        {
+          "cache_state": "startup-warmed",
+          "pre_ms": 136.544,
+          "post_ms": 6102.946,
+          "total_ms": 6239.49
+        }
+      ],
+      "scans": []
+    }
+  ],
+  "reporter_sha256": "2ce93c0a0677d9bfa4e50dbd94e73d18be8985d8837bf7eb8b7fb816e8a83b72"
+}

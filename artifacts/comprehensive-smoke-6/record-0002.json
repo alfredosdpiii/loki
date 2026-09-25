@@ -1,0 +1,53 @@
+{
+  "case": "elixir/decode-untrusted-term/defect",
+  "language": "elixir",
+  "family": "phoenix-security",
+  "pair": "elixir/decode-untrusted-term",
+  "product": "loki",
+  "profile": "shared",
+  "setup_ms": 430.761,
+  "events": [
+    {
+      "step": 0,
+      "kind": "defect",
+      "repetition": 0,
+      "cache_state": "first-invocation",
+      "outcome": "detected_after_write",
+      "bytes_landed": true,
+      "proposed_sha256": "9c7c19bdc9496c70a0996b59418d84b3989f46493dd80d2d99c3d4b36a4ad575",
+      "post_modified_written_bytes": false,
+      "pre_modified_bytes": false,
+      "pre": {
+        "decision": "allow",
+        "targeted": false,
+        "coverage_warning": false,
+        "feedback_present": false,
+        "ms": 102.165,
+        "handlers": [
+          {
+            "exit": 0,
+            "stdout": "",
+            "stderr": "",
+            "ms": 102.165
+          }
+        ]
+      },
+      "post": {
+        "decision": "deny",
+        "targeted": true,
+        "coverage_warning": false,
+        "feedback_present": true,
+        "ms": 1622.473,
+        "handlers": [
+          {
+            "exit": 2,
+            "stdout": "",
+            "stderr": "loki: post-write check failed; files are already changed.\nlib/loki_phoenix_fixture_web/input_controller.ex:5: Sobelow high: Misc.BinToTerm: Unsafe `binary_to_term`\nloki: hook command failed\n",
+            "ms": 1622.473
+          }
+        ]
+      }
+    }
+  ],
+  "audit_scans": []
+}
