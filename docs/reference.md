@@ -18,6 +18,7 @@ Loki has no runtime dependencies. It needs Python 3.11 or newer.
 | Factory Droid | `.factory/hooks.json` hooks |
 | Pi | `.pi/extensions/loki.ts` |
 | OMP | `.omp/extensions/loki.ts` |
+| Ultron | built in; `init --minimal` installs `.loki/` only |
 
 Claude supports Write/Edit/MultiEdit. Codex supports the canonical `apply_patch`
 envelope. Factory supports Create/Edit; ApplyPatch is rejected until its payload
@@ -43,6 +44,20 @@ The installer copies Loki into `.loki/`, adds the agent adapters, and installs
 starter configuration for Ruff, Oxlint, golangci-lint, and GitHub Actions. It
 merges supported JSON files and leaves existing standalone configuration files
 untouched, except for adding Codex's hook-activation flag where safe.
+
+`init --minimal` installs only the engine and default policy in `.loki/`, for hosts
+that run the engine themselves (Ultron does this automatically). It writes no agent
+hooks, linter configuration or CI workflow, and refuses `--shell-guard` and
+`--managed-dir`. Without a committed `.ruff.toml`, post-write Python checks report
+`NOT CHECKED python ruff` instead of failing.
+
+Ultron's REPL writes files from Python, so it checks each `edit()`/`write()` with
+`protect --file <path> --preview ultron` (a full-content write envelope,
+`{"tool_name": "write", "tool_input": {"path", "content"}}`) and files a cell changed
+by other means with `hook`. `context --host ultron` prints a short version of the
+policy guidance for its system prompt. The Pi extension also handles Ultron's
+`before_file_write` and `after_cell_changes` events, unless Ultron's built-in
+integration is active (`ULTRON_LOKI_BUILTIN=1`).
 
 Upgrade with `init --force`. Unrelated hook handlers survive upgrades. Bootstrap
 and policy upgrades require independent review; scans reject their changes until

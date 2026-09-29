@@ -181,8 +181,12 @@ def security_policy(config: dict[str, Any]) -> dict[str, str]:
     return {"block": block, "warn": warn}
 
 
-def injected_context(root: Path, config: dict[str, Any]) -> str:
+def injected_context(
+    root: Path, config: dict[str, Any], host: str | None = None
+) -> str:
     packs = rule_packs(config)
+    if host == "ultron":
+        return ultron_context(packs)
     lines = [
         "LOKI POLICY GUIDANCE. This describes configured policy, not proof that "
         "hooks or analyzers are active. NOT CHECKED means coverage is unavailable.",
@@ -234,6 +238,25 @@ def injected_context(root: Path, config: dict[str, Any]) -> str:
             "installed. Selecting this guidance pack does not install that guard."
         )
     return "\n".join(lines)
+
+
+def ultron_context(packs: Iterable[str]) -> str:
+    """Short guidance for Ultron, whose model writes files from a Python REPL."""
+    checks = {
+        "core": "secrets, security rules, protected files",
+        "python": "Ruff (Python)",
+        "typescript": "Oxlint and type checks (TS/JS)",
+        "phoenix": "Credo and Sobelow (Elixir)",
+    }
+    listed = "; ".join(checks[pack] for pack in checks if pack in set(packs))
+    return (
+        "LOKI guardrails: edit() and write() are checked before the file "
+        "changes; other writes (bash, Path.write_text) are checked after the "
+        "cell. A blocked write raises ValueError with the finding: fix the cause "
+        "and retry. Never weaken Loki, its policy (.loki/), tests or hooks, and "
+        "never route writes through the shell to avoid checks."
+        + (f" Checks: {listed}." if listed else "")
+    )
 
 
 TEST_PATH_RE = re.compile(
@@ -4086,9 +4109,20 @@ def check_file(
                 for item in selected
                 if item.suffix == ".py" and item.is_file()
             )
-            violations.extend(
-                ruff_new_violations(root, None, paths=set(names), deadline=deadline)
-            )
+            try:
+                violations.extend(
+                    ruff_new_violations(root, None, paths=set(names), deadline=deadline)
+                )
+            except MissingRuffConfig as error:
+                # A minimal install (init --minimal) adds no .ruff.toml.
+                if strict:
+                    violations.append(f"{display}: loki: {error}")
+                else:
+                    warning = f"NOT CHECKED python ruff: {error}"
+                    if warnings is None:
+                        print(warning, file=sys.stderr)
+                    else:
+                        warnings.append(warning)
             if not violations:
                 optional("python types", mypy_violations, root, names)
             if checked_projects is not None:
@@ -5648,6 +5682,23 @@ def enable_codex_hooks(target: Path) -> None:
     path.write_text(valid[0], encoding="utf-8")
 
 
+def install_minimal(target: Path, force: bool = False) -> None:
+    """Install only the engine and default policy in .loki/, for hosts that
+    run the engine themselves (Ultron). No agent hooks, linter configuration
+    or CI workflow are written."""
+    target = target.expanduser().resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    copy_owned(Path(__file__).resolve(), target / ".loki" / "loki.py", force)
+    config_path = target / ".loki" / "loki.json"
+    if not config_path.exists():
+        shutil.copy2(template_path("loki.json"), config_path)
+    print("Installed loki engine and policy in .loki/ (minimal).")
+    print(
+        "Commit .loki/: policy is read from the committed version; "
+        "scan reports it as awaiting review until then."
+    )
+
+
 def install_target(target: Path, force: bool = False) -> None:
     target = target.expanduser().resolve()
     target.mkdir(parents=True, exist_ok=True)
@@ -5776,6 +5827,7 @@ def preview_changes(
         ("pi", "write"),
         ("pi", "edit"),
         ("omp", "write"),
+        ("ultron", "write"),
     }:
         return None
     if len(paths) != 1:
@@ -6042,6 +6094,7 @@ def build_parser() -> argparse.ArgumentParser:
     context.add_argument(
         "--event", choices=("SessionStart", "UserPromptSubmit"), default="SessionStart"
     )
+    context.add_argument("--host", choices=("ultron",))
     elixir = subparsers.add_parser("elixir")
     elixir.add_argument("--project", type=Path, default=Path("."))
     elixir.add_argument(
@@ -6066,7 +6119,7 @@ def build_parser() -> argparse.ArgumentParser:
         targets.add_argument("--harness", choices=("claude", "codex", "factory"))
         child.add_argument("--record", action="store_true")
         if name == "protect":
-            child.add_argument("--preview", choices=("pi", "omp"))
+            child.add_argument("--preview", choices=("pi", "omp", "ultron"))
     scan_parser = subparsers.add_parser("scan")
     scan_parser.add_argument("--online", action="store_true")
     scan_parser.add_argument("--strict", action="store_true")
@@ -6083,6 +6136,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--dir", default=".")
     init_parser.add_argument("--managed-dir", type=Path)
     init_parser.add_argument("--shell-guard", action="store_true")
+    init_parser.add_argument("--minimal", action="store_true")
     return parser
 
 
@@ -6180,7 +6234,9 @@ def dispatch_main() -> int:
                     {
                         "hookSpecificOutput": {
                             "hookEventName": args.event,
-                            "additionalContext": injected_context(context_root, config),
+                            "additionalContext": injected_context(
+                                context_root, config, args.host
+                            ),
                         }
                     }
                 )
@@ -6229,6 +6285,14 @@ def dispatch_main() -> int:
             return 1
     if args.command == "init":
         try:
+            if args.minimal:
+                if args.shell_guard or args.managed_dir:
+                    raise ValueError(
+                        "--minimal installs only .loki/; "
+                        "it takes neither --shell-guard nor --managed-dir"
+                    )
+                install_minimal(Path(args.dir), args.force)
+                return 0
             install_target(Path(args.dir), args.force)
             if args.shell_guard:
                 install_shell_guard(Path(args.dir).resolve())
@@ -7511,6 +7575,10 @@ def ruff_delta(
         return violations
 
 
+class MissingRuffConfig(ValueError):
+    """The base revision has no .ruff.toml, so net-new Ruff has no trusted config."""
+
+
 def ruff_new_violations(
     root: Path,
     reference: str | None,
@@ -7525,6 +7593,11 @@ def ruff_new_violations(
     protected = protected_change_violations(changes, policy or {})
     if protected:
         return protected
+    listed = git_output(
+        root, ["ls-tree", "--name-only", base, "--", ".ruff.toml"], deadline=deadline
+    )
+    if not listed.strip():
+        raise MissingRuffConfig("no committed .ruff.toml")
     raw = git_output(root, ["show", f"{base}:.ruff.toml"], deadline=deadline)
     evidence_policy("base", ".ruff.toml", raw, base=base)
     pairs = [

@@ -237,6 +237,7 @@ an agent can't loosen it mid-session:
 | Factory Droid | `.factory/hooks.json` hooks |
 | Pi | `.pi/extensions/loki.ts` |
 | OMP | `.omp/extensions/loki.ts` |
+| [Ultron](https://github.com/alfredosdpiii/ultron) | built in (`loki init --minimal` installs `.loki/` only) |
 
 ## Documentation
 

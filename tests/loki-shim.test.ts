@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { installContext, installGuard, directPaths, type ExtensionApi } from "../shim/loki.ts";
+import { installContext, installGuard, installUltron, directPaths, type ExtensionApi } from "../shim/loki.ts";
 
 type Handler = Parameters<ExtensionApi["on"]>[1];
 function fixture(checker?: string) {
@@ -185,4 +185,34 @@ test("installed Pi and OMP use relocated engine for context, files and shell per
       writeFileSync(join(root, "package.json"), packageJson);
     }
   } finally { rmSync(parent, { recursive: true, force: true }); }
+});
+
+test("Ultron file events check proposed content and report post-cell findings", async () => {
+  const root = mkdtempSync(join(tmpdir(), "loki-ultron-test-"));
+  try {
+    expect(spawnSync("git", ["init", "-q", root]).status).toBe(0);
+    mkdirSync(join(root, ".loki"));
+    copyFileSync(fileURLToPath(new URL("../loki.py", import.meta.url)), join(root, ".loki/loki.py"));
+    // Post-write checks compare against the committed policy, so the engine must be committed.
+    const identity = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.com", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.com" };
+    expect(spawnSync("git", ["add", ".loki"], { cwd: root }).status).toBe(0);
+    expect(spawnSync("git", ["-c", "commit.gpgsign=false", "commit", "-qm", "loki"], { cwd: root, env: identity }).status).toBe(0);
+    const handlers: Record<string, Handler> = {};
+    const api: ExtensionApi = { on: (name, handler) => { handlers[name] = handler; } };
+    installUltron(api, root, { LOKI_DAEMON: "0" });
+    const key = ["sk", "proj", "A1b2C3d4".repeat(6)].join("-");
+    const path = join(root, "settings.py");
+    const blocked = await handlers.before_file_write({ path, content: `KEY = "${key}"\n`, cwd: root });
+    expect(blocked).toHaveProperty("block", true);
+    expect((blocked as { reason: string }).reason).toContain("loki/secret");
+    expect(await handlers.before_file_write({ path, content: "VALUE = 1\n", cwd: root })).toBeUndefined();
+    expect(await handlers.before_file_write({ path: "a\0b", content: "", cwd: root })).toHaveProperty("block", true);
+    writeFileSync(path, `KEY = "${key}"\n`);
+    const after = await handlers.after_cell_changes({ files: [path], checked: [], cwd: root });
+    expect((after as { message: string }).message).toContain("loki/secret");
+    expect(await handlers.after_cell_changes({ files: [], cwd: root })).toBeUndefined();
+    const skipped: Record<string, Handler> = {};
+    installUltron({ on: (name, handler) => { skipped[name] = handler; } }, root, { ULTRON_LOKI_BUILTIN: "1" });
+    expect(Object.keys(skipped)).toEqual([]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

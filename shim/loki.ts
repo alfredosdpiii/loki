@@ -94,8 +94,53 @@ export function installGuard(api: ExtensionApi, root: string, extract: (toolName
   }
 }
 
+/**
+ * Ultron's REPL writes files from Python, so Pi's edit/write tool events never fire there. Ultron instead emits
+ * `before_file_write` ({path, content}) before `edit()`/`write()` change a file, and `after_cell_changes`
+ * ({files, checked}) with the files a cell changed by other means. Ultron's built-in Loki integration handles both
+ * itself and sets ULTRON_LOKI_BUILTIN=1; this extension then stays out of the way instead of checking twice.
+ */
+export function installUltron(api: ExtensionApi, root: string, env: NodeJS.ProcessEnv = process.env) {
+  if (env.ULTRON_LOKI_BUILTIN === "1") return;
+  api.on("before_file_write", async (value, ctx) => {
+    if (!value || typeof value !== "object" || !("path" in value) || !("content" in value)) return;
+    let failed = true;
+    let text: string;
+    try {
+      const cwd = "cwd" in value && typeof value.cwd === "string" ? value.cwd : ctx?.cwd;
+      if (typeof cwd !== "string") throw new Error("loki: missing handler cwd");
+      if (typeof value.content !== "string") throw new Error("loki: invalid write content");
+      const path = localTarget(value.path, cwd);
+      const result = spawnSync("python3", [...checkerArgs(root), "protect", "--file", path, "--preview", "ultron"], {
+        cwd: root, encoding: "utf8", timeout: 30_000,
+        input: JSON.stringify({ cwd, tool_name: "write", tool_input: { path, content: value.content } }),
+      });
+      failed = Boolean(result.error || result.signal || result.status !== 0);
+      text = result.stderr?.trim() || (failed ? `loki: checker unavailable: ${result.error?.message || result.signal || `exit status ${result.status}`}` : "");
+    } catch (error) {
+      text = error instanceof Error ? error.message : String(error);
+      if (!text) text = "loki: checker unavailable";
+    }
+    if (failed) return { block: true, reason: text };
+    return text ? { message: text } : undefined;
+  });
+  api.on("after_cell_changes", async (value, ctx) => {
+    if (!value || typeof value !== "object" || !("files" in value) || !Array.isArray(value.files)) return;
+    const cwd = "cwd" in value && typeof value.cwd === "string" ? value.cwd : ctx?.cwd;
+    if (typeof cwd !== "string") return;
+    const checked = "checked" in value && Array.isArray(value.checked) ? value.checked : [];
+    const targets = [...new Set([...value.files, ...checked].filter((path): path is string => typeof path === "string").map(path => localTarget(path, cwd)))];
+    if (!targets.length) return;
+    const result = spawnSync("python3", [...checkerArgs(root), "hook", ...targets.flatMap(path => ["--file", path])], { cwd: root, encoding: "utf8", timeout: 60_000 });
+    const failed = Boolean(result.error || result.signal || result.status !== 0);
+    const text = result.stderr?.trim() || (failed ? `loki: checker unavailable: ${result.error?.message || result.signal || `exit status ${result.status}`}` : "");
+    return text ? { message: failed ? `loki gate failed:\n${text}` : text } : undefined;
+  });
+}
+
 export default function (api: ExtensionApi) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   installContext(api, root);
   installGuard(api, root, directPaths);
+  installUltron(api, root);
 }
