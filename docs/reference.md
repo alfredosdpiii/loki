@@ -54,8 +54,8 @@ hooks, linter configuration or CI workflow, and refuses `--shell-guard` and
 Ultron's REPL writes files from Python, so it checks each `edit()`/`write()` with
 `protect --file <path> --preview ultron` (a full-content write envelope,
 `{"tool_name": "write", "tool_input": {"path", "content"}}`) and files a cell changed
-by other means with `hook`. `context --host ultron` prints a short version of the
-policy guidance for its system prompt. The Pi extension also handles Ultron's
+by other means with `hook --format json`. `context --host ultron` prints a short
+version of the policy guidance for its system prompt. The Pi extension also handles Ultron's
 `before_file_write` and `after_cell_changes` events, unless Ultron's built-in
 integration is active (`ULTRON_LOKI_BUILTIN=1`).
 
@@ -214,6 +214,71 @@ debt and line shifts pass:
 Missing optional analyzers are skipped; analyzer failures and timeouts are
 `NOT CHECKED`, and strict mode fails them.
 
+Three write-time checks are not net-new and can report findings that were
+already in the file or its package: Oxlint errors in the written file (after its
+automatic fixes), `go vet` for the written file's package, and
+`mix format --check-formatted` for the written file.
+
+### Python import and AST checks
+
+Two tool-free checks run on written Python files. In hooks both are net-new
+against the committed text, matched by finding and source-line text with
+multiplicity, like the content rules: an abstract method or an import that was
+already in the file is never reported, wherever its line moved. A new file is
+checked whole, and so is every file in `loki scan`. A file whose committed text
+does not parse under Loki's Python (another dialect) is `NOT CHECKED python ast`.
+
+- **`stub body in <name>`** flags a function whose whole body, after an optional
+  docstring, is `pass`, `...` or `raise NotImplementedError`: the shape of an
+  implementation left for later. Declarations are not placeholders and pass:
+  functions decorated with `abstractmethod` (and the other `abc` decorators) or
+  `overload`, every method of a class that derives from `ABC` or `Protocol` or
+  uses `metaclass=ABCMeta`, and any method that raises `NotImplementedError`
+  (the base-class convention for "subclasses implement this"). A `pass` or `...`
+  method in an ordinary class, and a module-level function that raises
+  `NotImplementedError`, are still flagged.
+- **`unresolved import <module>`** flags an absolute import that the project's
+  interpreter cannot find. The standard library, declared dependencies
+  (`pyproject.toml` `[project].dependencies`, `requirements*.txt`), the project's
+  own modules (at the root, under `src/`, or beside the file) and imports inside
+  `try:` with `except ImportError` are known without asking. For the rest Loki
+  asks the project's interpreter (`importlib.util.find_spec`, nothing is
+  imported), never the interpreter Loki itself runs on, whose packages are not
+  the project's. The interpreter is `--python <path>` or `LOKI_PYTHON`, else the
+  virtual or conda environment active in the hook's environment (`VIRTUAL_ENV`,
+  `CONDA_PREFIX`), else `.venv` or `venv` in the project. When none is found, or
+  it does not answer, the result is `NOT CHECKED python imports`, not a finding.
+
+### Hook output
+
+`protect` and `hook` exit 2 when a finding blocks and 0 otherwise. A run that
+has only advisory findings (structural sloppiness without `slop.block`, Oxlint
+and Sobelow warnings) or `NOT CHECKED` notes exits 0 and prints them without a
+failure line. When a check fails, the blocking findings come first; advisory
+lines follow a `loki: advisory (not blocking):` line, then `NOT CHECKED` notes.
+
+`--format json` (with `--file`) also prints one JSON object on standard output,
+for hosts that present the tiers themselves:
+
+```json
+{
+  "loki": "0.1.3",
+  "command": "hook",
+  "status": "blocked",
+  "blocking": [{"text": "app.py:29: python-ast: stub body in todo", "path": "app.py", "line": 29, "rule": "python-ast"}],
+  "advisory": [{"text": "app.py:1: loki/slop-complexity: f cyclomatic complexity 2 -> 13 (> 10); split it into smaller functions", "path": "app.py", "line": 1, "rule": "loki/slop-complexity"}],
+  "not_checked": ["NOT CHECKED python: missing ruff"]
+}
+```
+
+`status` is `blocked` exactly when `blocking` is not empty, `passed` otherwise,
+and `error` (with an `error` text) when the input or policy was invalid. `path`,
+`line` and `rule` are present when the finding names them. With `LOKI_STRICT=1` a
+missing check is a blocking finding, not a `not_checked` note. Standard error and
+the exit status are the same in both formats. `context --host <host>` adds
+`"loki": {"version", "formats"}` so a host can tell whether the engine it runs
+knows `--format json`.
+
 ### Warm daemon
 
 Hooks for `protect`, `hook` and `shell` start a per-repository daemon the first
@@ -288,7 +353,10 @@ The latter needs `--base`.
 
 After each write, Loki compares the written files with their committed text. It
 reports functions that become or grow as CC > 10 hotspots, new clones of other
-code, and new import cycles. These go to the agent as advisory context; set
+code, and new import cycles. A function whose source is unchanged is never
+reported, and a changed one is compared with its own committed version, not with
+another function of the same name (`__init__`, an override in a sibling class).
+These go to the agent as advisory context; set
 `"block": true` to make them post-write failures. At write time, Python, Go and
 TypeScript complexity is exact; Elixir, Rust and other languages use the
 structural approximation there, and exact analysis is used in audits. Clone
@@ -585,7 +653,8 @@ Ruff check, not a replacement for the complete repository scan or cross-file typ
 
 Ordinary Python hooks now use this trusted-config net-new Ruff comparison for the
 touched file. They require a committed, self-contained `.ruff.toml` and do not run
-automatic Ruff fixes or formatting. Import/AST checks remain whole-file checks.
+automatic Ruff fixes or formatting. Import and AST checks are net-new against the
+committed text as well (see [Python import and AST checks](#python-import-and-ast-checks)).
 
 Project-wide TypeScript diagnostics are compared between the committed base and
 the working tree, using the same compiler and the committed root `tsconfig.json`.

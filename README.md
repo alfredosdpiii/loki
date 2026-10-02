@@ -226,6 +226,7 @@ an agent can't loosen it mid-session:
 | `slop.block` | `false` | Turns new hotspots, clones and cycles from advice into failures |
 | `shell_commands` | none | Exact, reviewed shell commands the shell guard admits (enable the guard with `loki init --shell-guard`) |
 | `LOKI_STRICT=1` | off | Missing analyzers fail instead of reporting `NOT CHECKED` |
+| `LOKI_PYTHON=<path>` | active venv or conda env, then `.venv` | The project's interpreter, asked whether a new import exists (`--python` on `hook`, `protect` and `scan`) |
 | `LOKI_DAEMON=0` | on | Runs every hook in-process |
 
 ## Supported agents

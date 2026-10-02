@@ -596,74 +596,322 @@ def declared_python_dependencies(root: Path) -> set[str]:
     return dependencies
 
 
-def local_python_module(root: Path, module: str) -> bool:
-    return (root / f"{module}.py").is_file() or (root / module).is_dir()
+def local_python_module(root: Path, module: str, directory: Path | None = None) -> bool:
+    """A module of the project itself: at the root, under src/, or beside the file."""
+    bases = [root, root / "src"] + ([directory] if directory is not None else [])
+    return any(
+        (base / f"{module}.py").is_file() or (base / module).is_dir() for base in bases
+    )
+
+
+ABSTRACT_DECORATORS = {
+    "abstractmethod",
+    "abstractproperty",
+    "abstractclassmethod",
+    "abstractstaticmethod",
+    "overload",
+}
+INTERFACE_BASES = {"ABC", "Protocol"}
+OPTIONAL_IMPORT_ERRORS = {"ImportError", "ModuleNotFoundError", "Exception"}
+
+
+def reference_name(node: ast.AST) -> str | None:
+    """The last name of a decorator, base class or exception reference."""
+    if isinstance(node, (ast.Call, ast.Subscript)):
+        node = node.func if isinstance(node, ast.Call) else node.value
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return node.id if isinstance(node, ast.Name) else None
+
+
+def interface_class(node: ast.ClassDef) -> bool:
+    """An ABC or Protocol: its methods are declarations, not unfinished code."""
+    return any(reference_name(base) in INTERFACE_BASES for base in node.bases) or any(
+        keyword.arg == "metaclass" and reference_name(keyword.value) == "ABCMeta"
+        for keyword in node.keywords
+    )
+
+
+def stub_statement(node: ast.FunctionDef | ast.AsyncFunctionDef) -> ast.stmt | None:
+    """The single placeholder statement a function consists of, if it is one."""
+    body = node.body
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+    if len(body) != 1:
+        return None
+    statement = body[0]
+    if isinstance(statement, ast.Pass) or (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Constant)
+        and statement.value.value is Ellipsis
+    ):
+        return statement
+    if isinstance(statement, ast.Raise) and isinstance(
+        statement.exc, (ast.Name, ast.Call)
+    ):
+        exception = statement.exc
+        name = exception if isinstance(exception, ast.Name) else exception.func
+        if isinstance(name, ast.Name) and name.id == "NotImplementedError":
+            return statement
+    return None
+
+
+def python_stubs(tree: ast.AST) -> list[tuple[int, str]]:
+    """(line, name) of placeholder function bodies.
+
+    Declarations are not placeholders: abstract and overloaded functions, the
+    methods of an ABC or Protocol, and a method that raises NotImplementedError
+    for subclasses to override.
+    """
+    found: list[tuple[int, str]] = []
+
+    def visit(node: ast.AST, owner: ast.ClassDef | None) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                statement = stub_statement(child)
+                declared = (
+                    any(
+                        reference_name(decorator) in ABSTRACT_DECORATORS
+                        for decorator in child.decorator_list
+                    )
+                    or (owner is not None and interface_class(owner))
+                    or (owner is not None and isinstance(statement, ast.Raise))
+                )
+                if statement is not None and not declared:
+                    found.append((child.lineno, child.name))
+                visit(child, None)
+            else:
+                visit(child, child if isinstance(child, ast.ClassDef) else None)
+
+    visit(tree, None)
+    return sorted(found)
+
+
+def python_unknown_imports(
+    tree: ast.AST, root: Path, directory: Path, declared: set[str]
+) -> list[tuple[int, str]]:
+    """(line, module) of absolute imports that nothing in the repository explains.
+
+    The standard library, declared dependencies, the project's own modules and
+    imports guarded by `except ImportError` are known. Whether the rest exist is
+    a question for the project's interpreter (resolve_imports).
+    """
+    optional: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try) and any(
+            handler.type is None
+            or any(
+                reference_name(item) in OPTIONAL_IMPORT_ERRORS
+                for item in (
+                    handler.type.elts
+                    if isinstance(handler.type, ast.Tuple)
+                    else [handler.type]
+                )
+            )
+            for handler in node.handlers
+        ):
+            for statement in node.body:
+                optional.update(id(inner) for inner in ast.walk(statement))
+    imported: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if id(node) in optional:
+            continue
+        if isinstance(node, ast.Import):
+            imported.extend(
+                (node.lineno, alias.name.split(".", 1)[0]) for alias in node.names
+            )
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            imported.append((node.lineno, node.module.split(".", 1)[0]))
+    return [
+        (line, module)
+        for line, module in imported
+        if module not in sys.stdlib_module_names
+        and module not in sys.builtin_module_names
+        and module != "__main__"
+        and module.lower().replace("-", "_") not in declared
+        and not local_python_module(root, module, directory)
+    ]
+
+
+IMPORT_PROBE = """
+import json, sys
+try:
+    from importlib.util import find_spec as find
+except ImportError:
+    from pkgutil import find_loader as find
+missing = []
+for name in sys.argv[1:]:
+    try:
+        found = find(name) is not None
+    except Exception:
+        found = False
+    if not found:
+        missing.append(name)
+print(json.dumps(missing))
+"""
+IMPORT_MEMO: dict[tuple[str, str], dict[str, bool]] = {}
+
+
+def project_python(root: Path, explicit: str | None = None) -> str | None:
+    """The interpreter the project runs on, never the one running Loki.
+
+    In order: --python or LOKI_PYTHON, the virtual or conda environment active
+    in the hook's environment, then a .venv or venv directory in the project.
+    """
+    named = explicit or os.environ.get("LOKI_PYTHON")
+    if named:
+        return named
+    prefixes = [
+        Path(value)
+        for variable in ("VIRTUAL_ENV", "CONDA_PREFIX")
+        if (value := os.environ.get(variable))
+    ]
+    for prefix in (*prefixes, root / ".venv", root / "venv"):
+        for relative in ("bin/python", "bin/python3", "Scripts/python.exe"):
+            if (prefix / relative).is_file():
+                return str(prefix / relative)
+    return None
+
+
+def resolve_imports(
+    root: Path,
+    modules: Iterable[str],
+    *,
+    python: str | None = None,
+    deadline: float | None = None,
+) -> set[str]:
+    """The modules the project's interpreter cannot import.
+
+    Raises ValueError when that cannot be known: no project interpreter was
+    named or found, or it did not answer.
+    """
+    wanted = sorted(set(modules))
+    if not wanted:
+        return set()
+    interpreter = project_python(root, python)
+    if interpreter is None:
+        raise ValueError(
+            "no project interpreter found (set LOKI_PYTHON or pass --python)"
+        )
+    known = IMPORT_MEMO.setdefault((interpreter, str(root)), {})
+    asked = [module for module in wanted if module not in known]
+    if asked:
+        try:
+            result = subprocess.run(
+                [interpreter, "-c", IMPORT_PROBE, *asked],
+                cwd=root,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=min(15, command_timeout(deadline)),
+                check=False,
+            )
+            missing = json.loads(result.stdout) if result.returncode == 0 else None
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+            raise ValueError(
+                f"project interpreter {interpreter} unavailable: {error}"
+            ) from error
+        if not isinstance(missing, list):
+            raise ValueError(
+                f"project interpreter {interpreter} unavailable: "
+                + (result.stderr.strip()[:200] or f"exited {result.returncode}")
+            )
+        known.update({module: module not in missing for module in asked})
+    return {module for module in wanted if not known[module]}
+
+
+def not_checked(message: str, strict: bool, warnings: list[str] | None) -> list[str]:
+    """Report unavailable coverage: a failure in strict mode, else a warning."""
+    if strict:
+        return [message]
+    if warnings is None:
+        print(message, file=sys.stderr)
+    elif message not in warnings:
+        warnings.append(message)
+    return []
+
+
+def net_new(
+    found: list[tuple[int, str]], prior: list[tuple[int, str]], after: str, before: str
+) -> list[tuple[int, str]]:
+    """Findings absent from the base, matched by finding and source-line text."""
+    seen = Counter((name, line_text(before, line)) for line, name in prior)
+    kept = []
+    for line, name in found:
+        key = (name, line_text(after, line))
+        if seen[key] > 0:
+            seen[key] -= 1
+        else:
+            kept.append((line, name))
+    return kept
 
 
 def python_ast_violations(
-    path: Path, root: Path, dependencies: set[str] | None = None
+    path: Path,
+    root: Path,
+    dependencies: set[str] | None = None,
+    *,
+    base: str = "",
+    python: str | None = None,
+    strict: bool = False,
+    warnings: list[str] | None = None,
+    deadline: float | None = None,
 ) -> list[str]:
+    """Placeholder bodies and unresolvable imports in a Python file.
+
+    With `base` (the file's committed text) only findings the edit introduced
+    are reported, matched by finding and source-line text, so existing debt and
+    shifted lines pass. Without it the whole file is checked.
+    """
     display = relative_display(path, root)
+    try:
+        old = ast.parse(base)
+    except (SyntaxError, ValueError):
+        # Another Python dialect: there is nothing to compare the edit against.
+        return not_checked(
+            f"NOT CHECKED python ast: {display} does not parse at the base",
+            strict,
+            warnings,
+        )
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
-    except (OSError, UnicodeDecodeError, SyntaxError) as error:
+    except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as error:
         evidence_finding("python-syntax", display)
         return [f"{display}: python-ast: {error}"]
-
-    violations: list[str] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        body = node.body
-        if (
-            body
-            and isinstance(body[0], ast.Expr)
-            and isinstance(body[0].value, ast.Constant)
-            and isinstance(body[0].value.value, str)
-        ):
-            body = body[1:]
-        if len(body) != 1:
-            continue
-        statement = body[0]
-        stub = isinstance(statement, ast.Pass) or (
-            isinstance(statement, ast.Expr)
-            and isinstance(statement.value, ast.Constant)
-            and statement.value.value is Ellipsis
-        )
-        if isinstance(statement, ast.Raise):
-            exception = statement.exc
-            if isinstance(exception, ast.Name):
-                stub = exception.id == "NotImplementedError"
-            elif isinstance(exception, ast.Call) and isinstance(
-                exception.func, ast.Name
-            ):
-                stub = exception.func.id == "NotImplementedError"
-        if stub:
-            violations.append(
-                f"{display}:{node.lineno}: python-ast: stub body in {node.name}"
-            )
-
     declared = (
         dependencies if dependencies is not None else declared_python_dependencies(root)
     )
-    imported: list[tuple[str, int]] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported.extend(
-                (alias.name.split(".", 1)[0], node.lineno) for alias in node.names
-            )
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            imported.append((node.module.split(".", 1)[0], node.lineno))
-    for module, line in imported:
-        normalized = module.lower().replace("-", "_")
-        if (
-            module in sys.stdlib_module_names
-            or normalized in declared
-            or local_python_module(root, module)
-        ):
-            continue
-        violations.append(f"{display}:{line}: python-ast: unresolved import {module}")
+    directory = path.resolve().parent
+    stubs = net_new(python_stubs(tree), python_stubs(old), source, base)
+    imports = net_new(
+        python_unknown_imports(tree, root, directory, declared),
+        python_unknown_imports(old, root, directory, declared),
+        source,
+        base,
+    )
+    violations = [
+        f"{display}:{line}: python-ast: stub body in {name}" for line, name in stubs
+    ]
+    try:
+        missing = resolve_imports(
+            root, {module for _, module in imports}, python=python, deadline=deadline
+        )
+    except ValueError as error:
+        violations.extend(
+            not_checked(f"NOT CHECKED python imports: {error}", strict, warnings)
+        )
+    else:
+        violations.extend(
+            f"{display}:{line}: python-ast: unresolved import {module}"
+            for line, module in imports
+            if module in missing
+        )
     return violations[:MAX_VIOLATIONS]
 
 
@@ -3516,6 +3764,42 @@ def slop_command(
     return int(bool(failures))
 
 
+def changed_functions(
+    old: list[FunctionMetric], new: list[FunctionMetric], before: str, after: str
+) -> list[tuple[FunctionMetric, FunctionMetric | None]]:
+    """Functions an edit added or changed, each with its committed counterpart.
+
+    A function whose source is in the base under the same name is unchanged,
+    wherever it moved, so namesakes (`__init__`, overrides in sibling classes)
+    are never compared with each other. The rest pair by name in source order;
+    when their counts differ, the most complex remaining namesake stands in.
+    """
+
+    def source(lines: list[str], item: FunctionMetric) -> str:
+        return "\n".join(line.strip() for line in lines[item.start - 1 : item.end])
+
+    old_lines, new_lines = before.splitlines(), after.splitlines()
+    committed: dict[str, list[tuple[str, FunctionMetric]]] = {}
+    for item in old:
+        committed.setdefault(item.name, []).append((source(old_lines, item), item))
+    changed: dict[str, list[FunctionMetric]] = {}
+    for item in new:
+        text = source(new_lines, item)
+        namesakes = committed.get(item.name, [])
+        same = next((entry for entry in namesakes if entry[0] == text), None)
+        if same is None:
+            changed.setdefault(item.name, []).append(item)
+        else:
+            namesakes.remove(same)
+    pairs: list[tuple[FunctionMetric, FunctionMetric | None]] = []
+    for name, items in changed.items():
+        rest = [item for _, item in committed.get(name, [])]
+        fallback = max(rest, key=lambda item: item.complexity, default=None)
+        for index, item in enumerate(items):
+            pairs.append((item, rest[index] if len(rest) == len(items) else fallback))
+    return sorted(pairs, key=lambda pair: pair[0].start)
+
+
 def written_slop(
     root: Path, targets: list[Path], *, deadline: float | None
 ) -> list[str]:
@@ -3550,12 +3834,12 @@ def written_slop(
     }
     notes = []
     for name in names:
-        old = {
-            item.name: item
-            for item in function_metrics(name, before[name], exact_before.get(name))
-        }
-        for item in function_metrics(name, after[name], exact_after.get(name)):
-            prior = old.get(item.name)
+        for item, prior in changed_functions(
+            function_metrics(name, before[name], exact_before.get(name)),
+            function_metrics(name, after[name], exact_after.get(name)),
+            before[name],
+            after[name],
+        ):
             if item.complexity > SLOP_COMPLEXITY and (
                 prior is None or item.complexity > prior.complexity
             ):
@@ -4050,6 +4334,7 @@ def check_file(
     warnings: list[str] | None = None,
     batch_paths: list[Path] | None = None,
     checked_projects: set[tuple[str, Path]] | None = None,
+    python: str | None = None,
 ) -> list[str]:
     if message := protect_path(str(path), root, config):
         return [message]
@@ -4237,7 +4522,22 @@ def check_file(
             checked_projects.add(key)
 
     if language == "python":
-        violations.extend(python_ast_violations(path, root))
+        try:
+            base = head_text(root, display, deadline=deadline)
+        except ValueError:
+            # No committed base (outside Git, or before the first commit).
+            base = ""
+        violations.extend(
+            python_ast_violations(
+                path,
+                root,
+                base=base,
+                python=python,
+                strict=strict,
+                warnings=warnings,
+                deadline=deadline,
+            )
+        )
     return violations[:MAX_VIOLATIONS]
 
 
@@ -5444,6 +5744,7 @@ def scan(
     online: bool,
     strict: bool,
     base: str | None = None,
+    python: str | None = None,
 ) -> int:
     config = validate_config(config)
     try:
@@ -5514,12 +5815,24 @@ def scan(
                 run_command(command, root, command[0])
             )
         if language == "python":
+            notices: list[str] = []
             for path in files:
                 violations.setdefault(language, []).extend(
-                    python_ast_violations(path, root, dependencies)
+                    python_ast_violations(
+                        path,
+                        root,
+                        dependencies,
+                        python=python,
+                        strict=strict,
+                        warnings=notices,
+                    )
                 )
                 if len(violations[language]) >= MAX_VIOLATIONS:
                     break
+            # One interpreter answers for every file; say so once.
+            violations[language] = list(dict.fromkeys(violations[language]))
+            for notice in notices:
+                print(notice)
     if grouped.get("typescript"):
         violations.setdefault("typescript", []).extend(
             typescript_findings(root, config)
@@ -6118,6 +6431,8 @@ def build_parser() -> argparse.ArgumentParser:
         targets.add_argument("--file", action="append")
         targets.add_argument("--harness", choices=("claude", "codex", "factory"))
         child.add_argument("--record", action="store_true")
+        child.add_argument("--format", choices=("text", "json"), default="text")
+        child.add_argument("--python", help="the project's Python interpreter")
         if name == "protect":
             child.add_argument("--preview", choices=("pi", "omp", "ultron"))
     scan_parser = subparsers.add_parser("scan")
@@ -6125,6 +6440,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("--strict", action="store_true")
     scan_parser.add_argument("--base")
     scan_parser.add_argument("--ruff-new", action="store_true")
+    scan_parser.add_argument("--python", help="the project's Python interpreter")
     slop = subparsers.add_parser("slop")
     slop.add_argument("--base", help="compare against this revision")
     slop.add_argument("--json", action="store_true")
@@ -6229,18 +6545,18 @@ def dispatch_main() -> int:
         try:
             context_root = (args.root or DEFAULT_ROOT).resolve()
             config = load_config(context_root)
-            print(
-                json.dumps(
-                    {
-                        "hookSpecificOutput": {
-                            "hookEventName": args.event,
-                            "additionalContext": injected_context(
-                                context_root, config, args.host
-                            ),
-                        }
-                    }
-                )
-            )
+            output: dict[str, Any] = {
+                "hookSpecificOutput": {
+                    "hookEventName": args.event,
+                    "additionalContext": injected_context(
+                        context_root, config, args.host
+                    ),
+                }
+            }
+            if args.host:
+                # What a host that runs the engine itself may ask of it.
+                output["loki"] = {"version": __version__, "formats": ["text", "json"]}
+            print(json.dumps(output))
             return 0
         except (OSError, ValueError) as error:
             print(f"loki: context unavailable: {error}", file=sys.stderr)
@@ -6315,6 +6631,8 @@ def dispatch_main() -> int:
             else f"guard error: {type(error).__name__}"
         )
         print(f"loki: {prefix}: {error}", file=sys.stderr)
+        if getattr(args, "format", "text") == "json":
+            print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
         return 2 if args.command in {"protect", "hook"} else 1
     if args.command == "slop":
         try:
@@ -6338,10 +6656,13 @@ def dispatch_main() -> int:
             args.online,
             args.strict or os.environ.get("LOKI_STRICT") == "1",
             args.base,
+            args.python,
         )
     try:
         deadline = time.monotonic() + 20
         warnings: list[str] = []
+        if args.format == "json" and args.harness:
+            raise ValueError("--format json requires --file")
         paths = selected_paths(args, parser)
         if (evidence := ACTIVE_EVIDENCE.get()) is not None:
             evidence["targets"] = paths
@@ -6396,6 +6717,7 @@ def dispatch_main() -> int:
                             warnings=warnings,
                             batch_paths=targets,
                             checked_projects=checked_projects,
+                            python=args.python,
                         )
                     )
     except Exception as error:
@@ -6408,17 +6730,27 @@ def dispatch_main() -> int:
             else f"guard error: {type(error).__name__}"
         )
         print(f"loki: {prefix}: {error}", file=sys.stderr)
+        if args.format == "json":
+            print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
         return 2
+    warnings = list(dict.fromkeys(warnings))
+    if args.format == "json":
+        print(json.dumps(hook_report(args.command, messages, warnings)))
     if messages:
         if args.command == "hook":
             print(
                 "loki: post-write check failed; files are already changed.",
                 file=sys.stderr,
             )
-        print("\n".join([*messages, *warnings][:MAX_VIOLATIONS]), file=sys.stderr)
+        advisory = [item for item in warnings if not item.startswith("NOT CHECKED")]
+        unchecked = [item for item in warnings if item.startswith("NOT CHECKED")]
+        # Only the lines above the label failed the check.
+        label = ["loki: advisory (not blocking):"] if advisory else []
+        lines = [*messages, *label, *advisory, *unchecked]
+        print("\n".join(lines[:MAX_VIOLATIONS]), file=sys.stderr)
         return 2
     if warnings:
-        text = "\n".join(dict.fromkeys(warnings))
+        text = "\n".join(warnings)
         print(text, file=sys.stderr)
         if args.harness:
             print(
@@ -6437,6 +6769,45 @@ def dispatch_main() -> int:
             )
         return 0
     return 0
+
+
+FINDING_RE = re.compile(
+    r"^(?P<path>[^:\s][^:\n]*?)(?::(?P<line>\d+))?: (?P<rule>[^:\s][^:\n]*?): "
+)
+
+
+def hook_report(
+    command: str, messages: list[str], warnings: list[str], error: str | None = None
+) -> dict[str, Any]:
+    """`--format json`: what blocked, what is advisory and what was not checked.
+
+    `status` is `blocked` (exit status 2) exactly when `blocking` has findings,
+    else `passed`. `advisory` findings and `not_checked` notes never fail the
+    check; with LOKI_STRICT=1 a missing check is a blocking finding instead.
+    """
+
+    def entry(text: str) -> dict[str, Any]:
+        item: dict[str, Any] = {"text": text}
+        if match := FINDING_RE.match(text):
+            item["path"] = match["path"]
+            if match["line"]:
+                item["line"] = int(match["line"])
+            item["rule"] = match["rule"]
+        return item
+
+    report = {
+        "loki": __version__,
+        "command": command,
+        "status": "error" if error is not None else "blocked" if messages else "passed",
+        "blocking": [entry(text) for text in messages[:MAX_VIOLATIONS]],
+        "advisory": [
+            entry(text) for text in warnings if not text.startswith("NOT CHECKED")
+        ],
+        "not_checked": [text for text in warnings if text.startswith("NOT CHECKED")],
+    }
+    if error is not None:
+        report["error"] = error
+    return report
 
 
 def installation_violations(paths: list[Path], agent_uid: int) -> list[str]:
