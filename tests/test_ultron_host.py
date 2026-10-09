@@ -79,6 +79,7 @@ class UltronHostTests(unittest.TestCase):
             short = loki.injected_context(root, {}, "ultron")
             self.assertLess(len(short), len(full) // 2)
             self.assertIn("edit() and write()", short)
+            self.assertIn("a bash() command that writes them", short)
             self.assertIn("Ruff (Python)", short)
             core = loki.injected_context(root, {"rule_packs": ["core"]}, "ultron")
             self.assertNotIn("Ruff", core)

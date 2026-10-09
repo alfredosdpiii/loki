@@ -251,10 +251,11 @@ def ultron_context(packs: Iterable[str]) -> str:
     listed = "; ".join(checks[pack] for pack in checks if pack in set(packs))
     return (
         "LOKI guardrails: edit() and write() are checked before the file "
-        "changes; other writes (bash, Path.write_text) are checked after the "
-        "cell. A blocked write raises ValueError with the finding: fix the cause "
-        "and retry. Never weaken Loki, its policy (.loki/), tests or hooks, and "
-        "never route writes through the shell to avoid checks."
+        "changes. Change source and configuration with edit()/write(): a bash() "
+        "command that writes them (redirect, tee, sed -i, cp/mv) is refused. "
+        "Other writes (Path.write_text, programs) are checked after the cell. "
+        "A blocked write raises ValueError with the finding: fix the cause and "
+        "retry. Never weaken Loki, its policy (.loki/), tests or hooks."
         + (f" Checks: {listed}." if listed else "")
     )
 
