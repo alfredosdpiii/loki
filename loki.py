@@ -6424,6 +6424,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--harness", choices=("claude", "factory", "omp", "pi"), required=True
     )
     shell.add_argument("--record", action="store_true")
+    shell_writes = subparsers.add_parser("shell-writes")
+    shell_writes.add_argument("--harness", choices=("ultron",), default="ultron")
     for name in ("protect", "hook"):
         child = subparsers.add_parser(name)
         child.add_argument("--root", type=Path, default=argparse.SUPPRESS)
@@ -6576,6 +6578,23 @@ def dispatch_main() -> int:
             if reason := shell_violation(
                 payload["tool_input"].get("command"), root=root, cwd=cwd
             ):
+                print(reason, file=sys.stderr)
+                return 2
+            return 0
+        except (OSError, ValueError) as error:
+            print(f"loki: invalid shell input: {error}", file=sys.stderr)
+            return 2
+    if args.command == "shell-writes":
+        try:
+            raw = sys.stdin.read(4 * 1024 * 1024 + 1)
+            if len(raw) > 4 * 1024 * 1024:
+                raise ValueError("shell envelope exceeds 4 MiB")
+            payload = json.loads(raw)
+            if not isinstance(payload, dict):
+                raise ValueError("invalid shell envelope")
+            root = (args.root or DEFAULT_ROOT).resolve()
+            cwd = Path(payload.get("cwd") or root).resolve()
+            if reason := shell_writes_violation(payload.get("command"), root, cwd):
                 print(reason, file=sys.stderr)
                 return 2
             return 0
@@ -7246,6 +7265,192 @@ def shell_violation(
         return reviewed_shell_violation(command, root, cwd)
     evidence_finding("shell-command-review")
     return "loki: shell command requires review; use verified file tools for writes"
+
+
+SHELL_WRITE_SINKS = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty"}
+# Output a shell command may write into the project without Loki's check: prose and data, never source or config.
+SHELL_WRITE_DATA_SUFFIXES = TEXT_REDIRECT_SUFFIXES | {".patch", ".diff", ".out", ".err"}
+SHELL_COMMAND_PREFIXES = {"sudo", "env", "command", "time", "nice", "nohup", "exec"}
+
+
+def strip_heredocs(command: str) -> str:
+    """Drop here-document bodies, which are data, so the rest parses as shell words."""
+    lines, out, delimiter = command.split("\n"), [], None
+    for line in lines:
+        if delimiter is not None:
+            if line.strip() == delimiter:
+                delimiter = None
+            continue
+        out.append(line)
+        if found := re.search(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1", line):
+            delimiter = found.group(2)
+    return "\n".join(out)
+
+
+def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
+    """The files a shell command writes, as (target, how); None when it cannot be parsed.
+
+    Covers redirects (`>`, `>>`, `>|`, `&>`), here-documents written to a file, `tee`, in-place `sed -i` and
+    `perl -i`, `cp`/`mv`/`install` destinations and `dd of=`. Writes a program makes itself are not visible here.
+    """
+    import shlex
+
+    lexer = shlex.shlex(strip_heredocs(command), posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    try:
+        tokens = list(lexer)
+    except ValueError:
+        return None
+    targets: list[tuple[str, str]] = []
+    words: list[str] = []
+
+    def flush() -> None:
+        while words and (
+            "=" in words[0]
+            and not words[0].startswith("-")
+            or words[0] in SHELL_COMMAND_PREFIXES
+        ):
+            words.pop(0)
+        if not words:
+            return
+        name, args = Path(words[0]).name, words[1:]
+        plain = [arg for arg in args if not arg.startswith("-")]
+        if name == "tee":
+            targets.extend((arg, "tee") for arg in plain)
+        elif name == "sed" and any(
+            arg == "-i" or arg.startswith(("-i", "--in-place")) for arg in args
+        ):
+            files, scripted, skip = [], False, False
+            for arg in args:
+                if skip:
+                    skip = False
+                elif arg in {"-e", "-f", "--expression", "--file"}:
+                    scripted = skip = True
+                elif not arg.startswith("-"):
+                    files.append(arg)
+            targets.extend(
+                (arg, "sed -i") for arg in (files if scripted else files[1:])
+            )
+        elif name == "perl" and any(
+            re.fullmatch(r"-[a-zA-Z]*i\S*", arg) for arg in args
+        ):
+            files, skip = [], False
+            for arg in args:
+                if skip:
+                    skip = False
+                elif arg in {"-e", "-E"}:
+                    skip = True
+                elif not arg.startswith("-"):
+                    files.append(arg)
+            targets.extend((arg, "perl -i") for arg in files)
+        elif name in {"cp", "mv", "install"}:
+            if "-t" in args and args.index("-t") + 1 < len(args):
+                directory = args[args.index("-t") + 1]
+                sources = [arg for arg in plain if arg != directory]
+                targets.extend(
+                    (str(Path(directory) / Path(src).name), name) for src in sources
+                )
+            elif len(plain) >= 2:
+                destination = plain[-1]
+                if (
+                    len(plain) > 2
+                    or destination.endswith("/")
+                    or Path(destination).is_dir()
+                ):
+                    targets.extend(
+                        (str(Path(destination) / Path(src).name), name)
+                        for src in plain[:-1]
+                    )
+                else:
+                    targets.append((destination, name))
+        elif name == "dd":
+            targets.extend((arg[3:], "dd") for arg in args if arg.startswith("of="))
+        words.clear()
+
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token in {">", ">>", ">|", "&>", "&>>"}:
+            if index + 1 < len(tokens):
+                targets.append((tokens[index + 1], "redirect"))
+            index += 2
+            continue
+        if token.endswith((">", ">>")) and set(token) <= set("<>&|;()"):
+            # Operators run together with a redirect (`;>`), rare: treat the next word as its target.
+            if index + 1 < len(tokens):
+                targets.append((tokens[index + 1], "redirect"))
+            index += 2
+            continue
+        if set(token) <= set("();<>|&"):
+            flush()
+            index += 1
+            continue
+        if (
+            token.isdigit()
+            and index + 1 < len(tokens)
+            and tokens[index + 1] in {">", ">>"}
+        ):
+            index += 1
+            continue
+        words.append(token)
+        index += 1
+    flush()
+    return [
+        (target, how)
+        for target, how in targets
+        if target not in SHELL_WRITE_SINKS
+        and not target.startswith(("/dev/fd/", "/proc/self/fd/"))
+    ]
+
+
+def shell_writes_violation(command: Any, root: Path, cwd: Path) -> str | None:
+    """Deny a shell command that writes source or configuration inside the project: those writes skip Loki's
+    before-write check, so they go through the harness's file tools instead. Notes, logs, ignored output and
+    files outside the project are allowed, and so is every command that writes no file."""
+    if not isinstance(command, str) or not command.strip():
+        return None
+    targets = shell_write_targets(command)
+    if not targets:
+        return None
+    root = root.resolve()
+    config = load_config(root)
+    for target, how in targets:
+        if any(marker in target for marker in ("$", "`", "*", "?", "~")):
+            continue  # expanded by the shell: unknown here, left to the post-write check
+        path = Path(os.path.abspath(cwd / target))
+        if not path.is_relative_to(root):
+            continue
+        relative = path.relative_to(root)
+        if message := protect_path(str(path), root, config):
+            return message
+        if path.suffix.lower() in SHELL_WRITE_DATA_SUFFIXES and not any(
+            part.startswith(".") for part in relative.parts
+        ):
+            continue
+        if git_ignored(root, relative.as_posix()):
+            continue
+        evidence_finding("shell-write", relative.as_posix())
+        return (
+            f"loki: `{how}` into {relative.as_posix()} would skip Loki's write check; "
+            "write source and configuration files with the file edit tools (Ultron: edit()/write())"
+        )
+    return None
+
+
+def git_ignored(root: Path, relative: str) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "check-ignore", "-q", "--", relative],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
 
 
 def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> None:

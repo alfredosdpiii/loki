@@ -702,6 +702,18 @@ Observed concurrent changes are preserved and reported as `rollback incomplete`;
 recovery continues for other targets. This comparison is not an atomic filesystem
 compare-and-swap, so uncooperative writers can still race during recovery.
 
+## Shell writes (Ultron)
+
+`loki --root <repo> shell-writes` reads `{"command": "...", "cwd": "..."}` on stdin and exits 2 with a reason when
+the command would write a source or configuration file inside the repository past the before-write check. It is not
+the shell gate: every command that writes no file is allowed. The writes it sees are redirects (`>`, `>>`, `>|`,
+`&>`), here-documents written to a file, `tee`, in-place `sed -i` and `perl -i`, `cp`/`mv`/`install` destinations
+and `dd of=`. Writes into notes and data (`.md`, `.txt`, `.log`, `.csv`, `.patch`, `.diff`, `.out` and the like),
+Git-ignored paths, `/dev/null` and anything outside the repository are allowed; a protected path is denied with the
+protected-file message. Targets the shell expands (`$VAR`, globs, `~`) are left to the post-write check, and so are
+writes a program makes itself (`python -c`, build tools). Ultron runs it before each `bash()` command that may
+write a file.
+
 ## Shell gate and evidence
 
 `init --shell-guard` opts into conservative shell interception for Claude `Bash`,
