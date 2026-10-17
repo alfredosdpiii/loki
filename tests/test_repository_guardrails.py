@@ -230,6 +230,35 @@ class DiffGuardrailTests(unittest.TestCase):
         with temporary_root() as root:
             self.assertTrue(loki.write_guardrail_violations([root / "a.txt"], root, {}))
 
+    def test_oversized_snapshot_checks_the_written_files(self) -> None:
+        with temporary_root() as root:
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "loki@example.com")
+            git(root, "config", "user.name", "Loki")
+            (root / "tests").mkdir()
+            (root / "tests/test_a.py").write_text("def test_a():\n    assert value\n")
+            git(root, "add", ".")
+            git(root, "commit", "-q", "-m", "base")
+            (root / "tests/test_a.py").write_text("def test_a():\n    pass\n")
+            (root / "big.json").write_text("{}")
+            real = loki.git_changes
+
+            def limited(*args, only=None, **kwargs):
+                if only is None:
+                    raise loki.SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
+                self.assertEqual({"tests/test_a.py"}, only)
+                return real(*args, only=only, **kwargs)
+
+            warnings: list[str] = []
+            with patch.object(loki, "git_changes", side_effect=limited):
+                findings = loki.write_guardrail_violations(
+                    [root / "tests/test_a.py"], root, {}, warnings=warnings
+                )
+            self.assertTrue(any("assertion removed" in item for item in findings))
+            self.assertFalse(any("64 MiB" in item for item in findings))
+            self.assertEqual(1, len(warnings))
+            self.assertTrue(warnings[0].startswith("NOT CHECKED repository changes"))
+
     def test_test_heuristics_use_changed_lines(self) -> None:
         changes = [
             loki.FileChange(

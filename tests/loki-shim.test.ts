@@ -104,6 +104,30 @@ test("warnings reach tool results without pretending to deny the write", async (
   } finally { f.cleanup(); }
 });
 
+test("a branch without Loki passes with one notice; a deleted tracked engine still blocks", async () => {
+  const f = fixture("import sys\nprint('loki: blocked', file=sys.stderr)\nraise SystemExit(2)\n");
+  const git = (...args: string[]) => {
+    const result = spawnSync("git", ["-C", f.root, "-c", "user.email=a@b", "-c", "user.name=a", ...args], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+  };
+  try {
+    git("init", "-q", "-b", "main");
+    writeFileSync(join(f.root, "a.txt"), "");
+    git("add", "a.txt");
+    git("commit", "-q", "-m", "base");
+    git("add", ".loki");
+    git("commit", "-q", "-m", "Add Loki");
+    const event = { toolName: "write", input: { path: "a.txt" }, content: [] };
+    rmSync(join(f.root, ".loki/loki.py"));
+    expect(await f.handlers.tool_call(event, { cwd: f.root })).toHaveProperty("block", true);
+    git("checkout", "-q", "-f", "-b", "plain", "HEAD~1");
+    expect(await f.handlers.tool_call(event, { cwd: f.root })).toBeUndefined();
+    expect(await f.handlers.tool_result(event, { cwd: f.root })).toBeUndefined();
+    expect(JSON.stringify(f.messages)).toContain("not on this branch");
+    expect(f.messages.length).toBe(1);
+  } finally { f.cleanup(); }
+});
+
 test("malformed context JSON degrades visibly without removing system instructions", async () => {
   for (const output of ["not JSON", "{}", '{"hookSpecificOutput":{"additionalContext":""}}']) {
     const f = fixture(`print(${JSON.stringify(output)})\n`);

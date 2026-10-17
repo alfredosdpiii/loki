@@ -5,7 +5,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" protect --harness factory || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+          "command": "R=\"$FACTORY_PROJECT_DIR\"; [ -f \"$R/.loki/loki.py\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.py 2>/dev/null || [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.py 2>/dev/null)\" ] || { printf '%s\\n' 'loki: .loki/loki.py is not on this branch; Loki did not check this' >&2; exit 0; }; python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" protect --harness factory || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
           "timeout": 30
         }
       ]
@@ -16,7 +16,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" context --root \"$FACTORY_PROJECT_DIR\" --event SessionStart || { printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
+          "command": "R=\"$FACTORY_PROJECT_DIR\"; [ -f \"$R/.loki/loki.py\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.py 2>/dev/null || [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.py 2>/dev/null)\" ] || { printf '%s\\n' 'loki: .loki/loki.py is not on this branch; Loki did not check this' >&2; exit 0; }; python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" context --root \"$FACTORY_PROJECT_DIR\" --event SessionStart || { printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
           "timeout": 5
         }
       ]
@@ -28,7 +28,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" hook --harness factory || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
+          "command": "R=\"$FACTORY_PROJECT_DIR\"; [ -f \"$R/.loki/loki.py\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.py 2>/dev/null || [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.py 2>/dev/null)\" ] || { printf '%s\\n' 'loki: .loki/loki.py is not on this branch; Loki did not check this' >&2; exit 0; }; python3 \"$FACTORY_PROJECT_DIR/.loki/loki.py\" hook --harness factory || { printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }",
           "timeout": 30
         }
       ]

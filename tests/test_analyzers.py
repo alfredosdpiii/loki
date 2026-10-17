@@ -267,6 +267,23 @@ class ClippyTests(unittest.TestCase):
             with patch.object(loki.subprocess, "run", return_value=completed(101)):
                 with self.assertRaisesRegex(ValueError, "exit 101"):
                     loki.clippy_diagnostics(root, root / "target", deadline=None)
+            for stderr, reason in (
+                (
+                    "error: failed to get `serde` as a dependency\n"
+                    "Caused by: attempting to make an HTTP request, but --offline was specified\n",
+                    "run `cargo fetch`",
+                ),
+                (
+                    "error: failed to parse manifest\nCaused by: no targets specified in the manifest\n"
+                    "  either src/lib.rs, src/main.rs, a [lib] section, or [[bin]] section must be present\n",
+                    "no library or binary target yet",
+                ),
+            ):
+                with patch.object(
+                    loki.subprocess, "run", return_value=completed(101, "", stderr)
+                ):
+                    with self.assertRaisesRegex(ValueError, reason):
+                        loki.clippy_diagnostics(root, root / "target", deadline=None)
 
     def test_net_new_against_materialized_base(self):
         with temporary_root() as root:

@@ -143,3 +143,38 @@ class InstalledHookTests(unittest.TestCase):
                             result = self.run_handler(handler["command"], root)
                             self.assertEqual(2, result.returncode)
                             self.assertIn("loki:", result.stderr)
+
+    def test_branch_without_loki_passes_and_deleted_engine_still_fails(self):
+        with temporary_root() as root:
+            git(root, "init", "-q", "-b", "main")
+            git(root, "config", "user.email", "loki@example.com")
+            git(root, "config", "user.name", "Loki")
+            write_file(root, "nested/.keep", "")
+            git(root, "add", ".")
+            git(root, "commit", "-q", "-m", "base")
+            capture_output(loki.install_target, root)
+            loki.install_shell_guard(root)
+            git(root, "add", ".")
+            git(root, "commit", "-q", "-m", "Add Loki")
+            handlers = []
+            for filename in (
+                ".claude/settings.json",
+                ".codex/hooks.json",
+                ".factory/hooks.json",
+            ):
+                document = loki.read_json_object(root / filename)
+                for entries in document.get("hooks", document).values():
+                    for entry in entries:
+                        handlers.extend(
+                            handler["command"] for handler in entry["hooks"]
+                        )
+            self.assertTrue(any(" shell --harness " in command for command in handlers))
+            (root / ".loki/loki.py").rename(root / "engine.bak")
+            for command in handlers:
+                self.assertEqual(2, self.run_handler(command, root).returncode, command)
+            (root / "engine.bak").rename(root / ".loki/loki.py")
+            git(root, "checkout", "-q", "-b", "plain", "HEAD~1")
+            for command in handlers:
+                result = self.run_handler(command, root)
+                self.assertEqual(0, result.returncode, command)
+                self.assertIn("not on this branch", result.stderr)

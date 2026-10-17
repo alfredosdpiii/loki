@@ -50,6 +50,26 @@ class WriteTimeCommandTests(unittest.TestCase):
                     ["rustfmt", str(path)], root, "rustfmt", deadline=None
                 )
 
+    def test_rust_formatter_uses_the_crate_edition(self) -> None:
+        with temporary_root() as root:
+            write_file(root, "Cargo.toml", '[workspace.package]\nedition = "2024"\n')
+            write_file(
+                root,
+                "crates/a/Cargo.toml",
+                '[package]\nname = "a"\nedition.workspace = true\n',
+            )
+            path = write_file(root, "crates/a/src/lib.rs", "pub fn f() {}\n")
+            with (
+                patch.object(loki, "missing_tool", return_value=None),
+                patch.object(loki, "run_command", return_value=[]) as run,
+                patch.object(loki, "clippy_violations", return_value=[]),
+            ):
+                loki.check_file(path, root, {})
+            self.assertEqual(
+                ["rustfmt", "--edition", "2024", str(path)],
+                run.call_args_list[0].args[0],
+            )
+
     def test_ignores_unknown_disabled_and_missing_files(self) -> None:
         with temporary_root() as root:
             text = write_file(root, "readme.txt", "text")

@@ -182,7 +182,7 @@ A single 20-second deadline covers the hook batch. Missing optional tools emit
 | Python | Net-new Ruff, import and AST checks; net-new mypy errors when mypy is installed; no automatic rewriting | Ruff, import and AST checks |
 | JavaScript/TypeScript | Pre-write preview where supported; post-write Oxlint fixes; net-new project type errors when a committed `tsconfig.json` and compiler exist | Oxlint; project type check |
 | Go | gofmt, go vet; golangci-lint issues on changed lines when installed | golangci-lint |
-| Rust | rustfmt; net-new Clippy and compiler diagnostics for the enclosing crate | Clippy |
+| Rust | rustfmt with the crate's Cargo.toml edition; net-new Clippy and compiler diagnostics for the enclosing crate | Clippy |
 | Elixir/HEEx | Enclosing Mix project: format, net-new Credo; net-new Sobelow with the default Phoenix pack | Project tier per enclosing Mix project |
 
 The added write-time analyzers compare against the committed base, so existing
@@ -256,6 +256,12 @@ has only advisory findings (structural sloppiness without `slop.block`, Oxlint
 and Sobelow warnings) or `NOT CHECKED` notes exits 0 and prints them without a
 failure line. When a check fails, the blocking findings come first; advisory
 lines follow a `loki: advisory (not blocking):` line, then `NOT CHECKED` notes.
+
+The installed hook commands fail closed (exit 2) when `.loki/loki.py` cannot
+run. The one exception is a checkout of a branch that does not have Loki: when
+neither the working tree nor `HEAD` has `.loki/loki.py` but another ref does,
+the hook prints `loki: .loki/loki.py is not on this branch` and exits 0. An
+engine deleted from the working tree, or one never committed, still blocks.
 
 `--format json` (with `--file`) also prints one JSON object on standard output,
 for hosts that present the tiers themselves:
@@ -595,8 +601,10 @@ protected paths still fail on moves. A move combined with content changes still
 requires review. The starter Ruff policy permits assertions in test files only.
 
 Snapshot payloads are limited to 64 MiB of unique base blobs plus candidate bytes,
-and 100,000 requested base objects. Exceeding either limit fails explicitly;
-these are payload limits, not a total-process memory guarantee. Candidate reads
+and 100,000 requested base objects. Exceeding either limit fails explicitly in
+`scan`. A post-write `hook` instead narrows the snapshot to the files the write
+changed and reports `NOT CHECKED repository changes`, so the per-file checks
+still run; these are payload limits, not a total-process memory guarantee. Candidate reads
 pin resolved parent directories with descriptor-relative, no-follow operations
 on POSIX. This narrows directory-replacement races, not all concurrent-write races.
 
@@ -710,7 +718,8 @@ the shell gate: every command that writes no file is allowed. The writes it sees
 `&>`), here-documents written to a file, `tee`, in-place `sed -i` and `perl -i`, `cp`/`mv`/`install` destinations
 and `dd of=`. Writes into notes and data (`.md`, `.txt`, `.log`, `.csv`, `.patch`, `.diff`, `.out` and the like),
 Git-ignored paths, `/dev/null` and anything outside the repository are allowed; a protected path is denied with the
-protected-file message. Targets the shell expands (`$VAR`, globs, `~`) are left to the post-write check, and so are
+protected-file message. Targets follow a literal `cd`/`pushd` earlier in the command, scoped to its `( … )`
+subshell, so `cd /elsewhere && echo x > a.py` is a write outside the repository. Targets the shell expands (`$VAR`, globs, `~`) are left to the post-write check, and so are
 writes a program makes itself (`python -c`, build tools). Ultron runs it before each `bash()` command that may
 write a file.
 

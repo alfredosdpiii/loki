@@ -496,6 +496,27 @@ class ServerSideRuleTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(expected, rules(path, text))
 
+    def test_sql_identifier_interpolation_gets_identifier_advice(self):
+        def message(text):
+            found = loki.content_rule_findings("a.ts", text)
+            self.assertEqual(["loki/sql-injection"], [item[0] for item in found])
+            return found[0][1]
+
+        for text in (
+            "db.prepare(`SELECT * FROM ${name} ORDER BY 1`)",
+            'db.query(`SELECT * FROM "${table}" ORDER BY ${column}`)',
+            "db.query(`INSERT INTO s.${table} (a) VALUES (?)`, [a])",
+        ):
+            with self.subTest(text=text):
+                self.assertIn("map it to a fixed set of known names", message(text))
+        for text in (
+            "db.query(`SELECT * FROM ${table} WHERE id = ${id}`)",
+            "db.query(`SELECT * FROM t WHERE name = '${name}'`)",
+            "db.query('SELECT * FROM ' + table)",
+        ):
+            with self.subTest(text=text):
+                self.assertIn("use parameterized placeholders", message(text))
+
 
 GITHUB_TOKEN = "ghp_" + "aZ3kQ9mB7xL2pW8vR4tY6uI1oE5nC0sD9fGh"
 WORKFLOW = """on: pull_request

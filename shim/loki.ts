@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +11,27 @@ export type ExtensionApi = {
 
 function checkerArgs(root: string): string[] {
   return [`${root}/.loki/loki.py`, "--root", root];
+}
+
+const NOT_ON_BRANCH = "loki: .loki/loki.py is not on this branch; Loki did not check this";
+
+/** A checkout whose working tree and HEAD lack the engine while another ref has it: a branch without Loki. */
+export function branchWithoutLoki(root: string): boolean {
+  if (existsSync(checkerArgs(root)[0])) return false;
+  const git = (args: string[]) => spawnSync("git", ["-C", root, ...args], { encoding: "utf8", timeout: 5_000 });
+  if (git(["cat-file", "-e", "HEAD:.loki/loki.py"]).status === 0) return false;
+  const other = git(["rev-list", "-1", "--all", "--", ".loki/loki.py"]);
+  return other.status === 0 && other.stdout.trim() !== "";
+}
+
+let branchNoted = false;
+function skipOffBranch(api: ExtensionApi, root: string): boolean {
+  if (!branchWithoutLoki(root)) return false;
+  if (!branchNoted) {
+    branchNoted = true;
+    try { api.sendMessage?.({ customType: "loki", content: [{ type: "text", text: NOT_ON_BRANCH }] }, { triggerTurn: false }); } catch { /* A notice must not block. */ }
+  }
+  return true;
 }
 
 function contextText(root: string): string {
@@ -60,6 +82,7 @@ export function installGuard(api: ExtensionApi, root: string, extract: (toolName
     api.on(phase, async (value, ctx) => {
       if (!value || typeof value !== "object" || !("toolName" in value) || (value.toolName !== "edit" && value.toolName !== "write")) return;
       if (phase === "tool_result" && "isError" in value && value.isError === true) return;
+      if (skipOffBranch(api, root)) return;
       let failed = true;
       let text: string;
       try {
@@ -104,6 +127,7 @@ export function installUltron(api: ExtensionApi, root: string, env: NodeJS.Proce
   if (env.ULTRON_LOKI_BUILTIN === "1") return;
   api.on("before_file_write", async (value, ctx) => {
     if (!value || typeof value !== "object" || !("path" in value) || !("content" in value)) return;
+    if (skipOffBranch(api, root)) return;
     let failed = true;
     let text: string;
     try {
@@ -130,7 +154,7 @@ export function installUltron(api: ExtensionApi, root: string, env: NodeJS.Proce
     if (typeof cwd !== "string") return;
     const checked = "checked" in value && Array.isArray(value.checked) ? value.checked : [];
     const targets = [...new Set([...value.files, ...checked].filter((path): path is string => typeof path === "string").map(path => localTarget(path, cwd)))];
-    if (!targets.length) return;
+    if (!targets.length || skipOffBranch(api, root)) return;
     const result = spawnSync("python3", [...checkerArgs(root), "hook", ...targets.flatMap(path => ["--file", path])], { cwd: root, encoding: "utf8", timeout: 60_000 });
     const failed = Boolean(result.error || result.signal || result.status !== 0);
     const text = result.stderr?.trim() || (failed ? `loki: checker unavailable: ${result.error?.message || result.signal || `exit status ${result.status}`}` : "");

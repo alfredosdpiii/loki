@@ -1328,10 +1328,22 @@ def javascript_rules(text: str) -> list[Finding]:
         if re.search(r"\b(?:select|insert|update|delete)\b", argument, re.I) and (
             "${" in argument or re.search(r"['\"`]\s*\+|\+\s*['\"`]", argument)
         ):
+            identifier = (
+                "${" in argument
+                and "+" not in argument
+                and all(
+                    re.search(SQL_IDENTIFIER_POSITION, argument[: found.start()], re.I)
+                    for found in re.finditer(r"\$\{", argument)
+                )
+            )
             findings.append(
                 (
                     "loki/sql-injection",
-                    "SQL injection: query text built by concatenation or "
+                    "SQL injection: table or column name interpolated into the query; "
+                    "placeholders cannot bind identifiers, so map it to a fixed set of "
+                    "known names before building the query"
+                    if identifier
+                    else "SQL injection: query text built by concatenation or "
                     "interpolation; use parameterized placeholders",
                     match.start(),
                 )
@@ -4162,6 +4174,33 @@ def cargo_project(path: Path, root: Path) -> Path | None:
     return None
 
 
+def cargo_edition(crate: Path | None, root: Path) -> str | None:
+    """The crate's Rust edition from Cargo.toml, following `edition.workspace = true` up to the workspace."""
+    if crate is None:
+        return None
+    inherit = False
+    directory = crate.resolve()
+    while directory.is_relative_to(root.resolve()):
+        try:
+            data = tomllib.loads((directory / "Cargo.toml").read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            data = {}
+        table = (
+            (data.get("workspace") or {}).get("package")
+            if inherit
+            else data.get("package")
+        )
+        edition = table.get("edition") if isinstance(table, dict) else None
+        if isinstance(edition, str):
+            return edition
+        if isinstance(edition, dict) and edition.get("workspace") is True:
+            inherit = True
+        if directory == root.resolve():
+            break
+        directory = directory.parent
+    return None
+
+
 def clippy_command(target: Path) -> list[str]:
     command = ["cargo", "clippy", "--offline", "--all-targets"]
     command += ["--message-format=json", "--target-dir", str(target), "--"]
@@ -4210,9 +4249,15 @@ def clippy_diagnostics(
         code = (message.get("code") or {}).get("code") or message["level"]
         found.append(((relative, code, message["message"], text), span["line_start"]))
     if result.returncode and not found:
-        reason = result.stderr.strip().splitlines()[-1:] or [
-            f"exit {result.returncode}"
-        ]
+        stderr = result.stderr.strip()
+        if "--offline was specified" in stderr or "no matching package named" in stderr:
+            raise ValueError(
+                "cargo clippy needs dependencies that are not downloaded yet; "
+                "run `cargo fetch` once to check this crate"
+            )
+        if "either src/lib.rs, src/main.rs, a [lib] section" in stderr:
+            raise ValueError("the crate has no library or binary target yet")
+        reason = stderr.splitlines()[-1:] or [f"exit {result.returncode}"]
         raise ValueError(f"cargo clippy failed: {reason[0]}")
     return found
 
@@ -4449,10 +4494,16 @@ def check_file(
             # Compile errors from go vet make lint results redundant.
             optional("golangci-lint", lambda deadline: lint.result())
     elif language == "rust":
-        violations.extend(
-            run_command(["rustfmt", str(path)], root, "rustfmt", deadline=deadline)
-        )
         crate = cargo_project(path, root)
+        edition = cargo_edition(crate, root)
+        violations.extend(
+            run_command(
+                ["rustfmt", *(["--edition", edition] if edition else []), str(path)],
+                root,
+                "rustfmt",
+                deadline=deadline,
+            )
+        )
         key = (language, crate or root)
         if checked_projects is None or key not in checked_projects:
             optional("clippy", clippy_violations, path, root)
@@ -5130,6 +5181,10 @@ def slopsquatting_violations(root: Path, config: dict[str, Any]) -> list[str]:
         ]
 
 
+class SnapshotTooLarge(ValueError):
+    """The working tree's changes are too big to snapshot in one check."""
+
+
 @dataclass(frozen=True)
 class FileChange:
     path: str
@@ -5182,7 +5237,7 @@ def git_blobs(
     if not unique:
         return {}
     if len(unique) > 100_000:
-        raise ValueError("git: snapshot exceeds 100000 base objects")
+        raise SnapshotTooLarge("git: snapshot exceeds 100000 base objects")
     request = ("\n".join(unique) + "\n").encode("ascii")
     metadata = git_output(
         root, ["cat-file", "--batch-check"], deadline=deadline, input_data=request
@@ -5201,7 +5256,7 @@ def git_blobs(
             raise ValueError("git: invalid batch metadata response")
         total += int(fields[2])
         if total > 64 * 1024 * 1024:
-            raise ValueError("git: snapshot base content exceeds 64 MiB")
+            raise SnapshotTooLarge("git: snapshot base content exceeds 64 MiB")
     data = git_output(
         root,
         ["cat-file", "--batch"],
@@ -5253,7 +5308,7 @@ def candidate_content(
         if stat.S_ISLNK(mode):
             content = os.fsencode(os.readlink(filename, dir_fd=directory))
             if len(content) > remaining:
-                raise ValueError("git: snapshot content exceeds 64 MiB")
+                raise SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
             return content, "120000"
         if not stat.S_ISREG(mode):
             raise ValueError(f"loki: unsupported changed file type: {name}")
@@ -5265,10 +5320,10 @@ def candidate_content(
             if not stat.S_ISREG(info.st_mode):
                 raise ValueError(f"loki: unsupported changed file type: {name}")
             if info.st_size > remaining:
-                raise ValueError("git: snapshot content exceeds 64 MiB")
+                raise SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
             content = source.read(remaining + 1)
             if len(content) > remaining:
-                raise ValueError("git: snapshot content exceeds 64 MiB")
+                raise SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
             return content, "100755" if info.st_mode & stat.S_IXUSR else "100644"
     except FileNotFoundError:
         return None, None
@@ -5277,8 +5332,13 @@ def candidate_content(
 
 
 def git_changes(
-    root: Path, base: str | None, *, deadline: float | None = None
+    root: Path,
+    base: str | None,
+    *,
+    deadline: float | None = None,
+    only: set[str] | None = None,
 ) -> tuple[str | None, list[FileChange]]:
+    """The changes against base; `only` limits the snapshot to those repository-relative paths."""
     root = root.resolve()
     actual_root = Path(
         os.fsdecode(
@@ -5401,6 +5461,8 @@ def git_changes(
             deadline=deadline,
         )
     changed_names = sorted({os.fsdecode(name) for name in names.split(b"\0") if name})
+    if only is not None:
+        changed_names = [name for name in changed_names if name in only]
     blobs = git_blobs(
         root,
         [
@@ -5453,6 +5515,12 @@ def base_policy(
     evidence_policy("base", ".loki/loki.json", raw, base=base)
     value = json.loads(raw.decode("utf-8"))
     return validate_config(value)
+
+
+# Text just before an interpolation that puts it where SQL expects a table or column name.
+SQL_IDENTIFIER_POSITION = (
+    r"(?:\b(?:from|into|update|join|table|exists)|\b(?:order|group)\s+by|[\"`\[.])\s*$"
+)
 
 
 def protected_change_violations(
@@ -5715,19 +5783,34 @@ def write_guardrail_violations(
     config: dict[str, Any],
     *,
     deadline: float | None = None,
+    warnings: list[str] | None = None,
 ) -> list[str]:
     try:
-        base, changes = git_changes(root, None, deadline=deadline)
+        touched = {
+            Path(os.path.abspath(path)).relative_to(root.resolve()).as_posix()
+            for path in paths
+        }
+        try:
+            base, changes = git_changes(root, None, deadline=deadline)
+        except SnapshotTooLarge as error:
+            # Too many or too large uncommitted changes to compare them all: check the written files only.
+            note = (
+                f"NOT CHECKED repository changes: {error}; protected-file, test and lockfile "
+                "checks covered only the files this write changed"
+            )
+            try:
+                base, changes = git_changes(root, None, deadline=deadline, only=touched)
+            except SnapshotTooLarge as written:
+                base, changes = None, []
+                note = f"NOT CHECKED repository changes: {written}"
+            if warnings is not None:
+                warnings.append(note)
         policy = base_policy(root, base, deadline=deadline)
         protected = protected_change_violations(
             changes, policy if policy is not None else {}
         )
         if protected:
             return protected
-        touched = {
-            Path(os.path.abspath(path)).relative_to(root.resolve()).as_posix()
-            for path in paths
-        }
         violations = test_integrity_violations(
             [change for change in changes if change.path in touched]
         )
@@ -6704,7 +6787,9 @@ def dispatch_main() -> int:
         if args.command == "hook" and not messages:
             targets = [Path(os.path.abspath(root / path)) for path in paths]
             messages.extend(
-                write_guardrail_violations(targets, root, config, deadline=deadline)
+                write_guardrail_violations(
+                    targets, root, config, deadline=deadline, warnings=warnings
+                )
             )
             if not messages and any(
                 target.suffix in TYPESCRIPT_SUFFIXES for target in targets
@@ -6915,6 +7000,21 @@ def install_managed(root: Path, destination: Path) -> None:
     print("Owner-writable installation is not an OS security boundary.")
 
 
+def missing_engine_guard(root: str) -> str:
+    """Shell prefix for an owned hook: pass with a note on a branch that does not have Loki.
+
+    That is a checkout whose HEAD has no `.loki/loki.py` while another ref does. An engine deleted from the working
+    tree that HEAD still tracks, or one that was never committed anywhere, still fails closed.
+    """
+    return (
+        f'R={root}; [ -f "$R/.loki/loki.py" ] || '
+        'git -C "$R" cat-file -e HEAD:.loki/loki.py 2>/dev/null || '
+        '[ -z "$(git -C "$R" rev-list -1 --all -- .loki/loki.py 2>/dev/null)" ] || '
+        "{ printf '%s\\n' 'loki: .loki/loki.py is not on this branch; Loki did not check this' >&2; "
+        "exit 0; }; "
+    )
+
+
 def install_shell_guard(root: Path) -> None:
     import shlex
 
@@ -6926,6 +7026,7 @@ def install_shell_guard(root: Path) -> None:
         document = read_json_object(path)
         groups = document["hooks"] if harness == "claude" else document
         command = (
+            f"{missing_engine_guard(shlex.quote(str(root)))}"
             f"{shlex.quote(sys.executable)} {shlex.quote(str(root / '.loki/loki.py'))} "
             f"--root {shlex.quote(str(root))} shell --harness {harness} || "
             "{ printf '%s\\n' 'loki: shell guard failed' >&2; exit 2; }"
@@ -7305,8 +7406,22 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
         return None
     targets: list[tuple[str, str]] = []
     words: list[str] = []
+    # The directory a `cd` moved to, relative to the command's cwd; "$CD" when the shell decides it.
+    moved = ""
+    scopes: list[str] = []
+
+    placed = 0
+
+    def place() -> None:
+        nonlocal placed
+        if moved:
+            targets[placed:] = [
+                (os.path.join(moved, target), how) for target, how in targets[placed:]
+            ]
+        placed = len(targets)
 
     def flush() -> None:
+        nonlocal moved
         while words and (
             "=" in words[0]
             and not words[0].startswith("-")
@@ -7317,6 +7432,14 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
             return
         name, args = Path(words[0]).name, words[1:]
         plain = [arg for arg in args if not arg.startswith("-")]
+        if name in {"cd", "pushd", "popd"}:
+            moves = [arg for arg in args if arg not in {"-L", "-P", "-e", "-@", "--"}]
+            if name != "popd" and len(moves) == 1 and moves[0] != "-":
+                moved = os.path.join(moved, moves[0])
+            else:
+                moved = "$CD"
+            words.clear()
+            return
         if name == "tee":
             targets.extend((arg, "tee") for arg in plain)
         elif name == "sed" and any(
@@ -7367,6 +7490,7 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
                     targets.append((destination, name))
         elif name == "dd":
             targets.extend((arg[3:], "dd") for arg in args if arg.startswith("of="))
+        place()
         words.clear()
 
     index = 0
@@ -7375,16 +7499,23 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
         if token in {">", ">>", ">|", "&>", "&>>"}:
             if index + 1 < len(tokens):
                 targets.append((tokens[index + 1], "redirect"))
+                place()
             index += 2
             continue
         if token.endswith((">", ">>")) and set(token) <= set("<>&|;()"):
             # Operators run together with a redirect (`;>`), rare: treat the next word as its target.
             if index + 1 < len(tokens):
                 targets.append((tokens[index + 1], "redirect"))
+                place()
             index += 2
             continue
         if set(token) <= set("();<>|&"):
             flush()
+            for char in token:
+                if char == "(":
+                    scopes.append(moved)
+                elif char == ")" and scopes:
+                    moved = scopes.pop()
             index += 1
             continue
         if (

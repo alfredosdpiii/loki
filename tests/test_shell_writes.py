@@ -56,6 +56,24 @@ class ShellWriteTargetTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual([], self.targets(command))
 
+    def test_targets_follow_cd(self):
+        cases = {
+            "cd src && echo x > a.py": [("src/a.py", "redirect")],
+            "cd /srv/x; printf a > Cargo.toml": [("/srv/x/Cargo.toml", "redirect")],
+            "(cd /srv && echo 1 > a.rs); echo 2 > b.py": [
+                ("/srv/a.rs", "redirect"),
+                ("b.py", "redirect"),
+            ],
+            "cd src; cp a.py b.py": [("src/b.py", "cp")],
+            "echo x > a.py; cd /srv": [("a.py", "redirect")],
+            "cd -- lib && mv -t dst a.py": [("lib/dst/a.py", "mv")],
+            "cd $DIR && echo x > a.py": [("$DIR/a.py", "redirect")],
+            "cd; echo x > a.py": [("$CD/a.py", "redirect")],
+        }
+        for command, expected in cases.items():
+            with self.subTest(command=command):
+                self.assertEqual(expected, self.targets(command))
+
     def test_unparseable_command_is_unknown(self):
         self.assertIsNone(self.targets("echo 'unterminated > a.py"))
 
@@ -90,6 +108,9 @@ class ShellWritesViolationTests(unittest.TestCase):
                 "echo x > /tmp/elsewhere.py",
                 "rg -n foo > /dev/null",
                 "echo $HOME > $OUT",
+                "cd /tmp && echo x > Cargo.toml",
+                "(cd /tmp; echo x > a.rs)",
+                "cd $WORK && echo x > a.py",
             ):
                 with self.subTest(command=command):
                     self.assertIsNone(self.violation(root, command))
@@ -103,6 +124,8 @@ class ShellWritesViolationTests(unittest.TestCase):
         with temporary_root() as root:
             write_file(root, "pkg/mod.py", "")
             message = self.violation(root, "echo x > mod.py", cwd=root / "pkg")
+            self.assertIn("into pkg/mod.py", message or "")
+            message = self.violation(root, "cd pkg && echo x > mod.py")
             self.assertIn("into pkg/mod.py", message or "")
 
 
