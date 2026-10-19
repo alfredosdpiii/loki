@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -199,6 +200,18 @@ class CommandUtilityTests(unittest.TestCase):
             parser.parse_args(["hook", "--harness", "other"])
         with self.assertRaises(SystemExit):
             parser.parse_args(["task"])
+
+
+class ReDoSCheckerTests(unittest.TestCase):
+    def test_delimiter_separated_is_linear_on_unclosed_class_of_backslashes(
+        self,
+    ) -> None:
+        # The character-class scan once matched a backslash two ways, so an unclosed
+        # class full of backslashes backtracked exponentially (CodeQL py/redos).
+        body = ",[" + "\\\\" * 40
+        started = time.monotonic()
+        loki.delimiter_separated(body)
+        self.assertLess(time.monotonic() - started, 1.0)
 
 
 if __name__ == "__main__":

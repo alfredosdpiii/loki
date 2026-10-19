@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 SOURCE_ROOT = Path(__file__).resolve().parent
 INSTALLED = SOURCE_ROOT.name == ".loki"
@@ -1516,7 +1516,7 @@ def delimiter_separated(body: str) -> bool:
     delimiter = found.group(0)[-1]
     if re.search(r"(?<!\\)\.|\\[SWD]", body):
         return False
-    for match in re.finditer(r"\[(\^?)((?:\\.|[^\]])*)\]", body):
+    for match in re.finditer(r"\[(\^?)((?:\\.|[^\]\\])*)\]", body):
         members = re.findall(r"\\.|.", match.group(2))
         inside = False
         for index, member in enumerate(members):
