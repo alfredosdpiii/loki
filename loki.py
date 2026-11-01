@@ -1746,15 +1746,20 @@ def request_tainted_calls(
         ),
     ]
     for scope in scopes:
-        if sanitizers and any(
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func).split(".")[-1] in sanitizers
-            for node in ast.walk(scope)
+        nodes = list(ast.walk(scope))
+        # Taint starts only at request data, so a scope that reads none has no findings.
+        if not any(map(request_source, nodes)) or (
+            sanitizers
+            and any(
+                isinstance(node, ast.Call)
+                and ast.unparse(node.func).split(".")[-1] in sanitizers
+                for node in nodes
+            )
         ):
             continue
         tainted: set[str] = set()
         for _ in range(2):
-            for node in ast.walk(scope):
+            for node in nodes:
                 if (
                     isinstance(node, ast.Assign | ast.AnnAssign)
                     and node.value
@@ -1773,7 +1778,7 @@ def request_tainted_calls(
                         for item in ast.walk(target)
                         if isinstance(item, ast.Name)
                     )
-        for node in ast.walk(scope):
+        for node in nodes:
             if not isinstance(node, ast.Call) or not sink(ast.unparse(node.func)):
                 continue
             if any(
