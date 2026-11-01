@@ -661,7 +661,11 @@ Ruff check, not a replacement for the complete repository scan or cross-file typ
 
 Ordinary Python hooks now use this trusted-config net-new Ruff comparison for the
 touched file. They require a committed, self-contained `.ruff.toml` and do not run
-automatic Ruff fixes or formatting. Import and AST checks are net-new against the
+automatic Ruff fixes or formatting. Ruff (and mypy) is found in the project's
+`.venv/bin` or `venv/bin` first, then on PATH; Ruff last falls back to
+`<project interpreter> -m ruff` when that module is importable. Nothing is ever
+installed; when all fail the hook reports `NOT CHECKED python: missing ruff`.
+Import and AST checks are net-new against the
 committed text as well (see [Python import and AST checks](#python-import-and-ast-checks)).
 
 Project-wide TypeScript diagnostics are compared between the committed base and
@@ -670,8 +674,12 @@ The working tree is checked first; the base snapshot is materialized only when t
 candidate has diagnostics. Unchanged diagnostic fingerprints pass; new errors fail,
 including errors in consumer files that did not change. The compiler comes from
 `node_modules/typescript`, or from the TypeScript package behind `tsc` on PATH.
-Base snapshots reject symlink/gitlink entries and oversized trees, and JSON changes
-require separate configuration review. Dependency storage is shared, not
+Base snapshots reject symlink/gitlink entries and oversized trees. JSON that can
+change compiler configuration or module resolution requires separate configuration
+review: `tsconfig*.json`, `jsconfig*.json` and `package.json` at any depth, and the
+relative files named by the committed `tsconfig.json`'s `extends` (string or list).
+When that `tsconfig.json` is not plain JSON, every JSON change is refused. Other
+JSON files, such as data, are type-checked normally. Dependency storage is shared, not
 independently authenticated. This does not replace Oxlint.
 
 By default (`typescript_check` unset) the check runs whenever a root `tsconfig.json`

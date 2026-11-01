@@ -3918,9 +3918,27 @@ def written_slop(
     return notes[:MAX_VIOLATIONS]
 
 
+def ruff_command(root: Path) -> list[str] | None:
+    """Ruff from the project's .venv or venv, PATH, then the project's `-m ruff`.
+
+    Never installs anything: no network, no uvx.
+    """
+    for prefix in (".venv", "venv"):
+        if (local := root / prefix / "bin/ruff").is_file():
+            return [str(local)]
+    if shutil.which("ruff"):
+        return ["ruff"]
+    try:
+        if "ruff" not in resolve_imports(root, ["ruff"]):
+            return [str(project_python(root)), "-m", "ruff"]
+    except ValueError:
+        pass
+    return None
+
+
 def missing_tool(language: str, root: Path) -> str | None:
     if language == "python":
-        return None if shutil.which("ruff") else "ruff"
+        return None if ruff_command(root) else "ruff"
     if language == "typescript":
         return None if resolve_tool(root, "oxlint") else "oxlint"
     if language == "go":
@@ -4018,8 +4036,10 @@ def possibly_existing(keys: Iterable[tuple], texts: dict[str, str]) -> bool:
 
 
 def mypy_binary(root: Path) -> str | None:
-    local = root / ".venv/bin/mypy"
-    return str(local) if local.is_file() else shutil.which("mypy")
+    for prefix in (".venv", "venv"):
+        if (local := root / prefix / "bin/mypy").is_file():
+            return str(local)
+    return shutil.which("mypy")
 
 
 def mypy_state(root: Path) -> Path:
@@ -5004,11 +5024,12 @@ def scan_command(
 ) -> tuple[str | None, list[list[str]]]:
     relative_files = [relative_display(path, root) for path in files]
     if language == "python":
-        if not shutil.which("ruff"):
+        ruff = ruff_command(root)
+        if not ruff:
             return "ruff", []
         return None, [
-            ["ruff", "check", *relative_files],
-            ["ruff", "format", "--check", *relative_files],
+            [*ruff, "check", *relative_files],
+            [*ruff, "format", "--check", *relative_files],
         ]
     if language == "typescript":
         oxlint = resolve_tool(root, "oxlint")
@@ -8039,6 +8060,39 @@ def typescript_state(
     return Path.home() / ".cache/loki/typescript" / identity / digest.hexdigest()
 
 
+def typescript_extends(raw: bytes | None) -> set[str] | None:
+    """Repository paths the committed tsconfig.json extends; None when unreadable.
+
+    Package names resolve into node_modules, which is refused separately.
+    """
+    try:
+        config = json.loads(raw or b"")
+    except ValueError:
+        return None
+    targets = config.get("extends", []) if isinstance(config, dict) else []
+    names = set()
+    targets = [targets] if isinstance(targets, str) else targets
+    for target in targets if isinstance(targets, list) else []:
+        if isinstance(target, str) and target.startswith("."):
+            path = os.path.normpath(target)
+            names.update({path, f"{path}.json"})
+    return names
+
+
+def typescript_config_json(name: str, extends: set[str] | None) -> bool:
+    """Whether a JSON file can change compiler options or module resolution.
+
+    An unreadable committed tsconfig.json (comments, say) keeps every JSON file.
+    """
+    base = os.path.basename(name)
+    return name.endswith(".json") and (
+        extends is None
+        or name in extends
+        or base == "package.json"
+        or base.startswith(("tsconfig", "jsconfig"))
+    )
+
+
 def typescript_violations(
     root: Path,
     *,
@@ -8071,14 +8125,17 @@ def typescript_violations(
     findings = protected_change_violations(changes, policy)
     if findings:
         return findings
-    for name in [*(change.path for change in changes), *(overrides or {})]:
-        if name.endswith(".json"):
-            return setup(f"{name}: JSON/config change requires separate review")
-        if name.startswith("node_modules/"):
-            return setup("typescript: dependency changes require separate review")
     try:
         raw = git_output(root, ["show", f"{base}:tsconfig.json"], deadline=deadline)
     except ValueError:
+        raw = None
+    extends = typescript_extends(raw)
+    for name in [*(change.path for change in changes), *(overrides or {})]:
+        if typescript_config_json(name, extends):
+            return setup(f"{name}: JSON/config change requires separate review")
+        if name.startswith("node_modules/"):
+            return setup("typescript: dependency changes require separate review")
+    if raw is None:
         return setup("typescript: committed tsconfig.json required")
     evidence_policy("base", "tsconfig.json", raw, base=base)
     marker = typescript_state(root, base, raw, changes, overrides)
@@ -8244,7 +8301,11 @@ def apply_snapshot_change(root: Path, change: FileChange) -> None:
 
 
 def ruff_delta(
-    raw: bytes, pairs: list[tuple[str, bytes, bytes]], *, deadline: float | None
+    raw: bytes,
+    pairs: list[tuple[str, bytes, bytes]],
+    *,
+    deadline: float | None,
+    ruff: list[str],
 ) -> list[str]:
     """Ruff findings present in each candidate but not its base, by line text."""
     import tempfile
@@ -8261,7 +8322,7 @@ def ruff_delta(
             for content in (before, after):
                 result = subprocess.run(
                     [
-                        "ruff",
+                        *ruff,
                         "check",
                         "--no-cache",
                         "--no-respect-gitignore",
@@ -8336,7 +8397,8 @@ def ruff_new_violations(
         and change.path.endswith(".py")
         and change.after is not None
     ]
-    return ruff_delta(raw, pairs, deadline=deadline)
+    ruff = ruff_command(root) or ["ruff"]
+    return ruff_delta(raw, pairs, deadline=deadline, ruff=ruff)
 
 
 def preview_ruff(
@@ -8348,12 +8410,13 @@ def preview_ruff(
         for path, old, new in changes
         if path.endswith(".py")
     ]
-    if not pairs or not shutil.which("ruff"):
+    ruff = ruff_command(root) if pairs else None
+    if not ruff:
         return []
     try:
         raw = git_output(root, ["show", "HEAD:.ruff.toml"], deadline=deadline)
         evidence_policy("base", ".ruff.toml", raw, base="HEAD")
-        return ruff_delta(raw, pairs, deadline=deadline)
+        return ruff_delta(raw, pairs, deadline=deadline, ruff=ruff)
     except (OSError, ValueError, subprocess.TimeoutExpired, tomllib.TOMLDecodeError):
         return []
 
@@ -8603,8 +8666,7 @@ def prewarm(root: Path) -> None:
             )
             worker.close()
             TYPESCRIPT_WORKERS.clear()
-    local = root / ".venv/bin/mypy"
-    mypy = str(local) if local.is_file() else shutil.which("mypy")
+    mypy = mypy_binary(root)
     dmypy = Path(mypy).with_name("dmypy") if mypy else None
     if dmypy is not None and dmypy.is_file():
         state = mypy_state(root)

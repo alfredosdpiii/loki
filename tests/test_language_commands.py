@@ -8,6 +8,24 @@ from tests.helpers import temporary_root, write_file
 
 
 class MissingToolTests(unittest.TestCase):
+    def test_ruff_resolves_from_venv_path_then_project_interpreter(self) -> None:
+        with temporary_root() as root:
+            with (
+                patch.object(loki.shutil, "which", return_value=None),
+                patch.object(loki, "resolve_imports", return_value={"ruff"}),
+            ):
+                self.assertIsNone(loki.ruff_command(root))
+            with (
+                patch.object(loki.shutil, "which", return_value=None),
+                patch.object(loki, "resolve_imports", return_value=set()),
+                patch.object(loki, "project_python", return_value="/env/python"),
+            ):
+                self.assertEqual(["/env/python", "-m", "ruff"], loki.ruff_command(root))
+            with patch.object(loki.shutil, "which", return_value="/bin/ruff"):
+                self.assertEqual(["ruff"], loki.ruff_command(root))
+                write_file(root, "venv/bin/ruff")
+                self.assertEqual([str(root / "venv/bin/ruff")], loki.ruff_command(root))
+
     def test_reports_required_tool_for_every_language(self) -> None:
         with temporary_root() as root:
             with patch.object(loki.shutil, "which", return_value=None) as which:

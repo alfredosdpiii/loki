@@ -535,20 +535,43 @@ class PreviewTypescriptTests(unittest.TestCase):
                 )
             self.assertEqual({"src/a.ts": "x"}, check.call_args.kwargs["overrides"])
 
-    def test_proposed_json_is_a_setup_notice(self):
+    def test_proposed_config_json_is_a_setup_notice(self):
         with temporary_root() as root:
-            commit(root, {"tsconfig.json": "{}"})
-            notices = []
+            commit(root, {"tsconfig.json": '{"extends": "./config/base"}'})
             with patch.object(
                 loki, "typescript_compiler", return_value=root / "tsc.js"
             ):
-                self.assertEqual(
-                    [],
-                    loki.typescript_violations(
-                        root, notices=notices, overrides={"data.json": "{}"}
-                    ),
+                for name in (
+                    "config/base.json",
+                    "web/package.json",
+                    "tsconfig.app.json",
+                ):
+                    with self.subTest(name=name):
+                        notices = []
+                        self.assertEqual(
+                            [],
+                            loki.typescript_violations(
+                                root, notices=notices, overrides={name: "{}"}
+                            ),
+                        )
+                        self.assertIn(f"{name}: JSON/config change", notices[0])
+
+    def test_unrelated_json_is_type_checked(self):
+        with temporary_root() as root, temporary_root() as home:
+            commit(root, {"tsconfig.json": "{}"})
+            notices = []
+            with (
+                patch.dict(os.environ, {"HOME": str(home)}),
+                patch.object(loki, "typescript_compiler", return_value=root / "tsc.js"),
+                patch.object(
+                    loki, "typescript_diagnostics", return_value=({}, {}, set())
+                ) as compile_,
+            ):
+                loki.typescript_violations(
+                    root, notices=notices, overrides={"data.json": "{}"}
                 )
-            self.assertIn("data.json: JSON/config change", notices[0])
+            compile_.assert_called()
+            self.assertEqual([], notices)
 
 
 @unittest.skipUnless(TSC.is_file() and shutil.which("node"), "TypeScript unavailable")
