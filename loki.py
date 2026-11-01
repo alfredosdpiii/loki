@@ -5663,6 +5663,17 @@ def candidate_content(
         os.close(directory)
 
 
+def repository_gap(root: Path, *, deadline: float | None = None) -> str | None:
+    """Why git cannot compare root (no repository, or a subdirectory of one), else None."""
+    try:
+        top = git_output(root, ["rev-parse", "--show-toplevel"], deadline=deadline)
+    except ValueError as error:
+        return str(error)
+    if Path(os.fsdecode(top).rstrip("\n")).resolve() != root.resolve():
+        return "git: project root must be the repository root"
+    return None
+
+
 def git_changes(
     root: Path,
     base: str | None,
@@ -5672,13 +5683,9 @@ def git_changes(
 ) -> tuple[str | None, list[FileChange]]:
     """The changes against base; `only` limits the snapshot to those repository-relative paths."""
     root = root.resolve()
-    actual_root = Path(
-        os.fsdecode(
-            git_output(root, ["rev-parse", "--show-toplevel"], deadline=deadline)
-        ).rstrip("\n")
-    ).resolve()
-    if actual_root != root:
-        raise ValueError("git: project root must be the repository root")
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        raise ValueError(gap)
     if git_output(root, ["ls-files", "--unmerged", "-z"], deadline=deadline):
         raise ValueError("loki: unresolved index conflict")
     if base == "":
@@ -6117,6 +6124,10 @@ def write_guardrail_violations(
     deadline: float | None = None,
     warnings: list[str] | None = None,
 ) -> list[str]:
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        strict = os.environ.get("LOKI_STRICT") == "1"
+        return not_checked(f"NOT CHECKED repository changes: {gap}", strict, warnings)
     try:
         touched = {
             Path(os.path.abspath(path)).relative_to(root.resolve()).as_posix()
@@ -8664,7 +8675,7 @@ def ruff_delta(
 
 
 class MissingRuffConfig(ValueError):
-    """The base revision has no .ruff.toml, so net-new Ruff has no trusted config."""
+    """No committed base or base .ruff.toml, so net-new Ruff has no trusted config."""
 
 
 def ruff_new_violations(
@@ -8674,9 +8685,12 @@ def ruff_new_violations(
     paths: set[str] | None = None,
     deadline: float | None = None,
 ) -> list[str]:
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        raise MissingRuffConfig(gap)
     base, changes = git_changes(root, reference, deadline=deadline)
     if base is None:
-        raise ValueError("net-new Ruff requires a committed base")
+        raise MissingRuffConfig("net-new Ruff requires a committed base")
     policy = base_policy(root, base, deadline=deadline)
     protected = protected_change_violations(changes, policy or {})
     if protected:

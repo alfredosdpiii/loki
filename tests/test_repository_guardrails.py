@@ -228,7 +228,33 @@ class DiffGuardrailTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 loki.git_changes(root, None)
         with temporary_root() as root:
-            self.assertTrue(loki.write_guardrail_violations([root / "a.txt"], root, {}))
+            warnings: list[str] = []
+            self.assertEqual(
+                [],
+                loki.write_guardrail_violations(
+                    [root / "a.txt"], root, {}, warnings=warnings
+                ),
+            )
+            self.assertTrue(
+                warnings[0].startswith("NOT CHECKED repository changes: git:")
+            )
+            with patch.dict(os.environ, {"LOKI_STRICT": "1"}):
+                self.assertTrue(
+                    loki.write_guardrail_violations([root / "a.txt"], root, {})
+                )
+            git(root, "init", "-q")
+            (root / "sub").mkdir()
+            warnings = []
+            loki.write_guardrail_violations(
+                [root / "sub/a.txt"], root / "sub", {}, warnings=warnings
+            )
+            self.assertEqual(
+                [
+                    "NOT CHECKED repository changes: git: project root must be "
+                    "the repository root"
+                ],
+                warnings,
+            )
 
     def test_oversized_snapshot_checks_the_written_files(self) -> None:
         with temporary_root() as root:
