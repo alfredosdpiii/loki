@@ -1723,6 +1723,39 @@ PATH_SANITIZERS = ("basename", "secure_filename", "is_relative_to", "commonpath"
 PATH_SANITIZERS += ("relative_to",)
 
 
+def tainted_by(node: ast.AST, tainted: set[str]) -> bool:
+    """Whether an expression reads request data or an already tainted name."""
+    return any(
+        request_source(item) or (isinstance(item, ast.Name) and item.id in tainted)
+        for item in ast.walk(node)
+    )
+
+
+def assigned_names(node: ast.Assign | ast.AnnAssign) -> set[str]:
+    """Every name bound by an assignment's targets."""
+    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    return {
+        item.id
+        for target in targets
+        for item in ast.walk(target)
+        if isinstance(item, ast.Name)
+    }
+
+
+def tainted_names(nodes: list[ast.AST]) -> set[str]:
+    """Names assigned from request data, followed through two rounds."""
+    tainted: set[str] = set()
+    for _ in range(2):
+        for node in nodes:
+            if (
+                isinstance(node, ast.Assign | ast.AnnAssign)
+                and node.value
+                and tainted_by(node.value, tainted)
+            ):
+                tainted.update(assigned_names(node))
+    return tainted
+
+
 def request_scopes(tree: ast.AST) -> list[tuple[list[tuple[ast.Call, str]], set[str]]]:
     """Each function (or the module) that reads request data: its calls with
     their callee text, and the names tainted through plain assignments.
@@ -1731,40 +1764,17 @@ def request_scopes(tree: ast.AST) -> list[tuple[list[tuple[ast.Call, str]], set[
     """
     names: dict[int, str] = {}
     found = []
-    scopes = [
-        tree,
-        *(
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-        ),
-    ]
-    for scope in scopes:
+    functions = (
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    )
+    for scope in [tree, *functions]:
         nodes = list(ast.walk(scope))
         # Taint starts only at request data, so a scope that reads none has no findings.
         if not any(map(request_source, nodes)):
             continue
-        tainted: set[str] = set()
-        for _ in range(2):
-            for node in nodes:
-                if (
-                    isinstance(node, ast.Assign | ast.AnnAssign)
-                    and node.value
-                    and any(
-                        request_source(item)
-                        or (isinstance(item, ast.Name) and item.id in tainted)
-                        for item in ast.walk(node.value)
-                    )
-                ):
-                    targets = (
-                        node.targets if isinstance(node, ast.Assign) else [node.target]
-                    )
-                    tainted.update(
-                        item.id
-                        for target in targets
-                        for item in ast.walk(target)
-                        if isinstance(item, ast.Name)
-                    )
+        tainted = tainted_names(nodes)
         calls = []
         for node in nodes:
             if isinstance(node, ast.Call):
@@ -1845,42 +1855,73 @@ def addends(node: ast.AST) -> list[ast.AST]:
     return [node]
 
 
+def joined_sql_holes(node: ast.JoinedStr) -> tuple[str, list[str]]:
+    """f-string text and the text before each {hole}."""
+    befores: list[str] = []
+    text = ""
+    for value in node.values:
+        if isinstance(value, ast.FormattedValue):
+            befores.append(text)
+        else:
+            text += str(getattr(value, "value", ""))
+    return text, befores
+
+
+def added_sql_holes(node: ast.BinOp) -> tuple[str, list[str]]:
+    """Constant text of a + chain and the text before each non-constant."""
+    befores: list[str] = []
+    text = ""
+    for item in addends(node):
+        if isinstance(item, ast.Constant):
+            text += str(item.value)
+        else:
+            befores.append(text)
+    return text, befores
+
+
+def percent_sql_holes(node: ast.BinOp) -> tuple[str, list[str]]:
+    """`"..." % values` text and the text before each %s-style hole."""
+    if isinstance(node.left, ast.Constant) and not isinstance(node.right, ast.Constant):
+        text = str(node.left.value)
+        holes = re.finditer(r"%(?:\(\w+\))?[sdifr]", text)
+        return text, [text[: hole.start()] for hole in holes]
+    return "", []
+
+
+def format_sql_holes(node: ast.Call) -> tuple[str, list[str]]:
+    """`"...".format(values)` text and the text before each {hole}."""
+    if (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "format"
+        and isinstance(node.func.value, ast.Constant)
+        and (node.args or node.keywords)
+    ):
+        text = str(node.func.value.value)
+        holes = re.finditer(r"\{[^{}]*\}", text)
+        return text, [text[: hole.start()] for hole in holes]
+    return "", []
+
+
+def sql_holes(node: ast.AST) -> tuple[str, list[str]]:
+    """The constant text of a built string and the text before each hole."""
+    if isinstance(node, ast.JoinedStr):
+        return joined_sql_holes(node)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return added_sql_holes(node)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
+        return percent_sql_holes(node)
+    if isinstance(node, ast.Call):
+        return format_sql_holes(node)
+    return "", []
+
+
 def built_sql(node: ast.AST) -> bool:
     """SQL text with a non-constant spliced in where the query expects a value.
 
     Holes in clause or name positions (`WHERE 1=1 {filters}`, `FROM {table}`)
     pass: they are nearly always fixed fragments chosen in code.
     """
-    befores: list[str] = []
-    text = ""
-    if isinstance(node, ast.JoinedStr):
-        for value in node.values:
-            if isinstance(value, ast.FormattedValue):
-                befores.append(text)
-            else:
-                text += str(getattr(value, "value", ""))
-    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        for item in addends(node):
-            if isinstance(item, ast.Constant):
-                text += str(item.value)
-            else:
-                befores.append(text)
-    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
-        if isinstance(node.left, ast.Constant) and not isinstance(
-            node.right, ast.Constant
-        ):
-            text = str(node.left.value)
-            holes = re.finditer(r"%(?:\(\w+\))?[sdifr]", text)
-            befores = [text[: hole.start()] for hole in holes]
-    elif (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "format"
-        and isinstance(node.func.value, ast.Constant)
-        and (node.args or node.keywords)
-    ):
-        text = str(node.func.value.value)
-        befores = [text[: hole.start()] for hole in re.finditer(r"\{[^{}]*\}", text)]
+    text, befores = sql_holes(node)
     return bool(re.search(r"\b(?:select|insert|update|delete)\b", text, re.I)) and any(
         re.search(SQL_VALUE_POSITION, before, re.I) or before.count("'") % 2
         for before in befores
@@ -2061,27 +2102,63 @@ def python_injection_rules(
     return findings
 
 
-def python_rules(text: str) -> list[Finding]:
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return []
+SHELL_RUNNERS = {"run", "call", "Popen", "check_call", "check_output"}
+REGEX_CALLS = {
+    f"re.{name}"
+    for name in (
+        "compile",
+        "match",
+        "search",
+        "fullmatch",
+        "findall",
+        "finditer",
+        "sub",
+        "split",
+    )
+}
+PATH_TRAVERSAL_MESSAGE = (
+    "path traversal: file path built from request data; take the base "
+    "name or resolve it and check it stays under the intended directory"
+)
+TAUTOLOGICAL_MESSAGE = (
+    "tautological assertion: the expected value is computed by the "
+    "same call as the result, so the test always passes"
+)
+PYTHON_SSRF_MESSAGE = (
+    "server-side request forgery (SSRF): outbound request URL comes "
+    "from request data; validate the host against an allowlist"
+)
+TIMING_COMPARE_MESSAGE = (
+    "timing attack: signature or digest compared with ==; use hmac.compare_digest"
+)
+
+
+def line_offsets(text: str) -> list[int]:
+    """Character offset where each line starts, plus the end of the text."""
     offsets = [0]
     for line in text.splitlines(keepends=True):
         offsets.append(offsets[-1] + len(line))
+    return offsets
+
+
+def decision_operands(node: ast.AST) -> list[ast.AST]:
+    """The expressions a comparison, boolean or branch test decides on."""
+    if isinstance(node, ast.Compare):
+        return [node.left, *node.comparators]
+    if isinstance(node, ast.BoolOp):
+        return node.values
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return [node.operand]
+    if isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
+        return [node.test]
+    return []
+
+
+def request_authorization_findings(tree: ast.AST, offsets: list[int]) -> list[Finding]:
+    """Decisions that trust an authorization-looking request field."""
     findings: list[Finding] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.Compare):
-            operands = [node.left, *node.comparators]
-        elif isinstance(node, ast.BoolOp):
-            operands = node.values
-        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            operands = [node.operand]
-        elif isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
-            operands = [node.test]
-        else:
-            continue
-        for operand in operands:
+        for operand in decision_operands(node):
             if key := request_field(operand):
                 findings.append(
                     (
@@ -2092,100 +2169,104 @@ def python_rules(text: str) -> list[Finding]:
                         offsets[operand.lineno - 1] + operand.col_offset,
                     )
                 )
+    return findings
+
+
+def shell_command_call(node: ast.AST) -> bool:
+    """subprocess-style call running `sh -c` with a non-constant after -c."""
+    if not (
+        isinstance(node, ast.Call)
+        and ast.unparse(node.func).split(".")[-1] in SHELL_RUNNERS
+        and node.args
+        and isinstance(node.args[0], ast.List)
+    ):
+        return False
+    constant = [
+        item.value if isinstance(item, ast.Constant) else None
+        for item in node.args[0].elts
+    ]
+    return bool(
+        constant[:1]
+        and constant[0] in SHELLS
+        and "-c" in constant
+        and any(value is None for value in constant[constant.index("-c") :])
+    )
+
+
+def secret_compare(node: ast.AST, derived: set[str]) -> bool:
+    """== or != between a secret value and something other than a constant."""
+    if not (
+        isinstance(node, ast.Compare)
+        and all(isinstance(op, ast.Eq | ast.NotEq) for op in node.ops)
+    ):
+        return False
+    operands = [node.left, *node.comparators]
+    return any(secret_value(item, derived) for item in operands) and not any(
+        isinstance(item, ast.Constant) for item in operands
+    )
+
+
+def shell_and_timing_findings(tree: ast.AST, offsets: list[int]) -> list[Finding]:
+    """Shell commands built from values and secrets compared with ==."""
     derived = secret_names(tree)
+    findings: list[Finding] = []
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func).split(".")[-1]
-            in {"run", "call", "Popen", "check_call", "check_output"}
-            and node.args
-            and isinstance(node.args[0], ast.List)
-        ):
-            items = node.args[0].elts
-            constant = [
-                item.value if isinstance(item, ast.Constant) else None for item in items
-            ]
-            if (
-                constant[:1]
-                and constant[0] in SHELLS
-                and "-c" in constant
-                and any(value is None for value in constant[constant.index("-c") :])
-            ):
-                findings.append(
-                    (
-                        "loki/command-injection",
-                        SHELL_COMMAND,
-                        offsets[node.lineno - 1] + node.col_offset,
-                    )
-                )
-        if isinstance(node, ast.Compare) and all(
-            isinstance(op, ast.Eq | ast.NotEq) for op in node.ops
-        ):
-            operands = [node.left, *node.comparators]
-            if any(secret_value(item, derived) for item in operands) and not any(
-                isinstance(item, ast.Constant) for item in operands
-            ):
-                findings.append(
-                    (
-                        "loki/timing-compare",
-                        "timing attack: signature or digest compared with ==; use "
-                        "hmac.compare_digest",
-                        offsets[node.lineno - 1] + node.col_offset,
-                    )
-                )
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func)
-            in {
-                f"re.{name}"
-                for name in (
-                    "compile",
-                    "match",
-                    "search",
-                    "fullmatch",
-                    "findall",
-                    "finditer",
-                    "sub",
-                    "split",
-                )
-            }
-            and node.args
-            and isinstance(node.args[0], ast.Constant)
-            and isinstance(node.args[0].value, str)
-            and nested_quantifier(node.args[0].value)
-        ):
-            findings.append(
-                (REDOS_RULE, REDOS_MESSAGE, offsets[node.lineno - 1] + node.col_offset)
-            )
+        if shell_command_call(node):
+            at = offsets[node.lineno - 1] + node.col_offset
+            findings.append(("loki/command-injection", SHELL_COMMAND, at))
+        if secret_compare(node, derived):
+            at = offsets[node.lineno - 1] + node.col_offset
+            findings.append(("loki/timing-compare", TIMING_COMPARE_MESSAGE, at))
+    return findings
+
+
+def redos_call(node: ast.AST) -> bool:
+    """re.* call on a constant pattern with a nested quantifier."""
+    return bool(
+        isinstance(node, ast.Call)
+        and ast.unparse(node.func) in REGEX_CALLS
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+        and nested_quantifier(node.args[0].value)
+    )
+
+
+def node_findings(
+    rule: str, message: str, nodes: Iterable[ast.AST], offsets: list[int]
+) -> list[Finding]:
+    """One finding per node, at the node's start."""
+    return [
+        (rule, message, offsets[node.lineno - 1] + node.col_offset) for node in nodes
+    ]
+
+
+def python_rules(text: str) -> list[Finding]:
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    offsets = line_offsets(text)
+    findings = request_authorization_findings(tree, offsets)
+    findings += shell_and_timing_findings(tree, offsets)
+    redos = filter(redos_call, ast.walk(tree))
+    findings += node_findings(REDOS_RULE, REDOS_MESSAGE, redos, offsets)
     scopes = request_scopes(tree)
-    for call in python_path_traversal(scopes):
-        findings.append(
-            (
-                "loki/path-traversal",
-                "path traversal: file path built from request data; take the base "
-                "name or resolve it and check it stays under the intended directory",
-                offsets[call.lineno - 1] + call.col_offset,
-            )
-        )
-    for call in tautological_assertions(tree):
-        findings.append(
-            (
-                "loki/tautological-test",
-                "tautological assertion: the expected value is computed by the "
-                "same call as the result, so the test always passes",
-                offsets[call.lineno - 1] + call.col_offset,
-            )
-        )
-    for call in python_ssrf(scopes):
-        findings.append(
-            (
-                "loki/ssrf",
-                "server-side request forgery (SSRF): outbound request URL comes "
-                "from request data; validate the host against an allowlist",
-                offsets[call.lineno - 1] + call.col_offset,
-            )
-        )
+    findings += node_findings(
+        "loki/path-traversal",
+        PATH_TRAVERSAL_MESSAGE,
+        python_path_traversal(scopes),
+        offsets,
+    )
+    findings += node_findings(
+        "loki/tautological-test",
+        TAUTOLOGICAL_MESSAGE,
+        tautological_assertions(tree),
+        offsets,
+    )
+    findings += node_findings(
+        "loki/ssrf", PYTHON_SSRF_MESSAGE, python_ssrf(scopes), offsets
+    )
     findings.extend(python_injection_rules(tree, scopes, offsets))
     return findings
 
