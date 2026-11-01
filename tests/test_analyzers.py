@@ -556,6 +556,10 @@ class PreviewTypescriptTests(unittest.TestCase):
                         )
                         self.assertIn(f"{name}: JSON/config change", notices[0])
 
+    def test_commented_tsconfig_still_names_its_extends(self):
+        raw = b'{\n  // base\n  "extends": "./base", /* "./x" */\n  "a": "//no",\n}'
+        self.assertEqual({"base", "base.json"}, loki.typescript_extends(raw))
+
     def test_unrelated_json_is_type_checked(self):
         with temporary_root() as root, temporary_root() as home:
             commit(root, {"tsconfig.json": "{}"})

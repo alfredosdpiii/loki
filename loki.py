@@ -8161,13 +8161,21 @@ def typescript_state(
     return Path.home() / ".cache/loki/typescript" / identity / digest.hexdigest()
 
 
+JSONC_TOKEN_RE = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/|,(?=\s*[}\]])', re.S)
+
+
+def strip_jsonc(text: str) -> str:
+    """tsconfig's JSON dialect as plain JSON: comments and trailing commas dropped."""
+    return JSONC_TOKEN_RE.sub(lambda m: m[0] if m[0][0] == '"' else "", text)
+
+
 def typescript_extends(raw: bytes | None) -> set[str] | None:
     """Repository paths the committed tsconfig.json extends; None when unreadable.
 
     Package names resolve into node_modules, which is refused separately.
     """
     try:
-        config = json.loads(raw or b"")
+        config = json.loads(strip_jsonc(raw.decode("utf-8") if raw else ""))
     except ValueError:
         return None
     targets = config.get("extends", []) if isinstance(config, dict) else []
