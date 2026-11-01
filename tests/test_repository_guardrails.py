@@ -259,6 +259,23 @@ class DiffGuardrailTests(unittest.TestCase):
             self.assertEqual(1, len(warnings))
             self.assertTrue(warnings[0].startswith("NOT CHECKED repository changes"))
 
+    @unittest.skipUnless(loki.shutil.which("ruff"), "Ruff unavailable")
+    def test_oversized_snapshot_skips_net_new_ruff(self) -> None:
+        with temporary_root() as root:
+            git(root, "init", "-q")
+            (root / "a.py").write_text("x = 1\n")
+            too_large = loki.SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
+            warnings: list[str] = []
+            with patch.object(loki, "ruff_new_violations", side_effect=too_large):
+                findings = loki.check_file(
+                    root / "a.py", root, {}, False, warnings=warnings
+                )
+            self.assertEqual([], findings)
+            self.assertIn(
+                "NOT CHECKED python ruff: git: snapshot content exceeds 64 MiB",
+                warnings,
+            )
+
     def test_test_heuristics_use_changed_lines(self) -> None:
         changes = [
             loki.FileChange(

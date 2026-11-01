@@ -4461,6 +4461,10 @@ def check_file(
                 violations.extend(
                     ruff_new_violations(root, None, paths=set(names), deadline=deadline)
                 )
+            except SnapshotTooLarge as error:
+                violations.extend(
+                    not_checked(f"NOT CHECKED python ruff: {error}", strict, warnings)
+                )
             except MissingRuffConfig as error:
                 # A minimal install (init --minimal) adds no .ruff.toml.
                 if strict:
