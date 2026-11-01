@@ -464,6 +464,52 @@ class ServerSideRuleTests(unittest.TestCase):
         ),
         ("a.py", "x: str = request.args['u']\nrequests.get(x)\n", ["loki/ssrf"]),
         (
+            "a.py",
+            'cur.execute(f"SELECT * FROM t WHERE id = {i}")\n',
+            ["loki/sql-injection"],
+        ),
+        (
+            "a.py",
+            "cur.execute('SELECT * FROM t WHERE id = %s' % i)\n",
+            ["loki/sql-injection"],
+        ),
+        (
+            "a.py",
+            "s.execute(text('DELETE FROM t WHERE a = ' + a))\n",
+            ["loki/sql-injection"],
+        ),
+        ("a.py", "cur.execute('SELECT * FROM t WHERE id = %s', (i,))\n", []),
+        ("a.py", 'cur.execute(f"SELECT * FROM {table} WHERE 1=1 {filters}")\n', []),
+        ("a.py", "def f(request):\n    eval(request.form['c'])\n", ["loki/code-eval"]),
+        ("a.py", "def f(request):\n    eval(expression)\n", []),
+        (
+            "a.py",
+            "def f(request):\n    pickle.loads(request.body)\n",
+            ["loki/unsafe-deserialization"],
+        ),
+        ("a.py", "pickle.loads(cache_blob)\n", []),
+        (
+            "a.py",
+            "yaml.load(f)\nyaml.unsafe_load(f)\n",
+            ["loki/unsafe-deserialization"] * 2,
+        ),
+        ("a.py", "yaml.load(f, Loader=yaml.SafeLoader)\nyaml.safe_load(f)\n", []),
+        ("a.py", "requests.get(u, verify=False)\n", ["loki/tls-verification"]),
+        ("a.py", "ctx = ssl._create_unverified_context()\n", ["loki/tls-verification"]),
+        ("a.py", "ctx.check_hostname = False\n", ["loki/tls-verification"]),
+        ("a.py", "requests.get(u, verify=True)\ndispatch(f, verify=False)\n", []),
+        (
+            "a.py",
+            "def f(request):\n    return redirect(request.args['next'])\n",
+            ["loki/open-redirect"],
+        ),
+        (
+            "a.py",
+            "def f(request):\n    url = request.GET.get('next')\n"
+            "    return HttpResponseRedirect(url_has_allowed_host_and_scheme(url) and url)\n",
+            [],
+        ),
+        (
             "a.js",
             "app.get('/', (req, res) => res.redirect(req.query.next));",
             ["loki/open-redirect"],

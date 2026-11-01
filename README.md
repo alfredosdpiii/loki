@@ -171,7 +171,7 @@ edits, so an agent can't switch it off.
 
 | Language | On every write | Tool-free rules |
 | --- | --- | --- |
-| **Python** | Net-new Ruff and mypy (annotated code), import and AST checks | request-trusted authorization, SSRF, path traversal, shell `-c`, timing-unsafe compares, ReDoS, tautological tests |
+| **Python** | Net-new Ruff and mypy (annotated code), import and AST checks | request-trusted authorization, SSRF, path traversal, shell `-c`, timing-unsafe compares, ReDoS, tautological tests, SQL injection, `eval` and unsafe deserialization of request data, unsafe `yaml.load`, open redirects, disabled TLS |
 | **TypeScript / JS** | Oxlint, project type check (pre-write), floating promises, numeric `.sort()` | XSS sinks, open redirects, `eval`, command and SQL injection, SSRF, prototype pollution, `postMessage` origin, timer leaks, ReDoS, disabled TLS |
 | **Go** | gofmt, go vet, golangci-lint with gosec on changed lines | zip slip, SQL built with `Sprintf`/`+`, shell `-c`, `InsecureSkipVerify` |
 | **Rust** | rustfmt, net-new Clippy and compiler errors | placeholders, unchecked `get_unchecked`, unflushed `BufWriter`, shell `-c`, SQL built with `format!`, `danger_accept_invalid_*` |

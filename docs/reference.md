@@ -139,6 +139,10 @@ previews before the write and again on the written file against its committed te
 | JavaScript/TypeScript | `message` event listeners that never read `origin` |
 | Python | File paths built from request data (`open`, `os.path.join`, `Path`, `joinpath`) in a function without `basename`, `secure_filename`, `is_relative_to`, `relative_to` or `commonpath` |
 | Python | Test assertions whose expected value comes from the same call as the result |
+| Python | `execute`/`executemany`/`executescript`/`raw`/`text` with SQL built by f-string, `%`, `.format` or `+` where a value goes (after `=`, `(`, `IN`, `LIKE`, `VALUES`, inside quotes); fixed fragments in clause or name positions pass (SQL injection) |
+| Python | `eval`/`exec`/`compile`, `pickle`/`dill`/`marshal` `load(s)` and redirects (`redirect`, `RedirectResponse`, `HttpResponseRedirect`) given request data within a function; a function calling a `safe`/`valid`/`allowed`-named check passes the redirect rule |
+| Python | `yaml.load` without a safe loader, `yaml.unsafe_load` (unsafe deserialization) |
+| Python | `verify=False` on `requests`/`httpx` calls, `ssl._create_unverified_context()`, `check_hostname = False` |
 | JavaScript/TypeScript | `req.query`/`req.body`/`req.params` reaching `fetch`, `got`, `axios` or `http(s).get` (SSRF) |
 | JavaScript/TypeScript | Recursive merges copying arbitrary keys with no `__proto__`/`constructor`/`prototype` guard (prototype pollution) |
 | Elixir | `redirect(conn, external: ...)` with a params-derived value (open redirect) |

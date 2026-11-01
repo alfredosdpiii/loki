@@ -1723,19 +1723,14 @@ PATH_SANITIZERS = ("basename", "secure_filename", "is_relative_to", "commonpath"
 PATH_SANITIZERS += ("relative_to",)
 
 
-def request_tainted_calls(
-    tree: ast.AST,
-    sink: Any,
-    arguments: Any,
-    *,
-    sanitizers: tuple[str, ...] = (),
-) -> list[ast.Call]:
-    """Calls accepted by sink whose chosen arguments derive from request data.
+def request_scopes(tree: ast.AST) -> list[tuple[list[tuple[ast.Call, str]], set[str]]]:
+    """Each function (or the module) that reads request data: its calls with
+    their callee text, and the names tainted through plain assignments.
 
-    Taint follows plain assignments within one function (or module). A scope
-    that calls any sanitizer is treated as validated.
+    Computed once per tree and shared by every request-taint rule.
     """
-    calls = []
+    names: dict[int, str] = {}
+    found = []
     scopes = [
         tree,
         *(
@@ -1747,14 +1742,7 @@ def request_tainted_calls(
     for scope in scopes:
         nodes = list(ast.walk(scope))
         # Taint starts only at request data, so a scope that reads none has no findings.
-        if not any(map(request_source, nodes)) or (
-            sanitizers
-            and any(
-                isinstance(node, ast.Call)
-                and ast.unparse(node.func).split(".")[-1] in sanitizers
-                for node in nodes
-            )
-        ):
+        if not any(map(request_source, nodes)):
             continue
         tainted: set[str] = set()
         for _ in range(2):
@@ -1777,38 +1765,158 @@ def request_tainted_calls(
                         for item in ast.walk(target)
                         if isinstance(item, ast.Name)
                     )
+        calls = []
         for node in nodes:
-            if not isinstance(node, ast.Call) or not sink(ast.unparse(node.func)):
-                continue
-            if any(
+            if isinstance(node, ast.Call):
+                if id(node) not in names:
+                    names[id(node)] = ast.unparse(node.func)
+                calls.append((node, names[id(node)]))
+        found.append((calls, tainted))
+    return found
+
+
+def request_tainted_calls(
+    scopes: list[tuple[list[tuple[ast.Call, str]], set[str]]],
+    sink: Any,
+    arguments: Any,
+    *,
+    sanitizer: Any = None,
+) -> list[ast.Call]:
+    """Calls accepted by sink whose chosen arguments derive from request data.
+
+    A scope that calls a function whose last name the sanitizer accepts is
+    treated as validated.
+    """
+    found = []
+    for calls, tainted in scopes:
+        if sanitizer and any(sanitizer(name.split(".")[-1]) for _, name in calls):
+            continue
+        for node, name in calls:
+            if sink(name) and any(
                 request_source(item)
                 or (isinstance(item, ast.Name) and item.id in tainted)
                 for argument in arguments(node)
                 for item in ast.walk(argument)
             ):
-                calls.append(node)
+                found.append(node)
                 break
-    unique = {(call.lineno, call.col_offset): call for call in calls}
+    unique = {(call.lineno, call.col_offset): call for call in found}
     return list(unique.values())
 
 
-def python_ssrf(tree: ast.AST) -> list[ast.Call]:
+def python_ssrf(scopes: list[Any]) -> list[ast.Call]:
     """HTTP client calls whose URL derives from request data."""
     return request_tainted_calls(
-        tree,
+        scopes,
         lambda name: name in PYTHON_HTTP_CALLS,
         lambda call: call.args[:1] + [k.value for k in call.keywords if k.arg == "url"],
     )
 
 
-def python_path_traversal(tree: ast.AST) -> list[ast.Call]:
+def python_path_traversal(scopes: list[Any]) -> list[ast.Call]:
     """File paths built from request data without a containment check."""
     return request_tainted_calls(
-        tree,
+        scopes,
         lambda name: name in PYTHON_PATH_CALLS or name.endswith(".joinpath"),
         lambda call: [*call.args, *(k.value for k in call.keywords)],
-        sanitizers=PATH_SANITIZERS,
+        sanitizer=lambda name: name in PATH_SANITIZERS,
     )
+
+
+SQL_CALLS = {"execute", "executemany", "executescript", "raw", "text"}
+# Text just before a hole that puts it where SQL expects a value, not a clause or name.
+SQL_VALUE_POSITION = r"(?:[=<>(,]|\b(?:like|in|values|limit|offset))\s*$"
+DESERIALIZE_CALLS = {
+    f"{module}.{name}"
+    for module in ("pickle", "cPickle", "_pickle", "dill", "marshal")
+    for name in ("load", "loads")
+}
+UNSAFE_YAML_LOADERS = {"Loader", "FullLoader", "UnsafeLoader"}
+UNSAFE_YAML_LOADERS |= {f"C{name}" for name in UNSAFE_YAML_LOADERS}
+HTTP_CLIENT_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
+HTTP_CLIENT_METHODS |= {"request", "send", "stream", "Client", "AsyncClient"}
+REDIRECT_CALLS = {"redirect", "RedirectResponse", "HttpResponseRedirect"}
+
+
+def addends(node: ast.AST) -> list[ast.AST]:
+    """The operands of a chain of + additions."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return addends(node.left) + addends(node.right)
+    return [node]
+
+
+def built_sql(node: ast.AST) -> bool:
+    """SQL text with a non-constant spliced in where the query expects a value.
+
+    Holes in clause or name positions (`WHERE 1=1 {filters}`, `FROM {table}`)
+    pass: they are nearly always fixed fragments chosen in code.
+    """
+    befores: list[str] = []
+    text = ""
+    if isinstance(node, ast.JoinedStr):
+        for value in node.values:
+            if isinstance(value, ast.FormattedValue):
+                befores.append(text)
+            else:
+                text += str(getattr(value, "value", ""))
+    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        for item in addends(node):
+            if isinstance(item, ast.Constant):
+                text += str(item.value)
+            else:
+                befores.append(text)
+    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
+        if isinstance(node.left, ast.Constant) and not isinstance(
+            node.right, ast.Constant
+        ):
+            text = str(node.left.value)
+            holes = re.finditer(r"%(?:\(\w+\))?[sdifr]", text)
+            befores = [text[: hole.start()] for hole in holes]
+    elif (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "format"
+        and isinstance(node.func.value, ast.Constant)
+        and (node.args or node.keywords)
+    ):
+        text = str(node.func.value.value)
+        befores = [text[: hole.start()] for hole in re.finditer(r"\{[^{}]*\}", text)]
+    return bool(re.search(r"\b(?:select|insert|update|delete)\b", text, re.I)) and any(
+        re.search(SQL_VALUE_POSITION, before, re.I) or before.count("'") % 2
+        for before in befores
+    )
+
+
+def unsafe_yaml(call: ast.Call) -> bool:
+    """yaml.load without a loader or with a full one, or yaml.unsafe_load."""
+    name = ast.unparse(call.func)
+    if name in {"yaml.unsafe_load", "yaml.unsafe_load_all"}:
+        return True
+    loader = call.args[1:2] + [k.value for k in call.keywords if k.arg == "Loader"]
+    return name in {"yaml.load", "yaml.load_all"} and (
+        not loader or ast.unparse(loader[0]).split(".")[-1] in UNSAFE_YAML_LOADERS
+    )
+
+
+def tls_unverified(call: ast.Call) -> bool:
+    """An HTTP client call with verify=False, or an unverified SSL context."""
+    name = ast.unparse(call.func)
+    client = name.split(".")[0] in {"requests", "httpx"} or (
+        name.split(".")[-1] in HTTP_CLIENT_METHODS
+    )
+    return name == "ssl._create_unverified_context" or (
+        client
+        and any(
+            k.arg == "verify"
+            and isinstance(k.value, ast.Constant)
+            and k.value.value is False
+            for k in call.keywords
+        )
+    )
+
+
+def redirect_sanitizer(name: str) -> bool:
+    return bool(re.search(r"safe|saniti|valid|allowed|trusted", name, re.I))
 
 
 def secret_value(node: ast.AST, derived: set[str] = frozenset()) -> bool:
@@ -1872,6 +1980,85 @@ def tautological_assertions(tree: ast.AST) -> list[ast.AST]:
                 if computed_call(pair[0], values) == computed_call(pair[1], values):
                     found.append(node)
     return found
+
+
+def python_injection_rules(
+    tree: ast.AST, scopes: list[Any], offsets: list[int]
+) -> list[Finding]:
+    """SQL built from values, unsafe YAML, disabled TLS, and request data reaching
+    eval, deserializers or redirects."""
+    findings: list[Finding] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call | ast.Assign):
+            continue
+        at = offsets[node.lineno - 1] + node.col_offset
+        if isinstance(node, ast.Assign):
+            if (
+                isinstance(node.value, ast.Constant)
+                and node.value.value is False
+                and any(
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "check_hostname"
+                    for target in node.targets
+                )
+            ):
+                findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
+            continue
+        name = ast.unparse(node.func)
+        if name.split(".")[-1] in SQL_CALLS and node.args and built_sql(node.args[0]):
+            findings.append(("loki/sql-injection", SQL_QUERY, at))
+        if unsafe_yaml(node):
+            findings.append(
+                (
+                    "loki/unsafe-deserialization",
+                    f"unsafe deserialization: {name} without SafeLoader can build "
+                    "arbitrary Python objects; use yaml.safe_load",
+                    at,
+                )
+            )
+        if tls_unverified(node):
+            findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
+    first = lambda call: call.args[:1]  # noqa: E731
+    for call in request_tainted_calls(
+        scopes, lambda name: name in {"eval", "exec", "compile"}, first
+    ):
+        findings.append(
+            (
+                "loki/code-eval",
+                f"dynamic code execution: non-literal source passed to "
+                f"{ast.unparse(call.func)}",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    for call in request_tainted_calls(
+        scopes, lambda name: name in DESERIALIZE_CALLS, first
+    ):
+        findings.append(
+            (
+                "loki/unsafe-deserialization",
+                f"unsafe deserialization: request data passed to "
+                f"{ast.unparse(call.func)} can run arbitrary code; use JSON or "
+                "verify a signature first",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    for call in request_tainted_calls(
+        scopes,
+        lambda name: (
+            name in REDIRECT_CALLS
+            or (name.split(".")[-1] in REDIRECT_CALLS and not name.startswith("self."))
+        ),
+        lambda call: call.args[:1] + [k.value for k in call.keywords if k.arg == "url"],
+        sanitizer=redirect_sanitizer,
+    ):
+        findings.append(
+            (
+                "loki/open-redirect",
+                OPEN_REDIRECT,
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    return findings
 
 
 def python_rules(text: str) -> list[Finding]:
@@ -1971,7 +2158,8 @@ def python_rules(text: str) -> list[Finding]:
             findings.append(
                 (REDOS_RULE, REDOS_MESSAGE, offsets[node.lineno - 1] + node.col_offset)
             )
-    for call in python_path_traversal(tree):
+    scopes = request_scopes(tree)
+    for call in python_path_traversal(scopes):
         findings.append(
             (
                 "loki/path-traversal",
@@ -1989,7 +2177,7 @@ def python_rules(text: str) -> list[Finding]:
                 offsets[call.lineno - 1] + call.col_offset,
             )
         )
-    for call in python_ssrf(tree):
+    for call in python_ssrf(scopes):
         findings.append(
             (
                 "loki/ssrf",
@@ -1998,6 +2186,7 @@ def python_rules(text: str) -> list[Finding]:
                 offsets[call.lineno - 1] + call.col_offset,
             )
         )
+    findings.extend(python_injection_rules(tree, scopes, offsets))
     return findings
 
 
