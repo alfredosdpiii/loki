@@ -913,6 +913,54 @@ class HoldoutTwoRuleTests(unittest.TestCase):
             [],
         ),
         ("main.go", "func f() { use(filepath.Join(dest, f.Name)) }", []),
+        (
+            "main.go",
+            "func f() { db.Query(fmt.Sprintf(\"SELECT * FROM t WHERE n = '%s'\", n)) }",
+            ["loki/sql-injection"],
+        ),
+        (
+            "main.go",
+            'func f() { db.QueryRowContext(ctx, "SELECT * FROM t WHERE id = " + id) }',
+            ["loki/sql-injection"],
+        ),
+        ("main.go", 'func f() { db.Query("SELECT * FROM t WHERE id = ?", id) }', []),
+        ("main.go", 'func f() { db.Query(fmt.Sprintf("SELECT %d", id)) }', []),
+        (
+            "main.go",
+            'func f() {\n\t// db.Query(fmt.Sprintf("SELECT %s", x))\n'
+            '\ts := `db.Exec("DELETE " + x)`\n}',
+            [],
+        ),
+        (
+            "main.go",
+            'func f() { exec.Command("sh", "-c", "ls " + dir) }',
+            ["loki/command-injection"],
+        ),
+        ("main.go", 'func f() { exec.Command("sh", "-c", "ls -la") }', []),
+        (
+            "main.go",
+            "var c = &tls.Config{InsecureSkipVerify: true}",
+            ["loki/tls-verification"],
+        ),
+        ("main.go", "var c = &tls.Config{InsecureSkipVerify: false}", []),
+        (
+            "a.rs",
+            "fn c() { Client::builder().danger_accept_invalid_certs(true); }",
+            ["loki/tls-verification"],
+        ),
+        ("a.rs", "fn c() { Client::builder().danger_accept_invalid_certs(v); }", []),
+        (
+            "a.rs",
+            "fn q() { sqlx::query(&format!(\"SELECT * FROM t WHERE n = '{n}'\")); }",
+            ["loki/sql-injection"],
+        ),
+        (
+            "a.rs",
+            'fn q() { diesel::sql_query(format!("UPDATE t SET a = {}", v)); }',
+            ["loki/sql-injection"],
+        ),
+        ("a.rs", 'fn q() { sqlx::query("SELECT * FROM t WHERE n = $1"); }', []),
+        ("a.rs", 'fn q() { k.execute(&format!("#{}", x)); }', []),
     ]
 
     def test_nested_quantifiers(self):

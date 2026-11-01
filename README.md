@@ -173,8 +173,8 @@ edits, so an agent can't switch it off.
 | --- | --- | --- |
 | **Python** | Net-new Ruff and mypy (annotated code), import and AST checks | request-trusted authorization, SSRF, path traversal, shell `-c`, timing-unsafe compares, ReDoS, tautological tests |
 | **TypeScript / JS** | Oxlint, project type check (pre-write), floating promises, numeric `.sort()` | XSS sinks, open redirects, `eval`, command and SQL injection, SSRF, prototype pollution, `postMessage` origin, timer leaks, ReDoS, disabled TLS |
-| **Go** | gofmt, go vet, golangci-lint with gosec on changed lines | zip slip |
-| **Rust** | rustfmt, net-new Clippy and compiler errors | placeholders, unchecked `get_unchecked`, unflushed `BufWriter`, shell `-c` |
+| **Go** | gofmt, go vet, golangci-lint with gosec on changed lines | zip slip, SQL built with `Sprintf`/`+`, shell `-c`, `InsecureSkipVerify` |
+| **Rust** | rustfmt, net-new Clippy and compiler errors | placeholders, unchecked `get_unchecked`, unflushed `BufWriter`, shell `-c`, SQL built with `format!`, `danger_accept_invalid_*` |
 | **Elixir / Phoenix** | mix format, net-new Credo and Sobelow | request-trusted authorization, SSRF, open redirects, structural `DateTime` sorts, unhandled `File` results, leaked handles |
 | **Any file** | protected paths, root confinement | hardcoded credentials, merge-conflict markers, GitHub Actions script injection |
 

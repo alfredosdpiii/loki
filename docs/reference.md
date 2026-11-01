@@ -149,6 +149,11 @@ previews before the write and again on the written file against its committed te
 | Elixir | `{:ok, x} = File.read/open/stat/...` (MatchError on `{:error, _}`) and `File.open` handles never passed to `File.close` |
 | Rust | `BufWriter` created in a function that neither flushes, calls `into_inner`, nor returns it |
 | Go | Archive (`archive/zip`, `archive/tar`) entry names joined into paths in a function without `filepath.IsLocal`, `filepath.Rel`, `HasPrefix`, `fs.ValidPath` or a `..` check (zip slip) |
+| Go | `Query`/`QueryRow`/`Exec`/`Prepare` (and `...Context`) with SQL from `fmt.Sprintf` with a non-constant `%s`/`%v` argument, or a string literal joined with `+` to a non-literal (SQL injection) |
+| Go | `exec.Command`/`exec.CommandContext` running a shell with `-c` and a non-literal command (command injection) |
+| Go | `InsecureSkipVerify: true` or `InsecureSkipVerify = true` |
+| Rust | `danger_accept_invalid_certs(true)` and `danger_accept_invalid_hostnames(true)` |
+| Rust | `sqlx::query`/`query_as`/`query_scalar`, `.execute` or `diesel::sql_query` given `format!` SQL with `{}` interpolation (SQL injection) |
 | Any text file | Hardcoded credentials: AWS, GitHub, Slack, Stripe live, npm, Google and model-provider keys, private keys. Low-entropy and placeholder values are skipped |
 | Any text file | Unresolved merge conflict markers |
 | GitHub workflows and actions | Untrusted `github.event` fields or `github.head_ref` interpolated into `run:` scripts |

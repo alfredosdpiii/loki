@@ -1086,14 +1086,22 @@ def mask_elixir(text: str) -> str:
 RUST_INTERESTING = re.compile(r"/[/*]|b?r#*\"|[\"']")
 RUST_RAW = re.compile(r"b?r(#*)\"")
 RUST_CHAR = re.compile(r"'(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\\'\n])'")
+GO_INTERESTING = re.compile(r"/[/*]|[\"'`]")
 
 
-def mask_rust(text: str) -> str:
+def mask_rust(text: str, go: bool = False) -> str:
     """Blank comments and literals in Rust, Go and other C-family source."""
     chars = list(text)
     index = 0
-    while found := RUST_INTERESTING.search(text, index):
+    interesting = GO_INTERESTING if go else RUST_INTERESTING
+    while found := interesting.search(text, index):
         index = found.start()
+        if text[index] == "`":
+            end = text.find("`", index + 1)
+            end = len(text) if end < 0 else end
+            blank(chars, index + 1, end)
+            index = end + 1
+            continue
         if text.startswith("/*", index):
             depth, end = 1, index + 2
             while end < len(text) and depth:
@@ -1283,14 +1291,7 @@ def javascript_rules(text: str) -> list[Finding]:
         text,
     ):
         if masked[match.start()] != " ":
-            findings.append(
-                (
-                    "loki/tls-verification",
-                    "TLS certificate verification disabled; trust the needed CA "
-                    "instead of turning verification off",
-                    match.start(),
-                )
-            )
+            findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
     for match in re.finditer(r"\bres(?:ponse)?\s*\.\s*redirect\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and re.search(
@@ -1328,7 +1329,7 @@ def javascript_rules(text: str) -> list[Finding]:
             continue
         start, end = arguments[0]
         argument = text[start:end]
-        if re.search(r"\b(?:select|insert|update|delete)\b", argument, re.I) and (
+        if re.search(SQL_WORD, argument, re.I) and (
             "${" in argument or re.search(r"['\"`]\s*\+|\+\s*['\"`]", argument)
         ):
             identifier = (
@@ -1342,12 +1343,7 @@ def javascript_rules(text: str) -> list[Finding]:
             findings.append(
                 (
                     "loki/sql-injection",
-                    "SQL injection: table or column name interpolated into the query; "
-                    "placeholders cannot bind identifiers, so map it to a fixed set of "
-                    "known names before building the query"
-                    if identifier
-                    else "SQL injection: query text built by concatenation or "
-                    "interpolation; use parameterized placeholders",
+                    SQL_IDENTIFIER if identifier else SQL_QUERY,
                     match.start(),
                 )
             )
@@ -2139,6 +2135,20 @@ def elixir_rules(text: str) -> list[Finding]:
 
 
 SHELLS = {"sh", "bash", "zsh", "dash", "/bin/sh", "/bin/bash", "/usr/bin/env"}
+TLS_VERIFICATION = (
+    "TLS certificate verification disabled; trust the needed CA "
+    "instead of turning verification off"
+)
+SQL_WORD = r"\b(?:select|insert|update|delete)\b"
+SQL_QUERY = (
+    "SQL injection: query text built by concatenation or "
+    "interpolation; use parameterized placeholders"
+)
+SQL_IDENTIFIER = (
+    "SQL injection: table or column name interpolated into the query; "
+    "placeholders cannot bind identifiers, so map it to a fixed set of "
+    "known names before building the query"
+)
 SHELL_COMMAND = (
     "shell command injection: command string built from variables runs through "
     "a shell with -c; pass the program and arguments separately"
@@ -2193,6 +2203,24 @@ def rust_rules(text: str) -> list[Finding]:
         dynamic = re.search(r"format!|\.args?\s*\(\s*(?![\"\[\s])", chain)
         if program in SHELLS and '"-c"' in chain and dynamic:
             findings.append(("loki/command-injection", SHELL_COMMAND, match.start()))
+    for match in re.finditer(
+        r"\.\s*danger_accept_invalid_(?:certs|hostnames)\s*\(\s*true\s*\)", masked
+    ):
+        findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
+    for match in re.finditer(
+        r"(?:(?<![\w.])(?:sqlx\s*::\s*)?query(?:_as|_scalar)?(?:\s*::\s*<[^>()]*>)?"
+        r"|\.\s*execute|(?<![\w.])(?:diesel\s*::\s*)?sql_query)"
+        r"\s*\(\s*&?\s*format\s*!\s*\(",
+        masked,
+    ):
+        arguments = split_arguments(masked, match.end() - 1)
+        literal = text[slice(*arguments[0])].strip() if arguments else ""
+        if not re.match(r'r?#*"', literal):
+            continue
+        holes = re.finditer(r"\{(\{)?", literal)
+        message = sql_message(literal, [h.start() for h in holes if not h.group(1)])
+        if message:
+            findings.append(("loki/sql-injection", message, match.start()))
     return findings
 
 
@@ -2282,12 +2310,85 @@ def workflow_injection(text: str) -> list[Finding]:
     return findings
 
 
+GO_STRING = r'\s*(?:"[^"\n]*"|`[^`]*`)\s*'
+
+
+def go_literal(masked: str) -> bool:
+    """A masked Go expression that is only string literals joined with +."""
+    return bool(re.fullmatch(rf"{GO_STRING}(?:\+{GO_STRING})*", masked))
+
+
+def top_level_split(
+    masked: str, start: int, end: int, char: str
+) -> list[tuple[int, int]]:
+    spans, depth, begin = [], 0, start
+    for index in range(start, end):
+        if masked[index] in "([{":
+            depth += 1
+        elif masked[index] in ")]}":
+            depth -= 1
+        elif masked[index] == char and not depth:
+            spans.append((begin, index))
+            begin = index + 1
+    return [*spans, (begin, end)]
+
+
+def sql_message(literal: str, holes: list[int]) -> str | None:
+    """SQL injection message for query text with non-literal values at holes."""
+    if not holes or not re.search(SQL_WORD, literal, re.I):
+        return None
+    if all(re.search(SQL_IDENTIFIER_POSITION, literal[:hole], re.I) for hole in holes):
+        return SQL_IDENTIFIER
+    return SQL_QUERY
+
+
 def go_rules(text: str) -> list[Finding]:
-    """Archive entry names joined into paths without a containment check."""
+    """Zip slip, SQL built with Sprintf or +, shell -c commands, TLS skip-verify."""
+    masked = mask_rust(text, go=True)
+    findings: list[Finding] = [
+        ("loki/tls-verification", TLS_VERIFICATION, match.start())
+        for match in re.finditer(
+            r"\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b", masked
+        )
+    ]
+    for call in re.finditer(r"\bexec\s*\.\s*Command(Context)?\s*\(", masked):
+        arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
+        words = [text[a:b].strip().strip('"`') for a, b in arguments[:2]]
+        if (
+            len(arguments) > 2
+            and words[0] in SHELLS
+            and words[1] == "-c"
+            and not go_literal(masked[slice(*arguments[2])])
+        ):
+            findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
+    for call in re.finditer(
+        r"\.\s*(?:Query|QueryRow|Exec|Prepare)(Context)?\s*\(", masked
+    ):
+        arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
+        if not arguments:
+            continue
+        start, end = arguments[0]
+        sprintf = re.match(r"\s*fmt\s*\.\s*Sprintf\s*\(", masked[start:end])
+        if sprintf:
+            inner = split_arguments(masked, start + sprintf.end() - 1)
+            dynamic = [
+                span for span in inner[1:] if not go_literal(masked[slice(*span)])
+            ]
+            if not dynamic or not go_literal(masked[slice(*inner[0])]):
+                continue
+            literal = text[slice(*inner[0])]
+            holes = re.finditer(r"%(?:%|[-+# 0-9.]*([sv]))", literal)
+            message = sql_message(literal, [h.start() for h in holes if h.group(1)])
+        else:
+            parts = top_level_split(masked, start, end, "+")
+            literals = [part for part in parts if go_literal(masked[slice(*part)])]
+            if not literals or len(literals) == len(parts):
+                continue
+            message = sql_message("".join(text[slice(*p)] for p in literals), [0])
+        if message:
+            findings.append(("loki/sql-injection", message, call.start()))
     if not re.search(r'"archive/(?:zip|tar)"', text):
-        return []
-    masked = mask_rust(text)
-    findings: list[Finding] = []
+        return findings
     for function in re.finditer(r"\bfunc\b[^{]*\{", masked):
         end = matching_close(masked, function.end() - 1)
         body = masked[function.end() - 1 : end]
