@@ -2327,8 +2327,17 @@ def content_rule_findings(
         "rust": rust_rules,
         "go": go_rules,
     }
-    findings = generic_rules(relative, text)
-    return findings + (rules[language](text) if language in rules else [])
+    # Pure in (path, text): the daemon warms this for committed files, so the
+    # unchanged base side of a write is a cache hit in its forked request.
+    return content_memo(
+        "rules",
+        relative,
+        text,
+        lambda: (
+            generic_rules(relative, text)
+            + (rules[language](text) if language in rules else [])
+        ),
+    )
 
 
 def content_rule_violations(
@@ -8618,6 +8627,7 @@ def prewarm(root: Path) -> None:
     try:
         for path, text in repository_sources(root, limit=64 * 1024 * 1024).items():
             token_windows(path, text)
+            content_rule_findings(path, text)
             if slop_language(path) == "python":
                 python_imports(path, text)
                 python_functions(path, text)
