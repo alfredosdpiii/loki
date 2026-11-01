@@ -125,6 +125,13 @@ class ConfigAndPathTests(unittest.TestCase):
 
 
 class CommandUtilityTests(unittest.TestCase):
+    def test_command_output_drops_terminal_colors(self) -> None:
+        # mix format colors the unformatted file name even when not on a terminal.
+        result = subprocess.CompletedProcess(
+            [], 1, "", "\x1b[1m\x1b[31mlib/a.ex\n\x1b[0m\n"
+        )
+        self.assertEqual(["lib/a.ex"], loki.command_output(result))
+
     def test_command_output_strips_and_combines_streams(self) -> None:
         result = subprocess.CompletedProcess([], 1, " out \n\n", " err \n")
         self.assertEqual(["out", "err"], loki.command_output(result))

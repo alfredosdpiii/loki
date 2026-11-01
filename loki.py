@@ -528,10 +528,13 @@ def harness_paths(raw: str, harness: str) -> list[str]:
     )
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
 def command_output(result: subprocess.CompletedProcess[str]) -> list[str]:
-    text = "\n".join(
-        part.strip() for part in (result.stdout, result.stderr) if part.strip()
-    )
+    """Non-empty stripped lines of stdout then stderr, without terminal colors."""
+    parts = (ANSI_ESCAPE_RE.sub("", part) for part in (result.stdout, result.stderr))
+    text = "\n".join(part.strip() for part in parts if part.strip())
     return [line.strip() for line in text.splitlines() if line.strip()]
 
 
