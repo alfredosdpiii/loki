@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-__version__ = "0.1.4"
+__version__ = "0.1.9"
 
 SOURCE_ROOT = Path(__file__).resolve().parent
 INSTALLED = SOURCE_ROOT.name == ".loki"
@@ -528,10 +528,13 @@ def harness_paths(raw: str, harness: str) -> list[str]:
     )
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
 def command_output(result: subprocess.CompletedProcess[str]) -> list[str]:
-    text = "\n".join(
-        part.strip() for part in (result.stdout, result.stderr) if part.strip()
-    )
+    """Non-empty stripped lines of stdout then stderr, without terminal colors."""
+    parts = (ANSI_ESCAPE_RE.sub("", part) for part in (result.stdout, result.stderr))
+    text = "\n".join(part.strip() for part in parts if part.strip())
     return [line.strip() for line in text.splitlines() if line.strip()]
 
 
@@ -1083,14 +1086,22 @@ def mask_elixir(text: str) -> str:
 RUST_INTERESTING = re.compile(r"/[/*]|b?r#*\"|[\"']")
 RUST_RAW = re.compile(r"b?r(#*)\"")
 RUST_CHAR = re.compile(r"'(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\\'\n])'")
+GO_INTERESTING = re.compile(r"/[/*]|[\"'`]")
 
 
-def mask_rust(text: str) -> str:
+def mask_rust(text: str, go: bool = False) -> str:
     """Blank comments and literals in Rust, Go and other C-family source."""
     chars = list(text)
     index = 0
-    while found := RUST_INTERESTING.search(text, index):
+    interesting = GO_INTERESTING if go else RUST_INTERESTING
+    while found := interesting.search(text, index):
         index = found.start()
+        if text[index] == "`":
+            end = text.find("`", index + 1)
+            end = len(text) if end < 0 else end
+            blank(chars, index + 1, end)
+            index = end + 1
+            continue
         if text.startswith("/*", index):
             depth, end = 1, index + 2
             while end < len(text) and depth:
@@ -1280,14 +1291,7 @@ def javascript_rules(text: str) -> list[Finding]:
         text,
     ):
         if masked[match.start()] != " ":
-            findings.append(
-                (
-                    "loki/tls-verification",
-                    "TLS certificate verification disabled; trust the needed CA "
-                    "instead of turning verification off",
-                    match.start(),
-                )
-            )
+            findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
     for match in re.finditer(r"\bres(?:ponse)?\s*\.\s*redirect\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and re.search(
@@ -1325,14 +1329,21 @@ def javascript_rules(text: str) -> list[Finding]:
             continue
         start, end = arguments[0]
         argument = text[start:end]
-        if re.search(r"\b(?:select|insert|update|delete)\b", argument, re.I) and (
+        if re.search(SQL_WORD, argument, re.I) and (
             "${" in argument or re.search(r"['\"`]\s*\+|\+\s*['\"`]", argument)
         ):
+            identifier = (
+                "${" in argument
+                and "+" not in argument
+                and all(
+                    re.search(SQL_IDENTIFIER_POSITION, argument[: found.start()], re.I)
+                    for found in re.finditer(r"\$\{", argument)
+                )
+            )
             findings.append(
                 (
                     "loki/sql-injection",
-                    "SQL injection: query text built by concatenation or "
-                    "interpolation; use parameterized placeholders",
+                    SQL_IDENTIFIER if identifier else SQL_QUERY,
                     match.start(),
                 )
             )
@@ -1504,7 +1515,7 @@ def delimiter_separated(body: str) -> bool:
     delimiter = found.group(0)[-1]
     if re.search(r"(?<!\\)\.|\\[SWD]", body):
         return False
-    for match in re.finditer(r"\[(\^?)((?:\\.|[^\]])*)\]", body):
+    for match in re.finditer(r"\[(\^?)((?:\\.|[^\]\\])*)\]", body):
         members = re.findall(r"\\.|.", match.group(2))
         inside = False
         for index, member in enumerate(members):
@@ -1712,87 +1723,241 @@ PATH_SANITIZERS = ("basename", "secure_filename", "is_relative_to", "commonpath"
 PATH_SANITIZERS += ("relative_to",)
 
 
+def tainted_by(node: ast.AST, tainted: set[str]) -> bool:
+    """Whether an expression reads request data or an already tainted name."""
+    return any(
+        request_source(item) or (isinstance(item, ast.Name) and item.id in tainted)
+        for item in ast.walk(node)
+    )
+
+
+def assigned_names(node: ast.Assign | ast.AnnAssign) -> set[str]:
+    """Every name bound by an assignment's targets."""
+    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    return {
+        item.id
+        for target in targets
+        for item in ast.walk(target)
+        if isinstance(item, ast.Name)
+    }
+
+
+def tainted_names(nodes: list[ast.AST]) -> set[str]:
+    """Names assigned from request data, followed through two rounds."""
+    tainted: set[str] = set()
+    for _ in range(2):
+        for node in nodes:
+            if (
+                isinstance(node, ast.Assign | ast.AnnAssign)
+                and node.value
+                and tainted_by(node.value, tainted)
+            ):
+                tainted.update(assigned_names(node))
+    return tainted
+
+
+def request_scopes(tree: ast.AST) -> list[tuple[list[tuple[ast.Call, str]], set[str]]]:
+    """Each function (or the module) that reads request data: its calls with
+    their callee text, and the names tainted through plain assignments.
+
+    Computed once per tree and shared by every request-taint rule.
+    """
+    names: dict[int, str] = {}
+    found = []
+    functions = (
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    )
+    for scope in [tree, *functions]:
+        nodes = list(ast.walk(scope))
+        # Taint starts only at request data, so a scope that reads none has no findings.
+        if not any(map(request_source, nodes)):
+            continue
+        tainted = tainted_names(nodes)
+        calls = []
+        for node in nodes:
+            if isinstance(node, ast.Call):
+                if id(node) not in names:
+                    names[id(node)] = ast.unparse(node.func)
+                calls.append((node, names[id(node)]))
+        found.append((calls, tainted))
+    return found
+
+
 def request_tainted_calls(
-    tree: ast.AST,
+    scopes: list[tuple[list[tuple[ast.Call, str]], set[str]]],
     sink: Any,
     arguments: Any,
     *,
-    sanitizers: tuple[str, ...] = (),
+    sanitizer: Any = None,
 ) -> list[ast.Call]:
     """Calls accepted by sink whose chosen arguments derive from request data.
 
-    Taint follows plain assignments within one function (or module). A scope
-    that calls any sanitizer is treated as validated.
+    A scope that calls a function whose last name the sanitizer accepts is
+    treated as validated.
     """
-    calls = []
-    scopes = [
-        tree,
-        *(
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-        ),
-    ]
-    for scope in scopes:
-        if sanitizers and any(
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func).split(".")[-1] in sanitizers
-            for node in ast.walk(scope)
-        ):
+    found = []
+    for calls, tainted in scopes:
+        if sanitizer and any(sanitizer(name.split(".")[-1]) for _, name in calls):
             continue
-        tainted: set[str] = set()
-        for _ in range(2):
-            for node in ast.walk(scope):
-                if (
-                    isinstance(node, ast.Assign | ast.AnnAssign)
-                    and node.value
-                    and any(
-                        request_source(item)
-                        or (isinstance(item, ast.Name) and item.id in tainted)
-                        for item in ast.walk(node.value)
-                    )
-                ):
-                    targets = (
-                        node.targets if isinstance(node, ast.Assign) else [node.target]
-                    )
-                    tainted.update(
-                        item.id
-                        for target in targets
-                        for item in ast.walk(target)
-                        if isinstance(item, ast.Name)
-                    )
-        for node in ast.walk(scope):
-            if not isinstance(node, ast.Call) or not sink(ast.unparse(node.func)):
-                continue
-            if any(
+        for node, name in calls:
+            if sink(name) and any(
                 request_source(item)
                 or (isinstance(item, ast.Name) and item.id in tainted)
                 for argument in arguments(node)
                 for item in ast.walk(argument)
             ):
-                calls.append(node)
+                found.append(node)
                 break
-    unique = {(call.lineno, call.col_offset): call for call in calls}
+    unique = {(call.lineno, call.col_offset): call for call in found}
     return list(unique.values())
 
 
-def python_ssrf(tree: ast.AST) -> list[ast.Call]:
+def python_ssrf(scopes: list[Any]) -> list[ast.Call]:
     """HTTP client calls whose URL derives from request data."""
     return request_tainted_calls(
-        tree,
+        scopes,
         lambda name: name in PYTHON_HTTP_CALLS,
         lambda call: call.args[:1] + [k.value for k in call.keywords if k.arg == "url"],
     )
 
 
-def python_path_traversal(tree: ast.AST) -> list[ast.Call]:
+def python_path_traversal(scopes: list[Any]) -> list[ast.Call]:
     """File paths built from request data without a containment check."""
     return request_tainted_calls(
-        tree,
+        scopes,
         lambda name: name in PYTHON_PATH_CALLS or name.endswith(".joinpath"),
         lambda call: [*call.args, *(k.value for k in call.keywords)],
-        sanitizers=PATH_SANITIZERS,
+        sanitizer=lambda name: name in PATH_SANITIZERS,
     )
+
+
+SQL_CALLS = {"execute", "executemany", "executescript", "raw", "text"}
+# Text just before a hole that puts it where SQL expects a value, not a clause or name.
+SQL_VALUE_POSITION = r"(?:[=<>(,]|\b(?:like|in|values|limit|offset))\s*$"
+DESERIALIZE_CALLS = {
+    f"{module}.{name}"
+    for module in ("pickle", "cPickle", "_pickle", "dill", "marshal")
+    for name in ("load", "loads")
+}
+UNSAFE_YAML_LOADERS = {"Loader", "FullLoader", "UnsafeLoader"}
+UNSAFE_YAML_LOADERS |= {f"C{name}" for name in UNSAFE_YAML_LOADERS}
+HTTP_CLIENT_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
+HTTP_CLIENT_METHODS |= {"request", "send", "stream", "Client", "AsyncClient"}
+REDIRECT_CALLS = {"redirect", "RedirectResponse", "HttpResponseRedirect"}
+
+
+def addends(node: ast.AST) -> list[ast.AST]:
+    """The operands of a chain of + additions."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return addends(node.left) + addends(node.right)
+    return [node]
+
+
+def joined_sql_holes(node: ast.JoinedStr) -> tuple[str, list[str]]:
+    """f-string text and the text before each {hole}."""
+    befores: list[str] = []
+    text = ""
+    for value in node.values:
+        if isinstance(value, ast.FormattedValue):
+            befores.append(text)
+        else:
+            text += str(getattr(value, "value", ""))
+    return text, befores
+
+
+def added_sql_holes(node: ast.BinOp) -> tuple[str, list[str]]:
+    """Constant text of a + chain and the text before each non-constant."""
+    befores: list[str] = []
+    text = ""
+    for item in addends(node):
+        if isinstance(item, ast.Constant):
+            text += str(item.value)
+        else:
+            befores.append(text)
+    return text, befores
+
+
+def percent_sql_holes(node: ast.BinOp) -> tuple[str, list[str]]:
+    """`"..." % values` text and the text before each %s-style hole."""
+    if isinstance(node.left, ast.Constant) and not isinstance(node.right, ast.Constant):
+        text = str(node.left.value)
+        holes = re.finditer(r"%(?:\(\w+\))?[sdifr]", text)
+        return text, [text[: hole.start()] for hole in holes]
+    return "", []
+
+
+def format_sql_holes(node: ast.Call) -> tuple[str, list[str]]:
+    """`"...".format(values)` text and the text before each {hole}."""
+    if (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "format"
+        and isinstance(node.func.value, ast.Constant)
+        and (node.args or node.keywords)
+    ):
+        text = str(node.func.value.value)
+        holes = re.finditer(r"\{[^{}]*\}", text)
+        return text, [text[: hole.start()] for hole in holes]
+    return "", []
+
+
+def sql_holes(node: ast.AST) -> tuple[str, list[str]]:
+    """The constant text of a built string and the text before each hole."""
+    if isinstance(node, ast.JoinedStr):
+        return joined_sql_holes(node)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return added_sql_holes(node)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
+        return percent_sql_holes(node)
+    if isinstance(node, ast.Call):
+        return format_sql_holes(node)
+    return "", []
+
+
+def built_sql(node: ast.AST) -> bool:
+    """SQL text with a non-constant spliced in where the query expects a value.
+
+    Holes in clause or name positions (`WHERE 1=1 {filters}`, `FROM {table}`)
+    pass: they are nearly always fixed fragments chosen in code.
+    """
+    text, befores = sql_holes(node)
+    return bool(re.search(r"\b(?:select|insert|update|delete)\b", text, re.I)) and any(
+        re.search(SQL_VALUE_POSITION, before, re.I) or before.count("'") % 2
+        for before in befores
+    )
+
+
+def unsafe_yaml(call: ast.Call) -> bool:
+    """yaml.load without a loader or with a full one, or yaml.unsafe_load."""
+    name = ast.unparse(call.func)
+    if name in {"yaml.unsafe_load", "yaml.unsafe_load_all"}:
+        return True
+    loader = call.args[1:2] + [k.value for k in call.keywords if k.arg == "Loader"]
+    return name in {"yaml.load", "yaml.load_all"} and (
+        not loader or ast.unparse(loader[0]).split(".")[-1] in UNSAFE_YAML_LOADERS
+    )
+
+
+def tls_unverified(call: ast.Call) -> bool:
+    """An HTTP client call with verify=False, or an unverified SSL context."""
+    name = ast.unparse(call.func)
+    client = name.split(".")[0] in {"requests", "httpx"} or (
+        name.split(".")[-1] in HTTP_CLIENT_METHODS
+    )
+    return name == "ssl._create_unverified_context" or (
+        client
+        and any(
+            k.arg == "verify"
+            and isinstance(k.value, ast.Constant)
+            and k.value.value is False
+            for k in call.keywords
+        )
+    )
+
+
+def redirect_sanitizer(name: str) -> bool:
+    return bool(re.search(r"safe|saniti|valid|allowed|trusted", name, re.I))
 
 
 def secret_value(node: ast.AST, derived: set[str] = frozenset()) -> bool:
@@ -1858,27 +2023,142 @@ def tautological_assertions(tree: ast.AST) -> list[ast.AST]:
     return found
 
 
-def python_rules(text: str) -> list[Finding]:
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return []
+def python_injection_rules(
+    tree: ast.AST, scopes: list[Any], offsets: list[int]
+) -> list[Finding]:
+    """SQL built from values, unsafe YAML, disabled TLS, and request data reaching
+    eval, deserializers or redirects."""
+    findings: list[Finding] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call | ast.Assign):
+            continue
+        at = offsets[node.lineno - 1] + node.col_offset
+        if isinstance(node, ast.Assign):
+            if (
+                isinstance(node.value, ast.Constant)
+                and node.value.value is False
+                and any(
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "check_hostname"
+                    for target in node.targets
+                )
+            ):
+                findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
+            continue
+        name = ast.unparse(node.func)
+        if name.split(".")[-1] in SQL_CALLS and node.args and built_sql(node.args[0]):
+            findings.append(("loki/sql-injection", SQL_QUERY, at))
+        if unsafe_yaml(node):
+            findings.append(
+                (
+                    "loki/unsafe-deserialization",
+                    f"unsafe deserialization: {name} without SafeLoader can build "
+                    "arbitrary Python objects; use yaml.safe_load",
+                    at,
+                )
+            )
+        if tls_unverified(node):
+            findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
+    first = lambda call: call.args[:1]  # noqa: E731
+    for call in request_tainted_calls(
+        scopes, lambda name: name in {"eval", "exec", "compile"}, first
+    ):
+        findings.append(
+            (
+                "loki/code-eval",
+                f"dynamic code execution: non-literal source passed to "
+                f"{ast.unparse(call.func)}",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    for call in request_tainted_calls(
+        scopes, lambda name: name in DESERIALIZE_CALLS, first
+    ):
+        findings.append(
+            (
+                "loki/unsafe-deserialization",
+                f"unsafe deserialization: request data passed to "
+                f"{ast.unparse(call.func)} can run arbitrary code; use JSON or "
+                "verify a signature first",
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    for call in request_tainted_calls(
+        scopes,
+        lambda name: (
+            name in REDIRECT_CALLS
+            or (name.split(".")[-1] in REDIRECT_CALLS and not name.startswith("self."))
+        ),
+        lambda call: call.args[:1] + [k.value for k in call.keywords if k.arg == "url"],
+        sanitizer=redirect_sanitizer,
+    ):
+        findings.append(
+            (
+                "loki/open-redirect",
+                OPEN_REDIRECT,
+                offsets[call.lineno - 1] + call.col_offset,
+            )
+        )
+    return findings
+
+
+SHELL_RUNNERS = {"run", "call", "Popen", "check_call", "check_output"}
+REGEX_CALLS = {
+    f"re.{name}"
+    for name in (
+        "compile",
+        "match",
+        "search",
+        "fullmatch",
+        "findall",
+        "finditer",
+        "sub",
+        "split",
+    )
+}
+PATH_TRAVERSAL_MESSAGE = (
+    "path traversal: file path built from request data; take the base "
+    "name or resolve it and check it stays under the intended directory"
+)
+TAUTOLOGICAL_MESSAGE = (
+    "tautological assertion: the expected value is computed by the "
+    "same call as the result, so the test always passes"
+)
+PYTHON_SSRF_MESSAGE = (
+    "server-side request forgery (SSRF): outbound request URL comes "
+    "from request data; validate the host against an allowlist"
+)
+TIMING_COMPARE_MESSAGE = (
+    "timing attack: signature or digest compared with ==; use hmac.compare_digest"
+)
+
+
+def line_offsets(text: str) -> list[int]:
+    """Character offset where each line starts, plus the end of the text."""
     offsets = [0]
     for line in text.splitlines(keepends=True):
         offsets.append(offsets[-1] + len(line))
+    return offsets
+
+
+def decision_operands(node: ast.AST) -> list[ast.AST]:
+    """The expressions a comparison, boolean or branch test decides on."""
+    if isinstance(node, ast.Compare):
+        return [node.left, *node.comparators]
+    if isinstance(node, ast.BoolOp):
+        return node.values
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return [node.operand]
+    if isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
+        return [node.test]
+    return []
+
+
+def request_authorization_findings(tree: ast.AST, offsets: list[int]) -> list[Finding]:
+    """Decisions that trust an authorization-looking request field."""
     findings: list[Finding] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.Compare):
-            operands = [node.left, *node.comparators]
-        elif isinstance(node, ast.BoolOp):
-            operands = node.values
-        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            operands = [node.operand]
-        elif isinstance(node, (ast.If, ast.IfExp, ast.While, ast.Assert)):
-            operands = [node.test]
-        else:
-            continue
-        for operand in operands:
+        for operand in decision_operands(node):
             if key := request_field(operand):
                 findings.append(
                     (
@@ -1889,99 +2169,105 @@ def python_rules(text: str) -> list[Finding]:
                         offsets[operand.lineno - 1] + operand.col_offset,
                     )
                 )
+    return findings
+
+
+def shell_command_call(node: ast.AST) -> bool:
+    """subprocess-style call running `sh -c` with a non-constant after -c."""
+    if not (
+        isinstance(node, ast.Call)
+        and ast.unparse(node.func).split(".")[-1] in SHELL_RUNNERS
+        and node.args
+        and isinstance(node.args[0], ast.List)
+    ):
+        return False
+    constant = [
+        item.value if isinstance(item, ast.Constant) else None
+        for item in node.args[0].elts
+    ]
+    return bool(
+        constant[:1]
+        and constant[0] in SHELLS
+        and "-c" in constant
+        and any(value is None for value in constant[constant.index("-c") :])
+    )
+
+
+def secret_compare(node: ast.AST, derived: set[str]) -> bool:
+    """== or != between a secret value and something other than a constant."""
+    if not (
+        isinstance(node, ast.Compare)
+        and all(isinstance(op, ast.Eq | ast.NotEq) for op in node.ops)
+    ):
+        return False
+    operands = [node.left, *node.comparators]
+    return any(secret_value(item, derived) for item in operands) and not any(
+        isinstance(item, ast.Constant) for item in operands
+    )
+
+
+def shell_and_timing_findings(tree: ast.AST, offsets: list[int]) -> list[Finding]:
+    """Shell commands built from values and secrets compared with ==."""
     derived = secret_names(tree)
+    findings: list[Finding] = []
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func).split(".")[-1]
-            in {"run", "call", "Popen", "check_call", "check_output"}
-            and node.args
-            and isinstance(node.args[0], ast.List)
-        ):
-            items = node.args[0].elts
-            constant = [
-                item.value if isinstance(item, ast.Constant) else None for item in items
-            ]
-            if (
-                constant[:1]
-                and constant[0] in SHELLS
-                and "-c" in constant
-                and any(value is None for value in constant[constant.index("-c") :])
-            ):
-                findings.append(
-                    (
-                        "loki/command-injection",
-                        SHELL_COMMAND,
-                        offsets[node.lineno - 1] + node.col_offset,
-                    )
-                )
-        if isinstance(node, ast.Compare) and all(
-            isinstance(op, ast.Eq | ast.NotEq) for op in node.ops
-        ):
-            operands = [node.left, *node.comparators]
-            if any(secret_value(item, derived) for item in operands) and not any(
-                isinstance(item, ast.Constant) for item in operands
-            ):
-                findings.append(
-                    (
-                        "loki/timing-compare",
-                        "timing attack: signature or digest compared with ==; use "
-                        "hmac.compare_digest",
-                        offsets[node.lineno - 1] + node.col_offset,
-                    )
-                )
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func)
-            in {
-                f"re.{name}"
-                for name in (
-                    "compile",
-                    "match",
-                    "search",
-                    "fullmatch",
-                    "findall",
-                    "finditer",
-                    "sub",
-                    "split",
-                )
-            }
-            and node.args
-            and isinstance(node.args[0], ast.Constant)
-            and isinstance(node.args[0].value, str)
-            and nested_quantifier(node.args[0].value)
-        ):
-            findings.append(
-                (REDOS_RULE, REDOS_MESSAGE, offsets[node.lineno - 1] + node.col_offset)
-            )
-    for call in python_path_traversal(tree):
-        findings.append(
-            (
-                "loki/path-traversal",
-                "path traversal: file path built from request data; take the base "
-                "name or resolve it and check it stays under the intended directory",
-                offsets[call.lineno - 1] + call.col_offset,
-            )
-        )
-    for call in tautological_assertions(tree):
-        findings.append(
-            (
-                "loki/tautological-test",
-                "tautological assertion: the expected value is computed by the "
-                "same call as the result, so the test always passes",
-                offsets[call.lineno - 1] + call.col_offset,
-            )
-        )
-    for call in python_ssrf(tree):
-        findings.append(
-            (
-                "loki/ssrf",
-                "server-side request forgery (SSRF): outbound request URL comes "
-                "from request data; validate the host against an allowlist",
-                offsets[call.lineno - 1] + call.col_offset,
-            )
-        )
+        if shell_command_call(node):
+            at = offsets[node.lineno - 1] + node.col_offset
+            findings.append(("loki/command-injection", SHELL_COMMAND, at))
+        if secret_compare(node, derived):
+            at = offsets[node.lineno - 1] + node.col_offset
+            findings.append(("loki/timing-compare", TIMING_COMPARE_MESSAGE, at))
+    return findings
+
+
+def redos_call(node: ast.AST) -> bool:
+    """re.* call on a constant pattern with a nested quantifier."""
+    return bool(
+        isinstance(node, ast.Call)
+        and ast.unparse(node.func) in REGEX_CALLS
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+        and nested_quantifier(node.args[0].value)
+    )
+
+
+def node_findings(
+    rule: str, message: str, nodes: Iterable[ast.AST], offsets: list[int]
+) -> list[Finding]:
+    """One finding per node, at the node's start."""
+    return [
+        (rule, message, offsets[node.lineno - 1] + node.col_offset) for node in nodes
+    ]
+
+
+def python_rules(text: str) -> list[Finding]:
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    offsets = line_offsets(text)
+    findings = request_authorization_findings(tree, offsets)
+    findings += shell_and_timing_findings(tree, offsets)
+    redos = filter(redos_call, ast.walk(tree))
+    findings += node_findings(REDOS_RULE, REDOS_MESSAGE, redos, offsets)
+    scopes = request_scopes(tree)
+    findings += node_findings(
+        "loki/path-traversal",
+        PATH_TRAVERSAL_MESSAGE,
+        python_path_traversal(scopes),
+        offsets,
+    )
+    findings += node_findings(
+        "loki/tautological-test",
+        TAUTOLOGICAL_MESSAGE,
+        tautological_assertions(tree),
+        offsets,
+    )
+    findings += node_findings(
+        "loki/ssrf", PYTHON_SSRF_MESSAGE, python_ssrf(scopes), offsets
+    )
+    findings.extend(python_injection_rules(tree, scopes, offsets))
     return findings
 
 
@@ -2119,6 +2405,20 @@ def elixir_rules(text: str) -> list[Finding]:
 
 
 SHELLS = {"sh", "bash", "zsh", "dash", "/bin/sh", "/bin/bash", "/usr/bin/env"}
+TLS_VERIFICATION = (
+    "TLS certificate verification disabled; trust the needed CA "
+    "instead of turning verification off"
+)
+SQL_WORD = r"\b(?:select|insert|update|delete)\b"
+SQL_QUERY = (
+    "SQL injection: query text built by concatenation or "
+    "interpolation; use parameterized placeholders"
+)
+SQL_IDENTIFIER = (
+    "SQL injection: table or column name interpolated into the query; "
+    "placeholders cannot bind identifiers, so map it to a fixed set of "
+    "known names before building the query"
+)
 SHELL_COMMAND = (
     "shell command injection: command string built from variables runs through "
     "a shell with -c; pass the program and arguments separately"
@@ -2173,6 +2473,24 @@ def rust_rules(text: str) -> list[Finding]:
         dynamic = re.search(r"format!|\.args?\s*\(\s*(?![\"\[\s])", chain)
         if program in SHELLS and '"-c"' in chain and dynamic:
             findings.append(("loki/command-injection", SHELL_COMMAND, match.start()))
+    for match in re.finditer(
+        r"\.\s*danger_accept_invalid_(?:certs|hostnames)\s*\(\s*true\s*\)", masked
+    ):
+        findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
+    for match in re.finditer(
+        r"(?:(?<![\w.])(?:sqlx\s*::\s*)?query(?:_as|_scalar)?(?:\s*::\s*<[^>()]*>)?"
+        r"|\.\s*execute|(?<![\w.])(?:diesel\s*::\s*)?sql_query)"
+        r"\s*\(\s*&?\s*format\s*!\s*\(",
+        masked,
+    ):
+        arguments = split_arguments(masked, match.end() - 1)
+        literal = text[slice(*arguments[0])].strip() if arguments else ""
+        if not re.match(r'r?#*"', literal):
+            continue
+        holes = re.finditer(r"\{(\{)?", literal)
+        message = sql_message(literal, [h.start() for h in holes if not h.group(1)])
+        if message:
+            findings.append(("loki/sql-injection", message, match.start()))
     return findings
 
 
@@ -2262,12 +2580,85 @@ def workflow_injection(text: str) -> list[Finding]:
     return findings
 
 
+GO_STRING = r'\s*(?:"[^"\n]*"|`[^`]*`)\s*'
+
+
+def go_literal(masked: str) -> bool:
+    """A masked Go expression that is only string literals joined with +."""
+    return bool(re.fullmatch(rf"{GO_STRING}(?:\+{GO_STRING})*", masked))
+
+
+def top_level_split(
+    masked: str, start: int, end: int, char: str
+) -> list[tuple[int, int]]:
+    spans, depth, begin = [], 0, start
+    for index in range(start, end):
+        if masked[index] in "([{":
+            depth += 1
+        elif masked[index] in ")]}":
+            depth -= 1
+        elif masked[index] == char and not depth:
+            spans.append((begin, index))
+            begin = index + 1
+    return [*spans, (begin, end)]
+
+
+def sql_message(literal: str, holes: list[int]) -> str | None:
+    """SQL injection message for query text with non-literal values at holes."""
+    if not holes or not re.search(SQL_WORD, literal, re.I):
+        return None
+    if all(re.search(SQL_IDENTIFIER_POSITION, literal[:hole], re.I) for hole in holes):
+        return SQL_IDENTIFIER
+    return SQL_QUERY
+
+
 def go_rules(text: str) -> list[Finding]:
-    """Archive entry names joined into paths without a containment check."""
+    """Zip slip, SQL built with Sprintf or +, shell -c commands, TLS skip-verify."""
+    masked = mask_rust(text, go=True)
+    findings: list[Finding] = [
+        ("loki/tls-verification", TLS_VERIFICATION, match.start())
+        for match in re.finditer(
+            r"\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b", masked
+        )
+    ]
+    for call in re.finditer(r"\bexec\s*\.\s*Command(Context)?\s*\(", masked):
+        arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
+        words = [text[a:b].strip().strip('"`') for a, b in arguments[:2]]
+        if (
+            len(arguments) > 2
+            and words[0] in SHELLS
+            and words[1] == "-c"
+            and not go_literal(masked[slice(*arguments[2])])
+        ):
+            findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
+    for call in re.finditer(
+        r"\.\s*(?:Query|QueryRow|Exec|Prepare)(Context)?\s*\(", masked
+    ):
+        arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
+        if not arguments:
+            continue
+        start, end = arguments[0]
+        sprintf = re.match(r"\s*fmt\s*\.\s*Sprintf\s*\(", masked[start:end])
+        if sprintf:
+            inner = split_arguments(masked, start + sprintf.end() - 1)
+            dynamic = [
+                span for span in inner[1:] if not go_literal(masked[slice(*span)])
+            ]
+            if not dynamic or not go_literal(masked[slice(*inner[0])]):
+                continue
+            literal = text[slice(*inner[0])]
+            holes = re.finditer(r"%(?:%|[-+# 0-9.]*([sv]))", literal)
+            message = sql_message(literal, [h.start() for h in holes if h.group(1)])
+        else:
+            parts = top_level_split(masked, start, end, "+")
+            literals = [part for part in parts if go_literal(masked[slice(*part)])]
+            if not literals or len(literals) == len(parts):
+                continue
+            message = sql_message("".join(text[slice(*p)] for p in literals), [0])
+        if message:
+            findings.append(("loki/sql-injection", message, call.start()))
     if not re.search(r'"archive/(?:zip|tar)"', text):
-        return []
-    masked = mask_rust(text)
-    findings: list[Finding] = []
+        return findings
     for function in re.finditer(r"\bfunc\b[^{]*\{", masked):
         end = matching_close(masked, function.end() - 1)
         body = masked[function.end() - 1 : end]
@@ -2307,8 +2698,17 @@ def content_rule_findings(
         "rust": rust_rules,
         "go": go_rules,
     }
-    findings = generic_rules(relative, text)
-    return findings + (rules[language](text) if language in rules else [])
+    # Pure in (path, text): the daemon warms this for committed files, so the
+    # unchanged base side of a write is a cache hit in its forked request.
+    return content_memo(
+        "rules",
+        relative,
+        text,
+        lambda: (
+            generic_rules(relative, text)
+            + (rules[language](text) if language in rules else [])
+        ),
+    )
 
 
 def content_rule_violations(
@@ -3889,9 +4289,27 @@ def written_slop(
     return notes[:MAX_VIOLATIONS]
 
 
+def ruff_command(root: Path) -> list[str] | None:
+    """Ruff from the project's .venv or venv, PATH, then the project's `-m ruff`.
+
+    Never installs anything: no network, no uvx.
+    """
+    for prefix in (".venv", "venv"):
+        if (local := root / prefix / "bin/ruff").is_file():
+            return [str(local)]
+    if shutil.which("ruff"):
+        return ["ruff"]
+    try:
+        if "ruff" not in resolve_imports(root, ["ruff"]):
+            return [str(project_python(root)), "-m", "ruff"]
+    except ValueError:
+        pass
+    return None
+
+
 def missing_tool(language: str, root: Path) -> str | None:
     if language == "python":
-        return None if shutil.which("ruff") else "ruff"
+        return None if ruff_command(root) else "ruff"
     if language == "typescript":
         return None if resolve_tool(root, "oxlint") else "oxlint"
     if language == "go":
@@ -3989,8 +4407,10 @@ def possibly_existing(keys: Iterable[tuple], texts: dict[str, str]) -> bool:
 
 
 def mypy_binary(root: Path) -> str | None:
-    local = root / ".venv/bin/mypy"
-    return str(local) if local.is_file() else shutil.which("mypy")
+    for prefix in (".venv", "venv"):
+        if (local := root / prefix / "bin/mypy").is_file():
+            return str(local)
+    return shutil.which("mypy")
 
 
 def mypy_state(root: Path) -> Path:
@@ -4162,6 +4582,33 @@ def cargo_project(path: Path, root: Path) -> Path | None:
     return None
 
 
+def cargo_edition(crate: Path | None, root: Path) -> str | None:
+    """The crate's Rust edition from Cargo.toml, following `edition.workspace = true` up to the workspace."""
+    if crate is None:
+        return None
+    inherit = False
+    directory = crate.resolve()
+    while directory.is_relative_to(root.resolve()):
+        try:
+            data = tomllib.loads((directory / "Cargo.toml").read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            data = {}
+        table = (
+            (data.get("workspace") or {}).get("package")
+            if inherit
+            else data.get("package")
+        )
+        edition = table.get("edition") if isinstance(table, dict) else None
+        if isinstance(edition, str):
+            return edition
+        if isinstance(edition, dict) and edition.get("workspace") is True:
+            inherit = True
+        if directory == root.resolve():
+            break
+        directory = directory.parent
+    return None
+
+
 def clippy_command(target: Path) -> list[str]:
     command = ["cargo", "clippy", "--offline", "--all-targets"]
     command += ["--message-format=json", "--target-dir", str(target), "--"]
@@ -4210,9 +4657,15 @@ def clippy_diagnostics(
         code = (message.get("code") or {}).get("code") or message["level"]
         found.append(((relative, code, message["message"], text), span["line_start"]))
     if result.returncode and not found:
-        reason = result.stderr.strip().splitlines()[-1:] or [
-            f"exit {result.returncode}"
-        ]
+        stderr = result.stderr.strip()
+        if "--offline was specified" in stderr or "no matching package named" in stderr:
+            raise ValueError(
+                "cargo clippy needs dependencies that are not downloaded yet; "
+                "run `cargo fetch` once to check this crate"
+            )
+        if "either src/lib.rs, src/main.rs, a [lib] section" in stderr:
+            raise ValueError("the crate has no library or binary target yet")
+        reason = stderr.splitlines()[-1:] or [f"exit {result.returncode}"]
         raise ValueError(f"cargo clippy failed: {reason[0]}")
     return found
 
@@ -4399,6 +4852,10 @@ def check_file(
                 violations.extend(
                     ruff_new_violations(root, None, paths=set(names), deadline=deadline)
                 )
+            except SnapshotTooLarge as error:
+                violations.extend(
+                    not_checked(f"NOT CHECKED python ruff: {error}", strict, warnings)
+                )
             except MissingRuffConfig as error:
                 # A minimal install (init --minimal) adds no .ruff.toml.
                 if strict:
@@ -4449,10 +4906,16 @@ def check_file(
             # Compile errors from go vet make lint results redundant.
             optional("golangci-lint", lambda deadline: lint.result())
     elif language == "rust":
-        violations.extend(
-            run_command(["rustfmt", str(path)], root, "rustfmt", deadline=deadline)
-        )
         crate = cargo_project(path, root)
+        edition = cargo_edition(crate, root)
+        violations.extend(
+            run_command(
+                ["rustfmt", *(["--edition", edition] if edition else []), str(path)],
+                root,
+                "rustfmt",
+                deadline=deadline,
+            )
+        )
         key = (language, crate or root)
         if checked_projects is None or key not in checked_projects:
             optional("clippy", clippy_violations, path, root)
@@ -4932,11 +5395,12 @@ def scan_command(
 ) -> tuple[str | None, list[list[str]]]:
     relative_files = [relative_display(path, root) for path in files]
     if language == "python":
-        if not shutil.which("ruff"):
+        ruff = ruff_command(root)
+        if not ruff:
             return "ruff", []
         return None, [
-            ["ruff", "check", *relative_files],
-            ["ruff", "format", "--check", *relative_files],
+            [*ruff, "check", *relative_files],
+            [*ruff, "format", "--check", *relative_files],
         ]
     if language == "typescript":
         oxlint = resolve_tool(root, "oxlint")
@@ -5130,6 +5594,10 @@ def slopsquatting_violations(root: Path, config: dict[str, Any]) -> list[str]:
         ]
 
 
+class SnapshotTooLarge(ValueError):
+    """The working tree's changes are too big to snapshot in one check."""
+
+
 @dataclass(frozen=True)
 class FileChange:
     path: str
@@ -5182,7 +5650,7 @@ def git_blobs(
     if not unique:
         return {}
     if len(unique) > 100_000:
-        raise ValueError("git: snapshot exceeds 100000 base objects")
+        raise SnapshotTooLarge("git: snapshot exceeds 100000 base objects")
     request = ("\n".join(unique) + "\n").encode("ascii")
     metadata = git_output(
         root, ["cat-file", "--batch-check"], deadline=deadline, input_data=request
@@ -5201,7 +5669,7 @@ def git_blobs(
             raise ValueError("git: invalid batch metadata response")
         total += int(fields[2])
         if total > 64 * 1024 * 1024:
-            raise ValueError("git: snapshot base content exceeds 64 MiB")
+            raise SnapshotTooLarge("git: snapshot base content exceeds 64 MiB")
     data = git_output(
         root,
         ["cat-file", "--batch"],
@@ -5253,7 +5721,7 @@ def candidate_content(
         if stat.S_ISLNK(mode):
             content = os.fsencode(os.readlink(filename, dir_fd=directory))
             if len(content) > remaining:
-                raise ValueError("git: snapshot content exceeds 64 MiB")
+                raise SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
             return content, "120000"
         if not stat.S_ISREG(mode):
             raise ValueError(f"loki: unsupported changed file type: {name}")
@@ -5265,10 +5733,10 @@ def candidate_content(
             if not stat.S_ISREG(info.st_mode):
                 raise ValueError(f"loki: unsupported changed file type: {name}")
             if info.st_size > remaining:
-                raise ValueError("git: snapshot content exceeds 64 MiB")
+                raise SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
             content = source.read(remaining + 1)
             if len(content) > remaining:
-                raise ValueError("git: snapshot content exceeds 64 MiB")
+                raise SnapshotTooLarge("git: snapshot content exceeds 64 MiB")
             return content, "100755" if info.st_mode & stat.S_IXUSR else "100644"
     except FileNotFoundError:
         return None, None
@@ -5276,17 +5744,29 @@ def candidate_content(
         os.close(directory)
 
 
+def repository_gap(root: Path, *, deadline: float | None = None) -> str | None:
+    """Why git cannot compare root (no repository, or a subdirectory of one), else None."""
+    try:
+        top = git_output(root, ["rev-parse", "--show-toplevel"], deadline=deadline)
+    except ValueError as error:
+        return str(error)
+    if Path(os.fsdecode(top).rstrip("\n")).resolve() != root.resolve():
+        return "git: project root must be the repository root"
+    return None
+
+
 def git_changes(
-    root: Path, base: str | None, *, deadline: float | None = None
+    root: Path,
+    base: str | None,
+    *,
+    deadline: float | None = None,
+    only: set[str] | None = None,
 ) -> tuple[str | None, list[FileChange]]:
+    """The changes against base; `only` limits the snapshot to those repository-relative paths."""
     root = root.resolve()
-    actual_root = Path(
-        os.fsdecode(
-            git_output(root, ["rev-parse", "--show-toplevel"], deadline=deadline)
-        ).rstrip("\n")
-    ).resolve()
-    if actual_root != root:
-        raise ValueError("git: project root must be the repository root")
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        raise ValueError(gap)
     if git_output(root, ["ls-files", "--unmerged", "-z"], deadline=deadline):
         raise ValueError("loki: unresolved index conflict")
     if base == "":
@@ -5401,6 +5881,8 @@ def git_changes(
             deadline=deadline,
         )
     changed_names = sorted({os.fsdecode(name) for name in names.split(b"\0") if name})
+    if only is not None:
+        changed_names = [name for name in changed_names if name in only]
     blobs = git_blobs(
         root,
         [
@@ -5453,6 +5935,12 @@ def base_policy(
     evidence_policy("base", ".loki/loki.json", raw, base=base)
     value = json.loads(raw.decode("utf-8"))
     return validate_config(value)
+
+
+# Text just before an interpolation that puts it where SQL expects a table or column name.
+SQL_IDENTIFIER_POSITION = (
+    r"(?:\b(?:from|into|update|join|table|exists)|\b(?:order|group)\s+by|[\"`\[.])\s*$"
+)
 
 
 def protected_change_violations(
@@ -5715,19 +6203,38 @@ def write_guardrail_violations(
     config: dict[str, Any],
     *,
     deadline: float | None = None,
+    warnings: list[str] | None = None,
 ) -> list[str]:
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        strict = os.environ.get("LOKI_STRICT") == "1"
+        return not_checked(f"NOT CHECKED repository changes: {gap}", strict, warnings)
     try:
-        base, changes = git_changes(root, None, deadline=deadline)
+        touched = {
+            Path(os.path.abspath(path)).relative_to(root.resolve()).as_posix()
+            for path in paths
+        }
+        try:
+            base, changes = git_changes(root, None, deadline=deadline)
+        except SnapshotTooLarge as error:
+            # Too many or too large uncommitted changes to compare them all: check the written files only.
+            note = (
+                f"NOT CHECKED repository changes: {error}; protected-file, test and lockfile "
+                "checks covered only the files this write changed"
+            )
+            try:
+                base, changes = git_changes(root, None, deadline=deadline, only=touched)
+            except SnapshotTooLarge as written:
+                base, changes = None, []
+                note = f"NOT CHECKED repository changes: {written}"
+            if warnings is not None:
+                warnings.append(note)
         policy = base_policy(root, base, deadline=deadline)
         protected = protected_change_violations(
             changes, policy if policy is not None else {}
         )
         if protected:
             return protected
-        touched = {
-            Path(os.path.abspath(path)).relative_to(root.resolve()).as_posix()
-            for path in paths
-        }
         violations = test_integrity_violations(
             [change for change in changes if change.path in touched]
         )
@@ -6704,7 +7211,9 @@ def dispatch_main() -> int:
         if args.command == "hook" and not messages:
             targets = [Path(os.path.abspath(root / path)) for path in paths]
             messages.extend(
-                write_guardrail_violations(targets, root, config, deadline=deadline)
+                write_guardrail_violations(
+                    targets, root, config, deadline=deadline, warnings=warnings
+                )
             )
             if not messages and any(
                 target.suffix in TYPESCRIPT_SUFFIXES for target in targets
@@ -6915,6 +7424,21 @@ def install_managed(root: Path, destination: Path) -> None:
     print("Owner-writable installation is not an OS security boundary.")
 
 
+def missing_engine_guard(root: str) -> str:
+    """Shell prefix for an owned hook: pass with a note on a branch that does not have Loki.
+
+    That is a checkout whose HEAD has no `.loki/loki.py` while another ref does. An engine deleted from the working
+    tree that HEAD still tracks, or one that was never committed anywhere, still fails closed.
+    """
+    return (
+        f'R={root}; [ -f "$R/.loki/loki.py" ] || '
+        'git -C "$R" cat-file -e HEAD:.loki/loki.py 2>/dev/null || '
+        '[ -z "$(git -C "$R" rev-list -1 --all -- .loki/loki.py 2>/dev/null)" ] || '
+        "{ printf '%s\\n' 'loki: .loki/loki.py is not on this branch; Loki did not check this' >&2; "
+        "exit 0; }; "
+    )
+
+
 def install_shell_guard(root: Path) -> None:
     import shlex
 
@@ -6926,6 +7450,7 @@ def install_shell_guard(root: Path) -> None:
         document = read_json_object(path)
         groups = document["hooks"] if harness == "claude" else document
         command = (
+            f"{missing_engine_guard(shlex.quote(str(root)))}"
             f"{shlex.quote(sys.executable)} {shlex.quote(str(root / '.loki/loki.py'))} "
             f"--root {shlex.quote(str(root))} shell --harness {harness} || "
             "{ printf '%s\\n' 'loki: shell guard failed' >&2; exit 2; }"
@@ -7305,8 +7830,22 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
         return None
     targets: list[tuple[str, str]] = []
     words: list[str] = []
+    # The directory a `cd` moved to, relative to the command's cwd; "$CD" when the shell decides it.
+    moved = ""
+    scopes: list[str] = []
+
+    placed = 0
+
+    def place() -> None:
+        nonlocal placed
+        if moved:
+            targets[placed:] = [
+                (os.path.join(moved, target), how) for target, how in targets[placed:]
+            ]
+        placed = len(targets)
 
     def flush() -> None:
+        nonlocal moved
         while words and (
             "=" in words[0]
             and not words[0].startswith("-")
@@ -7317,6 +7856,14 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
             return
         name, args = Path(words[0]).name, words[1:]
         plain = [arg for arg in args if not arg.startswith("-")]
+        if name in {"cd", "pushd", "popd"}:
+            moves = [arg for arg in args if arg not in {"-L", "-P", "-e", "-@", "--"}]
+            if name != "popd" and len(moves) == 1 and moves[0] != "-":
+                moved = os.path.join(moved, moves[0])
+            else:
+                moved = "$CD"
+            words.clear()
+            return
         if name == "tee":
             targets.extend((arg, "tee") for arg in plain)
         elif name == "sed" and any(
@@ -7367,6 +7914,7 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
                     targets.append((destination, name))
         elif name == "dd":
             targets.extend((arg[3:], "dd") for arg in args if arg.startswith("of="))
+        place()
         words.clear()
 
     index = 0
@@ -7375,16 +7923,23 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
         if token in {">", ">>", ">|", "&>", "&>>"}:
             if index + 1 < len(tokens):
                 targets.append((tokens[index + 1], "redirect"))
+                place()
             index += 2
             continue
         if token.endswith((">", ">>")) and set(token) <= set("<>&|;()"):
             # Operators run together with a redirect (`;>`), rare: treat the next word as its target.
             if index + 1 < len(tokens):
                 targets.append((tokens[index + 1], "redirect"))
+                place()
             index += 2
             continue
         if set(token) <= set("();<>|&"):
             flush()
+            for char in token:
+                if char == "(":
+                    scopes.append(moved)
+                elif char == ")" and scopes:
+                    moved = scopes.pop()
             index += 1
             continue
         if (
@@ -7887,6 +8442,47 @@ def typescript_state(
     return Path.home() / ".cache/loki/typescript" / identity / digest.hexdigest()
 
 
+JSONC_TOKEN_RE = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/|,(?=\s*[}\]])', re.S)
+
+
+def strip_jsonc(text: str) -> str:
+    """tsconfig's JSON dialect as plain JSON: comments and trailing commas dropped."""
+    return JSONC_TOKEN_RE.sub(lambda m: m[0] if m[0][0] == '"' else "", text)
+
+
+def typescript_extends(raw: bytes | None) -> set[str] | None:
+    """Repository paths the committed tsconfig.json extends; None when unreadable.
+
+    Package names resolve into node_modules, which is refused separately.
+    """
+    try:
+        config = json.loads(strip_jsonc(raw.decode("utf-8") if raw else ""))
+    except ValueError:
+        return None
+    targets = config.get("extends", []) if isinstance(config, dict) else []
+    names = set()
+    targets = [targets] if isinstance(targets, str) else targets
+    for target in targets if isinstance(targets, list) else []:
+        if isinstance(target, str) and target.startswith("."):
+            path = os.path.normpath(target)
+            names.update({path, f"{path}.json"})
+    return names
+
+
+def typescript_config_json(name: str, extends: set[str] | None) -> bool:
+    """Whether a JSON file can change compiler options or module resolution.
+
+    An unreadable committed tsconfig.json (comments, say) keeps every JSON file.
+    """
+    base = os.path.basename(name)
+    return name.endswith(".json") and (
+        extends is None
+        or name in extends
+        or base == "package.json"
+        or base.startswith(("tsconfig", "jsconfig"))
+    )
+
+
 def typescript_violations(
     root: Path,
     *,
@@ -7919,14 +8515,17 @@ def typescript_violations(
     findings = protected_change_violations(changes, policy)
     if findings:
         return findings
-    for name in [*(change.path for change in changes), *(overrides or {})]:
-        if name.endswith(".json"):
-            return setup(f"{name}: JSON/config change requires separate review")
-        if name.startswith("node_modules/"):
-            return setup("typescript: dependency changes require separate review")
     try:
         raw = git_output(root, ["show", f"{base}:tsconfig.json"], deadline=deadline)
     except ValueError:
+        raw = None
+    extends = typescript_extends(raw)
+    for name in [*(change.path for change in changes), *(overrides or {})]:
+        if typescript_config_json(name, extends):
+            return setup(f"{name}: JSON/config change requires separate review")
+        if name.startswith("node_modules/"):
+            return setup("typescript: dependency changes require separate review")
+    if raw is None:
         return setup("typescript: committed tsconfig.json required")
     evidence_policy("base", "tsconfig.json", raw, base=base)
     marker = typescript_state(root, base, raw, changes, overrides)
@@ -8092,7 +8691,11 @@ def apply_snapshot_change(root: Path, change: FileChange) -> None:
 
 
 def ruff_delta(
-    raw: bytes, pairs: list[tuple[str, bytes, bytes]], *, deadline: float | None
+    raw: bytes,
+    pairs: list[tuple[str, bytes, bytes]],
+    *,
+    deadline: float | None,
+    ruff: list[str],
 ) -> list[str]:
     """Ruff findings present in each candidate but not its base, by line text."""
     import tempfile
@@ -8109,7 +8712,7 @@ def ruff_delta(
             for content in (before, after):
                 result = subprocess.run(
                     [
-                        "ruff",
+                        *ruff,
                         "check",
                         "--no-cache",
                         "--no-respect-gitignore",
@@ -8153,7 +8756,7 @@ def ruff_delta(
 
 
 class MissingRuffConfig(ValueError):
-    """The base revision has no .ruff.toml, so net-new Ruff has no trusted config."""
+    """No committed base or base .ruff.toml, so net-new Ruff has no trusted config."""
 
 
 def ruff_new_violations(
@@ -8163,9 +8766,12 @@ def ruff_new_violations(
     paths: set[str] | None = None,
     deadline: float | None = None,
 ) -> list[str]:
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        raise MissingRuffConfig(gap)
     base, changes = git_changes(root, reference, deadline=deadline)
     if base is None:
-        raise ValueError("net-new Ruff requires a committed base")
+        raise MissingRuffConfig("net-new Ruff requires a committed base")
     policy = base_policy(root, base, deadline=deadline)
     protected = protected_change_violations(changes, policy or {})
     if protected:
@@ -8184,7 +8790,8 @@ def ruff_new_violations(
         and change.path.endswith(".py")
         and change.after is not None
     ]
-    return ruff_delta(raw, pairs, deadline=deadline)
+    ruff = ruff_command(root) or ["ruff"]
+    return ruff_delta(raw, pairs, deadline=deadline, ruff=ruff)
 
 
 def preview_ruff(
@@ -8196,12 +8803,13 @@ def preview_ruff(
         for path, old, new in changes
         if path.endswith(".py")
     ]
-    if not pairs or not shutil.which("ruff"):
+    ruff = ruff_command(root) if pairs else None
+    if not ruff:
         return []
     try:
         raw = git_output(root, ["show", "HEAD:.ruff.toml"], deadline=deadline)
         evidence_policy("base", ".ruff.toml", raw, base="HEAD")
-        return ruff_delta(raw, pairs, deadline=deadline)
+        return ruff_delta(raw, pairs, deadline=deadline, ruff=ruff)
     except (OSError, ValueError, subprocess.TimeoutExpired, tomllib.TOMLDecodeError):
         return []
 
@@ -8451,8 +9059,7 @@ def prewarm(root: Path) -> None:
             )
             worker.close()
             TYPESCRIPT_WORKERS.clear()
-    local = root / ".venv/bin/mypy"
-    mypy = str(local) if local.is_file() else shutil.which("mypy")
+    mypy = mypy_binary(root)
     dmypy = Path(mypy).with_name("dmypy") if mypy else None
     if dmypy is not None and dmypy.is_file():
         state = mypy_state(root)
@@ -8479,6 +9086,7 @@ def prewarm(root: Path) -> None:
     try:
         for path, text in repository_sources(root, limit=64 * 1024 * 1024).items():
             token_windows(path, text)
+            content_rule_findings(path, text)
             if slop_language(path) == "python":
                 python_imports(path, text)
                 python_functions(path, text)
