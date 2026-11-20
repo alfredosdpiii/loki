@@ -15,6 +15,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from collections import Counter
@@ -316,6 +317,7 @@ def validate_config(value: Any) -> dict[str, Any]:
         "elixir_security",
         "shell_commands",
         "slop",
+        "hygiene",
     }
     if unknown:
         raise ValueError(f"loki: unknown configuration key: {sorted(unknown)[0]}")
@@ -324,6 +326,7 @@ def validate_config(value: Any) -> dict[str, Any]:
     security_policy(value)
     shell_permissions(value)
     slop_policy(value)
+    hygiene_policy(value)
     if not isinstance(value.get("typescript_check", False), bool):
         raise ValueError("typescript_check must be a boolean")
     for key in ("approved_dependencies", "private_packages"):
@@ -4333,7 +4336,16 @@ RUST_LINTS += ("clippy::unwrap_used", "clippy::expect_used")
 
 def head_text(root: Path, relative: str, *, deadline: float | None = None) -> str:
     """Committed HEAD text, or empty text for a file absent from HEAD."""
-    row = git_output(root, ["ls-tree", "-z", "HEAD", "--", relative], deadline=deadline)
+    return revision_text(root, "HEAD", relative, deadline=deadline)
+
+
+def revision_text(
+    root: Path, revision: str, relative: str, *, deadline: float | None = None
+) -> str:
+    """Text at `revision`, or empty text for a file absent there."""
+    row = git_output(
+        root, ["ls-tree", "-z", revision, "--", relative], deadline=deadline
+    )
     if not row:
         return ""
     _, kind, oid = row.split(b"\t", 1)[0].decode("ascii").split()
@@ -4362,6 +4374,397 @@ def written_content_violations(
 def line_text(content: str, number: int) -> str:
     lines = content.splitlines()
     return lines[number - 1].strip() if 0 < number <= len(lines) else ""
+
+
+def hygiene_policy(config: dict[str, Any]) -> str:
+    level = config.get("hygiene", "on")
+    if level not in ("off", "on", "all"):
+        raise ValueError("hygiene must be 'off', 'on', or 'all'")
+    return level
+
+
+def hygiene_level(config: dict[str, Any], env: str | None = None) -> str:
+    """`LOKI_HYGIENE`, else the `hygiene` policy, else on."""
+    named = (env if env is not None else os.environ.get("LOKI_HYGIENE") or "").strip()
+    named = named.lower()
+    if named == "all":
+        return "all"
+    if named in {"off", "0", "false", "no", "none"}:
+        return "off"
+    if named in {"on", "1", "true", "yes"}:
+        return "on"
+    return hygiene_policy(config)
+
+
+@dataclass(frozen=True)
+class HygieneSquiggle:
+    line: int
+    kind: str
+    message: str
+
+
+# dense_line, deep_nesting and cramped_layout fire on formatter-clean code and
+# poor_naming on long test names; level `all` adds them.
+HYGIENE_DEFAULT_KINDS = frozenset(
+    {"swallowed_error", "noisy_comment", "duplicate_block", "special_casing"}
+)
+NITS_SUFFIXES = frozenset({".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs"})
+HYGIENE_SUFFIXES = NITS_SUFFIXES | {
+    ".go",
+    ".c",
+    ".h",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".hpp",
+    ".zig",
+    ".java",
+    ".cs",
+    ".lua",
+}
+NITS_COMMIT = "67c94b9f76054375f37b2df8e624a2f4d48ec0cc"
+NITS_REQUIREMENT = f"git+https://github.com/jkomyno/nits@{NITS_COMMIT}"
+# nits enables a rule by default at this precision; below it only `all` reports.
+NITS_MIN_PRECISION = 0.80
+HYGIENE_MAX_NOTES = 10
+HYGIENE_SNIPPET_CHARS = 80
+HYGIENE_MAX_CHANGED_FILES = 40
+HYGIENE_SECONDS = 20
+# Drivers exit 3 when their import is missing and 4 when the tool itself failed.
+HYGIENE_FAILED = 4
+
+HYGIENE_DRIVER = r"""
+import io, json, sys, types
+try:
+    import numpy
+except ImportError:
+    raise SystemExit(3)
+try:
+    request = json.load(sys.stdin)
+    module = types.ModuleType("codehygiene")
+    sys.modules["codehygiene"] = module
+    exec(compile(request["source"], "codehygiene/__init__.py", "exec"), module.__dict__)
+    with numpy.load(io.BytesIO(bytes.fromhex(request["weights"]))) as archive:
+        weights = module.unpack_ternary_archive(archive["trits"], archive["vecs"], str(archive["meta"].item()))
+    found = [
+        [[s.line, s.kind, s.message] for s in module.score(text, weights=weights).squiggles]
+        for text in request["texts"]
+    ]
+except Exception as error:
+    sys.stderr.write(f"{type(error).__name__}: {error}\n")
+    raise SystemExit(4)
+json.dump(found, sys.stdout)
+"""
+
+NITS_DRIVER = r"""
+import json, sys
+try:
+    import nits
+except ImportError:
+    raise SystemExit(3)
+try:
+    request = json.load(sys.stdin)
+    everything = request["all"]
+    floor = None if everything else request["min_precision"]
+    found = []
+    for name, text in request["files"]:
+        lang = nits.lang_for_path(name)
+        findings = nits.check_source(text, lang=lang, include_opt_in=everything, min_precision=floor) if lang else []
+        found.append([[f.line, f.rule, f"p{nits.precision_of(f.rule, lang):.2f} {f.message}"] for f in findings])
+except Exception as error:
+    sys.stderr.write(f"{type(error).__name__}: {error}\n")
+    raise SystemExit(4)
+json.dump(found, sys.stdout)
+"""
+
+
+def _launchers(python: str | None, requirement: str) -> list[list[str]]:
+    found = [[python]] if python else []
+    if [sys.executable] not in found:
+        found.append([sys.executable])
+    if uv := shutil.which("uv"):
+        found.append(
+            [
+                uv,
+                "run",
+                "-q",
+                "--offline",
+                "--no-project",
+                "--with",
+                requirement,
+                "python",
+            ]
+        )
+    return found
+
+
+def hygiene_launchers(python: str | None = None) -> list[list[str]]:
+    """The given Python, Loki's, then uv's with NumPy from its cache."""
+    return _launchers(python, "numpy")
+
+
+def nits_launchers(python: str | None = None) -> list[list[str]]:
+    """The given Python, Loki's, then uv's with pinned nits from its cache."""
+    return _launchers(python, NITS_REQUIREMENT)
+
+
+def drive_hygiene_tool(
+    launchers: list[list[str]],
+    driver: str,
+    request_payload: dict[str, Any],
+    *,
+    deadline: float | None,
+    missing: str,
+) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
+    """Runs `driver` in the first launcher whose Python has its import."""
+    request = json.dumps(request_payload).encode("utf-8")
+    # One BLAS thread: the check runs beside the session's own work.
+    env = {**os.environ, "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}
+    for launcher in launchers:
+        try:
+            result = subprocess.run(
+                [*launcher, "-I", "-c", driver],
+                cwd=tempfile.gettempdir(),
+                input=request,
+                capture_output=True,
+                env=env,
+                timeout=command_timeout(deadline),
+                check=False,
+            )
+        except (subprocess.TimeoutExpired, ValueError):
+            return None, "timed out"
+        except OSError:
+            continue
+        if result.returncode == 0:
+            try:
+                reply = json.loads(result.stdout)
+                return [
+                    [
+                        HygieneSquiggle(int(line), str(kind), str(message))
+                        for line, kind, message in file
+                    ]
+                    for file in reply
+                ], None
+            except (ValueError, TypeError):
+                return None, "unreadable reply"
+        if result.returncode == HYGIENE_FAILED:
+            lines = result.stderr.decode("utf-8", errors="replace").strip().splitlines()
+            return None, (lines[-1] if lines else "failed")[:200]
+    return None, missing
+
+
+def hygiene_score(
+    texts: list[str],
+    *,
+    deadline: float | None = None,
+    launchers: list[list[str]] | None = None,
+    python: str | None = None,
+) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
+    """The vendored codehygiene model's squiggles for each text."""
+    vendored = SOURCE_ROOT / "vendor" / "codehygiene"
+    try:
+        source = (vendored / "__init__.py").read_text(encoding="utf-8")
+        weights = (vendored / "weights.npz").read_bytes().hex()
+    except OSError:
+        return None, "vendored codehygiene model is missing"
+    return drive_hygiene_tool(
+        hygiene_launchers(python) if launchers is None else launchers,
+        HYGIENE_DRIVER,
+        {"source": source, "weights": weights, "texts": texts},
+        deadline=deadline,
+        missing="needs NumPy, which neither Loki's Python nor uv's cache has "
+        "(`uv run --with numpy python -c pass` fetches it once)",
+    )
+
+
+def nits_score(
+    files: list[tuple[str, str]],
+    *,
+    all_rules: bool = False,
+    deadline: float | None = None,
+    launchers: list[list[str]] | None = None,
+    python: str | None = None,
+) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
+    """nits' findings for each `(name, text)`."""
+    return drive_hygiene_tool(
+        nits_launchers(python) if launchers is None else launchers,
+        NITS_DRIVER,
+        {"files": files, "all": all_rules, "min_precision": NITS_MIN_PRECISION},
+        deadline=deadline,
+        missing="nits is in neither Loki's Python nor uv's cache "
+        f"(`uv run --no-project --with {NITS_REQUIREMENT} python -c pass` fetches it once)",
+    )
+
+
+def added_line_numbers(before: str, after: str) -> set[int]:
+    """The 1-based lines of `after` that are not in `before`."""
+    matcher = difflib.SequenceMatcher(
+        None, before.splitlines(), after.splitlines(), autojunk=False
+    )
+    return {
+        line
+        for tag, _, _, j1, j2 in matcher.get_opcodes()
+        if tag != "equal"
+        for line in range(j1 + 1, j2 + 1)
+    }
+
+
+def merge_hygiene_notes(
+    name: str,
+    before: str,
+    after: str,
+    model: list[HygieneSquiggle],
+    nits: list[HygieneSquiggle],
+    level: str,
+) -> list[str]:
+    """nits findings on added lines, then model squiggles nits did not repeat."""
+    if level == "off":
+        return []
+    added = added_line_numbers(before, after)
+    kept = [item for item in nits if item.line in added]
+    seen = {(item.line, item.kind) for item in kept}
+    model = [
+        item
+        for item in model
+        if item.line in added
+        and (level == "all" or item.kind in HYGIENE_DEFAULT_KINDS)
+        and (item.line, item.kind) not in seen
+    ]
+
+    def note(tool: str, item: HygieneSquiggle) -> str:
+        snippet = line_text(after, item.line)[:HYGIENE_SNIPPET_CHARS]
+        kind = item.kind.replace("_", "-")
+        return f"{name}:{item.line}: loki/{tool}-{kind}: {item.message}: `{snippet}`"
+
+    return [note("nits", item) for item in kept] + [
+        note("hygiene", item) for item in model
+    ]
+
+
+def hygiene_checked(name: str) -> bool:
+    return Path(name).suffix.lower() in HYGIENE_SUFFIXES and slop_included(name)
+
+
+def nits_reads(name: str) -> bool:
+    return Path(name).suffix.lower() in NITS_SUFFIXES
+
+
+def hygiene_against(
+    root: Path,
+    files: list[str],
+    base: str,
+    level: str,
+    *,
+    deadline: float | None = None,
+    python: str | None = None,
+    model_launchers: list[list[str]] | None = None,
+    nits_runner: list[list[str]] | None = None,
+) -> list[str]:
+    """Hygiene advisories for the lines `files` add against `base`, with one
+    `NOT CHECKED <tool>` line per tool that could not run."""
+    if level == "off":
+        return []
+    sources = []
+    for name in filter(hygiene_checked, files):
+        try:
+            sources.append((name, (root / name).read_text(encoding="utf-8")))
+        except (OSError, UnicodeDecodeError):
+            continue
+    if not sources:
+        return []
+    if deadline is None:
+        deadline = time.monotonic() + HYGIENE_SECONDS
+    gaps: list[str] = []
+    empty: list[list[HygieneSquiggle]] = [[] for _ in sources]
+
+    def settle(
+        tool: str, scored: tuple[Any, str | None]
+    ) -> list[list[HygieneSquiggle]]:
+        if scored[0] is None:
+            gaps.append(f"NOT CHECKED {tool}: {scored[1]}")
+            return empty
+        return scored[0]
+
+    # nits answers in a fraction of a second; the model may take the deadline.
+    parsed = empty
+    if any(nits_reads(name) for name, _ in sources):
+        parsed = settle(
+            "nits",
+            nits_score(
+                sources,
+                all_rules=level == "all",
+                deadline=deadline,
+                launchers=nits_launchers(python)
+                if nits_runner is None
+                else nits_runner,
+            ),
+        )
+    scored = settle(
+        "hygiene",
+        hygiene_score(
+            [text for _, text in sources],
+            deadline=deadline,
+            launchers=model_launchers,
+            python=python,
+        ),
+    )
+    found: list[str] = []
+    for (name, after), model, nits in zip(sources, scored, parsed):
+        if not model and not nits:
+            continue
+        try:
+            before = revision_text(root, base, name, deadline=deadline)
+        except ValueError as error:
+            found.clear()
+            gaps.append(f"NOT CHECKED hygiene: {error}")
+            break
+        found.extend(merge_hygiene_notes(name, before, after, model, nits, level))
+    if len(found) > HYGIENE_MAX_NOTES:
+        more = len(found) - HYGIENE_MAX_NOTES
+        found = [*found[:HYGIENE_MAX_NOTES], f"... {more} more hygiene notes"]
+    return found + gaps
+
+
+def written_hygiene(
+    root: Path,
+    targets: list[Path],
+    level: str,
+    *,
+    deadline: float | None = None,
+    python: str | None = None,
+) -> list[str]:
+    """Hygiene advisories for written files against HEAD."""
+    names = [path.relative_to(root).as_posix() for path in targets]
+    return hygiene_against(root, names, "HEAD", level, deadline=deadline, python=python)
+
+
+def changed_hygiene(
+    root: Path,
+    base: str,
+    level: str,
+    *,
+    deadline: float | None = None,
+    python: str | None = None,
+) -> list[str]:
+    """Hygiene advisories for every line the working tree adds against `base`."""
+    if level == "off":
+        return []
+    listed = git_output(
+        root,
+        ["diff", "--name-only", "-z", "--diff-filter=AM", base, "--"],
+        deadline=deadline,
+    )
+    names = [
+        name for name in listed.decode("utf-8", errors="replace").split("\0") if name
+    ]
+    return hygiene_against(
+        root,
+        names[:HYGIENE_MAX_CHANGED_FILES],
+        base,
+        level,
+        deadline=deadline,
+        python=python,
+    )
 
 
 def annotated_python(text: str) -> bool:
@@ -6530,6 +6933,11 @@ def install_target(target: Path, force: bool = False) -> None:
         target / ".loki" / "oxlint" / "anti-slop",
         force,
     )
+    copy_owned(
+        SOURCE_ROOT / "vendor" / "codehygiene",
+        target / ".loki" / "vendor" / "codehygiene",
+        force,
+    )
 
     config_path = target / ".loki" / "loki.json"
     if not config_path.exists():
@@ -6955,6 +7363,12 @@ def build_parser() -> argparse.ArgumentParser:
     slop.add_argument("--base", help="compare against this revision")
     slop.add_argument("--json", action="store_true")
     slop.add_argument("--top", type=int, default=10)
+    hygiene = subparsers.add_parser("hygiene")
+    hygiene.add_argument("--base", default="HEAD", help="compare against this revision")
+    hygiene.add_argument("--file", action="append")
+    hygiene.add_argument("--level", choices=("on", "all"))
+    hygiene.add_argument("--json", action="store_true")
+    hygiene.add_argument("--python", help="the project's Python interpreter")
     daemon = subparsers.add_parser("daemon")
     daemon.add_argument("action", choices=("serve", "start", "stop", "status"))
     init_parser = subparsers.add_parser("init")
@@ -7010,6 +7424,28 @@ def main() -> int:
         print(f"loki: evidence unavailable: {error}", file=sys.stderr)
         return 2
     return status
+
+
+def hygiene_command(root: Path, config: dict[str, Any], args: Any) -> int:
+    configured = hygiene_level(config)
+    level = args.level or (configured if configured != "off" else "on")
+    deadline = time.monotonic() + COMMAND_TIMEOUT
+    if args.file:
+        files = [valid_path(path) for path in args.file]
+        notes = hygiene_against(
+            root, files, args.base, level, deadline=deadline, python=args.python
+        )
+    else:
+        notes = changed_hygiene(
+            root, args.base, level, deadline=deadline, python=args.python
+        )
+    if args.json:
+        not_checked = [note for note in notes if note.startswith("NOT CHECKED")]
+        findings = [note for note in notes if not note.startswith("NOT CHECKED")]
+        print(json.dumps({"findings": findings, "not_checked": not_checked}))
+    elif notes:
+        print("\n".join(notes))
+    return 0
 
 
 def dispatch_main() -> int:
@@ -7167,6 +7603,12 @@ def dispatch_main() -> int:
         except (OSError, ValueError) as error:
             print(f"loki: {error}", file=sys.stderr)
             return 1
+    if args.command == "hygiene":
+        try:
+            return hygiene_command(root, config, args)
+        except (OSError, ValueError) as error:
+            print(f"loki: {error}", file=sys.stderr)
+            return 1
     if args.command == "scan":
         if args.ruff_new:
             try:
@@ -7234,6 +7676,19 @@ def dispatch_main() -> int:
                     warnings.extend(note for note in notes if "NOT CHECKED" in note)
                 else:
                     warnings.extend(notes)
+                if (level := hygiene_level(config)) != "off":
+                    try:
+                        warnings.extend(
+                            written_hygiene(
+                                root,
+                                targets,
+                                level,
+                                deadline=deadline,
+                                python=args.python,
+                            )
+                        )
+                    except (OSError, ValueError) as error:
+                        warnings.append(f"NOT CHECKED hygiene: {error}")
                 checked_projects: set[tuple[str, Path]] = set()
                 for target in targets:
                     messages.extend(

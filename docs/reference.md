@@ -378,6 +378,32 @@ structural approximation there, and exact analysis is used in audits. Clone
 checks examine only files sharing a token window with the written file, within a
 2 MiB repository budget, or 32 MiB when the daemon's cache is warm.
 
+### Code hygiene
+
+By default (`"hygiene": "on"` in `.loki/loki.json`; `"off"` disables it,
+`"all"` adds every rule and kind; `LOKI_HYGIENE` overrides the config), each
+write also runs two readability checks and reports, as advisory notes, only the
+lines the write added against HEAD:
+
+- the vendored [codehygiene](https://github.com/brianbell-x/codehygiene) model
+  (`vendor/codehygiene`, MIT, installed to `.loki/vendor/codehygiene`). It needs
+  NumPy, from Loki's Python, `--python`, or uv's cache (`uv run --offline`).
+- [nits](https://github.com/jkomyno/nits), pinned to a commit and run only from
+  a Python that has it or from uv's cache; it is never downloaded.
+
+`on` reports nits rules with measured precision of at least 0.80 and the model's
+`swallowed_error`, `noisy_comment`, `duplicate_block` and `special_casing`
+kinds; `all` reports every rule and kind. Where both report one kind on one line,
+only the nits note is kept. Notes look like
+`app.py:12: loki/hygiene-swallowed-error: <message>: `<line>``, at most ten per
+write; a tool that cannot run reports `NOT CHECKED hygiene:` or
+`NOT CHECKED nits:` instead.
+
+`loki hygiene` runs the same checks on demand over every file the working tree
+adds or modifies against `--base` (default `HEAD`), or over `--file` paths.
+`--level on|all` overrides the policy, and `--json` prints
+`{"findings": [...], "not_checked": [...]}`. It always exits 0.
+
 On trellis's own source, Loki measured an eroded share of 0.165 (trellis 0.161),
 duplication density 0.044 (0.050) and 19 clone groups (21). Go complexity
 matches golangci-lint's gocyclo except where closures are split out.

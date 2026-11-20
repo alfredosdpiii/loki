@@ -63,6 +63,7 @@ class PostWriteNoiseTests(unittest.TestCase):
         """Run `hook` in-process; `tool` is the missing analyzer (None: Ruff is clean)."""
         with (
             argv("--root", str(root), "hook", *arguments),
+            patch.dict(os.environ, {"LOKI_HYGIENE": "off"}),
             patch.object(loki, "missing_tool", return_value=tool),
             patch.object(loki, "ruff_new_violations", return_value=[]),
         ):

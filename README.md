@@ -121,6 +121,7 @@ loki scan                          # everything changed since the last commit
 loki scan --base origin/main       # everything on your branch
 loki slop                          # sloppiness score and complexity hotspots
 loki slop --base main              # how this branch changed the score
+loki hygiene --base main           # codehygiene and nits notes on added lines
 ```
 
 The installed CI workflow runs `scan --strict` on every push and pull request.
@@ -224,6 +225,8 @@ an agent can't loosen it mid-session:
 | --- | --- | --- |
 | `typescript_check` | on when `tsconfig.json` exists | `false` disables it; `true` makes setup problems block |
 | `slop.block` | `false` | Turns new hotspots, clones and cycles from advice into failures |
+| `hygiene` | `"on"` | `"off"` disables it; `"all"` adds layout, naming and lower-precision nits rules |
+| `LOKI_HYGIENE` | unset | `off`, `on` or `all`; overrides `hygiene` |
 | `shell_commands` | none | Exact, reviewed shell commands the shell guard admits (enable the guard with `loki init --shell-guard`) |
 | `LOKI_STRICT=1` | off | Missing analyzers fail instead of reporting `NOT CHECKED` |
 | `LOKI_PYTHON=<path>` | active venv or conda env, then `.venv` | The project's interpreter, asked whether a new import exists (`--python` on `hook`, `protect` and `scan`) |
