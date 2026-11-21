@@ -189,6 +189,31 @@ Missing analyzers are reported as `NOT CHECKED`, never as clean, and
 `LOKI_STRICT=1` turns them into failures. The [reference](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md)
 documents every rule, threshold and limitation.
 
+## Oxlint + landmines + anti-slop
+
+For TypeScript and JavaScript repositories, `loki init` installs both
+[anti-slop](https://github.com/dmmulroy/anti-slop) and
+[interfere-inc/landmines](https://github.com/interfere-inc/landmines) directly
+into `.loki/oxlint/` and wires them into `.oxlintrc.json`. Both plugins are
+vendored with zero extra npm dependencies beyond `oxlint` and `@oxlint/plugins`.
+
+The four `landmines` plugins block common AI-agent shortcuts at `"error"` level:
+
+- **`landmines-testing`:** `no-test-doubles` (mocks, stubbed globals, fake
+  responses), `no-fixed-sleep`, `no-flake-masking` (retries and raised
+  timeouts), `no-unsignaled-poll`, `strict-msw`.
+- **`landmines-style`:** `no-comments` (keeps directives, TSDoc on public API,
+  and `// WARNING:` / `// SAFETY:` comments).
+- **`landmines-structure`:** `colocated-tests`, `test-file-names`,
+  `package-exports`.
+- **`landmines-types`:** `no-explicit-return-types`.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/landmines.gif" alt="Loki blocking a fixed sleep, flake retry, prose comment and explicit return type with vendored landmines Oxlint plugins, then allowing the clean test" width="820">
+<br>
+<sub>Real hook output from <a href="https://github.com/alfredosdpiii/loki/blob/main/docs/demo/landmines.sh">docs/demo/landmines.sh</a>. Only the typing is simulated.</sub>
+</div>
+
 ## Code hygiene & nits
 
 On every write (`"hygiene": "on"` by default), Loki runs two local readability
@@ -307,4 +332,7 @@ agg docs/demo/demo.cast docs/demo/demo.gif
 
 asciinema rec --cols 96 --rows 34 --overwrite -c "bash docs/demo/hygiene.sh" docs/demo/hygiene.cast
 agg docs/demo/hygiene.cast docs/demo/hygiene.gif
+
+asciinema rec --cols 96 --rows 34 --overwrite -c "bash docs/demo/landmines.sh" docs/demo/landmines.cast
+agg docs/demo/landmines.cast docs/demo/landmines.gif
 ```
