@@ -32,6 +32,22 @@
     {
       "name": "anti-slop",
       "specifier": "./.loki/oxlint/anti-slop/index.ts"
+    },
+    {
+      "name": "landmines-testing",
+      "specifier": "./.loki/oxlint/landmines/plugins/testing.ts"
+    },
+    {
+      "name": "landmines-style",
+      "specifier": "./.loki/oxlint/landmines/plugins/style.ts"
+    },
+    {
+      "name": "landmines-structure",
+      "specifier": "./.loki/oxlint/landmines/plugins/structure.ts"
+    },
+    {
+      "name": "landmines-types",
+      "specifier": "./.loki/oxlint/landmines/plugins/types.ts"
     }
   ],
   "rules": {
@@ -46,6 +62,16 @@
     "vitest/no-disabled-tests": "error",
     "jest/no-focused-tests": "error",
     "vitest/no-focused-tests": "error",
+    "landmines-testing/no-fixed-sleep": "error",
+    "landmines-testing/no-flake-masking": "error",
+    "landmines-testing/no-test-doubles": "error",
+    "landmines-testing/no-unsignaled-poll": "error",
+    "landmines-testing/strict-msw": "error",
+    "landmines-style/no-comments": ["error", { "allow": ["WARNING", "SAFETY"] }],
+    "landmines-structure/colocated-tests": "error",
+    "landmines-structure/package-exports": "error",
+    "landmines-structure/test-file-names": "error",
+    "landmines-types/no-explicit-return-types": "error",
     "anti-slop/no-chained-type-assertions": "warn",
     "anti-slop/no-conditional-empty-object-spread": "warn",
     "anti-slop/no-known-value-widening": "warn",

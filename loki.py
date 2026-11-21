@@ -8051,6 +8051,11 @@ def install_target(target: Path, force: bool = False) -> None:
         force,
     )
     copy_owned(
+        SOURCE_ROOT / "vendor" / "landmines",
+        target / ".loki" / "oxlint" / "landmines",
+        force,
+    )
+    copy_owned(
         SOURCE_ROOT / "vendor" / "codehygiene",
         target / ".loki" / "vendor" / "codehygiene",
         force,
