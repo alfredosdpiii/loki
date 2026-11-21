@@ -430,6 +430,71 @@ class CommandTests(unittest.TestCase):
                 source = loki.SOURCE_ROOT / "vendor/codehygiene" / name
                 self.assertEqual(source.read_bytes(), installed.read_bytes())
 
+    def test_changed_hygiene_includes_untracked_files(self):
+        with temporary_root() as root:
+            root = root.resolve()
+            self.repository(root)
+            commit(root, "clean")
+            write_file(root, "brand_new.py", "x = 1\ny = 2\n")
+            model, nits = self.scored()
+            with model, nits:
+                notes = loki.changed_hygiene(root, "HEAD", "on")
+            self.assertIn(
+                "brand_new.py:2: loki/hygiene-swallowed-error: why: `y = 2`",
+                notes,
+            )
+
+    def test_warm_hygiene_workers_serve_and_fallback(self):
+        class FakeWorker:
+            def __init__(self, reply=None, error=None):
+                self.reply = reply
+                self.error = error
+                self.closed = False
+
+            def request(self, arguments, deadline, *, error_prefix=""):
+                if self.error is not None:
+                    raise self.error
+                return self.reply
+
+            def close(self):
+                self.closed = True
+
+        hygiene_worker = FakeWorker([[[2, "swallowed_error", "warm"]]])
+        nits_worker = FakeWorker([[[3, "config_fallback", "p0.95 warm"]]])
+        with patch.dict(
+            loki.HYGIENE_WORKERS,
+            {"hygiene": hygiene_worker, "nits": nits_worker},
+            clear=True,
+        ):
+            found, error = loki.hygiene_score(["a\nb\n"])
+            self.assertIsNone(error)
+            self.assertEqual(
+                [[loki.HygieneSquiggle(2, "swallowed_error", "warm")]], found
+            )
+            found, error = loki.nits_score([("a.py", "a\nb\nc\n")])
+            self.assertIsNone(error)
+            self.assertEqual(
+                [[loki.HygieneSquiggle(3, "config_fallback", "p0.95 warm")]], found
+            )
+            loki.daemon_stop_workers()
+            self.assertTrue(hygiene_worker.closed)
+            self.assertTrue(nits_worker.closed)
+            self.assertEqual({}, loki.HYGIENE_WORKERS)
+
+        broken = FakeWorker(error=ValueError("worker exited"))
+        with (
+            patch.dict(loki.HYGIENE_WORKERS, {"hygiene": broken}, clear=True),
+            patch.object(
+                loki,
+                "drive_hygiene_tool",
+                return_value=([[squiggle(1, "swallowed_error")]], None),
+            ) as fallback,
+        ):
+            found, error = loki.hygiene_score(["x = 1\n"])
+            self.assertIsNone(error)
+            self.assertEqual([[squiggle(1, "swallowed_error")]], found)
+            fallback.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -451,6 +451,11 @@ def corpus():
                 },
             ]
         )
+    _append_extra_cases(cases)
+    return cases
+
+
+def _append_extra_cases(cases):
     for name, path, content in (
         (
             "literal",
@@ -530,7 +535,6 @@ def corpus():
             ],
         }
     )
-    return cases
 
 
 def manifest():

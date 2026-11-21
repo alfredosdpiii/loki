@@ -207,31 +207,8 @@ def latency(rows):
     return result
 
 
-def render(directory):
-    manifest, rows = measurements(directory)
-    groups = defaultdict(list)
-    for row in rows:
-        groups[(row["profile"], row["product"])].append(row)
+def _render_matched_and_languages(groups, rows):
     lines = [
-        "# Installed-hook lifecycle benchmark",
-        "",
-        "This is a synthetic, author-written benchmark, "
-        "not an independent product ranking.",
-        "Both products ran unchanged. Repeated timings are not extra accuracy cases.",
-        "A caught defect requires a matching diagnostic on every repetition.",
-        "Post-write detection means the bytes already landed.",
-        "",
-        f"Corpus version: {manifest['corpus']['version']}.",
-        f"Corpus SHA-256: `{manifest['corpus']['sha256']}`.",
-        f"Repetitions: {manifest['runs']}. Schedule seed: {manifest['seed']}.",
-        manifest["configuration"],
-        "Loki project type-check opt-in: "
-        + (
-            "enabled."
-            if any(Path(path).name == "configured.py" for path in manifest["identity"])
-            else "not enabled."
-        ),
-        "",
         "## Matched results",
         "",
         "| Profile / product | Caught defects | Prevented before write | "
@@ -280,7 +257,24 @@ def render(directory):
                 f"{score['prevented']}/{score['defects']} | "
                 f"{score['false_blocks']}/{score['controls']} |"
             )
-    lines += [
+    return lines, results
+
+
+def _pair_passed(pair):
+    if len(pair) != 2:
+        return False
+    return all(
+        row["caught_all_runs"]
+        if row["kind"] == "defect"
+        else not row["false_block_any_run"]
+        and not row["error"]
+        and "unavailable" not in row["outcomes"]
+        for row in pair
+    )
+
+
+def _render_pairs_and_latency(groups, results):
+    lines = [
         "",
         "## Paired cases",
         "",
@@ -296,18 +290,7 @@ def render(directory):
         for row in subset:
             if row["pair"]:
                 pairs[row["pair"]].append(row)
-        passed = sum(
-            len(pair) == 2
-            and all(
-                row["caught_all_runs"]
-                if row["kind"] == "defect"
-                else not row["false_block_any_run"]
-                and not row["error"]
-                and "unavailable" not in row["outcomes"]
-                for row in pair
-            )
-            for pair in pairs.values()
-        )
+        passed = sum(_pair_passed(pair) for pair in pairs.values())
         lines.append(f"| {profile}/{product} | {passed}/{len(pairs)} |")
     lines += [
         "",
@@ -335,7 +318,11 @@ def render(directory):
                 for field in ("pre_ms", "post_ms", "total_ms")
             ]
             lines.append(f"| {key} | {cache} | " + " | ".join(cells) + " |")
-    lines += [
+    return lines
+
+
+def _render_audits_and_misses(rows):
+    lines = [
         "",
         "## Explicit Go/Rust audit commands",
         "",
@@ -379,7 +366,11 @@ def render(directory):
                 f"- {row['profile']}/{row['product']}: `{row['case']}` "
                 f"step {row['step']}: {outcome}."
             )
-    lines += [
+    return lines
+
+
+def _render_scoring_and_limitations(manifest, rows):
+    lines = [
         "",
         "## Scoring audit",
         "",
@@ -421,6 +412,40 @@ def render(directory):
         "Raw handler output, exact corpus, schedule, tool versions, hashes, "
         "and audit output are in adjacent JSON files.",
     ]
+    return lines
+
+
+def render(directory):
+    manifest, rows = measurements(directory)
+    groups = defaultdict(list)
+    for row in rows:
+        groups[(row["profile"], row["product"])].append(row)
+    opt_in = (
+        "enabled."
+        if any(Path(path).name == "configured.py" for path in manifest["identity"])
+        else "not enabled."
+    )
+    lines = [
+        "# Installed-hook lifecycle benchmark",
+        "",
+        "This is a synthetic, author-written benchmark, "
+        "not an independent product ranking.",
+        "Both products ran unchanged. Repeated timings are not extra accuracy cases.",
+        "A caught defect requires a matching diagnostic on every repetition.",
+        "Post-write detection means the bytes already landed.",
+        "",
+        f"Corpus version: {manifest['corpus']['version']}.",
+        f"Corpus SHA-256: `{manifest['corpus']['sha256']}`.",
+        f"Repetitions: {manifest['runs']}. Schedule seed: {manifest['seed']}.",
+        manifest["configuration"],
+        f"Loki project type-check opt-in: {opt_in}",
+        "",
+    ]
+    matched_lines, results = _render_matched_and_languages(groups, rows)
+    lines.extend(matched_lines)
+    lines.extend(_render_pairs_and_latency(groups, results))
+    lines.extend(_render_audits_and_misses(rows))
+    lines.extend(_render_scoring_and_limitations(manifest, rows))
     save(
         directory / "scorecard.json",
         {

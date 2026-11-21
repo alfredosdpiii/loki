@@ -176,6 +176,126 @@ def wait_for_socket(path, process, seconds=15):
     raise RuntimeError("competitor daemon socket unavailable")
 
 
+def _init_compare_fixture(name, root, cli, env, reviewed_test_command, oxlint):
+    root.mkdir()
+    run(["git", "init"], root, required=True)
+    (root / "source.ts").write_text(
+        "export function parse(text: string) { return JSON.parse(text); }\n"
+    )
+    (root / "source.test.ts").write_text(
+        "import { test, expect } from 'vitest';\n"
+        "test('value', () => { expect(1).toBe(1); });\n"
+    )
+    (root / "package.json").write_text(
+        '{"private":true,"scripts":{"test":"node --test"}}\n'
+    )
+    if name == "loki":
+        run(
+            [
+                sys.executable,
+                str(SOURCE / "loki.py"),
+                "init",
+                "--dir",
+                str(root),
+                "--shell-guard",
+            ],
+            root,
+            required=True,
+        )
+        if reviewed_test_command:
+            policy = root / ".loki/loki.json"
+            config = json.loads(policy.read_text())
+            config["shell_commands"] = [REVIEWED_TEST_COMMAND]
+            policy.write_text(json.dumps(config) + "\n")
+    else:
+        run(
+            [
+                *cli,
+                "install-hooks",
+                "--runner",
+                "claude-code",
+                "--scope",
+                "project",
+                "--mode",
+                "balanced",
+                "--json",
+            ],
+            root,
+            env=env,
+            required=True,
+        )
+    if oxlint:
+        executable = root / "node_modules/.bin/oxlint"
+        executable.parent.mkdir(parents=True, exist_ok=True)
+        executable.symlink_to(oxlint)
+    run(["git", "add", "."], root, required=True)
+    run(["git", "commit", "-m", "Matched hook fixture baseline"], root, required=True)
+
+
+def _measure_compare_case(
+    name, root, env, label, category, tool, target, content, repetitions
+):
+    commands = handlers(root, tool)
+    if not commands:
+        raise RuntimeError(f"{name}: no installed handler for {tool}")
+    payload = json.dumps(
+        {
+            "cwd": str(root),
+            "session_id": "matched-hook-fixture",
+            "hook_event_name": "PreToolUse",
+            "tool_name": tool,
+            "tool_input": (
+                {"command": content}
+                if target is None
+                else {"file_path": str(root / target), "content": content}
+            ),
+        }
+    )
+    samples, observations = [], []
+    for _ in range(repetitions):
+        started = time.monotonic()
+        results = [
+            run(["/bin/sh", "-c", command], root, env=env, input=payload)
+            for command in commands
+        ]
+        samples.append(round((time.monotonic() - started) * 1000, 2))
+        decisions = [
+            decision(result.returncode, result.stdout, result.stderr)
+            for result in results
+        ]
+        aggregate = next(
+            (kind for kind in ("deny", "review", "unavailable") if kind in decisions),
+            "allow",
+        )
+        observations.append(
+            {
+                "decision": aggregate,
+                "checks_unavailable_or_deferred": any(
+                    coverage_unavailable(result.stdout, result.stderr)
+                    for result in results
+                ),
+                "handlers": [
+                    {
+                        "exit": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    }
+                    for result in results
+                ],
+            }
+        )
+    return {
+        "case": label,
+        "category": category,
+        "tool": name,
+        "stage": "before proposed tool execution",
+        "median_ms": statistics.median(samples),
+        "samples_ms": samples,
+        "consistent": len({item["decision"] for item in observations}) == 1,
+        "observations": observations,
+    }
+
+
 def compare(
     checkout,
     node,
@@ -202,63 +322,7 @@ def compare(
         roots = {name: parent / name for name in ("loki", "interlinked")}
         cli = [str(node), str(checkout / "dist/index.js")]
         for name, root in roots.items():
-            root.mkdir()
-            run(["git", "init"], root, required=True)
-            (root / "source.ts").write_text(
-                "export function parse(text: string) { return JSON.parse(text); }\n"
-            )
-            (root / "source.test.ts").write_text(
-                "import { test, expect } from 'vitest';\n"
-                "test('value', () => { expect(1).toBe(1); });\n"
-            )
-            (root / "package.json").write_text(
-                '{"private":true,"scripts":{"test":"node --test"}}\n'
-            )
-            if name == "loki":
-                run(
-                    [
-                        sys.executable,
-                        str(SOURCE / "loki.py"),
-                        "init",
-                        "--dir",
-                        str(root),
-                        "--shell-guard",
-                    ],
-                    root,
-                    required=True,
-                )
-                if reviewed_test_command:
-                    policy = root / ".loki/loki.json"
-                    config = json.loads(policy.read_text())
-                    config["shell_commands"] = [REVIEWED_TEST_COMMAND]
-                    policy.write_text(json.dumps(config) + "\n")
-            else:
-                run(
-                    [
-                        *cli,
-                        "install-hooks",
-                        "--runner",
-                        "claude-code",
-                        "--scope",
-                        "project",
-                        "--mode",
-                        "balanced",
-                        "--json",
-                    ],
-                    root,
-                    env=env,
-                    required=True,
-                )
-            if oxlint:
-                executable = root / "node_modules/.bin/oxlint"
-                executable.parent.mkdir(parents=True, exist_ok=True)
-                executable.symlink_to(oxlint)
-            run(["git", "add", "."], root, required=True)
-            run(
-                ["git", "commit", "-m", "Matched hook fixture baseline"],
-                root,
-                required=True,
-            )
+            _init_compare_fixture(name, root, cli, env, reviewed_test_command, oxlint)
         competitor = roots["interlinked"]
         sock = competitor / ".interlinked/harness.sock"
         sock.parent.mkdir(exist_ok=True)
@@ -282,94 +346,21 @@ def compare(
             )
             try:
                 wait_for_socket(sock, daemon)
-                for label, category, tool, target, content in [
-                    *CASES,
-                    *(CONTENT_CONTROLS if content_controls else []),
-                ]:
+                cases = [*CASES, *(CONTENT_CONTROLS if content_controls else [])]
+                for label, category, tool, target, content in cases:
                     for name, root in roots.items():
-                        commands = handlers(root, tool)
-                        if not commands:
-                            raise RuntimeError(
-                                f"{name}: no installed handler for {tool}"
-                            )
-                        payload = json.dumps(
-                            {
-                                "cwd": str(root),
-                                "session_id": "matched-hook-fixture",
-                                "hook_event_name": "PreToolUse",
-                                "tool_name": tool,
-                                "tool_input": (
-                                    {"command": content}
-                                    if target is None
-                                    else {
-                                        "file_path": str(root / target),
-                                        "content": content,
-                                    }
-                                ),
-                            }
-                        )
-                        samples, observations = [], []
-                        for _ in range(repetitions):
-                            started = time.monotonic()
-                            results = [
-                                run(
-                                    ["/bin/sh", "-c", command],
-                                    root,
-                                    env=env,
-                                    input=payload,
-                                )
-                                for command in commands
-                            ]
-                            samples.append(
-                                round((time.monotonic() - started) * 1000, 2)
-                            )
-                            decisions = [
-                                decision(
-                                    result.returncode, result.stdout, result.stderr
-                                )
-                                for result in results
-                            ]
-                            aggregate = next(
-                                (
-                                    kind
-                                    for kind in ("deny", "review", "unavailable")
-                                    if kind in decisions
-                                ),
-                                "allow",
-                            )
-                            observations.append(
-                                {
-                                    "decision": aggregate,
-                                    "checks_unavailable_or_deferred": any(
-                                        coverage_unavailable(
-                                            result.stdout, result.stderr
-                                        )
-                                        for result in results
-                                    ),
-                                    "handlers": [
-                                        {
-                                            "exit": result.returncode,
-                                            "stdout": result.stdout,
-                                            "stderr": result.stderr,
-                                        }
-                                        for result in results
-                                    ],
-                                }
-                            )
                         events.append(
-                            {
-                                "case": label,
-                                "category": category,
-                                "tool": name,
-                                "stage": "before proposed tool execution",
-                                "median_ms": statistics.median(samples),
-                                "samples_ms": samples,
-                                "consistent": len(
-                                    {item["decision"] for item in observations}
-                                )
-                                == 1,
-                                "observations": observations,
-                            }
+                            _measure_compare_case(
+                                name,
+                                root,
+                                env,
+                                label,
+                                category,
+                                tool,
+                                target,
+                                content,
+                                repetitions,
+                            )
                         )
                 capability = run(
                     [*cli, "harness", "capabilities", "--json"],

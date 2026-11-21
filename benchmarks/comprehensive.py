@@ -300,6 +300,66 @@ def reviewed_policy(config):
     return {**config, "shell_commands": [compare_hooks.REVIEWED_TEST_COMMAND]}
 
 
+def _install_benchmark_product(root, product, sandbox, args):
+    if product == "loki":
+        sandbox.run(
+            [
+                sys.executable,
+                SOURCE / "loki.py",
+                "init",
+                "--dir",
+                root,
+                "--shell-guard",
+            ],
+            root,
+            required=True,
+        )
+        policy = root / ".loki/loki.json"
+        config = reviewed_policy(json.loads(policy.read_text()))
+        policy.write_text(json.dumps(config) + "\n")
+        sandbox.run(
+            [sys.executable, root / ".loki/loki.py", "context", "--root", root],
+            root,
+            required=True,
+        )
+        return
+    sandbox.run(
+        [
+            args.node,
+            args.interlinked / "dist/index.js",
+            "install-hooks",
+            "--runner",
+            "claude-code",
+            "--scope",
+            "project",
+            "--mode",
+            "balanced",
+            "--json",
+        ],
+        root,
+        required=True,
+    )
+
+
+def _link_shared_js_tools(root, args):
+    modules = root / "node_modules"
+    (modules / ".bin").mkdir(parents=True)
+    for name, binary in (
+        ("oxlint", args.oxlint),
+        ("tsc", args.typescript / "bin/tsc"),
+        ("biome", args.biome),
+    ):
+        (modules / ".bin" / name).symlink_to(binary)
+    (modules / "typescript").symlink_to(args.typescript, target_is_directory=True)
+    (modules / "@biomejs").symlink_to(
+        args.biome.parent.parent / "@biomejs", target_is_directory=True
+    )
+    # Plugin imports resolve relative to installed source, not the Oxlint binary.
+    (modules / "@oxlint").symlink_to(
+        args.oxlint.parent.parent / "@oxlint", target_is_directory=True
+    )
+
+
 def baseline(root, case, product, sandbox, profile):
     args = sandbox.args
     root.mkdir()
@@ -357,61 +417,9 @@ def baseline(root, case, product, sandbox, profile):
         )
     for index in range(case.get("tracked_files", 0)):
         write(root, f"corpus/file-{index:05}.txt", "Tracked workload fixture.\n")
-    if product == "loki":
-        sandbox.run(
-            [
-                sys.executable,
-                SOURCE / "loki.py",
-                "init",
-                "--dir",
-                root,
-                "--shell-guard",
-            ],
-            root,
-            required=True,
-        )
-        policy = root / ".loki/loki.json"
-        config = reviewed_policy(json.loads(policy.read_text()))
-        policy.write_text(json.dumps(config) + "\n")
-        sandbox.run(
-            [sys.executable, root / ".loki/loki.py", "context", "--root", root],
-            root,
-            required=True,
-        )
-    else:
-        sandbox.run(
-            [
-                args.node,
-                args.interlinked / "dist/index.js",
-                "install-hooks",
-                "--runner",
-                "claude-code",
-                "--scope",
-                "project",
-                "--mode",
-                "balanced",
-                "--json",
-            ],
-            root,
-            required=True,
-        )
+    _install_benchmark_product(root, product, sandbox, args)
     if profile == "shared":
-        modules = root / "node_modules"
-        (modules / ".bin").mkdir(parents=True)
-        for name, binary in (
-            ("oxlint", args.oxlint),
-            ("tsc", args.typescript / "bin/tsc"),
-            ("biome", args.biome),
-        ):
-            (modules / ".bin" / name).symlink_to(binary)
-        (modules / "typescript").symlink_to(args.typescript, target_is_directory=True)
-        (modules / "@biomejs").symlink_to(
-            args.biome.parent.parent / "@biomejs", target_is_directory=True
-        )
-        # Plugin imports resolve relative to installed source, not the Oxlint binary.
-        (modules / "@oxlint").symlink_to(
-            args.oxlint.parent.parent / "@oxlint", target_is_directory=True
-        )
+        _link_shared_js_tools(root, args)
     if case["id"] == "admission/policy-via-symlink":
         (root / "policy-link").symlink_to(".claude/settings.json")
     git(root, "add", ".")
@@ -538,6 +546,122 @@ def lifecycle(root, case, sandbox, repetition):
     return events
 
 
+def _start_trial_daemon(parent, root, product, sandbox, args, log):
+    if product == "interlinked":
+        sock = root / ".interlinked/harness.sock"
+        sock.parent.mkdir(exist_ok=True)
+        sandbox.env["INTERLINKED_SOCKET"] = str(sock)
+        daemon = subprocess.Popen(
+            sandbox.command(
+                [
+                    args.node,
+                    args.interlinked / "dist/harness/server.js",
+                    "--cwd",
+                    root,
+                    "--socket",
+                    sock,
+                    "--protocol",
+                    "raw",
+                ]
+            ),
+            cwd=root,
+            env=sandbox.env,
+            stdout=log,
+            stderr=log,
+            start_new_session=True,
+        )
+        compare_hooks.wait_for_socket(sock, daemon)
+        return daemon
+    if not args.loki_daemon:
+        return None
+    # Same treatment as Interlinked: started and warmed during setup.
+    identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
+    sock = parent / "home/.cache/loki/d" / identity
+    daemon = subprocess.Popen(
+        sandbox.command(
+            [
+                sys.executable,
+                root / ".loki/loki.py",
+                "--root",
+                root,
+                "daemon",
+                "serve",
+            ]
+        ),
+        cwd=root,
+        env=sandbox.env,
+        stdout=log,
+        stderr=log,
+        start_new_session=True,
+    )
+    try:
+        compare_hooks.wait_for_socket(sock, daemon, seconds=180)
+    except RuntimeError as error:
+        log.seek(0)
+        raise RuntimeError(f"{error}: {log.read()[-2000:]}") from error
+    return daemon
+
+
+def _run_trial_warmups(root, sandbox, repetition):
+    if not repetition:
+        return []
+    warmups = []
+    status_step = corpus.step(None, "git status --short", "control", tool="Bash")
+    for index in range(2):
+        for command in handler_commands(root, "PreToolUse", "Bash"):
+            warmups.append(
+                sandbox.run(
+                    ["/bin/sh", "-c", command],
+                    root,
+                    payload=payload(
+                        root,
+                        status_step,
+                        status_step["content"],
+                        "PreToolUse",
+                        f"bench-{repetition}",
+                        None,
+                        tool_id=f"warmup-{index}",
+                    ),
+                )
+            )
+    return warmups
+
+
+def _run_trial_audits(root, case, product, sandbox, args, repetition):
+    if not (args.scan and repetition == 0 and case["language"] in ("go", "rust")):
+        return []
+    scans = []
+    # Independent audit: intentionally materialize even pre-denied source.
+    # This is not credited as prevention or ordinary-hook detection.
+    for item in case["steps"]:
+        write(root, item["path"], formatted(item, case["language"], root, sandbox))
+        command = (
+            [sys.executable, root / ".loki/loki.py", "scan", "--base", "HEAD"]
+            if product == "loki"
+            else [args.node, args.interlinked / "dist/index.js", "verify", "--json"]
+        )
+        result = sandbox.run(command, root, timeout=120)
+        try:
+            findings = (
+                audit_messages(result["stdout"])
+                if product == "interlinked"
+                else result["stdout"] + result["stderr"]
+            )
+        except ValueError:
+            findings = ""
+        scans.append(
+            {
+                **result,
+                "kind": item["kind"],
+                "targeted": result["exit"] in (0, 1, 2)
+                and any(
+                    re.search(marker, findings, re.I) for marker in item["markers"]
+                ),
+            }
+        )
+    return scans
+
+
 def evaluate_trial(case, product, profile, args, repetition):
     started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="b-", dir=args.work_dir) as directory:
@@ -548,126 +672,11 @@ def evaluate_trial(case, product, profile, args, repetition):
         daemon = None
         log = (parent / "daemon.log").open("w+")
         try:
-            if product == "interlinked":
-                sock = root / ".interlinked/harness.sock"
-                sock.parent.mkdir(exist_ok=True)
-                sandbox.env["INTERLINKED_SOCKET"] = str(sock)
-                daemon = subprocess.Popen(
-                    sandbox.command(
-                        [
-                            args.node,
-                            args.interlinked / "dist/harness/server.js",
-                            "--cwd",
-                            root,
-                            "--socket",
-                            sock,
-                            "--protocol",
-                            "raw",
-                        ]
-                    ),
-                    cwd=root,
-                    env=sandbox.env,
-                    stdout=log,
-                    stderr=log,
-                    start_new_session=True,
-                )
-                compare_hooks.wait_for_socket(sock, daemon)
-            elif args.loki_daemon:
-                # Same treatment as Interlinked: started and warmed during setup.
-                identity = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
-                sock = parent / "home/.cache/loki/d" / identity
-                daemon = subprocess.Popen(
-                    sandbox.command(
-                        [
-                            sys.executable,
-                            root / ".loki/loki.py",
-                            "--root",
-                            root,
-                            "daemon",
-                            "serve",
-                        ]
-                    ),
-                    cwd=root,
-                    env=sandbox.env,
-                    stdout=log,
-                    stderr=log,
-                    start_new_session=True,
-                )
-                try:
-                    compare_hooks.wait_for_socket(sock, daemon, seconds=180)
-                except RuntimeError as error:
-                    log.seek(0)
-                    raise RuntimeError(f"{error}: {log.read()[-2000:]}") from error
-            warmups = []
-            if repetition:
-                status_step = corpus.step(
-                    None, "git status --short", "control", tool="Bash"
-                )
-                for index in range(2):
-                    for command in handler_commands(root, "PreToolUse", "Bash"):
-                        warmups.append(
-                            sandbox.run(
-                                ["/bin/sh", "-c", command],
-                                root,
-                                payload=payload(
-                                    root,
-                                    status_step,
-                                    status_step["content"],
-                                    "PreToolUse",
-                                    f"bench-{repetition}",
-                                    None,
-                                    tool_id=f"warmup-{index}",
-                                ),
-                            )
-                        )
+            daemon = _start_trial_daemon(parent, root, product, sandbox, args, log)
+            warmups = _run_trial_warmups(root, sandbox, repetition)
             setup_ms = round((time.monotonic() - started) * 1000, 3)
             events = lifecycle(root, case, sandbox, repetition)
-            scans = []
-            if args.scan and repetition == 0 and case["language"] in ("go", "rust"):
-                # Independent audit: intentionally materialize even pre-denied source.
-                # This is not credited as prevention or ordinary-hook detection.
-                for item in case["steps"]:
-                    write(
-                        root,
-                        item["path"],
-                        formatted(item, case["language"], root, sandbox),
-                    )
-                    command = (
-                        [
-                            sys.executable,
-                            root / ".loki/loki.py",
-                            "scan",
-                            "--base",
-                            "HEAD",
-                        ]
-                        if product == "loki"
-                        else [
-                            args.node,
-                            args.interlinked / "dist/index.js",
-                            "verify",
-                            "--json",
-                        ]
-                    )
-                    result = sandbox.run(command, root, timeout=120)
-                    try:
-                        findings = (
-                            audit_messages(result["stdout"])
-                            if product == "interlinked"
-                            else result["stdout"] + result["stderr"]
-                        )
-                    except ValueError:
-                        findings = ""
-                    scans.append(
-                        {
-                            **result,
-                            "kind": item["kind"],
-                            "targeted": result["exit"] in (0, 1, 2)
-                            and any(
-                                re.search(marker, findings, re.I)
-                                for marker in item["markers"]
-                            ),
-                        }
-                    )
+            scans = _run_trial_audits(root, case, product, sandbox, args, repetition)
             return {
                 "case": case["id"],
                 "language": case["language"],
@@ -812,7 +821,7 @@ def versions(args):
         }
 
 
-def main():
+def _parse_comprehensive_args():
     parser = argparse.ArgumentParser()
     for name in (
         "interlinked",
@@ -876,6 +885,62 @@ def main():
         "output",
     ):
         setattr(args, name, getattr(args, name).absolute())
+    return parser, args
+
+
+def _build_manifest(frozen, stamp, args, revision, schedule):
+    return {
+        "corpus": frozen,
+        "identity": stamp,
+        "runs": args.runs,
+        "seed": args.seed,
+        "case_filter": args.case,
+        "competitor_revision": revision,
+        "loki_daemon": args.loki_daemon,
+        "argv": sys.argv,
+        "versions": versions(args),
+        "machine": {
+            "platform": platform.platform(),
+            "logical_cpus": os.cpu_count(),
+            "python": platform.python_version(),
+        },
+        "schedule": [
+            [case["id"], product, profile] for case, product, profile in schedule
+        ],
+        "scope": (
+            "Synthetic installed Claude pre/post lifecycles; "
+            "no models; no Bash payload execution."
+        ),
+        "configuration": (
+            "Loki shell guard and committed npm test grant; "
+            "Interlinked balanced; shared analyzer paths."
+        ),
+        "isolation": (
+            "Fresh fixtures/homes/processes per repetition, "
+            "network namespace, read-only host filesystem, "
+            "fixture and private /tmp writable."
+        ),
+        "warmup": (
+            "Trial zero has no warmup. Later independent trials send two "
+            "git-status pre-hook envelopes in the same session. No commands "
+            "are executed; this warms startup, not compiler result caches."
+        ),
+        "limitations": [
+            "Author-written cases are not independent or representative of production.",
+            "First invocation is not an OS-cold disk/cache measurement.",
+            "Additional context can be advisory; post-write findings "
+            "do not prevent bytes landing.",
+            "Generic denial without a target marker is not credited "
+            "as targeted prevention.",
+            "Real host activation and explicit audit scans are separate "
+            "from hook effectiveness.",
+            "Go/Rust audit commands have different product-defined scopes.",
+        ],
+    }
+
+
+def main():
+    parser, args = _parse_comprehensive_args()
     revision = git(args.interlinked, "rev-parse", "HEAD").stdout.strip()
     if revision != args.competitor_revision:
         parser.error("competitor revision differs from the declared pin")
@@ -918,55 +983,7 @@ def main():
     rng.shuffle(schedule)
     save(
         args.output / "manifest.json",
-        {
-            "corpus": frozen,
-            "identity": stamp,
-            "runs": args.runs,
-            "seed": args.seed,
-            "case_filter": args.case,
-            "competitor_revision": revision,
-            "loki_daemon": args.loki_daemon,
-            "argv": sys.argv,
-            "versions": versions(args),
-            "machine": {
-                "platform": platform.platform(),
-                "logical_cpus": os.cpu_count(),
-                "python": platform.python_version(),
-            },
-            "schedule": [
-                [case["id"], product, profile] for case, product, profile in schedule
-            ],
-            "scope": (
-                "Synthetic installed Claude pre/post lifecycles; "
-                "no models; no Bash payload execution."
-            ),
-            "configuration": (
-                "Loki shell guard and committed npm test grant; "
-                "Interlinked balanced; shared analyzer paths."
-            ),
-            "isolation": (
-                "Fresh fixtures/homes/processes per repetition, "
-                "network namespace, read-only host filesystem, "
-                "fixture and private /tmp writable."
-            ),
-            "warmup": (
-                "Trial zero has no warmup. Later independent trials send two "
-                "git-status pre-hook envelopes in the same session. No commands "
-                "are executed; this warms startup, not compiler result caches."
-            ),
-            "limitations": [
-                "Author-written cases are not independent or "
-                "representative of production.",
-                "First invocation is not an OS-cold disk/cache measurement.",
-                "Additional context can be advisory; post-write findings "
-                "do not prevent bytes landing.",
-                "Generic denial without a target marker is not credited "
-                "as targeted prevention.",
-                "Real host activation and explicit audit scans are separate "
-                "from hook effectiveness.",
-                "Go/Rust audit commands have different product-defined scopes.",
-            ],
-        },
+        _build_manifest(frozen, stamp, args, revision, schedule),
     )
     records = []
     for index, (case, product, profile) in enumerate(schedule):

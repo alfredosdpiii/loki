@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
 import difflib
 import fnmatch
 import io
@@ -435,6 +436,43 @@ def valid_path(value: Any) -> str:
     return value
 
 
+def _scan_patch_body(lines: list[str], index: int, operation: str, moved: bool) -> int:
+    content = 0
+    pending_context = False
+    ended = False
+    while index < len(lines) - 1:
+        line = lines[index]
+        if any(
+            line.startswith(f"*** {op} File: ") for op in ("Add", "Update", "Delete")
+        ):
+            break
+        if ended or operation == "Delete":
+            raise ValueError("unexpected patch body")
+        if operation == "Add":
+            if not line.startswith("+"):
+                raise ValueError("Add requires added content lines")
+            content += 1
+        elif line == "@@" or line.startswith("@@ "):
+            if pending_context:
+                raise ValueError("empty change hunk")
+            pending_context = True
+        elif line and line[0] in "+- ":
+            content += 1
+            pending_context = False
+        elif line == "*** End of File" and content and not pending_context:
+            ended = True
+        else:
+            raise ValueError("unknown patch structural marker")
+        index += 1
+    if (
+        pending_context
+        or (operation == "Add" and not content)
+        or (operation == "Update" and not content and not moved)
+    ):
+        raise ValueError("empty patch operation")
+    return index
+
+
 def patch_paths(patch: str) -> list[str]:
     if not isinstance(patch, str) or "\0" in patch:
         raise ValueError("patch must be a string without NUL")
@@ -464,40 +502,7 @@ def patch_paths(patch: str) -> list[str]:
             paths.append(valid_path(lines[index][len("*** Move to: ") :]))
             moved = True
             index += 1
-        content = 0
-        pending_context = False
-        ended = False
-        while index < len(lines) - 1:
-            line = lines[index]
-            if any(
-                line.startswith(f"*** {op} File: ")
-                for op in ("Add", "Update", "Delete")
-            ):
-                break
-            if ended or operation == "Delete":
-                raise ValueError("unexpected patch body")
-            if operation == "Add":
-                if not line.startswith("+"):
-                    raise ValueError("Add requires added content lines")
-                content += 1
-            elif line == "@@" or line.startswith("@@ "):
-                if pending_context:
-                    raise ValueError("empty change hunk")
-                pending_context = True
-            elif line and line[0] in "+- ":
-                content += 1
-                pending_context = False
-            elif line == "*** End of File" and content and not pending_context:
-                ended = True
-            else:
-                raise ValueError("unknown patch structural marker")
-            index += 1
-        if (
-            pending_context
-            or (operation == "Add" and not content)
-            or (operation == "Update" and not content and not moved)
-        ):
-            raise ValueError("empty patch operation")
+        index = _scan_patch_body(lines, index, operation, moved)
     return list(dict.fromkeys(paths))
 
 
@@ -575,7 +580,7 @@ def declared_python_dependencies(root: Path) -> set[str]:
     dependencies: set[str] = set()
     pyproject = root / "pyproject.toml"
     if pyproject.is_file():
-        try:
+        with contextlib.suppress(OSError, tomllib.TOMLDecodeError):
             data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
             project = data.get("project", {})
             if isinstance(project, dict):
@@ -586,8 +591,6 @@ def declared_python_dependencies(root: Path) -> set[str]:
                         for value in values
                         if isinstance(value, str) and (name := dependency_name(value))
                     )
-        except (OSError, tomllib.TOMLDecodeError):
-            pass
     for requirements in root.glob("requirements*.txt"):
         try:
             lines = requirements.read_text(encoding="utf-8").splitlines()
@@ -1228,8 +1231,7 @@ def fixed_origin(text: str, masked: str, start: int, end: int) -> bool:
     return bool(re.match(r"/(?!/)|[#?]|[a-z][a-z0-9+.-]*://[^/\s]+/", prefix, re.I))
 
 
-def javascript_rules(text: str) -> list[Finding]:
-    masked = mask_javascript(text)
+def _js_xss_findings(text: str, masked: str) -> list[Finding]:
     findings: list[Finding] = []
     for match in re.finditer(r"\.\s*(innerHTML|outerHTML)\s*\+?=(?!=)", masked):
         end = expression_end(masked, match.end())
@@ -1272,6 +1274,11 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_redirect_and_tls_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for match in re.finditer(
         r"(?<![\w$.])(?:(?:window|document|self|top)\s*\.\s*)?location"
         r"(?:\s*\.\s*href)?\s*=(?!=)",
@@ -1302,6 +1309,11 @@ def javascript_rules(text: str) -> list[Finding]:
             masked[arguments[-1][0] : arguments[-1][1]],
         ):
             findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
+    return findings
+
+
+def _js_command_and_sql_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     shell = re.search(r"child_process|(['\"])node:child_process\1", text)
     aliases = re.findall(
         r"\b([\w$]+)\s*=\s*(?:util\s*\.\s*)?promisify\s*\(\s*"
@@ -1350,6 +1362,11 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_crypto_and_origin_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for match in re.finditer(
         r"([\w$.]+(?:\([^()]*\))?|`[^`]*`)\s*(?:===?|!==?)\s*"
         r"([\w$.]+(?:\([^()]*\))?|`[^`]*`)",
@@ -1392,6 +1409,11 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_ssrf_findings(masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     source = r"\breq(?:uest)?\s*\.\s*(?:query|body|params|url)\b"
     tainted = {
         match.group(1)
@@ -1426,6 +1448,11 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_prototype_pollution_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for match in re.finditer(
         r"\bfunction\s+([\w$]+)\s*\(|\b(?:const|let)\s+([\w$]+)\s*=\s*"
         r"(?:async\s*)?\([^)]*\)[^={]*=>\s*\{",
@@ -1458,6 +1485,11 @@ def javascript_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_runtime_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for pattern, offset in javascript_regexes(text, masked):
         if nested_quantifier(pattern):
             findings.append((REDOS_RULE, REDOS_MESSAGE, offset))
@@ -1498,6 +1530,19 @@ def javascript_rules(text: str) -> list[Finding]:
                 )
             )
     return findings
+
+
+def javascript_rules(text: str) -> list[Finding]:
+    masked = mask_javascript(text)
+    return [
+        *_js_xss_findings(text, masked),
+        *_js_redirect_and_tls_findings(text, masked),
+        *_js_command_and_sql_findings(text, masked),
+        *_js_crypto_and_origin_findings(text, masked),
+        *_js_ssrf_findings(masked),
+        *_js_prototype_pollution_findings(text, masked),
+        *_js_runtime_findings(text, masked),
+    ]
 
 
 REDOS_RULE = "loki/redos"
@@ -2245,9 +2290,10 @@ def node_findings(
 
 
 def python_rules(text: str) -> list[Finding]:
-    try:
+    tree = None
+    with contextlib.suppress(SyntaxError, ValueError):
         tree = ast.parse(text)
-    except (SyntaxError, ValueError):
+    if tree is None:
         return []
     offsets = line_offsets(text)
     findings = request_authorization_findings(tree, offsets)
@@ -2274,8 +2320,7 @@ def python_rules(text: str) -> list[Finding]:
     return findings
 
 
-def elixir_rules(text: str) -> list[Finding]:
-    masked = mask_elixir(text)
+def _elixir_auth_and_taint(text: str, masked: str) -> tuple[list[Finding], set[str]]:
     findings: list[Finding] = []
     for match in re.finditer(
         r"(?<![\w.])(?:conn\s*\.\s*)?(?:params|query_params|body_params)\s*\[\s*\"",
@@ -2319,6 +2364,11 @@ def elixir_rules(text: str) -> list[Finding]:
                     )
                 )
     tainted.update(re.findall(r"^\s*([a-z]\w*)\s*=[^\n]*\bparams\b", masked, re.M))
+    return findings, tainted
+
+
+def _elixir_redirect_and_ssrf(masked: str, tainted: set[str]) -> list[Finding]:
+    findings: list[Finding] = []
     for call in re.finditer(r"\bredirect\s*\(", masked):
         arguments = masked[call.end() : matching_close(masked, call.end() - 1) - 1]
         external = re.search(r"\bexternal:\s*([^,)]+)", arguments)
@@ -2334,6 +2384,24 @@ def elixir_rules(text: str) -> list[Finding]:
                     call.start(),
                 )
             )
+    for call in ELIXIR_HTTP_CALL_RE.finditer(masked):
+        arguments = masked[call.end() : matching_close(masked, call.end() - 1) - 1]
+        words = set(re.findall(r"(?<![\w.:])([a-z]\w*)\b", arguments))
+        if words & tainted or re.search(r"\b(?:query_|body_)?params\b", arguments):
+            findings.append(
+                (
+                    "loki/ssrf",
+                    "server-side request forgery (SSRF): outbound request to an "
+                    "untrusted URL from request parameters; validate the host "
+                    "against an allowlist",
+                    call.start(),
+                )
+            )
+    return findings
+
+
+def _elixir_file_and_sort(masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for call in re.finditer(r"\bEnum\.(?:sort_by|max_by|min_by)\s*\(", masked):
         arguments = [
             masked[start:end].strip()
@@ -2375,6 +2443,11 @@ def elixir_rules(text: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _elixir_shell_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for call in re.finditer(r"\bSystem\.cmd\s*\(\s*\"", masked):
         program = text[call.end() : closing_quote(text, call.end(), '"', False)]
         arguments = text[call.end() : matching_close(masked, call.end() - 2)]
@@ -2391,20 +2464,18 @@ def elixir_rules(text: str) -> list[Finding]:
         arguments = text[call.end() : matching_close(masked, call.end() - 1) - 1]
         if "#{" in arguments or not re.fullmatch(r"\s*~c?[\"'].*[\"']\s*", arguments):
             findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
-    for call in ELIXIR_HTTP_CALL_RE.finditer(masked):
-        arguments = masked[call.end() : matching_close(masked, call.end() - 1) - 1]
-        words = set(re.findall(r"(?<![\w.:])([a-z]\w*)\b", arguments))
-        if words & tainted or re.search(r"\b(?:query_|body_)?params\b", arguments):
-            findings.append(
-                (
-                    "loki/ssrf",
-                    "server-side request forgery (SSRF): outbound request to an "
-                    "untrusted URL from request parameters; validate the host "
-                    "against an allowlist",
-                    call.start(),
-                )
-            )
     return findings
+
+
+def elixir_rules(text: str) -> list[Finding]:
+    masked = mask_elixir(text)
+    auth_findings, tainted = _elixir_auth_and_taint(text, masked)
+    return [
+        *auth_findings,
+        *_elixir_redirect_and_ssrf(masked, tainted),
+        *_elixir_file_and_sort(masked),
+        *_elixir_shell_findings(text, masked),
+    ]
 
 
 SHELLS = {"sh", "bash", "zsh", "dash", "/bin/sh", "/bin/bash", "/usr/bin/env"}
@@ -2615,25 +2686,8 @@ def sql_message(literal: str, holes: list[int]) -> str | None:
     return SQL_QUERY
 
 
-def go_rules(text: str) -> list[Finding]:
-    """Zip slip, SQL built with Sprintf or +, shell -c commands, TLS skip-verify."""
-    masked = mask_rust(text, go=True)
-    findings: list[Finding] = [
-        ("loki/tls-verification", TLS_VERIFICATION, match.start())
-        for match in re.finditer(
-            r"\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b", masked
-        )
-    ]
-    for call in re.finditer(r"\bexec\s*\.\s*Command(Context)?\s*\(", masked):
-        arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
-        words = [text[a:b].strip().strip('"`') for a, b in arguments[:2]]
-        if (
-            len(arguments) > 2
-            and words[0] in SHELLS
-            and words[1] == "-c"
-            and not go_literal(masked[slice(*arguments[2])])
-        ):
-            findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
+def _go_sql_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for call in re.finditer(
         r"\.\s*(?:Query|QueryRow|Exec|Prepare)(Context)?\s*\(", masked
     ):
@@ -2660,8 +2714,13 @@ def go_rules(text: str) -> list[Finding]:
             message = sql_message("".join(text[slice(*p)] for p in literals), [0])
         if message:
             findings.append(("loki/sql-injection", message, call.start()))
+    return findings
+
+
+def _go_zip_slip_findings(text: str, masked: str) -> list[Finding]:
     if not re.search(r'"archive/(?:zip|tar)"', text):
-        return findings
+        return []
+    findings: list[Finding] = []
     for function in re.finditer(r"\bfunc\b[^{]*\{", masked):
         end = matching_close(masked, function.end() - 1)
         body = masked[function.end() - 1 : end]
@@ -2681,6 +2740,30 @@ def go_rules(text: str) -> list[Finding]:
                     function.end() - 1 + joined.start(),
                 )
             )
+    return findings
+
+
+def go_rules(text: str) -> list[Finding]:
+    """Zip slip, SQL built with Sprintf or +, shell -c commands, TLS skip-verify."""
+    masked = mask_rust(text, go=True)
+    findings: list[Finding] = [
+        ("loki/tls-verification", TLS_VERIFICATION, match.start())
+        for match in re.finditer(
+            r"\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b", masked
+        )
+    ]
+    for call in re.finditer(r"\bexec\s*\.\s*Command(Context)?\s*\(", masked):
+        arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
+        words = [text[a:b].strip().strip('"`') for a, b in arguments[:2]]
+        if (
+            len(arguments) > 2
+            and words[0] in SHELLS
+            and words[1] == "-c"
+            and not go_literal(masked[slice(*arguments[2])])
+        ):
+            findings.append(("loki/command-injection", SHELL_COMMAND, call.start()))
+    findings.extend(_go_sql_findings(text, masked))
+    findings.extend(_go_zip_slip_findings(text, masked))
     return findings
 
 
@@ -2860,9 +2943,10 @@ def python_functions(path: str, text: str) -> list[FunctionMetric]:
 
 
 def python_functions_uncached(path: str, text: str) -> list[FunctionMetric]:
-    try:
+    tree = None
+    with contextlib.suppress(SyntaxError, ValueError):
         tree = ast.parse(text)
-    except (SyntaxError, ValueError):
+    if tree is None:
         return []
     lines = text.splitlines()
     results = []
@@ -3117,7 +3201,8 @@ def typescript_function_metrics(
     compiler = typescript_compiler(root)
     if compiler is None or not texts:
         return None
-    try:
+    report = None
+    with contextlib.suppress(OSError, ValueError, subprocess.TimeoutExpired):
         result = subprocess.run(
             ["node", "-e", SLOP_TYPESCRIPT, str(compiler.resolve())],
             input=json.dumps(texts),
@@ -3127,10 +3212,9 @@ def typescript_function_metrics(
             timeout=command_timeout(deadline),
             check=False,
         )
-        if result.returncode:
-            return None
-        report = json.loads(result.stdout)
-    except (OSError, ValueError, subprocess.TimeoutExpired):
+        if not result.returncode:
+            report = json.loads(result.stdout)
+    if report is None:
         return None
     metrics = {}
     for name, functions in report.items():
@@ -3379,7 +3463,8 @@ def go_function_metrics(
         return None
     digest = hashlib.sha256(SLOP_GO.encode()).hexdigest()[:16]
     tool = Path.home() / ".cache/loki/tools" / f"gometrics-{digest}"
-    try:
+    report = None
+    with contextlib.suppress(OSError, ValueError, subprocess.TimeoutExpired):
         if not tool.is_file():
             source = tool.with_suffix(".src")
             source.mkdir(parents=True, exist_ok=True)
@@ -3403,9 +3488,8 @@ def go_function_metrics(
             timeout=command_timeout(deadline),
             check=False,
         )
-        report = json.loads(result.stdout) if result.returncode == 0 else None
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return None
+        if result.returncode == 0:
+            report = json.loads(result.stdout)
     if report is None:
         return None
     metrics = {}
@@ -3437,7 +3521,8 @@ def elixir_function_metrics(
     payload = "".join(
         f"{name}\n{len(text.encode('utf-8'))}\n{text}" for name, text in texts.items()
     )
-    try:
+    result = None
+    with contextlib.suppress(OSError, subprocess.TimeoutExpired, ValueError):
         with tempfile.NamedTemporaryFile(suffix=".loki") as handle:
             handle.write(payload.encode("utf-8"))
             handle.flush()
@@ -3447,9 +3532,7 @@ def elixir_function_metrics(
                 timeout=command_timeout(deadline),
                 check=False,
             )
-    except (OSError, subprocess.TimeoutExpired, ValueError):
-        return None
-    if result.returncode:
+    if result is None or result.returncode:
         return None
     metrics: dict[str, list[FunctionMetric]] = {name: [] for name in texts}
     masks: dict[str, str] = {}
@@ -3532,7 +3615,7 @@ def mask_python(text: str) -> str:
     offsets = [0]
     for line in text.splitlines(keepends=True):
         offsets.append(offsets[-1] + len(line))
-    try:
+    with contextlib.suppress(tokenize.TokenError, SyntaxError, IndentationError):
         for token in tokenize.generate_tokens(_io.StringIO(text).readline):
             if token.type not in (tokenize.COMMENT, tokenize.STRING):
                 continue
@@ -3544,8 +3627,6 @@ def mask_python(text: str) -> str:
             quote = re.match(r"[A-Za-z]*('''|\"\"\"|'|\")", token.string)
             width = len(quote.group(0)) if quote else 1
             blank(chars, start + width, end - len(quote.group(1)) if quote else end - 1)
-    except (tokenize.TokenError, SyntaxError, IndentationError):
-        pass
     return "".join(chars)
 
 
@@ -3579,6 +3660,52 @@ def token_windows(path: str, text: str) -> tuple[list[tuple[str, int]], list[int
     return tokens, hashes
 
 
+def _clone_runs(
+    duplicates: list[list[tuple[str, int]]],
+) -> tuple[list[tuple[str, int, int]], dict[tuple[str, int], int]]:
+    covered_tokens: dict[str, set[int]] = {}
+    for positions in duplicates:
+        for path, index in positions:
+            covered_tokens.setdefault(path, set()).update(
+                range(index, index + CLONE_MIN_TOKENS)
+            )
+    run_of: dict[tuple[str, int], int] = {}
+    runs: list[tuple[str, int, int]] = []
+    for path, indexes in covered_tokens.items():
+        for index in sorted(indexes):
+            if (path, index - 1) in run_of:
+                run = run_of[(path, index - 1)]
+                runs[run] = (path, runs[run][1], index)
+            else:
+                run = len(runs)
+                runs.append((path, index, index))
+            run_of[(path, index)] = run
+    return runs, run_of
+
+
+def _group_clone_runs(
+    runs: list[tuple[str, int, int]],
+    run_of: dict[tuple[str, int], int],
+    duplicates: list[list[tuple[str, int]]],
+) -> dict[int, list[int]]:
+    parent = list(range(len(runs)))
+
+    def find(item: int) -> int:
+        while parent[item] != item:
+            parent[item] = parent[parent[item]]
+            item = parent[item]
+        return item
+
+    for positions in duplicates:
+        first = find(run_of[positions[0]])
+        for position in positions[1:]:
+            parent[find(run_of[position])] = first
+    components: dict[int, list[int]] = {}
+    for run in range(len(runs)):
+        components.setdefault(find(run), []).append(run)
+    return components
+
+
 def clone_lines(
     files: dict[str, str], *, focus: set[str] | None = None
 ) -> tuple[dict[str, set[int]], list[list[tuple[str, int, int]]]]:
@@ -3590,6 +3717,7 @@ def clone_lines(
     group's member line spans.
     """
     indexed = {path: token_windows(path, text) for path, text in files.items()}
+    wanted: set[int] = set()
     if focus is not None:
         wanted = {
             value for path in focus if path in indexed for value in indexed[path][1]
@@ -3609,49 +3737,19 @@ def clone_lines(
     # Tokens covered by a duplicated window form maximal runs per file; runs that
     # share a window are one clone group. A repetitive region that only matches
     # itself is a single run and is not a clone.
-    covered_tokens: dict[str, set[int]] = {}
     duplicates = [positions for positions in windows.values() if len(positions) > 1]
-    for positions in duplicates:
-        for path, index in positions:
-            covered_tokens.setdefault(path, set()).update(
-                range(index, index + CLONE_MIN_TOKENS)
-            )
-    run_of: dict[tuple[str, int], int] = {}
-    runs: list[tuple[str, int, int]] = []
-    for path, indexes in covered_tokens.items():
-        for index in sorted(indexes):
-            if (path, index - 1) in run_of:
-                run = run_of[(path, index - 1)]
-                runs[run] = (path, runs[run][1], index)
-            else:
-                run = len(runs)
-                runs.append((path, index, index))
-            run_of[(path, index)] = run
-    parent = list(range(len(runs)))
-
-    def find(item: int) -> int:
-        while parent[item] != item:
-            parent[item] = parent[parent[item]]
-            item = parent[item]
-        return item
-
-    for positions in duplicates:
-        first = find(run_of[positions[0]])
-        for position in positions[1:]:
-            parent[find(run_of[position])] = first
-    components: dict[int, list[int]] = {}
-    for run in range(len(runs)):
-        components.setdefault(find(run), []).append(run)
+    runs, run_of = _clone_runs(duplicates)
+    components = _group_clone_runs(runs, run_of, duplicates)
     covered: dict[str, set[int]] = {}
     spans = []
     for members in components.values():
         if len(members) < 2:
             continue
-        lines = []
-        for run in members:
-            path, first, last = runs[run]
-            tokens = streams[path]
-            lines.append((path, tokens[first][1], tokens[last][1]))
+        lines = [
+            (path, streams[path][first][1], streams[path][last][1])
+            for run in members
+            for path, first, last in (runs[run],)
+        ]
         if all(end - start + 1 < CLONE_MIN_LINES for _, start, end in lines):
             continue
         if focus is not None and not any(path in focus for path, _, _ in lines):
@@ -3678,9 +3776,10 @@ def python_imports(path: str, text: str) -> list[tuple[int | None, str, list[str
     """(relative level or None for `import`, module, names) for each import."""
 
     def parse() -> list[tuple[int | None, str, list[str]]]:
-        try:
+        tree = None
+        with contextlib.suppress(SyntaxError, ValueError):
             tree = ast.parse(text)
-        except (SyntaxError, ValueError):
+        if tree is None:
             return []
         found: list[tuple[int | None, str, list[str]]] = []
         for node in ast.walk(tree):
@@ -3796,98 +3895,116 @@ def import_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
             if work:
                 low[work[-1][0]] = min(low[work[-1][0]], low[node])
             if low[node] == index[node]:
-                component = []
-                while True:
-                    item = stack.pop()
-                    on_stack.discard(item)
-                    component.append(item)
-                    if item == node:
-                        break
+                component = _pop_scc(stack, on_stack, node)
                 if len(component) > 1:
                     cycles.append(sorted(component))
     return sorted(cycles)
 
 
+def _pop_scc(stack: list[str], on_stack: set[str], node: str) -> list[str]:
+    component = []
+    while True:
+        item = stack.pop()
+        on_stack.discard(item)
+        component.append(item)
+        if item == node:
+            return component
+
+
+def _python_verbose_assign_return(body: list[Any], flagged: set[int]) -> None:
+    for first, second in zip(body, body[1:], strict=False):
+        if (
+            isinstance(first, ast.Assign)
+            and len(first.targets) == 1
+            and isinstance(first.targets[0], ast.Name)
+            and isinstance(second, ast.Return)
+            and isinstance(second.value, ast.Name)
+            and second.value.id == first.targets[0].id
+        ):
+            flagged.update({first.lineno, second.lineno})
+
+
+def _python_verbose_node(node: ast.AST, flagged: set[int]) -> None:
+    if isinstance(node, ast.If) and len(node.body) == 1 and len(node.orelse) == 1:
+        returns = [node.body[0], node.orelse[0]]
+        if all(
+            isinstance(item, ast.Return)
+            and isinstance(item.value, ast.Constant)
+            and isinstance(item.value.value, bool)
+            for item in returns
+        ):
+            flagged.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+    if isinstance(node, ast.Compare) and any(
+        isinstance(item, ast.Constant) and isinstance(item.value, bool)
+        for item in node.comparators
+    ):
+        flagged.add(node.lineno)
+    if (
+        isinstance(node, ast.Try)
+        and node.handlers
+        and not node.finalbody
+        and not node.orelse
+        and all(
+            len(handler.body) == 1
+            and isinstance(handler.body[0], ast.Raise)
+            and handler.body[0].exc is None
+            for handler in node.handlers
+        )
+    ):
+        flagged.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+    body = getattr(node, "body", None)
+    if isinstance(body, list):
+        _python_verbose_assign_return(body, flagged)
+
+
+def _python_verbose_lines(text: str) -> set[int]:
+    flagged: set[int] = set()
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return flagged
+    for node in ast.walk(tree):
+        _python_verbose_node(node, flagged)
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if not (stripped.startswith("#") and len(stripped) > 2):
+            continue
+        try:
+            code = ast.parse(stripped[1:].strip())
+        except (SyntaxError, ValueError):
+            continue
+        if code.body and not isinstance(code.body[0], ast.Expr | ast.Pass):
+            flagged.add(number)
+    return flagged
+
+
+def _typescript_verbose_lines(text: str) -> set[int]:
+    flagged: set[int] = set()
+    masked = mask_javascript(text)
+    for match in re.finditer(
+        r"\bif\s*\([^()]*\)\s*\{?\s*return\s+(true|false)\s*;?\s*\}?\s*else\s*\{?"
+        r"\s*return\s+(true|false)\s*;?\s*\}?|[!=]==?\s*(?:true|false)\b",
+        masked,
+    ):
+        first = masked.count("\n", 0, match.start()) + 1
+        flagged.update(range(first, first + match.group(0).count("\n") + 1))
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("//") and re.search(
+            r"[;{}]\s*$|^//\s*(?:const|let|return|if|await)\b", stripped
+        ):
+            flagged.add(number)
+    return flagged
+
+
 def verbose_lines(path: str, text: str) -> set[int]:
     """Lines matching handcrafted verbosity heuristics (for the verbosity ratio)."""
-    flagged: set[int] = set()
     language = LANGUAGE_EXTENSIONS.get(Path(path).suffix.lower())
     if language == "python":
-        try:
-            tree = ast.parse(text)
-        except (SyntaxError, ValueError):
-            return flagged
-        for node in ast.walk(tree):
-            body = getattr(node, "body", None)
-            if (
-                isinstance(node, ast.If)
-                and len(node.body) == 1
-                and len(node.orelse) == 1
-            ):
-                returns = [node.body[0], node.orelse[0]]
-                if all(
-                    isinstance(item, ast.Return)
-                    and isinstance(item.value, ast.Constant)
-                    and isinstance(item.value.value, bool)
-                    for item in returns
-                ):
-                    flagged.update(
-                        range(node.lineno, (node.end_lineno or node.lineno) + 1)
-                    )
-            if isinstance(node, ast.Compare) and any(
-                isinstance(item, ast.Constant) and isinstance(item.value, bool)
-                for item in node.comparators
-            ):
-                flagged.add(node.lineno)
-            if (
-                isinstance(node, ast.Try)
-                and all(
-                    len(handler.body) == 1
-                    and isinstance(handler.body[0], ast.Raise)
-                    and handler.body[0].exc is None
-                    for handler in node.handlers
-                )
-                and node.handlers
-                and not node.finalbody
-                and not node.orelse
-            ):
-                flagged.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
-            if isinstance(body, list):
-                for first, second in zip(body, body[1:], strict=False):
-                    if (
-                        isinstance(first, ast.Assign)
-                        and len(first.targets) == 1
-                        and isinstance(first.targets[0], ast.Name)
-                        and isinstance(second, ast.Return)
-                        and isinstance(second.value, ast.Name)
-                        and second.value.id == first.targets[0].id
-                    ):
-                        flagged.update({first.lineno, second.lineno})
-        for number, line in enumerate(text.splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith("#") and len(stripped) > 2:
-                try:
-                    code = ast.parse(stripped[1:].strip())
-                except (SyntaxError, ValueError):
-                    continue
-                if code.body and not isinstance(code.body[0], ast.Expr | ast.Pass):
-                    flagged.add(number)
-    elif language == "typescript":
-        masked = mask_javascript(text)
-        for match in re.finditer(
-            r"\bif\s*\([^()]*\)\s*\{?\s*return\s+(true|false)\s*;?\s*\}?\s*else\s*\{?"
-            r"\s*return\s+(true|false)\s*;?\s*\}?|[!=]==?\s*(?:true|false)\b",
-            masked,
-        ):
-            first = masked.count("\n", 0, match.start()) + 1
-            flagged.update(range(first, first + match.group(0).count("\n") + 1))
-        for number, line in enumerate(text.splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith("//") and re.search(
-                r"[;{}]\s*$|^//\s*(?:const|let|return|if|await)\b", stripped
-            ):
-                flagged.add(number)
-    return flagged
+        return _python_verbose_lines(text)
+    if language == "typescript":
+        return _typescript_verbose_lines(text)
+    return set()
 
 
 def slop_saturate(value: float, saturation: float) -> float:
@@ -4204,19 +4321,13 @@ def changed_functions(
     return sorted(pairs, key=lambda pair: pair[0].start)
 
 
-def written_slop(
-    root: Path, targets: list[Path], *, deadline: float | None
+def _written_complexity_notes(
+    root: Path,
+    names: list[str],
+    before: dict[str, str],
+    after: dict[str, str],
+    deadline: float | None,
 ) -> list[str]:
-    """Hotspots, clones and cycles an edit introduces, against committed text."""
-    names = [
-        path.relative_to(root).as_posix()
-        for path in targets
-        if path.is_file() and slop_language(path.name)
-    ]
-    if not names:
-        return []
-    after = {name: (root / name).read_text(encoding="utf-8") for name in names}
-    before = {name: head_text(root, name, deadline=deadline) for name in names}
     # One analyzer call covers both versions; BEAM-backed Elixir stays structural
     # at write time and exact in `loki slop` audits.
     cheap = {
@@ -4236,7 +4347,7 @@ def written_slop(
     exact_before = {
         key[7:]: value for key, value in exact.items() if key.startswith("before/")
     }
-    notes = []
+    notes: list[str] = []
     for name in names:
         for item, prior in changed_functions(
             function_metrics(name, before[name], exact_before.get(name)),
@@ -4253,6 +4364,68 @@ def written_slop(
                     f"complexity {change}{item.complexity} (> {SLOP_COMPLEXITY}); "
                     "split it into smaller functions"
                 )
+    return notes
+
+
+def _written_clone_notes(
+    repository: dict[str, str], before: dict[str, str], focus: set[str]
+) -> list[str]:
+    _, groups_after = clone_lines(repository, focus=focus)
+    _, groups_before = clone_lines({**repository, **before}, focus=focus)
+    if len(groups_after) <= len(groups_before):
+        return []
+    seen = {tuple(sorted(path for path, _, _ in group)) for group in groups_before}
+    notes: list[str] = []
+    for group in groups_after:
+        if tuple(sorted(path for path, _, _ in group)) in seen:
+            continue
+        here = next((member for member in group if member[0] in focus), group[0])
+        others = ", ".join(
+            f"{path}:{start}-{end}"
+            for path, start, end in group
+            if (path, start, end) != here
+        )
+        notes.append(
+            f"{here[0]}:{here[1]}: loki/slop-duplication: lines {here[1]}-{here[2]} "
+            f"duplicate {others}; reuse or extract the shared code"
+        )
+    return notes
+
+
+def _written_cycle_notes(
+    repository: dict[str, str], before: dict[str, str], focus: set[str]
+) -> list[str]:
+    old_graph = {
+        **python_import_graph({**repository, **before}),
+        **javascript_import_graph({**repository, **before}),
+    }
+    new_graph = {
+        **python_import_graph(repository),
+        **javascript_import_graph(repository),
+    }
+    old_cycles = {tuple(cycle) for cycle in import_cycles(old_graph)}
+    return [
+        f"{next(iter(focus & set(cycle)))}: loki/slop-import-cycle: import cycle "
+        + " -> ".join(cycle)
+        for cycle in import_cycles(new_graph)
+        if tuple(cycle) not in old_cycles and focus & set(cycle)
+    ]
+
+
+def written_slop(
+    root: Path, targets: list[Path], *, deadline: float | None
+) -> list[str]:
+    """Hotspots, clones and cycles an edit introduces, against committed text."""
+    names = [
+        path.relative_to(root).as_posix()
+        for path in targets
+        if path.is_file() and slop_language(path.name)
+    ]
+    if not names:
+        return []
+    after = {name: (root / name).read_text(encoding="utf-8") for name in names}
+    before = {name: head_text(root, name, deadline=deadline) for name in names}
+    notes = _written_complexity_notes(root, names, before, after, deadline)
     try:
         # A warm daemon cache makes larger repositories affordable.
         budget = SLOP_WRITE_BUDGET * (16 if WINDOW_CACHE else 1)
@@ -4260,35 +4433,8 @@ def written_slop(
     except ValueError:
         return notes
     focus = set(names)
-    _, groups_after = clone_lines(repository, focus=focus)
-    _, groups_before = clone_lines({**repository, **before}, focus=focus)
-    if len(groups_after) > len(groups_before):
-        seen = {tuple(sorted(path for path, _, _ in group)) for group in groups_before}
-        for group in groups_after:
-            if tuple(sorted(path for path, _, _ in group)) in seen:
-                continue
-            here = next((member for member in group if member[0] in focus), group[0])
-            others = ", ".join(
-                f"{path}:{start}-{end}"
-                for path, start, end in group
-                if (path, start, end) != here
-            )
-            notes.append(
-                f"{here[0]}:{here[1]}: loki/slop-duplication: lines {here[1]}-{here[2]} "
-                f"duplicate {others}; reuse or extract the shared code"
-            )
-    graphs = []
-    for sources in ({**repository, **before}, repository):
-        graphs.append(
-            {**python_import_graph(sources), **javascript_import_graph(sources)}
-        )
-    old_cycles = {tuple(cycle) for cycle in import_cycles(graphs[0])}
-    for cycle in import_cycles(graphs[1]):
-        if tuple(cycle) not in old_cycles and focus & set(cycle):
-            notes.append(
-                f"{next(iter(focus & set(cycle)))}: loki/slop-import-cycle: import cycle "
-                + " -> ".join(cycle)
-            )
+    notes.extend(_written_clone_notes(repository, before, focus))
+    notes.extend(_written_cycle_notes(repository, before, focus))
     return notes[:MAX_VIOLATIONS]
 
 
@@ -4302,11 +4448,9 @@ def ruff_command(root: Path) -> list[str] | None:
             return [str(local)]
     if shutil.which("ruff"):
         return ["ruff"]
-    try:
+    with contextlib.suppress(ValueError):
         if "ruff" not in resolve_imports(root, ["ruff"]):
             return [str(project_python(root)), "-m", "ruff"]
-    except ValueError:
-        pass
     return None
 
 
@@ -4358,12 +4502,13 @@ def revision_text(
 def written_content_violations(
     path: Path, root: Path, relative: str, *, fallback: bool, deadline: float | None
 ) -> list[str]:
-    try:
+    change = None
+    with contextlib.suppress(OSError, UnicodeDecodeError, ValueError):
         if path.stat().st_size > 4 * 1024 * 1024:
             return []
         before = head_text(root, relative, deadline=deadline)
         change = (relative, before, path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, ValueError):
+    if change is None:
         return []
     violations = content_rule_violations([change])
     if fallback:
@@ -4498,6 +4643,82 @@ def _launchers(python: str | None, requirement: str) -> list[list[str]]:
     return found
 
 
+HYGIENE_SERVER_DRIVER = r"""
+import io, json, sys, types
+try:
+    import numpy
+except ImportError:
+    raise SystemExit(3)
+init = json.loads(sys.stdin.readline())
+module = types.ModuleType("codehygiene")
+sys.modules["codehygiene"] = module
+exec(compile(init["args"]["source"], "codehygiene/__init__.py", "exec"), module.__dict__)
+with numpy.load(io.BytesIO(bytes.fromhex(init["args"]["weights"]))) as archive:
+    weights = module.unpack_ternary_archive(archive["trits"], archive["vecs"], str(archive["meta"].item()))
+sys.stdout.write(json.dumps({"id": init["id"], "result": True}) + "\n")
+sys.stdout.flush()
+for raw in sys.stdin:
+    if not raw.strip():
+        continue
+    request = json.loads(raw)
+    try:
+        found = [
+            [[s.line, s.kind, s.message] for s in module.score(text, weights=weights).squiggles]
+            for text in request["args"]
+        ]
+        reply = {"id": request["id"], "result": found}
+    except Exception as error:
+        reply = {"id": request["id"], "error": f"{type(error).__name__}: {error}"}
+    sys.stdout.write(json.dumps(reply) + "\n")
+    sys.stdout.flush()
+"""
+
+NITS_SERVER_DRIVER = r"""
+import json, sys
+try:
+    import nits
+except ImportError:
+    raise SystemExit(3)
+for raw in sys.stdin:
+    if not raw.strip():
+        continue
+    request = json.loads(raw)
+    args = request["args"]
+    if args == "ping":
+        sys.stdout.write(json.dumps({"id": request["id"], "result": True}) + "\n")
+        sys.stdout.flush()
+        continue
+    try:
+        everything = args["all"]
+        floor = None if everything else args["min_precision"]
+        found = []
+        for name, text in args["files"]:
+            lang = nits.lang_for_path(name)
+            findings = nits.check_source(text, lang=lang, include_opt_in=everything, min_precision=floor) if lang else []
+            found.append([[f.line, f.rule, f"p{nits.precision_of(f.rule, lang):.2f} {f.message}"] for f in findings])
+        reply = {"id": request["id"], "result": found}
+    except Exception as error:
+        reply = {"id": request["id"], "error": f"{type(error).__name__}: {error}"}
+    sys.stdout.write(json.dumps(reply) + "\n")
+    sys.stdout.flush()
+"""
+
+
+def hygiene_env() -> dict[str, str]:
+    """Single-threaded BLAS environment so hygiene checks run beside session work."""
+    return {**os.environ, "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}
+
+
+def parse_hygiene_reply(reply: Any) -> list[list[HygieneSquiggle]]:
+    return [
+        [
+            HygieneSquiggle(int(line), str(kind), str(message))
+            for line, kind, message in file
+        ]
+        for file in reply
+    ]
+
+
 def hygiene_launchers(python: str | None = None) -> list[list[str]]:
     """The given Python, Loki's, then uv's with NumPy from its cache."""
     return _launchers(python, "numpy")
@@ -4518,8 +4739,7 @@ def drive_hygiene_tool(
 ) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
     """Runs `driver` in the first launcher whose Python has its import."""
     request = json.dumps(request_payload).encode("utf-8")
-    # One BLAS thread: the check runs beside the session's own work.
-    env = {**os.environ, "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}
+    env = hygiene_env()
     for launcher in launchers:
         try:
             result = subprocess.run(
@@ -4537,20 +4757,46 @@ def drive_hygiene_tool(
             continue
         if result.returncode == 0:
             try:
-                reply = json.loads(result.stdout)
-                return [
-                    [
-                        HygieneSquiggle(int(line), str(kind), str(message))
-                        for line, kind, message in file
-                    ]
-                    for file in reply
-                ], None
+                return parse_hygiene_reply(json.loads(result.stdout)), None
             except (ValueError, TypeError):
                 return None, "unreadable reply"
         if result.returncode == HYGIENE_FAILED:
             lines = result.stderr.decode("utf-8", errors="replace").strip().splitlines()
             return None, (lines[-1] if lines else "failed")[:200]
     return None, missing
+
+
+def _query_warm_hygiene(
+    name: str, payload: Any, deadline: float | None
+) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
+    worker = HYGIENE_WORKERS.get(name)
+    if worker is None:
+        return None, "worker not warmed"
+    try:
+        return (
+            parse_hygiene_reply(
+                worker.request(
+                    payload, deadline, error_prefix=f"{name}: worker unavailable"
+                )
+            ),
+            None,
+        )
+    except (OSError, ValueError, TypeError, subprocess.TimeoutExpired) as error:
+        return None, str(error)
+
+
+def vendored_codehygiene_payload() -> tuple[dict[str, str] | None, str | None]:
+    vendored = SOURCE_ROOT / "vendor" / "codehygiene"
+    try:
+        return (
+            {
+                "source": (vendored / "__init__.py").read_text(encoding="utf-8"),
+                "weights": (vendored / "weights.npz").read_bytes().hex(),
+            },
+            None,
+        )
+    except OSError:
+        return None, "vendored codehygiene model is missing"
 
 
 def hygiene_score(
@@ -4561,16 +4807,17 @@ def hygiene_score(
     python: str | None = None,
 ) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
     """The vendored codehygiene model's squiggles for each text."""
-    vendored = SOURCE_ROOT / "vendor" / "codehygiene"
-    try:
-        source = (vendored / "__init__.py").read_text(encoding="utf-8")
-        weights = (vendored / "weights.npz").read_bytes().hex()
-    except OSError:
-        return None, "vendored codehygiene model is missing"
+    if launchers is None and python is None:
+        warm, _ = _query_warm_hygiene("hygiene", texts, deadline)
+        if warm is not None:
+            return warm, None
+    payload, missing_error = vendored_codehygiene_payload()
+    if payload is None:
+        return None, missing_error
     return drive_hygiene_tool(
         hygiene_launchers(python) if launchers is None else launchers,
         HYGIENE_DRIVER,
-        {"source": source, "weights": weights, "texts": texts},
+        {**payload, "texts": texts},
         deadline=deadline,
         missing="needs NumPy, which neither Loki's Python nor uv's cache has "
         "(`uv run --with numpy python -c pass` fetches it once)",
@@ -4586,10 +4833,15 @@ def nits_score(
     python: str | None = None,
 ) -> tuple[list[list[HygieneSquiggle]] | None, str | None]:
     """nits' findings for each `(name, text)`."""
+    payload = {"files": files, "all": all_rules, "min_precision": NITS_MIN_PRECISION}
+    if launchers is None and python is None:
+        warm, _ = _query_warm_hygiene("nits", payload, deadline)
+        if warm is not None:
+            return warm, None
     return drive_hygiene_tool(
         nits_launchers(python) if launchers is None else launchers,
         NITS_DRIVER,
-        {"files": files, "all": all_rules, "min_precision": NITS_MIN_PRECISION},
+        payload,
         deadline=deadline,
         missing="nits is in neither Loki's Python nor uv's cache "
         f"(`uv run --no-project --with {NITS_REQUIREMENT} python -c pass` fetches it once)",
@@ -4694,9 +4946,8 @@ def hygiene_against(
                 sources,
                 all_rules=level == "all",
                 deadline=deadline,
-                launchers=nits_launchers(python)
-                if nits_runner is None
-                else nits_runner,
+                launchers=nits_runner,
+                python=python,
             ),
         )
     scored = settle(
@@ -4709,7 +4960,7 @@ def hygiene_against(
         ),
     )
     found: list[str] = []
-    for (name, after), model, nits in zip(sources, scored, parsed):
+    for (name, after), model, nits in zip(sources, scored, parsed, strict=True):
         if not model and not nits:
             continue
         try:
@@ -4754,9 +5005,20 @@ def changed_hygiene(
         ["diff", "--name-only", "-z", "--diff-filter=AM", base, "--"],
         deadline=deadline,
     )
-    names = [
-        name for name in listed.decode("utf-8", errors="replace").split("\0") if name
-    ]
+    untracked = git_output(
+        root,
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+        deadline=deadline,
+    )
+    names = sorted(
+        {
+            name
+            for name in (listed + untracked)
+            .decode("utf-8", errors="replace")
+            .split("\0")
+            if name
+        }
+    )
     return hygiene_against(
         root,
         names[:HYGIENE_MAX_CHANGED_FILES],
@@ -5181,6 +5443,247 @@ def mix_project(path: Path, root: Path) -> Path | None:
         project = project.parent
 
 
+def _emit_check_notice(
+    message: str,
+    strict: bool,
+    warnings: list[str] | None,
+    violations: list[str],
+    *,
+    strict_message: str | None = None,
+) -> None:
+    if strict:
+        violations.append(strict_message or message)
+    elif warnings is not None:
+        warnings.append(message)
+    else:
+        print(message, file=sys.stderr)
+
+
+def _run_optional_analyzer(
+    label: str,
+    check: Any,
+    arguments: tuple[Any, ...],
+    *,
+    deadline: float | None,
+    strict: bool,
+    warnings: list[str] | None,
+    violations: list[str],
+) -> None:
+    """Run an analyzer whose absence or failure is reported, never hidden."""
+    try:
+        violations.extend(check(*arguments, deadline=deadline))
+    except (
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+        subprocess.TimeoutExpired,
+    ) as error:
+        message = f"NOT CHECKED {label}: {str(error).strip()[:300]}"
+        _emit_check_notice(message, strict, warnings, violations)
+
+
+def _check_python_file(
+    path: Path,
+    root: Path,
+    display: str,
+    strict: bool,
+    *,
+    deadline: float | None,
+    warnings: list[str] | None,
+    batch_paths: list[Path] | None,
+    checked_projects: set[tuple[str, Path]] | None,
+    violations: list[str],
+) -> None:
+    key = ("python", root)
+    if checked_projects is not None and key in checked_projects:
+        return
+    selected = batch_paths if batch_paths is not None else [path]
+    names = sorted(
+        item.relative_to(root).as_posix()
+        for item in selected
+        if item.suffix == ".py" and item.is_file()
+    )
+    try:
+        violations.extend(
+            ruff_new_violations(root, None, paths=set(names), deadline=deadline)
+        )
+    except SnapshotTooLarge as error:
+        violations.extend(
+            not_checked(f"NOT CHECKED python ruff: {error}", strict, warnings)
+        )
+    except MissingRuffConfig as error:
+        # A minimal install (init --minimal) adds no .ruff.toml.
+        _emit_check_notice(
+            f"NOT CHECKED python ruff: {error}",
+            strict,
+            warnings,
+            violations,
+            strict_message=f"{display}: loki: {error}",
+        )
+    if not violations:
+        _run_optional_analyzer(
+            "python types",
+            mypy_violations,
+            (root, names),
+            deadline=deadline,
+            strict=strict,
+            warnings=warnings,
+            violations=violations,
+        )
+    if checked_projects is not None:
+        checked_projects.add(key)
+
+
+def _check_go_file(
+    path: Path,
+    root: Path,
+    strict: bool,
+    *,
+    deadline: float | None,
+    warnings: list[str] | None,
+    checked_projects: set[tuple[str, Path]] | None,
+    violations: list[str],
+) -> None:
+    violations.extend(
+        run_command(["gofmt", "-w", str(path)], root, "gofmt", deadline=deadline)
+    )
+    try:
+        directory = path.parent.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        directory = "."
+    package = "./" if directory == "." else f"./{directory}"
+    key = ("go", root / directory)
+    lint = None
+    if checked_projects is None or key not in checked_projects:
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Both tools build the package; overlapping them hides one cold start.
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            lint = pool.submit(golangci_violations, root, package, deadline=deadline)
+            vet = run_command(["go", "vet", package], root, "go vet", deadline=deadline)
+            lint.exception()
+        if checked_projects is not None:
+            checked_projects.add(key)
+    else:
+        vet = run_command(["go", "vet", package], root, "go vet", deadline=deadline)
+    violations.extend(vet)
+    if lint is not None and not violations:
+        # Compile errors from go vet make lint results redundant.
+        _run_optional_analyzer(
+            "golangci-lint",
+            lambda deadline: lint.result(),
+            (),
+            deadline=deadline,
+            strict=strict,
+            warnings=warnings,
+            violations=violations,
+        )
+
+
+def _check_rust_file(
+    path: Path,
+    root: Path,
+    strict: bool,
+    *,
+    deadline: float | None,
+    warnings: list[str] | None,
+    checked_projects: set[tuple[str, Path]] | None,
+    violations: list[str],
+) -> None:
+    crate = cargo_project(path, root)
+    edition = cargo_edition(crate, root)
+    violations.extend(
+        run_command(
+            ["rustfmt", *(["--edition", edition] if edition else []), str(path)],
+            root,
+            "rustfmt",
+            deadline=deadline,
+        )
+    )
+    key = ("rust", crate or root)
+    if checked_projects is None or key not in checked_projects:
+        _run_optional_analyzer(
+            "clippy",
+            clippy_violations,
+            (path, root),
+            deadline=deadline,
+            strict=strict,
+            warnings=warnings,
+            violations=violations,
+        )
+        if checked_projects is not None:
+            checked_projects.add(key)
+
+
+def _check_elixir_file(
+    path: Path,
+    root: Path,
+    config: dict[str, Any],
+    strict: bool,
+    *,
+    deadline: float | None,
+    warnings: list[str] | None,
+    checked_projects: set[tuple[str, Path]] | None,
+    violations: list[str],
+) -> list[str] | None:
+    project = mix_project(path, root)
+    if project is None:
+        message = "NOT CHECKED elixir: enclosing Mix project required"
+        if strict:
+            return [message]
+        _emit_check_notice(message, False, warnings, violations)
+        return []
+    from concurrent.futures import ThreadPoolExecutor
+
+    key = ("elixir", project)
+    reused = checked_projects is not None and key in checked_projects
+    analyzers = [] if reused else ["Credo"]
+    if not reused and "phoenix" in rule_packs(config):
+        analyzers.append("Sobelow")
+    notices: dict[str, list[str]] = {name: [] for name in analyzers}
+    # Format, Credo and Sobelow each start a BEAM; run them side by side.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        formatting = pool.submit(
+            run_command,
+            ["mix", "format", "--check-formatted", str(path)],
+            project,
+            "mix format",
+            deadline=deadline,
+        )
+        jobs = {
+            name: pool.submit(credo_new_violations, project, deadline=deadline)
+            if name == "Credo"
+            else pool.submit(
+                sobelow_new_violations,
+                project,
+                config,
+                deadline=deadline,
+                warnings=notices[name],
+            )
+            for name in analyzers
+        }
+    violations.extend(formatting.result())
+    if reused:
+        return violations[:MAX_VIOLATIONS]
+    for analyzer, job in jobs.items():
+        try:
+            violations.extend(job.result())
+            for notice in notices[analyzer]:
+                _emit_check_notice(
+                    notice,
+                    strict and notice.startswith("NOT CHECKED"),
+                    warnings,
+                    violations,
+                )
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            _emit_check_notice(
+                f"NOT CHECKED {analyzer}: {error}", strict, warnings, violations
+            )
+    if checked_projects is not None:
+        checked_projects.add(key)
+    return None
+
+
 def check_file(
     path: Path,
     root: Path,
@@ -5205,25 +5708,6 @@ def check_file(
         )
     missing = missing_tool(language, root)
     violations: list[str] = []
-
-    def optional(label: str, check: Any, *arguments: Any) -> None:
-        """Run an analyzer whose absence or failure is reported, never hidden."""
-        try:
-            violations.extend(check(*arguments, deadline=deadline))
-        except (
-            OSError,
-            UnicodeDecodeError,
-            ValueError,
-            subprocess.TimeoutExpired,
-        ) as error:
-            message = f"NOT CHECKED {label}: {str(error).strip()[:300]}"
-            if strict:
-                violations.append(message)
-            elif warnings is not None:
-                warnings.append(message)
-            else:
-                print(message, file=sys.stderr)
-
     violations.extend(
         written_content_violations(
             path,
@@ -5234,159 +5718,62 @@ def check_file(
         )
     )
     if missing:
-        if strict:
-            violations.append(f"{display}: loki: missing {missing}")
-        else:
-            warning = f"NOT CHECKED {language}: missing {missing}"
-            if warnings is None:
-                print(warning, file=sys.stderr)
-            else:
-                warnings.append(warning)
+        _emit_check_notice(
+            f"NOT CHECKED {language}: missing {missing}",
+            strict,
+            warnings,
+            violations,
+            strict_message=f"{display}: loki: missing {missing}",
+        )
     elif language == "python":
-        key = (language, root)
-        if checked_projects is None or key not in checked_projects:
-            selected = batch_paths if batch_paths is not None else [path]
-            names = sorted(
-                item.relative_to(root).as_posix()
-                for item in selected
-                if item.suffix == ".py" and item.is_file()
-            )
-            try:
-                violations.extend(
-                    ruff_new_violations(root, None, paths=set(names), deadline=deadline)
-                )
-            except SnapshotTooLarge as error:
-                violations.extend(
-                    not_checked(f"NOT CHECKED python ruff: {error}", strict, warnings)
-                )
-            except MissingRuffConfig as error:
-                # A minimal install (init --minimal) adds no .ruff.toml.
-                if strict:
-                    violations.append(f"{display}: loki: {error}")
-                else:
-                    warning = f"NOT CHECKED python ruff: {error}"
-                    if warnings is None:
-                        print(warning, file=sys.stderr)
-                    else:
-                        warnings.append(warning)
-            if not violations:
-                optional("python types", mypy_violations, root, names)
-            if checked_projects is not None:
-                checked_projects.add(key)
+        _check_python_file(
+            path,
+            root,
+            display,
+            strict,
+            deadline=deadline,
+            warnings=warnings,
+            batch_paths=batch_paths,
+            checked_projects=checked_projects,
+            violations=violations,
+        )
     elif language == "typescript":
         violations.extend(
             oxlint_violations(path, root, display, deadline=deadline, warnings=warnings)
         )
     elif language == "go":
-        violations.extend(
-            run_command(["gofmt", "-w", str(path)], root, "gofmt", deadline=deadline)
+        _check_go_file(
+            path,
+            root,
+            strict,
+            deadline=deadline,
+            warnings=warnings,
+            checked_projects=checked_projects,
+            violations=violations,
         )
-        try:
-            directory = path.parent.resolve().relative_to(root.resolve()).as_posix()
-        except ValueError:
-            directory = "."
-        package = "./" if directory == "." else f"./{directory}"
-        key = (language, root / directory)
-        lint = None
-        if checked_projects is None or key not in checked_projects:
-            from concurrent.futures import ThreadPoolExecutor
-
-            # Both tools build the package; overlapping them hides one cold start.
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                lint = pool.submit(
-                    golangci_violations, root, package, deadline=deadline
-                )
-                vet = run_command(
-                    ["go", "vet", package], root, "go vet", deadline=deadline
-                )
-                lint.exception()
-            if checked_projects is not None:
-                checked_projects.add(key)
-        else:
-            vet = run_command(["go", "vet", package], root, "go vet", deadline=deadline)
-        violations.extend(vet)
-        if lint is not None and not violations:
-            # Compile errors from go vet make lint results redundant.
-            optional("golangci-lint", lambda deadline: lint.result())
     elif language == "rust":
-        crate = cargo_project(path, root)
-        edition = cargo_edition(crate, root)
-        violations.extend(
-            run_command(
-                ["rustfmt", *(["--edition", edition] if edition else []), str(path)],
-                root,
-                "rustfmt",
-                deadline=deadline,
-            )
+        _check_rust_file(
+            path,
+            root,
+            strict,
+            deadline=deadline,
+            warnings=warnings,
+            checked_projects=checked_projects,
+            violations=violations,
         )
-        key = (language, crate or root)
-        if checked_projects is None or key not in checked_projects:
-            optional("clippy", clippy_violations, path, root)
-            if checked_projects is not None:
-                checked_projects.add(key)
     elif language == "elixir":
-        project = mix_project(path, root)
-        if project is None:
-            message = "NOT CHECKED elixir: enclosing Mix project required"
-            if strict:
-                return [message]
-            if warnings is not None:
-                warnings.append(message)
-            else:
-                print(message, file=sys.stderr)
-            return []
-        from concurrent.futures import ThreadPoolExecutor
-
-        key = (language, project)
-        reused = checked_projects is not None and key in checked_projects
-        analyzers = [] if reused else ["Credo"]
-        if not reused and "phoenix" in rule_packs(config):
-            analyzers.append("Sobelow")
-        notices: dict[str, list[str]] = {name: [] for name in analyzers}
-        # Format, Credo and Sobelow each start a BEAM; run them side by side.
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            formatting = pool.submit(
-                run_command,
-                ["mix", "format", "--check-formatted", str(path)],
-                project,
-                "mix format",
-                deadline=deadline,
-            )
-            jobs = {
-                name: pool.submit(credo_new_violations, project, deadline=deadline)
-                if name == "Credo"
-                else pool.submit(
-                    sobelow_new_violations,
-                    project,
-                    config,
-                    deadline=deadline,
-                    warnings=notices[name],
-                )
-                for name in analyzers
-            }
-        violations.extend(formatting.result())
-        if reused:
-            return violations[:MAX_VIOLATIONS]
-        for analyzer, job in jobs.items():
-            try:
-                violations.extend(job.result())
-                for notice in notices[analyzer]:
-                    if strict and notice.startswith("NOT CHECKED"):
-                        violations.append(notice)
-                    elif warnings is not None:
-                        warnings.append(notice)
-                    else:
-                        print(notice, file=sys.stderr)
-            except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-                message = f"NOT CHECKED {analyzer}: {error}"
-                if strict:
-                    violations.append(message)
-                elif warnings is not None:
-                    warnings.append(message)
-                else:
-                    print(message, file=sys.stderr)
-        if checked_projects is not None:
-            checked_projects.add(key)
+        early = _check_elixir_file(
+            path,
+            root,
+            config,
+            strict,
+            deadline=deadline,
+            warnings=warnings,
+            checked_projects=checked_projects,
+            violations=violations,
+        )
+        if early is not None:
+            return early
 
     if language == "python":
         try:
@@ -5408,6 +5795,57 @@ def check_file(
     return violations[:MAX_VIOLATIONS]
 
 
+def _run_sobelow_workspace(
+    command: list[str], workspace: Path, deadline: float | None, notices: set[str]
+) -> list[tuple[tuple, int]]:
+    result = subprocess.run(
+        command,
+        cwd=workspace,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    if result.returncode:
+        raise ValueError(f"Sobelow failed (exit {result.returncode})")
+    if result.stderr.strip():
+        notices.add("NOT CHECKED Sobelow coverage: " + result.stderr.strip())
+    return sobelow_findings(result.stdout, workspace)
+
+
+def _format_sobelow_delta(
+    reports: list[list[tuple[tuple, int]]],
+    relative: Path,
+    thresholds: dict[str, str],
+    warnings: list[str] | None,
+) -> list[str]:
+    old = Counter(key for key, _ in reports[0])
+    findings = []
+    for key, location in reports[1]:
+        if old[key]:
+            old[key] -= 1
+            continue
+        confidence, path, rule, _, _ = key
+        evidence_finding(
+            f"sobelow:{confidence}:{rule.split(':', 1)[0]}",
+            (relative / path).as_posix(),
+        )
+        message = (
+            f"{(relative / path).as_posix()}:{location}: Sobelow {confidence}: {rule}"
+        )
+        if severity_matches(confidence, thresholds["block"]):
+            findings.append(message)
+            continue
+        label = "WARN" if severity_matches(confidence, thresholds["warn"]) else "INFO"
+        notice = f"NOT BLOCKED {label} {message}"
+        if warnings is not None:
+            warnings.append(notice)
+        else:
+            print(notice, file=sys.stderr)
+    return findings
+
+
 def sobelow_new_violations(
     project: Path,
     config: dict[str, Any],
@@ -5415,8 +5853,6 @@ def sobelow_new_violations(
     deadline: float | None = None,
     warnings: list[str] | None = None,
 ) -> list[str]:
-    import tempfile
-
     thresholds = security_policy(config)
     project = project.resolve()
     root = Path(
@@ -5427,10 +5863,9 @@ def sobelow_new_violations(
     base, changes = git_changes(root, None, deadline=deadline)
     if base is None:
         raise ValueError("Sobelow comparison requires committed base")
-    protected = protected_change_violations(
+    if protected := protected_change_violations(
         changes, base_policy(root, base, deadline=deadline) or {}
-    )
-    if protected:
+    ):
         return protected
     relative = project.relative_to(root)
     for change in changes:
@@ -5465,7 +5900,6 @@ def sobelow_new_violations(
         "--threshold",
         "low",
     ]
-
     with tempfile.TemporaryDirectory(prefix="loki-sobelow-") as directory:
         before = Path(directory) / "before"
         materialize_base(root, base, before, deadline=deadline)
@@ -5473,57 +5907,17 @@ def sobelow_new_violations(
         shutil.copytree(before, after)
         for change in changes:
             apply_snapshot_change(after, change)
-        reports = []
-        notices = set()
-        for workspace in (before / relative, after / relative):
-            result = subprocess.run(
-                command,
-                cwd=workspace,
-                capture_output=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=command_timeout(deadline),
-                check=False,
-            )
-            if result.returncode:
-                raise ValueError(f"Sobelow failed (exit {result.returncode})")
-            if result.stderr.strip():
-                notices.add("NOT CHECKED Sobelow coverage: " + result.stderr.strip())
-            reports.append(sobelow_findings(result.stdout, workspace))
+        notices: set[str] = set()
+        reports = [
+            _run_sobelow_workspace(command, workspace, deadline, notices)
+            for workspace in (before / relative, after / relative)
+        ]
         for notice in sorted(notices):
             if warnings is not None:
                 warnings.append(notice)
             else:
                 print(notice, file=sys.stderr)
-        old = Counter(key for key, _ in reports[0])
-        findings = []
-        for key, location in reports[1]:
-            if old[key]:
-                old[key] -= 1
-                continue
-            confidence, path, rule, _, _ = key
-            evidence_finding(
-                f"sobelow:{confidence}:{rule.split(':', 1)[0]}",
-                (relative / path).as_posix(),
-            )
-            message = (
-                f"{(relative / path).as_posix()}:{location}: "
-                f"Sobelow {confidence}: {rule}"
-            )
-            if severity_matches(confidence, thresholds["block"]):
-                findings.append(message)
-            else:
-                label = (
-                    "WARN"
-                    if severity_matches(confidence, thresholds["warn"])
-                    else "INFO"
-                )
-                message = f"NOT BLOCKED {label} {message}"
-                if warnings is not None:
-                    warnings.append(message)
-                else:
-                    print(message, file=sys.stderr)
-        return findings
+        return _format_sobelow_delta(reports, relative, thresholds, warnings)
 
 
 def severity_matches(confidence: str, threshold: str) -> bool:
@@ -5751,26 +6145,9 @@ def elixir_analysis(
                 )
                 status = "PASS" if result.returncode == 0 else "FAIL"
                 if tool in {"credo", "sobelow"}:
-                    try:
-                        payload = json.loads(result.stdout)
-                    except json.JSONDecodeError:
-                        status = "NOT CHECKED"
-                        output = "analyzer did not return valid JSON: " + output
-                    else:
-                        if not isinstance(payload, dict):
-                            raise ValueError("analyzer JSON must be an object")
-                        if tool == "credo":
-                            for issue in payload.get("issues", []):
-                                evidence_finding(issue["check"], issue.get("filename"))
-                        else:
-                            for confidence, issues in payload.get(
-                                "findings", {}
-                            ).items():
-                                for issue in issues:
-                                    evidence_finding(
-                                        f"sobelow:{confidence}:{issue['type']}",
-                                        issue.get("file"),
-                                    )
+                    status, output = _record_elixir_json(
+                        tool, result.stdout, status, output
+                    )
             except (
                 OSError,
                 ValueError,
@@ -5791,6 +6168,25 @@ def elixir_analysis(
         if status != "PASS":
             evidence_finding(f"elixir:{tool}:{status.lower().replace(' ', '-')}")
     return report
+
+
+def _record_elixir_json(
+    tool: str, stdout: str, status: str, output: str
+) -> tuple[str, str]:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return "NOT CHECKED", "analyzer did not return valid JSON: " + output
+    if not isinstance(payload, dict):
+        raise ValueError("analyzer JSON must be an object")
+    if tool == "credo":
+        for issue in payload.get("issues", []):
+            evidence_finding(issue["check"], issue.get("filename"))
+        return status, output
+    for confidence, issues in payload.get("findings", {}).items():
+        for issue in issues:
+            evidence_finding(f"sobelow:{confidence}:{issue['type']}", issue.get("file"))
+    return status, output
 
 
 def scan_command(
@@ -5845,34 +6241,35 @@ def scan_command(
     return "toolchain", []
 
 
-def manifest_dependencies(root: Path) -> list[tuple[str, str]]:
-    found: set[tuple[str, str]] = set()
+def _npm_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
+    import contextlib
+
     package_json = root / "package.json"
-    if package_json.is_file():
-        try:
-            data = json.loads(package_json.read_text(encoding="utf-8"))
+    if not package_json.is_file():
+        return
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        data = json.loads(package_json.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
             for field in ("dependencies", "devDependencies"):
-                values = data.get(field, {}) if isinstance(data, dict) else {}
+                values = data.get(field, {})
                 if isinstance(values, dict):
                     found.update(
                         ("npm", name) for name in values if isinstance(name, str)
                     )
-        except (OSError, json.JSONDecodeError):
-            pass
 
+
+def _python_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
     pyproject = root / "pyproject.toml"
     if pyproject.is_file():
         try:
             data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-            project = data.get("project", {})
-            values = (
-                project.get("dependencies", []) if isinstance(project, dict) else []
-            )
-            for value in values if isinstance(values, list) else []:
-                if isinstance(value, str) and (name := dependency_name(value)):
-                    found.add(("pypi", name.replace("_", "-")))
         except (OSError, tomllib.TOMLDecodeError):
-            pass
+            data = {}
+        project = data.get("project", {})
+        values = project.get("dependencies", []) if isinstance(project, dict) else []
+        for value in values if isinstance(values, list) else []:
+            if isinstance(value, str) and (name := dependency_name(value)):
+                found.add(("pypi", name.replace("_", "-")))
     for requirements in root.glob("requirements*.txt"):
         try:
             lines = requirements.read_text(encoding="utf-8").splitlines()
@@ -5887,51 +6284,57 @@ def manifest_dependencies(root: Path) -> list[tuple[str, str]]:
             ):
                 found.add(("pypi", name.replace("_", "-")))
 
+
+def _go_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
+    import contextlib
+
     go_mod = root / "go.mod"
-    if go_mod.is_file():
-        try:
-            text = go_mod.read_text(encoding="utf-8")
-            in_require = False
-            for raw_line in text.splitlines():
-                line = raw_line.strip()
-                if line == "require (":
-                    in_require = True
-                    continue
-                if in_require and line == ")":
-                    in_require = False
-                    continue
-                match = (
-                    re.match(r"require\s+([^\s]+)\s+v", line)
-                    if not in_require
-                    else re.match(r"([^\s]+)\s+v", line)
-                )
-                if match:
-                    found.add(("go", match.group(1)))
-        except OSError:
-            pass
+    if not go_mod.is_file():
+        return
+    with contextlib.suppress(OSError):
+        text = go_mod.read_text(encoding="utf-8")
+        in_require = False
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if line == "require (":
+                in_require = True
+                continue
+            if in_require and line == ")":
+                in_require = False
+                continue
+            pattern = r"([^\s]+)\s+v" if in_require else r"require\s+([^\s]+)\s+v"
+            if match := re.match(pattern, line):
+                found.add(("go", match.group(1)))
+
+
+def _cargo_and_mix_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
+    import contextlib
 
     cargo_toml = root / "Cargo.toml"
     if cargo_toml.is_file():
-        try:
+        with contextlib.suppress(OSError, tomllib.TOMLDecodeError):
             data = tomllib.loads(cargo_toml.read_text(encoding="utf-8"))
             values = data.get("dependencies", {})
             if isinstance(values, dict):
                 found.update(
                     ("crates", name) for name in values if isinstance(name, str)
                 )
-        except (OSError, tomllib.TOMLDecodeError):
-            pass
-
     mix_exs = root / "mix.exs"
     if mix_exs.is_file():
-        try:
+        with contextlib.suppress(OSError):
             text = mix_exs.read_text(encoding="utf-8")
             found.update(
                 ("hex", name)
                 for name in re.findall(r"\{\s*:([a-zA-Z0-9_]+)\s*,\s*[\"']", text)
             )
-        except OSError:
-            pass
+
+
+def manifest_dependencies(root: Path) -> list[tuple[str, str]]:
+    found: set[tuple[str, str]] = set()
+    _npm_manifest_dependencies(root, found)
+    _python_manifest_dependencies(root, found)
+    _go_manifest_dependencies(root, found)
+    _cargo_and_mix_dependencies(root, found)
     return sorted(found)
 
 
@@ -6158,6 +6561,87 @@ def repository_gap(root: Path, *, deadline: float | None = None) -> str | None:
     return None
 
 
+def _resolve_git_base(
+    root: Path, base: str | None, deadline: float | None
+) -> str | None:
+    if base is not None and re.fullmatch(r"(?:0{40}|0{64})", base):
+        return None
+    options = dict(
+        cwd=root,
+        capture_output=True,
+        timeout=command_timeout(deadline),
+        env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
+        check=False,
+    )
+    try:
+        commit = subprocess.run(
+            [
+                "git",
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
+                f"{base if base is not None else 'HEAD'}^{{commit}}",
+            ],
+            **options,
+        )
+        if commit.returncode == 0:
+            return commit.stdout.decode("ascii").strip()
+        if base is not None:
+            raise ValueError("git: invalid base reference")
+        options["timeout"] = command_timeout(deadline)
+        symbolic = subprocess.run(["git", "symbolic-ref", "-q", "HEAD"], **options)
+        if symbolic.returncode != 0 or not symbolic.stdout.startswith(b"refs/heads/"):
+            raise ValueError("git: cannot resolve HEAD")
+        options["timeout"] = command_timeout(deadline)
+        exists = subprocess.run(
+            [
+                "git",
+                "show-ref",
+                "--verify",
+                "--quiet",
+                os.fsdecode(symbolic.stdout).rstrip("\n"),
+            ],
+            **options,
+        )
+        if exists.returncode != 1:
+            raise ValueError("git: cannot resolve HEAD commit")
+        return None
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError(f"git: {error}") from error
+
+
+def _verify_tracked_file_types(
+    root: Path, entries: dict[str, tuple[str, str, str]], deadline: float | None
+) -> None:
+    # Git can omit tracked files replaced by FIFOs. Inspect directory entries
+    # without following symlinks; reuse parent validation only in this sweep.
+    parents: dict[str, set[str]] = {}
+    for name, (before_mode, _, _) in entries.items():
+        if before_mode != "160000":
+            parent, filename = os.path.split(name)
+            parents.setdefault(parent, set()).add(filename)
+    for parent, filenames in parents.items():
+        command_timeout(deadline)
+        directory = os.path.realpath(os.path.join(root, parent))
+        if os.path.commonpath((str(root), directory)) != str(root):
+            raise ValueError(f"loki: outside project root: {parent}")
+        _check_directory_children(directory, parent, filenames)
+
+
+def _check_directory_children(directory: str, parent: str, filenames: set[str]) -> None:
+    import contextlib
+
+    with contextlib.suppress(FileNotFoundError), os.scandir(directory) as children:
+        for child in children:
+            if (
+                child.name in filenames
+                and not child.is_file(follow_symlinks=False)
+                and not child.is_symlink()
+            ):
+                name = os.path.join(parent, child.name)
+                raise ValueError(f"loki: unsupported changed file type: {name}")
+
+
 def git_changes(
     root: Path,
     base: str | None,
@@ -6174,55 +6658,7 @@ def git_changes(
         raise ValueError("loki: unresolved index conflict")
     if base == "":
         raise ValueError("git: empty base reference")
-    resolved: str | None = None
-    if not (base is not None and re.fullmatch(r"(?:0{40}|0{64})", base)):
-        options = dict(
-            cwd=root,
-            capture_output=True,
-            timeout=command_timeout(deadline),
-            env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
-            check=False,
-        )
-        try:
-            commit = subprocess.run(
-                [
-                    "git",
-                    "rev-parse",
-                    "--verify",
-                    "--end-of-options",
-                    f"{base if base is not None else 'HEAD'}^{{commit}}",
-                ],
-                **options,
-            )
-            if commit.returncode == 0:
-                resolved = commit.stdout.decode("ascii").strip()
-            elif base is None:
-                options["timeout"] = command_timeout(deadline)
-                symbolic = subprocess.run(
-                    ["git", "symbolic-ref", "-q", "HEAD"],
-                    **options,
-                )
-                if symbolic.returncode != 0 or not symbolic.stdout.startswith(
-                    b"refs/heads/"
-                ):
-                    raise ValueError("git: cannot resolve HEAD")
-                options["timeout"] = command_timeout(deadline)
-                exists = subprocess.run(
-                    [
-                        "git",
-                        "show-ref",
-                        "--verify",
-                        "--quiet",
-                        os.fsdecode(symbolic.stdout).rstrip("\n"),
-                    ],
-                    **options,
-                )
-                if exists.returncode != 1:
-                    raise ValueError("git: cannot resolve HEAD commit")
-            else:
-                raise ValueError("git: invalid base reference")
-        except (OSError, subprocess.TimeoutExpired) as error:
-            raise ValueError(f"git: {error}") from error
+    resolved = _resolve_git_base(root, base, deadline)
     entries: dict[str, tuple[str, str, str]] = {}
     if resolved:
         for entry in git_output(
@@ -6232,32 +6668,7 @@ def git_changes(
                 metadata, path = entry.split(b"\t", 1)
                 mode, kind, oid = metadata.decode("ascii").split()
                 entries[os.fsdecode(path)] = (mode, kind, oid)
-        # Git can omit tracked files replaced by FIFOs. Inspect directory entries
-        # without following symlinks; reuse parent validation only in this sweep.
-        parents: dict[str, set[str]] = {}
-        for name, (before_mode, _, _) in entries.items():
-            if before_mode != "160000":
-                parent, filename = os.path.split(name)
-                parents.setdefault(parent, set()).add(filename)
-        for parent, filenames in parents.items():
-            command_timeout(deadline)
-            directory = os.path.realpath(os.path.join(root, parent))
-            if os.path.commonpath((str(root), directory)) != str(root):
-                raise ValueError(f"loki: outside project root: {parent}")
-            try:
-                with os.scandir(directory) as children:
-                    for child in children:
-                        if (
-                            child.name in filenames
-                            and not child.is_file(follow_symlinks=False)
-                            and not child.is_symlink()
-                        ):
-                            name = os.path.join(parent, child.name)
-                            raise ValueError(
-                                f"loki: unsupported changed file type: {name}"
-                            )
-            except FileNotFoundError:
-                continue
+        _verify_tracked_file_types(root, entries, deadline)
         names = git_output(
             root,
             [
@@ -6358,8 +6769,7 @@ def protected_change_violations(
     return findings
 
 
-def test_integrity_violations(changes: list[FileChange]) -> list[str]:
-    violations: list[str] = []
+def _moved_test_paths(changes: list[FileChange]) -> set[str]:
     # Pair one deletion with one addition; duplicate content is not a blanket waiver.
     additions: dict[tuple[bytes, str], list[str]] = {}
     for change in changes:
@@ -6383,58 +6793,71 @@ def test_integrity_violations(changes: list[FileChange]) -> list[str]:
             destinations = additions.get((change.before, change.before_mode), [])
             if destinations:
                 moved.update((change.path, destinations.pop()))
+    return moved
+
+
+def _changed_lines(change: FileChange) -> tuple[list[str], list[str]]:
+    try:
+        before = (change.before or b"").decode("utf-8").splitlines()
+        after = (change.after or b"").decode("utf-8").splitlines()
+    except UnicodeDecodeError as error:
+        raise ValueError(
+            f"loki: cannot inspect non-UTF-8 test/config: {change.path}"
+        ) from error
+    removed: list[str] = []
+    added: list[str] = []
+    for tag, i, j, a, b in difflib.SequenceMatcher(
+        None, before, after, autojunk=False
+    ).get_opcodes():
+        if tag != "equal":
+            removed.extend(before[i:j])
+            added.extend(after[a:b])
+    return removed, added
+
+
+def _test_file_integrity(
+    change: FileChange, removed: list[str], added: list[str]
+) -> list[str]:
+    path = change.path
+    found: list[str] = []
+    if change.before is not None and change.after is None:
+        evidence_finding("test-file-deleted", path)
+        found.append(f"{path}: test file deleted")
+    removed_tests = sum(bool(TEST_DECLARATION_RE.search(line)) for line in removed)
+    added_tests = sum(bool(TEST_DECLARATION_RE.search(line)) for line in added)
+    if removed_tests > added_tests:
+        evidence_finding("test-deleted", path)
+        found.append(f"{path}: test deleted")
+    removed_assertions = sum(bool(ASSERTION_RE.search(line)) for line in removed)
+    added_assertions = sum(bool(ASSERTION_RE.search(line)) for line in added)
+    if removed_assertions > added_assertions:
+        evidence_finding("assertion-removed", path)
+        found.append(f"{path}: assertion removed")
+    if any(SKIP_RE.search(line) for line in added):
+        evidence_finding("test-skip-added", path)
+        found.append(f"{path}: test skip added")
+    return found
+
+
+def test_integrity_violations(changes: list[FileChange]) -> list[str]:
+    violations: list[str] = []
+    moved = _moved_test_paths(changes)
     for change in changes:
         path = change.path
         if path in moved:
             continue
-        if not TEST_PATH_RE.search(path) and not any(
-            path_matches(path, pattern) for pattern in QUALITY_POLICY_PATHS
-        ):
+        is_test = bool(TEST_PATH_RE.search(path))
+        is_policy = any(path_matches(path, pattern) for pattern in QUALITY_POLICY_PATHS)
+        if not is_test and not is_policy:
             continue
-        try:
-            before = (change.before or b"").decode("utf-8").splitlines()
-            after = (change.after or b"").decode("utf-8").splitlines()
-        except UnicodeDecodeError as error:
-            raise ValueError(
-                f"loki: cannot inspect non-UTF-8 test/config: {path}"
-            ) from error
-        removed: list[str] = []
-        added: list[str] = []
-        for tag, i, j, a, b in difflib.SequenceMatcher(
-            None, before, after, autojunk=False
-        ).get_opcodes():
-            if tag != "equal":
-                removed.extend(before[i:j])
-                added.extend(after[a:b])
-        if (
-            TEST_PATH_RE.search(path)
-            and change.before is not None
-            and change.after is None
+        removed, added = _changed_lines(change)
+        if is_test:
+            violations.extend(_test_file_integrity(change, removed, added))
+        if is_policy and any(
+            QUALITY_POLICY_RE.search(line) for line in [*removed, *added]
         ):
-            evidence_finding("test-file-deleted", path)
-            violations.append(f"{path}: test file deleted")
-        if TEST_PATH_RE.search(path):
-            removed_tests = sum(
-                bool(TEST_DECLARATION_RE.search(line)) for line in removed
-            )
-            added_tests = sum(bool(TEST_DECLARATION_RE.search(line)) for line in added)
-            if removed_tests > added_tests:
-                evidence_finding("test-deleted", path)
-                violations.append(f"{path}: test deleted")
-            removed_assertions = sum(
-                bool(ASSERTION_RE.search(line)) for line in removed
-            )
-            added_assertions = sum(bool(ASSERTION_RE.search(line)) for line in added)
-            if removed_assertions > added_assertions:
-                evidence_finding("assertion-removed", path)
-                violations.append(f"{path}: assertion removed")
-            if any(SKIP_RE.search(line) for line in added):
-                evidence_finding("test-skip-added", path)
-                violations.append(f"{path}: test skip added")
-        if any(path_matches(path, pattern) for pattern in QUALITY_POLICY_PATHS):
-            if any(QUALITY_POLICY_RE.search(line) for line in [*removed, *added]):
-                evidence_finding("quality-threshold-changed", path)
-                violations.append(f"{path}: quality threshold changed")
+            evidence_finding("quality-threshold-changed", path)
+            violations.append(f"{path}: quality threshold changed")
     return violations[:MAX_VIOLATIONS]
 
 
@@ -6649,6 +7072,88 @@ def write_guardrail_violations(
         return [str(error)]
 
 
+def _scan_repository(
+    root: Path, config: dict[str, Any], strict: bool, base: str | None
+) -> tuple[dict[str, Any] | None, int]:
+    try:
+        git_output(root, ["rev-parse", "--show-toplevel"])
+    except ValueError as error:
+        if strict or base is not None:
+            print(str(error))
+            return None, 1
+        print("NOT CHECKED repository: git repository required")
+        return config, 0
+    try:
+        resolved_base, changes = git_changes(root, base)
+        policy = base_policy(root, resolved_base)
+        protected = protected_change_violations(
+            changes, policy if policy is not None else {}
+        )
+        if protected:
+            print("\n".join(protected))
+            return None, 1
+        effective = policy if policy is not None else config
+        findings = repository_violations(root, effective, resolved_base, changes)
+        if findings:
+            print("\n".join(findings))
+            return None, 1
+        return effective, 0
+    except (ValueError, OSError) as error:
+        print(f"loki: {error}")
+        return None, 1
+
+
+def _scan_elixir_projects(
+    root: Path, files: list[Path], strict: bool, violations: dict[str, list[str]]
+) -> None:
+    projects = {mix_project(path, root) for path in files}
+    if None in projects:
+        print("NOT CHECKED elixir: source files without an enclosing Mix project")
+        if strict:
+            violations.setdefault("elixir", []).append("Mix project required")
+    for project in sorted(item for item in projects if item is not None):
+        for check in elixir_analysis(project, "project", []):
+            label = f"{project.relative_to(root)}:{check['tool']}"
+            print(f"[{label}] {check['status']}")
+            failed = check["status"] == "FAIL" or (
+                strict and check["status"] == "NOT CHECKED"
+            )
+            if failed:
+                violations.setdefault("elixir", []).append(
+                    f"{label}: {check['output']}"
+                )
+            elif check["output"]:
+                print(check["output"])
+
+
+def _scan_python_ast(
+    root: Path,
+    files: list[Path],
+    dependencies: set[str] | None,
+    python: str | None,
+    strict: bool,
+    violations: dict[str, list[str]],
+) -> None:
+    notices: list[str] = []
+    for path in files:
+        violations.setdefault("python", []).extend(
+            python_ast_violations(
+                path,
+                root,
+                dependencies,
+                python=python,
+                strict=strict,
+                warnings=notices,
+            )
+        )
+        if len(violations["python"]) >= MAX_VIOLATIONS:
+            break
+    # One interpreter answers for every file; say so once.
+    violations["python"] = list(dict.fromkeys(violations["python"]))
+    for notice in notices:
+        print(notice)
+
+
 def scan(
     root: Path,
     config: dict[str, Any],
@@ -6658,31 +7163,10 @@ def scan(
     python: str | None = None,
 ) -> int:
     config = validate_config(config)
-    try:
-        git_output(root, ["rev-parse", "--show-toplevel"])
-    except ValueError as error:
-        if strict or base is not None:
-            print(str(error))
-            return 1
-        print("NOT CHECKED repository: git repository required")
-    else:
-        try:
-            resolved_base, changes = git_changes(root, base)
-            policy = base_policy(root, resolved_base)
-            protected = protected_change_violations(
-                changes, policy if policy is not None else {}
-            )
-            if protected:
-                print("\n".join(protected))
-                return 1
-            config = policy if policy is not None else config
-            findings = repository_violations(root, config, resolved_base, changes)
-            if findings:
-                print("\n".join(findings))
-                return 1
-        except (ValueError, OSError) as error:
-            print(f"loki: {error}")
-            return 1
+    effective, status = _scan_repository(root, config, strict, base)
+    if effective is None:
+        return status
+    config = effective
     grouped: dict[str, list[Path]] = {}
     for path in iter_source_files(root):
         language = LANGUAGE_EXTENSIONS[path.suffix.lower()]
@@ -6696,25 +7180,7 @@ def scan(
         if not files:
             continue
         if language == "elixir":
-            projects = {mix_project(path, root) for path in files}
-            if None in projects:
-                print(
-                    "NOT CHECKED elixir: source files without an enclosing Mix project"
-                )
-                if strict:
-                    violations.setdefault(language, []).append("Mix project required")
-            for project in sorted(item for item in projects if item is not None):
-                for check in elixir_analysis(project, "project", []):
-                    label = f"{project.relative_to(root)}:{check['tool']}"
-                    print(f"[{label}] {check['status']}")
-                    if check["status"] == "FAIL" or (
-                        strict and check["status"] == "NOT CHECKED"
-                    ):
-                        violations.setdefault(language, []).append(
-                            f"{label}: {check['output']}"
-                        )
-                    elif check["output"]:
-                        print(check["output"])
+            _scan_elixir_projects(root, files, strict, violations)
             continue
         missing, commands = scan_command(language, files, root)
         if missing:
@@ -6726,29 +7192,11 @@ def scan(
                 run_command(command, root, command[0])
             )
         if language == "python":
-            notices: list[str] = []
-            for path in files:
-                violations.setdefault(language, []).extend(
-                    python_ast_violations(
-                        path,
-                        root,
-                        dependencies,
-                        python=python,
-                        strict=strict,
-                        warnings=notices,
-                    )
-                )
-                if len(violations[language]) >= MAX_VIOLATIONS:
-                    break
-            # One interpreter answers for every file; say so once.
-            violations[language] = list(dict.fromkeys(violations[language]))
-            for notice in notices:
-                print(notice)
+            _scan_python_ast(root, files, dependencies, python, strict, violations)
     if grouped.get("typescript"):
         violations.setdefault("typescript", []).extend(
             typescript_findings(root, config)
         )
-
     if online:
         dependency_issues = slopsquatting_violations(root, config)
         if dependency_issues:
@@ -7034,6 +7482,45 @@ def install_target(target: Path, force: bool = False) -> None:
     print(f"Verify: {'loki' if shutil.which('loki') else 'python3 .loki/loki.py'} scan")
 
 
+def _apply_preview_edits(
+    old: str, edits: Any, harness: str | None, deadline: float | None
+) -> str | None:
+    if not isinstance(edits, list) or not 1 <= len(edits) <= 256:
+        raise ValueError("edit preview requires 1 to 256 edits")
+    fields = (
+        ("oldText", "newText", "replace_all")
+        if harness == "pi"
+        else ("old_str", "new_str", "change_all")
+        if harness == "factory"
+        else ("old_string", "new_string", "replace_all")
+    )
+    content = old
+    for edit in edits:
+        command_timeout(deadline)
+        if not isinstance(edit, dict):
+            raise ValueError("invalid edit preview")
+        source, replacement = (edit.get(key) for key in fields[:2])
+        replace_all = edit.get(fields[2], False)
+        if (
+            not isinstance(source, str)
+            or not source
+            or not isinstance(replacement, str)
+        ):
+            return None
+        if not isinstance(replace_all, bool):
+            raise ValueError("replacement mode must be boolean")
+        matches = content.count(source)
+        if not matches or (matches != 1 and not replace_all):
+            return None
+        size = len(content.encode("utf-8")) + matches * (
+            len(replacement.encode("utf-8")) - len(source.encode("utf-8"))
+        )
+        if size > 4 * 1024 * 1024:
+            raise ValueError("preview exceeds 4 MiB")
+        content = content.replace(source, replacement, -1 if replace_all else 1)
+    return content
+
+
 def preview_changes(
     root: Path,
     paths: list[str],
@@ -7080,42 +7567,60 @@ def preview_changes(
         if before is None:
             raise ValueError("edit preview requires an existing file")
         edits = data.get("edits") if name == "MultiEdit" else [data]
-        if not isinstance(edits, list) or not 1 <= len(edits) <= 256:
-            raise ValueError("edit preview requires 1 to 256 edits")
-        content = old
-        for edit in edits:
-            command_timeout(deadline)
-            if not isinstance(edit, dict):
-                raise ValueError("invalid edit preview")
-            fields = (
-                ("oldText", "newText", "replace_all")
-                if harness == "pi"
-                else ("old_str", "new_str", "change_all")
-                if harness == "factory"
-                else ("old_string", "new_string", "replace_all")
-            )
-            source, replacement = (edit.get(key) for key in fields[:2])
-            replace_all = edit.get(fields[2], False)
-            if (
-                not isinstance(source, str)
-                or not source
-                or not isinstance(replacement, str)
-            ):
-                return None
-            if not isinstance(replace_all, bool):
-                raise ValueError("replacement mode must be boolean")
-            matches = content.count(source)
-            if not matches or (matches != 1 and not replace_all):
-                return None
-            size = len(content.encode("utf-8")) + matches * (
-                len(replacement.encode("utf-8")) - len(source.encode("utf-8"))
-            )
-            if size > 4 * 1024 * 1024:
-                raise ValueError("preview exceeds 4 MiB")
-            content = content.replace(source, replacement, -1 if replace_all else 1)
+        content = _apply_preview_edits(old, edits, harness, deadline)
+        if content is None:
+            return None
     if len(content.encode("utf-8")) > 4 * 1024 * 1024:
         raise ValueError("preview exceeds 4 MiB")
     return [(relative, old, content)]
+
+
+def _oxlint_diagnostic_fingerprint(
+    item: Any, files: dict[str, tuple[str, str, str]]
+) -> tuple[str, tuple[str, str, str, str, str], int]:
+    if (
+        not isinstance(item, dict)
+        or not isinstance(item.get("filename"), str)
+        or item["filename"] not in files
+    ):
+        raise ValueError("invalid Oxlint preview diagnostic")
+    side, relative, content = files[item["filename"]]
+    code = item.get("code")
+    message = item.get("message")
+    labels = item.get("labels")
+    if (
+        not isinstance(code, str)
+        or not code
+        or not isinstance(message, str)
+        or not message
+        or not isinstance(labels, list)
+        or not labels
+        or not isinstance(labels[0], dict)
+        or not isinstance(labels[0].get("span"), dict)
+    ):
+        raise ValueError("unpositioned Oxlint preview diagnostic")
+    span = labels[0]["span"]
+    offset, length, line = (span.get(key) for key in ("offset", "length", "line"))
+    encoded = content.encode("utf-8")
+    if (
+        type(offset) is not int
+        or type(length) is not int
+        or type(line) is not int
+        or offset < 0
+        or length < 0
+        or offset + length > len(encoded)
+        or line < 1
+        or line > len(content.splitlines())
+    ):
+        raise ValueError("invalid Oxlint preview diagnostic span")
+    fingerprint = (
+        relative,
+        code,
+        message,
+        content.splitlines()[line - 1].strip(),
+        encoded[offset : offset + length].decode("utf-8"),
+    )
+    return side, fingerprint, line
 
 
 def preview_oxlint(
@@ -7124,8 +7629,6 @@ def preview_oxlint(
     *,
     deadline: float | None,
 ) -> list[str]:
-    import tempfile
-
     binary = resolve_tool(root, "oxlint")
     if not binary:
         raise ValueError("missing oxlint for content preview")
@@ -7185,50 +7688,7 @@ def preview_oxlint(
         counts = {"before": Counter(), "after": Counter()}
         locations = {}
         for item in report["diagnostics"]:
-            if (
-                not isinstance(item, dict)
-                or not isinstance(item.get("filename"), str)
-                or item["filename"] not in files
-            ):
-                raise ValueError("invalid Oxlint preview diagnostic")
-            side, relative, content = files[item["filename"]]
-            code = item.get("code")
-            message = item.get("message")
-            labels = item.get("labels")
-            if (
-                not isinstance(code, str)
-                or not code
-                or not isinstance(message, str)
-                or not message
-                or not isinstance(labels, list)
-                or not labels
-                or not isinstance(labels[0], dict)
-                or not isinstance(labels[0].get("span"), dict)
-            ):
-                raise ValueError("unpositioned Oxlint preview diagnostic")
-            span = labels[0]["span"]
-            offset, length, line = (
-                span.get(key) for key in ("offset", "length", "line")
-            )
-            encoded = content.encode("utf-8")
-            if (
-                type(offset) is not int
-                or type(length) is not int
-                or type(line) is not int
-                or offset < 0
-                or length < 0
-                or offset + length > len(encoded)
-                or line < 1
-                or line > len(content.splitlines())
-            ):
-                raise ValueError("invalid Oxlint preview diagnostic span")
-            fingerprint = (
-                relative,
-                code,
-                message,
-                content.splitlines()[line - 1].strip(),
-                encoded[offset : offset + length].decode("utf-8"),
-            )
+            side, fingerprint, line = _oxlint_diagnostic_fingerprint(item, files)
             counts[side][fingerprint] += 1
             locations[fingerprint] = line
         if bool(report["diagnostics"]) != bool(result.returncode):
@@ -7448,139 +7908,346 @@ def hygiene_command(root: Path, config: dict[str, Any], args: Any) -> int:
     return 0
 
 
+def _run_elixir_command(args: Any) -> int:
+    try:
+        if args.credo_new:
+            findings = credo_new_violations(args.project.resolve())
+            print(
+                json.dumps({"tool": "credo", "findings": findings})
+                if args.json
+                else "\n".join(findings)
+            )
+            return int(bool(findings))
+        report = elixir_analysis(args.project.resolve(), args.tier, args.file)
+        if args.json:
+            print(json.dumps(report))
+            return int(any(item["status"] != "PASS" for item in report))
+        for item in report:
+            print(f"[{item['tool']}] {item['status']}")
+            if item["output"]:
+                print(item["output"])
+        return int(any(item["status"] != "PASS" for item in report))
+    except (OSError, ValueError) as error:
+        print(f"loki: Elixir analysis unavailable: {error}", file=sys.stderr)
+        return 1
+
+
+def _run_verify_installation_command(args: Any) -> int:
+    findings = installation_violations(
+        [args.engine, *args.registration], args.agent_uid
+    )
+    for finding in findings:
+        print(finding)
+    if not findings:
+        print(
+            "Ownership/mode checks passed; ACLs, privileged access and host "
+            "activation require operator verification"
+        )
+    return int(bool(findings))
+
+
+def _run_context_command(args: Any) -> int:
+    try:
+        context_root = (args.root or DEFAULT_ROOT).resolve()
+        config = load_config(context_root)
+        output: dict[str, Any] = {
+            "hookSpecificOutput": {
+                "hookEventName": args.event,
+                "additionalContext": injected_context(context_root, config, args.host),
+            }
+        }
+        if args.host:
+            # What a host that runs the engine itself may ask of it.
+            output["loki"] = {"version": __version__, "formats": ["text", "json"]}
+        print(json.dumps(output))
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"loki: context unavailable: {error}", file=sys.stderr)
+        return 2
+
+
+def _read_shell_envelope() -> dict[str, Any]:
+    raw = sys.stdin.read(4 * 1024 * 1024 + 1)
+    if len(raw) > 4 * 1024 * 1024:
+        raise ValueError("shell envelope exceeds 4 MiB")
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise ValueError("invalid shell envelope")
+    return payload
+
+
+def _run_shell_command(args: Any) -> int:
+    try:
+        payload = _read_shell_envelope()
+        if not isinstance(payload.get("tool_input"), dict):
+            raise ValueError("invalid shell envelope")
+        root = (args.root or DEFAULT_ROOT).resolve()
+        cwd = shell_cwd(payload, args.harness, root)
+        if reason := shell_violation(
+            payload["tool_input"].get("command"), root=root, cwd=cwd
+        ):
+            print(reason, file=sys.stderr)
+            return 2
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"loki: invalid shell input: {error}", file=sys.stderr)
+        return 2
+
+
+def _run_shell_writes_command(args: Any) -> int:
+    try:
+        payload = _read_shell_envelope()
+        root = (args.root or DEFAULT_ROOT).resolve()
+        cwd = Path(payload.get("cwd") or root).resolve()
+        if reason := shell_writes_violation(payload.get("command"), root, cwd):
+            print(reason, file=sys.stderr)
+            return 2
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"loki: invalid shell input: {error}", file=sys.stderr)
+        return 2
+
+
+def _run_apply_command(args: Any) -> int:
+    try:
+        apply_transaction(
+            (args.root or DEFAULT_ROOT).resolve(), args.manifest, args.check_only
+        )
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"loki: {error}", file=sys.stderr)
+        return 2
+
+
+def _run_explain_command(args: Any) -> int:
+    try:
+        for event in read_events(DEFAULT_ROOT.resolve(), args.limit):
+            print(json.dumps(event, sort_keys=True))
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"loki: {error}", file=sys.stderr)
+        return 1
+
+
+def _run_init_command(args: Any) -> int:
+    try:
+        if args.minimal:
+            if args.shell_guard or args.managed_dir:
+                raise ValueError(
+                    "--minimal installs only .loki/; "
+                    "it takes neither --shell-guard nor --managed-dir"
+                )
+            install_minimal(Path(args.dir), args.force)
+            return 0
+        install_target(Path(args.dir), args.force)
+        if args.shell_guard:
+            install_shell_guard(Path(args.dir).resolve())
+        if args.managed_dir:
+            install_managed(Path(args.dir).resolve(), args.managed_dir.resolve())
+        return 0
+    except (OSError, ValueError) as error:
+        print(f"loki: {error}", file=sys.stderr)
+        return 1
+
+
+def _run_scan_command(root: Path, config: dict[str, Any], args: Any) -> int:
+    if args.ruff_new:
+        try:
+            findings = ruff_new_violations(root, args.base)
+            if findings:
+                print("\n".join(findings))
+            return int(bool(findings))
+        except (OSError, ValueError) as error:
+            print(f"loki: {error}", file=sys.stderr)
+            return 1
+    return scan(
+        root,
+        config,
+        args.online,
+        args.strict or os.environ.get("LOKI_STRICT") == "1",
+        args.base,
+        args.python,
+    )
+
+
+def _run_post_write_advisories(
+    root: Path,
+    targets: list[Path],
+    config: dict[str, Any],
+    args: Any,
+    deadline: float,
+    messages: list[str],
+    warnings: list[str],
+) -> None:
+    # Structural sloppiness is advisory unless slop.block is set.
+    try:
+        notes = written_slop(root, targets, deadline=deadline)
+    except (OSError, UnicodeDecodeError, ValueError) as error:
+        notes = [f"NOT CHECKED slop: {error}"]
+    if slop_policy(config).get("block"):
+        messages.extend(note for note in notes if "NOT CHECKED" not in note)
+        warnings.extend(note for note in notes if "NOT CHECKED" in note)
+    else:
+        warnings.extend(notes)
+    if (level := hygiene_level(config)) != "off":
+        try:
+            warnings.extend(
+                written_hygiene(
+                    root,
+                    targets,
+                    level,
+                    deadline=deadline,
+                    python=args.python,
+                )
+            )
+        except (OSError, ValueError) as error:
+            warnings.append(f"NOT CHECKED hygiene: {error}")
+
+
+def _run_hook_checks(
+    root: Path,
+    paths: list[str],
+    config: dict[str, Any],
+    args: Any,
+    deadline: float,
+    warnings: list[str],
+) -> list[str]:
+    targets = [Path(os.path.abspath(root / path)) for path in paths]
+    messages = list(
+        write_guardrail_violations(
+            targets, root, config, deadline=deadline, warnings=warnings
+        )
+    )
+    if messages:
+        return messages
+    if any(target.suffix in TYPESCRIPT_SUFFIXES for target in targets):
+        messages.extend(
+            typescript_findings(root, config, deadline=deadline, warnings=warnings)
+        )
+    if messages:
+        return messages
+    _run_post_write_advisories(
+        root, targets, config, args, deadline, messages, warnings
+    )
+    checked_projects: set[tuple[str, Path]] = set()
+    strict = os.environ.get("LOKI_STRICT") == "1"
+    for target in targets:
+        messages.extend(
+            check_file(
+                target,
+                root,
+                config,
+                strict,
+                deadline=deadline,
+                warnings=warnings,
+                batch_paths=targets,
+                checked_projects=checked_projects,
+                python=args.python,
+            )
+        )
+    return messages
+
+
+def _emit_guard_result(args: Any, messages: list[str], warnings: list[str]) -> int:
+    warnings = list(dict.fromkeys(warnings))
+    if args.format == "json":
+        print(json.dumps(hook_report(args.command, messages, warnings)))
+    if messages:
+        if args.command == "hook":
+            print(
+                "loki: post-write check failed; files are already changed.",
+                file=sys.stderr,
+            )
+        advisory = [item for item in warnings if not item.startswith("NOT CHECKED")]
+        unchecked = [item for item in warnings if item.startswith("NOT CHECKED")]
+        # Only the lines above the label failed the check.
+        label = ["loki: advisory (not blocking):"] if advisory else []
+        lines = [*messages, *label, *advisory, *unchecked]
+        print("\n".join(lines[:MAX_VIOLATIONS]), file=sys.stderr)
+        return 2
+    if warnings:
+        text = "\n".join(warnings)
+        print(text, file=sys.stderr)
+        if args.harness:
+            event_name = "PreToolUse" if args.command == "protect" else "PostToolUse"
+            print(
+                json.dumps(
+                    {
+                        "hookSpecificOutput": {
+                            "hookEventName": event_name,
+                            "additionalContext": text,
+                        }
+                    }
+                )
+            )
+    return 0
+
+
+def _run_guard_command(
+    root: Path, config: dict[str, Any], args: Any, parser: argparse.ArgumentParser
+) -> int:
+    try:
+        deadline = time.monotonic() + 20
+        warnings: list[str] = []
+        if args.format == "json" and args.harness:
+            raise ValueError("--format json requires --file")
+        paths = selected_paths(args, parser)
+        if (evidence := ACTIVE_EVIDENCE.get()) is not None:
+            evidence["targets"] = paths
+        messages = [
+            message for path in paths if (message := protect_path(path, root, config))
+        ]
+        if args.command == "protect" and not messages:
+            messages.extend(
+                preview_violations(
+                    root,
+                    paths,
+                    getattr(args, "hook_payload", None),
+                    args.harness or args.preview,
+                    deadline=deadline,
+                    warnings=warnings,
+                    config=config,
+                )
+            )
+        if args.command == "hook" and not messages:
+            messages.extend(
+                _run_hook_checks(root, paths, config, args, deadline, warnings)
+            )
+    except Exception as error:
+        evidence_finding(
+            "invalid-input" if isinstance(error, ValueError) else "guard-error"
+        )
+        prefix = (
+            "invalid hook input"
+            if isinstance(error, ValueError)
+            else f"guard error: {type(error).__name__}"
+        )
+        print(f"loki: {prefix}: {error}", file=sys.stderr)
+        if args.format == "json":
+            print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
+        return 2
+    return _emit_guard_result(args, messages, warnings)
+
+
+STANDALONE_COMMANDS = {
+    "elixir": _run_elixir_command,
+    "verify-installation": _run_verify_installation_command,
+    "context": _run_context_command,
+    "shell": _run_shell_command,
+    "shell-writes": _run_shell_writes_command,
+    "apply": _run_apply_command,
+    "explain": _run_explain_command,
+    "init": _run_init_command,
+}
+
+
 def dispatch_main() -> int:
     parser = build_parser()
     args = parser.parse_args()
-    if args.command == "elixir":
-        try:
-            if args.credo_new:
-                findings = credo_new_violations(args.project.resolve())
-                print(
-                    json.dumps({"tool": "credo", "findings": findings})
-                    if args.json
-                    else "\n".join(findings)
-                )
-                return int(bool(findings))
-            report = elixir_analysis(args.project.resolve(), args.tier, args.file)
-            if args.json:
-                print(json.dumps(report))
-            else:
-                for item in report:
-                    print(f"[{item['tool']}] {item['status']}")
-                    if item["output"]:
-                        print(item["output"])
-            return int(any(item["status"] != "PASS" for item in report))
-        except (OSError, ValueError) as error:
-            print(f"loki: Elixir analysis unavailable: {error}", file=sys.stderr)
-            return 1
     if args.command == "daemon":
         return daemon_command(args.action, (args.root or DEFAULT_ROOT).resolve())
-    if args.command == "verify-installation":
-        findings = installation_violations(
-            [args.engine, *args.registration], args.agent_uid
-        )
-        for finding in findings:
-            print(finding)
-        if not findings:
-            print(
-                "Ownership/mode checks passed; ACLs, privileged access and host "
-                "activation require operator verification"
-            )
-        return int(bool(findings))
-    if args.command == "context":
-        try:
-            context_root = (args.root or DEFAULT_ROOT).resolve()
-            config = load_config(context_root)
-            output: dict[str, Any] = {
-                "hookSpecificOutput": {
-                    "hookEventName": args.event,
-                    "additionalContext": injected_context(
-                        context_root, config, args.host
-                    ),
-                }
-            }
-            if args.host:
-                # What a host that runs the engine itself may ask of it.
-                output["loki"] = {"version": __version__, "formats": ["text", "json"]}
-            print(json.dumps(output))
-            return 0
-        except (OSError, ValueError) as error:
-            print(f"loki: context unavailable: {error}", file=sys.stderr)
-            return 2
-    if args.command == "shell":
-        try:
-            raw = sys.stdin.read(4 * 1024 * 1024 + 1)
-            if len(raw) > 4 * 1024 * 1024:
-                raise ValueError("shell envelope exceeds 4 MiB")
-            payload = json.loads(raw)
-            if not isinstance(payload, dict) or not isinstance(
-                payload.get("tool_input"), dict
-            ):
-                raise ValueError("invalid shell envelope")
-            root = (args.root or DEFAULT_ROOT).resolve()
-            cwd = shell_cwd(payload, args.harness, root)
-            if reason := shell_violation(
-                payload["tool_input"].get("command"), root=root, cwd=cwd
-            ):
-                print(reason, file=sys.stderr)
-                return 2
-            return 0
-        except (OSError, ValueError) as error:
-            print(f"loki: invalid shell input: {error}", file=sys.stderr)
-            return 2
-    if args.command == "shell-writes":
-        try:
-            raw = sys.stdin.read(4 * 1024 * 1024 + 1)
-            if len(raw) > 4 * 1024 * 1024:
-                raise ValueError("shell envelope exceeds 4 MiB")
-            payload = json.loads(raw)
-            if not isinstance(payload, dict):
-                raise ValueError("invalid shell envelope")
-            root = (args.root or DEFAULT_ROOT).resolve()
-            cwd = Path(payload.get("cwd") or root).resolve()
-            if reason := shell_writes_violation(payload.get("command"), root, cwd):
-                print(reason, file=sys.stderr)
-                return 2
-            return 0
-        except (OSError, ValueError) as error:
-            print(f"loki: invalid shell input: {error}", file=sys.stderr)
-            return 2
-    if args.command == "apply":
-        try:
-            apply_transaction(
-                (args.root or DEFAULT_ROOT).resolve(), args.manifest, args.check_only
-            )
-            return 0
-        except (OSError, ValueError) as error:
-            print(f"loki: {error}", file=sys.stderr)
-            return 2
-    if args.command == "explain":
-        try:
-            for event in read_events(DEFAULT_ROOT.resolve(), args.limit):
-                print(json.dumps(event, sort_keys=True))
-            return 0
-        except (OSError, ValueError) as error:
-            print(f"loki: {error}", file=sys.stderr)
-            return 1
-    if args.command == "init":
-        try:
-            if args.minimal:
-                if args.shell_guard or args.managed_dir:
-                    raise ValueError(
-                        "--minimal installs only .loki/; "
-                        "it takes neither --shell-guard nor --managed-dir"
-                    )
-                install_minimal(Path(args.dir), args.force)
-                return 0
-            install_target(Path(args.dir), args.force)
-            if args.shell_guard:
-                install_shell_guard(Path(args.dir).resolve())
-            if args.managed_dir:
-                install_managed(Path(args.dir).resolve(), args.managed_dir.resolve())
-            return 0
-        except (OSError, ValueError) as error:
-            print(f"loki: {error}", file=sys.stderr)
-            return 1
+    if handler := STANDALONE_COMMANDS.get(args.command):
+        return handler(args)
     root = (getattr(args, "root", None) or DEFAULT_ROOT).resolve()
     try:
         config = load_config(root)
@@ -7610,149 +8277,8 @@ def dispatch_main() -> int:
             print(f"loki: {error}", file=sys.stderr)
             return 1
     if args.command == "scan":
-        if args.ruff_new:
-            try:
-                findings = ruff_new_violations(root, args.base)
-                if findings:
-                    print("\n".join(findings))
-                return int(bool(findings))
-            except (OSError, ValueError) as error:
-                print(f"loki: {error}", file=sys.stderr)
-                return 1
-        return scan(
-            root,
-            config,
-            args.online,
-            args.strict or os.environ.get("LOKI_STRICT") == "1",
-            args.base,
-            args.python,
-        )
-    try:
-        deadline = time.monotonic() + 20
-        warnings: list[str] = []
-        if args.format == "json" and args.harness:
-            raise ValueError("--format json requires --file")
-        paths = selected_paths(args, parser)
-        if (evidence := ACTIVE_EVIDENCE.get()) is not None:
-            evidence["targets"] = paths
-        messages = [
-            message for path in paths if (message := protect_path(path, root, config))
-        ]
-        if args.command == "protect" and not messages:
-            messages.extend(
-                preview_violations(
-                    root,
-                    paths,
-                    getattr(args, "hook_payload", None),
-                    args.harness or args.preview,
-                    deadline=deadline,
-                    warnings=warnings,
-                    config=config,
-                )
-            )
-        if args.command == "hook" and not messages:
-            targets = [Path(os.path.abspath(root / path)) for path in paths]
-            messages.extend(
-                write_guardrail_violations(
-                    targets, root, config, deadline=deadline, warnings=warnings
-                )
-            )
-            if not messages and any(
-                target.suffix in TYPESCRIPT_SUFFIXES for target in targets
-            ):
-                messages.extend(
-                    typescript_findings(
-                        root, config, deadline=deadline, warnings=warnings
-                    )
-                )
-            if not messages:
-                # Structural sloppiness is advisory unless slop.block is set.
-                try:
-                    notes = written_slop(root, targets, deadline=deadline)
-                except (OSError, UnicodeDecodeError, ValueError) as error:
-                    notes = [f"NOT CHECKED slop: {error}"]
-                if slop_policy(config).get("block"):
-                    messages.extend(note for note in notes if "NOT CHECKED" not in note)
-                    warnings.extend(note for note in notes if "NOT CHECKED" in note)
-                else:
-                    warnings.extend(notes)
-                if (level := hygiene_level(config)) != "off":
-                    try:
-                        warnings.extend(
-                            written_hygiene(
-                                root,
-                                targets,
-                                level,
-                                deadline=deadline,
-                                python=args.python,
-                            )
-                        )
-                    except (OSError, ValueError) as error:
-                        warnings.append(f"NOT CHECKED hygiene: {error}")
-                checked_projects: set[tuple[str, Path]] = set()
-                for target in targets:
-                    messages.extend(
-                        check_file(
-                            target,
-                            root,
-                            config,
-                            os.environ.get("LOKI_STRICT") == "1",
-                            deadline=deadline,
-                            warnings=warnings,
-                            batch_paths=targets,
-                            checked_projects=checked_projects,
-                            python=args.python,
-                        )
-                    )
-    except Exception as error:
-        evidence_finding(
-            "invalid-input" if isinstance(error, ValueError) else "guard-error"
-        )
-        prefix = (
-            "invalid hook input"
-            if isinstance(error, ValueError)
-            else f"guard error: {type(error).__name__}"
-        )
-        print(f"loki: {prefix}: {error}", file=sys.stderr)
-        if args.format == "json":
-            print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
-        return 2
-    warnings = list(dict.fromkeys(warnings))
-    if args.format == "json":
-        print(json.dumps(hook_report(args.command, messages, warnings)))
-    if messages:
-        if args.command == "hook":
-            print(
-                "loki: post-write check failed; files are already changed.",
-                file=sys.stderr,
-            )
-        advisory = [item for item in warnings if not item.startswith("NOT CHECKED")]
-        unchecked = [item for item in warnings if item.startswith("NOT CHECKED")]
-        # Only the lines above the label failed the check.
-        label = ["loki: advisory (not blocking):"] if advisory else []
-        lines = [*messages, *label, *advisory, *unchecked]
-        print("\n".join(lines[:MAX_VIOLATIONS]), file=sys.stderr)
-        return 2
-    if warnings:
-        text = "\n".join(warnings)
-        print(text, file=sys.stderr)
-        if args.harness:
-            print(
-                json.dumps(
-                    {
-                        "hookSpecificOutput": {
-                            "hookEventName": (
-                                "PreToolUse"
-                                if args.command == "protect"
-                                else "PostToolUse"
-                            ),
-                            "additionalContext": text,
-                        }
-                    }
-                )
-            )
-        return 0
-    return 0
+        return _run_scan_command(root, config, args)
+    return _run_guard_command(root, config, args, parser)
 
 
 FINDING_RE = re.compile(
@@ -7813,6 +8339,39 @@ def installation_violations(paths: list[Path], agent_uid: int) -> list[str]:
     return findings
 
 
+def _rewrite_managed_hook(
+    handler: dict[str, Any],
+    event: str,
+    harness: str,
+    engine: Path,
+    root: Path,
+    shlex: Any,
+) -> None:
+    command = handler.get("command", "")
+    if ".loki/loki.py" not in command:
+        return
+    operations = [
+        name
+        for name in ("context", "protect", "hook", "shell")
+        if f" {name} --" in command
+    ]
+    if len(operations) != 1:
+        raise ValueError("unrecognized owned hook command")
+    operation = operations[0]
+    arguments = (
+        f"--event {shlex.quote(event)}"
+        if operation == "context"
+        else f"--harness {harness}"
+    )
+    handler["command"] = (
+        f"{shlex.quote(sys.executable)} {shlex.quote(str(engine))} "
+        f"--root {shlex.quote(str(root))} {operation} {arguments} "
+        "|| { printf '%s\\n' 'loki: hook command failed' >&2; "
+        "exit 2; } "
+        "# .loki/loki.py managed engine"
+    )
+
+
 def install_managed(root: Path, destination: Path) -> None:
     import hashlib
     import shlex
@@ -7841,29 +8400,7 @@ def install_managed(root: Path, destination: Path) -> None:
                 continue
             for entry in entries:
                 for handler in entry.get("hooks", []):
-                    command = handler.get("command", "")
-                    if ".loki/loki.py" not in command:
-                        continue
-                    operations = [
-                        name
-                        for name in ("context", "protect", "hook", "shell")
-                        if f" {name} --" in command
-                    ]
-                    if len(operations) != 1:
-                        raise ValueError("unrecognized owned hook command")
-                    operation = operations[0]
-                    arguments = (
-                        f"--event {shlex.quote(event)}"
-                        if operation == "context"
-                        else f"--harness {harness}"
-                    )
-                    handler["command"] = (
-                        f"{shlex.quote(sys.executable)} {shlex.quote(str(engine))} "
-                        f"--root {shlex.quote(str(root))} {operation} {arguments} "
-                        "|| { printf '%s\\n' 'loki: hook command failed' >&2; "
-                        "exit 2; } "
-                        "# .loki/loki.py managed engine"
-                    )
+                    _rewrite_managed_hook(handler, event, harness, engine, root, shlex)
         write_json(path, document)
     for relative in (".pi/extensions/loki.ts", ".loki/loki-shim.ts"):
         path = root / relative
@@ -8141,9 +8678,10 @@ def shell_redirect(command: str) -> tuple[str, str] | None:
 
     lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
-    try:
+    tokens = None
+    with contextlib.suppress(ValueError):
         tokens = list(lexer)
-    except ValueError:
+    if tokens is None:
         return None
     operators = [token for token in tokens if set(token) <= set("();<>|&")]
     if len(tokens) < 3 or operators != [tokens[-2]] or tokens[-2] not in (">", ">>"):
@@ -8205,11 +8743,9 @@ def shell_violation(
     if isinstance(command, str) and root is not None and cwd is not None:
         if (redirect := shell_redirect(command)) is not None:
             printer, target = redirect
-            try:
+            with contextlib.suppress(ValueError):
                 if simple_shell_words(printer)[0] in PRINT_COMMANDS:
                     return redirect_violation(target, root, cwd)
-            except ValueError:
-                pass
             evidence_finding("shell-redirect-write")
             return (
                 "loki: shell redirect from a command other than echo/printf "
@@ -8268,6 +8804,62 @@ def strip_heredocs(command: str) -> str:
     return "\n".join(out)
 
 
+def _sed_inplace_targets(args: list[str]) -> list[tuple[str, str]]:
+    files, scripted, skip = [], False, False
+    for arg in args:
+        if skip:
+            skip = False
+        elif arg in {"-e", "-f", "--expression", "--file"}:
+            scripted = skip = True
+        elif not arg.startswith("-"):
+            files.append(arg)
+    return [(arg, "sed -i") for arg in (files if scripted else files[1:])]
+
+
+def _perl_inplace_targets(args: list[str]) -> list[tuple[str, str]]:
+    files, skip = [], False
+    for arg in args:
+        if skip:
+            skip = False
+        elif arg in {"-e", "-E"}:
+            skip = True
+        elif not arg.startswith("-"):
+            files.append(arg)
+    return [(arg, "perl -i") for arg in files]
+
+
+def _copy_write_targets(
+    name: str, args: list[str], plain: list[str]
+) -> list[tuple[str, str]]:
+    if "-t" in args and args.index("-t") + 1 < len(args):
+        directory = args[args.index("-t") + 1]
+        sources = [arg for arg in plain if arg != directory]
+        return [(str(Path(directory) / Path(src).name), name) for src in sources]
+    if len(plain) < 2:
+        return []
+    destination = plain[-1]
+    if len(plain) > 2 or destination.endswith("/") or Path(destination).is_dir():
+        return [(str(Path(destination) / Path(src).name), name) for src in plain[:-1]]
+    return [(destination, name)]
+
+
+def _shell_command_write_targets(name: str, args: list[str]) -> list[tuple[str, str]]:
+    plain = [arg for arg in args if not arg.startswith("-")]
+    if name == "tee":
+        return [(arg, "tee") for arg in plain]
+    if name == "sed" and any(
+        arg == "-i" or arg.startswith(("-i", "--in-place")) for arg in args
+    ):
+        return _sed_inplace_targets(args)
+    if name == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i\S*", arg) for arg in args):
+        return _perl_inplace_targets(args)
+    if name in {"cp", "mv", "install"}:
+        return _copy_write_targets(name, args, plain)
+    if name == "dd":
+        return [(arg[3:], "dd") for arg in args if arg.startswith("of=")]
+    return []
+
+
 def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
     """The files a shell command writes, as (target, how); None when it cannot be parsed.
 
@@ -8279,9 +8871,10 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
     lexer = shlex.shlex(strip_heredocs(command), posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
     lexer.commenters = ""
-    try:
+    tokens = None
+    with contextlib.suppress(ValueError):
         tokens = list(lexer)
-    except ValueError:
+    if tokens is None:
         return None
     targets: list[tuple[str, str]] = []
     words: list[str] = []
@@ -8310,65 +8903,16 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
         if not words:
             return
         name, args = Path(words[0]).name, words[1:]
-        plain = [arg for arg in args if not arg.startswith("-")]
         if name in {"cd", "pushd", "popd"}:
             moves = [arg for arg in args if arg not in {"-L", "-P", "-e", "-@", "--"}]
-            if name != "popd" and len(moves) == 1 and moves[0] != "-":
-                moved = os.path.join(moved, moves[0])
-            else:
-                moved = "$CD"
+            moved = (
+                os.path.join(moved, moves[0])
+                if name != "popd" and len(moves) == 1 and moves[0] != "-"
+                else "$CD"
+            )
             words.clear()
             return
-        if name == "tee":
-            targets.extend((arg, "tee") for arg in plain)
-        elif name == "sed" and any(
-            arg == "-i" or arg.startswith(("-i", "--in-place")) for arg in args
-        ):
-            files, scripted, skip = [], False, False
-            for arg in args:
-                if skip:
-                    skip = False
-                elif arg in {"-e", "-f", "--expression", "--file"}:
-                    scripted = skip = True
-                elif not arg.startswith("-"):
-                    files.append(arg)
-            targets.extend(
-                (arg, "sed -i") for arg in (files if scripted else files[1:])
-            )
-        elif name == "perl" and any(
-            re.fullmatch(r"-[a-zA-Z]*i\S*", arg) for arg in args
-        ):
-            files, skip = [], False
-            for arg in args:
-                if skip:
-                    skip = False
-                elif arg in {"-e", "-E"}:
-                    skip = True
-                elif not arg.startswith("-"):
-                    files.append(arg)
-            targets.extend((arg, "perl -i") for arg in files)
-        elif name in {"cp", "mv", "install"}:
-            if "-t" in args and args.index("-t") + 1 < len(args):
-                directory = args[args.index("-t") + 1]
-                sources = [arg for arg in plain if arg != directory]
-                targets.extend(
-                    (str(Path(directory) / Path(src).name), name) for src in sources
-                )
-            elif len(plain) >= 2:
-                destination = plain[-1]
-                if (
-                    len(plain) > 2
-                    or destination.endswith("/")
-                    or Path(destination).is_dir()
-                ):
-                    targets.extend(
-                        (str(Path(destination) / Path(src).name), name)
-                        for src in plain[:-1]
-                    )
-                else:
-                    targets.append((destination, name))
-        elif name == "dd":
-            targets.extend((arg[3:], "dd") for arg in args if arg.startswith("of="))
+        targets.extend(_shell_command_write_targets(name, args))
         place()
         words.clear()
 
@@ -8464,23 +9008,13 @@ def git_ignored(root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
-def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> None:
-    import fcntl
-    import tempfile
-
-    if manifest.stat().st_size > 4 * 1024 * 1024:
-        raise ValueError("transaction manifest exceeds 4 MiB")
-    operations = json.loads(manifest.read_text(encoding="utf-8"))
-    if not isinstance(operations, list) or not operations:
-        raise ValueError("transaction requires a nonempty operation list")
-    deadline = time.monotonic() + 20
-    base, existing = git_changes(root, None, deadline=deadline)
-    if base is None:
-        raise ValueError("transaction requires committed base")
-    config = base_policy(root, base, deadline=deadline) or load_config(root)
-    blocked = protected_change_violations(existing, config)
-    if blocked:
-        raise ValueError("; ".join(blocked))
+def _plan_transaction_operations(
+    root: Path, operations: list[Any], config: dict[str, Any]
+) -> tuple[
+    dict[str, bytes | None],
+    dict[str, tuple[bytes | None, str | None]],
+    dict[str, str],
+]:
     desired: dict[str, bytes | None] = {}
     originals: dict[str, tuple[bytes | None, str | None]] = {}
     desired_modes: dict[str, str] = {}
@@ -8500,115 +9034,235 @@ def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> N
             if names[1] == path or Path(names[1]).as_posix() != names[1]:
                 raise ValueError("move requires a distinct canonical destination")
         for name in names:
-            if Path(name).is_absolute() or ".." in Path(name).parts:
-                raise ValueError("transaction paths must be repository-relative")
-            if Path(name).parts[0] in {".git", "node_modules"}:
-                raise ValueError(
-                    "transaction cannot mutate Git metadata or dependencies"
-                )
-            parent = (root / name).parent
-            if parent.resolve() != parent:
-                raise ValueError("transaction symlinked parents are unsupported")
-            if name in desired:
-                raise ValueError(f"duplicate transaction target: {name}")
-            if reason := protect_path(name, root, config, allow_override=False):
-                raise ValueError(reason)
-            originals[name] = candidate_content(root, name, 64 * 1024 * 1024)
-            if originals[name][1] == "120000":
-                raise ValueError("transaction symlink targets are unsupported")
-            desired_modes[name] = originals[name][1] or "100644"
+            _validate_transaction_target(
+                root, name, config, desired, originals, desired_modes
+            )
         if operation["op"] == "write":
             if not isinstance(operation.get("content"), str):
                 raise ValueError("write content must be a string")
             desired[path] = operation["content"].encode("utf-8")
-        else:
-            if originals[path][0] is None:
-                raise ValueError(f"transaction source is missing: {path}")
-            desired[path] = None
-            if operation["op"] == "move":
-                destination = names[1]
-                if originals[destination][0] is not None:
-                    raise ValueError("move destination already exists")
-                desired[destination] = originals[path][0]
-                desired_modes[destination] = originals[path][1] or "100644"
+            continue
+        if originals[path][0] is None:
+            raise ValueError(f"transaction source is missing: {path}")
+        desired[path] = None
+        if operation["op"] == "move":
+            destination = names[1]
+            if originals[destination][0] is not None:
+                raise ValueError("move destination already exists")
+            desired[destination] = originals[path][0]
+            desired_modes[destination] = originals[path][1] or "100644"
+    return desired, originals, desired_modes
+
+
+def _validate_transaction_target(
+    root: Path,
+    name: str,
+    config: dict[str, Any],
+    desired: dict[str, bytes | None],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    desired_modes: dict[str, str],
+) -> None:
+    if Path(name).is_absolute() or ".." in Path(name).parts:
+        raise ValueError("transaction paths must be repository-relative")
+    if Path(name).parts[0] in {".git", "node_modules"}:
+        raise ValueError("transaction cannot mutate Git metadata or dependencies")
+    parent = (root / name).parent
+    if parent.resolve() != parent:
+        raise ValueError("transaction symlinked parents are unsupported")
+    if name in desired:
+        raise ValueError(f"duplicate transaction target: {name}")
+    if reason := protect_path(name, root, config, allow_override=False):
+        raise ValueError(reason)
+    originals[name] = candidate_content(root, name, 64 * 1024 * 1024)
+    if originals[name][1] == "120000":
+        raise ValueError("transaction symlink targets are unsupported")
+    desired_modes[name] = originals[name][1] or "100644"
+
+
+def _check_transaction_candidate(
+    root: Path,
+    directory: str,
+    base: str,
+    existing: list[FileChange],
+    desired: dict[str, bytes | None],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    desired_modes: dict[str, str],
+    config: dict[str, Any],
+    deadline: float,
+) -> None:
+    workspace = Path(directory) / "candidate"
+    materialize_base(root, base, workspace, deadline=deadline)
+    for change in existing:
+        apply_snapshot_change(workspace, change)
+    for name, content in desired.items():
+        mode = desired_modes[name]
+        apply_snapshot_change(
+            workspace,
+            FileChange(
+                name,
+                originals[name][0],
+                content,
+                originals[name][1],
+                mode if content is not None else None,
+            ),
+        )
+    # Materialize the real base, then overlay proposed bytes.
+    git_output(workspace, ["init"], deadline=deadline)
+    baseline = Path(directory) / "baseline"
+    materialize_base(root, base, baseline, deadline=deadline)
+    git_output(baseline, ["init"], deadline=deadline)
+    git_output(baseline, ["add", "."], deadline=deadline)
+    git_output(
+        baseline,
+        [
+            "-c",
+            "user.name=Loki",
+            "-c",
+            "user.email=loki@example.invalid",
+            "commit",
+            "-m",
+            "isolated base",
+        ],
+        deadline=deadline,
+    )
+    shutil.rmtree(workspace / ".git")
+    shutil.copytree(baseline / ".git", workspace / ".git")
+    if (root / "node_modules").is_dir():
+        (workspace / "node_modules").symlink_to(
+            (root / "node_modules").resolve(), target_is_directory=True
+        )
+    findings = write_guardrail_violations(
+        [workspace / name for name in desired],
+        workspace,
+        config,
+        deadline=deadline,
+    )
+    if any(Path(name).suffix in TYPESCRIPT_SUFFIXES for name in desired):
+        findings.extend(typescript_findings(workspace, config, deadline=deadline))
+    python_targets = [
+        workspace / name
+        for name, content in desired.items()
+        if content is not None and name.endswith(".py")
+    ]
+    checked_projects: set[tuple[str, Path]] = set()
+    for target in python_targets:
+        findings.extend(
+            check_file(
+                target,
+                workspace,
+                config,
+                True,
+                deadline=deadline,
+                batch_paths=python_targets,
+                checked_projects=checked_projects,
+            )
+        )
+    if findings:
+        raise ValueError("; ".join(findings))
+
+
+def _rollback_transaction(
+    root: Path,
+    applied: list[str],
+    desired: dict[str, bytes | None],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    desired_modes: dict[str, str],
+    failure: OSError,
+) -> None:
+    unrecovered = []
+    for name in reversed(applied):
+        try:
+            expected = (
+                (desired[name], desired_modes[name])
+                if desired[name] is not None
+                else (None, None)
+            )
+            if candidate_content(root, name, 64 * 1024 * 1024) != expected:
+                unrecovered.append(f"{name}: changed after application")
+                continue
+            original, mode = originals[name]
+            if original is None:
+                (root / name).unlink(missing_ok=True)
+            else:
+                (root / name).write_bytes(original)
+                (root / name).chmod(0o755 if mode == "100755" else 0o644)
+        except (OSError, ValueError) as error:
+            unrecovered.append(f"{name}: {error}")
+    if unrecovered:
+        raise ValueError(
+            f"transaction failed: {failure}; rollback incomplete: "
+            + "; ".join(unrecovered)
+        ) from failure
+
+
+def _commit_transaction_files(
+    root: Path,
+    desired: dict[str, bytes | None],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    desired_modes: dict[str, str],
+) -> None:
+    applied: list[str] = []
+    try:
+        for name, content in desired.items():
+            target = root / name
+            if content is None:
+                target.unlink()
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                fd, temporary = tempfile.mkstemp(
+                    prefix=".loki-write-", dir=target.parent
+                )
+                try:
+                    with os.fdopen(fd, "wb") as stream:
+                        stream.write(content)
+                        os.fchmod(
+                            stream.fileno(),
+                            0o755 if desired_modes[name] == "100755" else 0o644,
+                        )
+                    os.replace(temporary, target)
+                finally:
+                    Path(temporary).unlink(missing_ok=True)
+            applied.append(name)
+    except OSError as failure:
+        _rollback_transaction(root, applied, desired, originals, desired_modes, failure)
+        raise
+
+
+def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> None:
+    import fcntl
+
+    if manifest.stat().st_size > 4 * 1024 * 1024:
+        raise ValueError("transaction manifest exceeds 4 MiB")
+    operations = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(operations, list) or not operations:
+        raise ValueError("transaction requires a nonempty operation list")
+    deadline = time.monotonic() + 20
+    base, existing = git_changes(root, None, deadline=deadline)
+    if base is None:
+        raise ValueError("transaction requires committed base")
+    config = base_policy(root, base, deadline=deadline) or load_config(root)
+    if blocked := protected_change_violations(existing, config):
+        raise ValueError("; ".join(blocked))
+    desired, originals, desired_modes = _plan_transaction_operations(
+        root, operations, config
+    )
     git_dir = Path(
         os.fsdecode(git_output(root, ["rev-parse", "--absolute-git-dir"])).strip()
     )
     with (git_dir / "loki-transaction.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with tempfile.TemporaryDirectory(prefix="loki-transaction-") as directory:
-            workspace = Path(directory) / "candidate"
-            materialize_base(root, base, workspace, deadline=deadline)
-            for change in existing:
-                apply_snapshot_change(workspace, change)
-            for name, content in desired.items():
-                mode = desired_modes[name]
-                apply_snapshot_change(
-                    workspace,
-                    FileChange(
-                        name,
-                        originals[name][0],
-                        content,
-                        originals[name][1],
-                        mode if content is not None else None,
-                    ),
-                )
-            # Materialize the real base, then overlay proposed bytes.
-            git_output(workspace, ["init"], deadline=deadline)
-            baseline = Path(directory) / "baseline"
-            materialize_base(root, base, baseline, deadline=deadline)
-            git_output(baseline, ["init"], deadline=deadline)
-            git_output(baseline, ["add", "."], deadline=deadline)
-            git_output(
-                baseline,
-                [
-                    "-c",
-                    "user.name=Loki",
-                    "-c",
-                    "user.email=loki@example.invalid",
-                    "commit",
-                    "-m",
-                    "isolated base",
-                ],
-                deadline=deadline,
-            )
-            shutil.rmtree(workspace / ".git")
-            shutil.copytree(baseline / ".git", workspace / ".git")
-            if (root / "node_modules").is_dir():
-                (workspace / "node_modules").symlink_to(
-                    (root / "node_modules").resolve(), target_is_directory=True
-                )
-            findings = write_guardrail_violations(
-                [workspace / name for name in desired],
-                workspace,
+            _check_transaction_candidate(
+                root,
+                directory,
+                base,
+                existing,
+                desired,
+                originals,
+                desired_modes,
                 config,
-                deadline=deadline,
+                deadline,
             )
-            if any(Path(name).suffix in TYPESCRIPT_SUFFIXES for name in desired):
-                findings.extend(
-                    typescript_findings(workspace, config, deadline=deadline)
-                )
-            python_targets = [
-                workspace / name
-                for name, content in desired.items()
-                if content is not None and name.endswith(".py")
-            ]
-            checked_projects: set[tuple[str, Path]] = set()
-            for name, content in desired.items():
-                if content is not None and name.endswith(".py"):
-                    findings.extend(
-                        check_file(
-                            workspace / name,
-                            workspace,
-                            config,
-                            True,
-                            deadline=deadline,
-                            batch_paths=python_targets,
-                            checked_projects=checked_projects,
-                        )
-                    )
-            if findings:
-                raise ValueError("; ".join(findings))
             current_base, current_changes = git_changes(root, None, deadline=deadline)
             if current_base != base or current_changes != existing:
                 raise ValueError(
@@ -8621,54 +9275,7 @@ def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> N
             if check_only:
                 print("Transaction checks passed; no files written")
                 return
-            applied = []
-            try:
-                for name, content in desired.items():
-                    target = root / name
-                    if content is None:
-                        target.unlink()
-                    else:
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        fd, temporary = tempfile.mkstemp(
-                            prefix=".loki-write-", dir=target.parent
-                        )
-                        try:
-                            with os.fdopen(fd, "wb") as stream:
-                                stream.write(content)
-                                os.fchmod(
-                                    stream.fileno(),
-                                    0o755 if desired_modes[name] == "100755" else 0o644,
-                                )
-                            os.replace(temporary, target)
-                        finally:
-                            Path(temporary).unlink(missing_ok=True)
-                    applied.append(name)
-            except OSError as failure:
-                unrecovered = []
-                for name in reversed(applied):
-                    try:
-                        expected = (
-                            (desired[name], desired_modes[name])
-                            if desired[name] is not None
-                            else (None, None)
-                        )
-                        if candidate_content(root, name, 64 * 1024 * 1024) != expected:
-                            unrecovered.append(f"{name}: changed after application")
-                            continue
-                        original, mode = originals[name]
-                        if original is None:
-                            (root / name).unlink(missing_ok=True)
-                        else:
-                            (root / name).write_bytes(original)
-                            (root / name).chmod(0o755 if mode == "100755" else 0o644)
-                    except (OSError, ValueError) as error:
-                        unrecovered.append(f"{name}: {error}")
-                if unrecovered:
-                    raise ValueError(
-                        f"transaction failed: {failure}; rollback incomplete: "
-                        + "; ".join(unrecovered)
-                    ) from failure
-                raise
+            _commit_transaction_files(root, desired, originals, desired_modes)
     print(f"Applied {len(desired)} targets; not an OS-atomic multi-file commit")
 
 
@@ -8910,9 +9517,10 @@ def typescript_extends(raw: bytes | None) -> set[str] | None:
 
     Package names resolve into node_modules, which is refused separately.
     """
-    try:
+    config = None
+    with contextlib.suppress(ValueError):
         config = json.loads(strip_jsonc(raw.decode("utf-8") if raw else ""))
-    except ValueError:
+    if config is None:
         return None
     targets = config.get("extends", []) if isinstance(config, dict) else []
     names = set()
@@ -8938,6 +9546,52 @@ def typescript_config_json(name: str, extends: set[str] | None) -> bool:
     )
 
 
+def _prepare_ts_overrides(
+    root: Path, directory: str, overrides: dict[str, str] | None
+) -> tuple[Path | None, Path | None]:
+    if overrides is None:
+        return None, None
+    proposed = Path(directory) / "overrides.json"
+    proposed.write_text(
+        json.dumps({str(root / name): text for name, text in overrides.items()}),
+        encoding="utf-8",
+    )
+    shadow = Path(directory) / "shadow"
+    for name in overrides:
+        if not (root / name).exists():
+            (shadow / name).parent.mkdir(parents=True, exist_ok=True)
+            (shadow / name).touch()
+    return proposed, shadow if shadow.is_dir() else None
+
+
+def _ts_base_diagnostics(
+    root: Path,
+    base: str,
+    directory: str,
+    compiler: Path,
+    after: Counter[tuple],
+    deadline: float | None,
+) -> Counter[tuple]:
+    texts = {}
+    for name in {key[0] for key in after if key[0]}:
+        try:
+            texts[name] = git_output(
+                root, ["show", f"{base}:{name}"], deadline=deadline
+            ).decode("utf-8", errors="replace")
+        except ValueError:
+            texts[name] = ""
+    if not possibly_existing(after, texts):
+        return Counter()
+    before = Path(directory) / "before"
+    materialize_base(root, base, before, deadline=deadline)
+    if (root / "node_modules").is_dir():
+        (before / "node_modules").symlink_to(
+            (root / "node_modules").resolve(), target_is_directory=True
+        )
+    previous, _, _ = typescript_diagnostics(compiler, before, None, deadline)
+    return previous
+
+
 def typescript_violations(
     root: Path,
     *,
@@ -8952,7 +9606,6 @@ def typescript_violations(
     a write; a clean result marks that exact tree, so the post-write hook for
     the same bytes does not compile it again.
     """
-    import tempfile
 
     def setup(message: str) -> list[str]:
         if notices is None:
@@ -8967,8 +9620,7 @@ def typescript_violations(
     if base is None:
         return setup("typescript: committed base required")
     policy = base_policy(root, base, deadline=deadline) or {}
-    findings = protected_change_violations(changes, policy)
-    if findings:
+    if findings := protected_change_violations(changes, policy):
         return findings
     try:
         raw = git_output(root, ["show", f"{base}:tsconfig.json"], deadline=deadline)
@@ -8989,28 +9641,10 @@ def typescript_violations(
     with tempfile.TemporaryDirectory(prefix="loki-typescript-") as directory:
         trusted = Path(directory) / "tsconfig.json"
         trusted.write_bytes(raw)
-        proposed = shadow = None
-        if overrides is not None:
-            proposed = Path(directory) / "overrides.json"
-            proposed.write_text(
-                json.dumps(
-                    {str(root / name): text for name, text in overrides.items()}
-                ),
-                encoding="utf-8",
-            )
-            shadow = Path(directory) / "shadow"
-            for name in overrides:
-                if not (root / name).exists():
-                    (shadow / name).parent.mkdir(parents=True, exist_ok=True)
-                    (shadow / name).touch()
+        proposed, shadow = _prepare_ts_overrides(root, directory, overrides)
         # Most edits are clean: build the base snapshot only when errors appear.
         after, lines, uncovered = typescript_diagnostics(
-            compiler,
-            root,
-            trusted,
-            deadline,
-            proposed,
-            shadow if shadow is not None and shadow.is_dir() else None,
+            compiler, root, trusted, deadline, proposed, shadow
         )
         if not after:
             # A proposed file outside the program was not checked: no marker.
@@ -9018,23 +9652,9 @@ def typescript_violations(
                 marker.parent.mkdir(parents=True, exist_ok=True)
                 marker.touch()
             return []
-        texts = {}
-        for name in {key[0] for key in after if key[0]}:
-            try:
-                texts[name] = git_output(
-                    root, ["show", f"{base}:{name}"], deadline=deadline
-                ).decode("utf-8", errors="replace")
-            except ValueError:
-                texts[name] = ""
-        previous: Counter[tuple] = Counter()
-        if possibly_existing(after, texts):
-            before = Path(directory) / "before"
-            materialize_base(root, base, before, deadline=deadline)
-            if (root / "node_modules").is_dir():
-                (before / "node_modules").symlink_to(
-                    (root / "node_modules").resolve(), target_is_directory=True
-                )
-            previous, _, _ = typescript_diagnostics(compiler, before, None, deadline)
+        previous = _ts_base_diagnostics(
+            root, base, directory, compiler, after, deadline
+        )
         findings = []
         for key, count in (after - previous).items():
             path, code, message, _ = key
@@ -9064,12 +9684,11 @@ def preview_typescript(
     }
     if not overrides:
         return []
-    try:
+    with contextlib.suppress(OSError, ValueError, subprocess.TimeoutExpired):
         return typescript_violations(
             root, deadline=deadline, notices=[], overrides=overrides
         )
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return []
+    return []
 
 
 def typescript_findings(
@@ -9261,12 +9880,13 @@ def preview_ruff(
     ruff = ruff_command(root) if pairs else None
     if not ruff:
         return []
-    try:
+    with contextlib.suppress(
+        OSError, ValueError, subprocess.TimeoutExpired, tomllib.TOMLDecodeError
+    ):
         raw = git_output(root, ["show", "HEAD:.ruff.toml"], deadline=deadline)
         evidence_policy("base", ".ruff.toml", raw, base="HEAD")
         return ruff_delta(raw, pairs, deadline=deadline, ruff=ruff)
-    except (OSError, ValueError, subprocess.TimeoutExpired, tomllib.TOMLDecodeError):
-        return []
+    return []
 
 
 def event_path(root: Path) -> Path:
@@ -9331,6 +9951,7 @@ DAEMON_COMMANDS = {"protect", "hook", "shell"}
 DAEMON_IDLE_SECONDS = 30 * 60
 DAEMON_REQUEST_SECONDS = 60
 TYPESCRIPT_WORKERS: dict[str, CheckerWorker] = {}
+HYGIENE_WORKERS: dict[str, CheckerWorker] = {}
 MYPY_DAEMON: tuple[str, Path] | None = None
 
 
@@ -9386,15 +10007,14 @@ def daemon_client(argv: list[str]) -> int | None:
         "cwd": os.getcwd(),
         "env": dict(os.environ),
     }
-    try:
+    reply = None
+    with contextlib.suppress(OSError, ValueError):
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
             connection.settimeout(DAEMON_REQUEST_SECONDS)
             connection.connect(str(paths[0]))
             connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
             connection.shutdown(socket.SHUT_WR)
             reply = json.loads(receive_all(connection))
-    except (OSError, ValueError):
-        return None
     if not isinstance(reply, dict) or reply.get("stale") or "exit" not in reply:
         return None
     sys.stdout.write(reply["stdout"])
@@ -9412,7 +10032,7 @@ def receive_all(connection: Any) -> bytes:
 def daemon_autostart(root: Path, paths: tuple[Path, Path]) -> None:
     """Start one detached daemon for this repository; never block the hook."""
     socket_path, lock = paths
-    try:
+    with contextlib.suppress(OSError):
         lock.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         try:
             descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -9432,17 +10052,18 @@ def daemon_autostart(root: Path, paths: tuple[Path, Path]) -> None:
             start_new_session=True,
             close_fds=True,
         )
-    except OSError:
-        return
 
 
 class CheckerWorker:
-    """A long-lived line-oriented JSON worker (the TypeScript checker server)."""
+    """A long-lived line-oriented JSON worker (TypeScript, codehygiene, nits)."""
 
-    def __init__(self, command: list[str], cwd: Path) -> None:
+    def __init__(
+        self, command: list[str], cwd: Path, *, env: dict[str, str] | None = None
+    ) -> None:
         self.process = subprocess.Popen(
             command,
             cwd=cwd,
+            env=env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -9468,7 +10089,13 @@ class CheckerWorker:
         line, self.pending = self.pending.split(b"\n", 1)
         return line
 
-    def request(self, arguments: list[str], deadline: float | None) -> Any:
+    def request(
+        self,
+        arguments: Any,
+        deadline: float | None,
+        *,
+        error_prefix: str = "typescript: checker unavailable",
+    ) -> Any:
         # No poll(): request children are forks and cannot wait on the worker.
         # A dead worker shows up as a broken pipe or end of output instead.
         if self.process.stdin is None:
@@ -9487,13 +10114,56 @@ class CheckerWorker:
             if reply.get("id") != identity:
                 continue
             if "error" in reply:
-                raise ValueError(f"typescript: checker unavailable: {reply['error']}")
+                raise ValueError(f"{error_prefix}: {reply['error']}")
             return reply["result"]
 
     def close(self) -> None:
         if self.process.poll() is None:
             self.process.kill()
             self.process.wait()
+
+
+def _prewarm_hygiene_worker(
+    name: str,
+    launchers: list[list[str]],
+    driver: str,
+    handshake: Any,
+    deadline: float | None,
+) -> None:
+    env = hygiene_env()
+    temp_dir = Path(tempfile.gettempdir())
+    for launcher in launchers:
+        try:
+            worker = CheckerWorker([*launcher, "-I", "-c", driver], temp_dir, env=env)
+        except OSError:
+            continue
+        try:
+            worker.request(
+                handshake, deadline, error_prefix=f"{name}: worker unavailable"
+            )
+            HYGIENE_WORKERS[name] = worker
+            return
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            worker.close()
+
+
+def prewarm_hygiene_workers(deadline: float | None) -> None:
+    payload, _ = vendored_codehygiene_payload()
+    if payload is not None:
+        _prewarm_hygiene_worker(
+            "hygiene",
+            hygiene_launchers(),
+            HYGIENE_SERVER_DRIVER,
+            payload,
+            deadline,
+        )
+    _prewarm_hygiene_worker(
+        "nits",
+        nits_launchers(),
+        NITS_SERVER_DRIVER,
+        "ping",
+        deadline,
+    )
 
 
 def prewarm(root: Path) -> None:
@@ -9567,11 +10237,16 @@ def prewarm(root: Path) -> None:
         except (OSError, subprocess.TimeoutExpired, ValueError):
             break
 
+    prewarm_hygiene_workers(deadline)
+
 
 def daemon_stop_workers() -> None:
     for worker in TYPESCRIPT_WORKERS.values():
         worker.close()
     TYPESCRIPT_WORKERS.clear()
+    for worker in HYGIENE_WORKERS.values():
+        worker.close()
+    HYGIENE_WORKERS.clear()
     if MYPY_DAEMON is not None:
         subprocess.run(
             [MYPY_DAEMON[0], "--status-file", str(MYPY_DAEMON[1]), "kill"],
@@ -9662,6 +10337,7 @@ def daemon_serve(root: Path) -> int:
         print(
             f"loki daemon: warmed in {time.monotonic() - started:.1f}s; "
             f"TypeScript workers {len(TYPESCRIPT_WORKERS)}, "
+            f"hygiene workers {len(HYGIENE_WORKERS)}, "
             f"dmypy {'on' if MYPY_DAEMON else 'off'}",
             file=sys.stderr,
             flush=True,

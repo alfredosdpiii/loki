@@ -85,6 +85,148 @@ CASES = [
 ]
 
 
+def _setup_phoenix_repo(root, prepared, block):
+    shutil.copytree(FIXTURE, root, dirs_exist_ok=True)
+    for name in ("deps", "_build"):
+        shutil.copytree(prepared / name, root / name, symlinks=True)
+    (root / ".gitignore").write_text("deps/\n_build/\n")
+    run(["git", "init"], root, required=True)
+    run(
+        [sys.executable, str(SOURCE / "loki.py"), "init", "--dir", str(root)],
+        root,
+        required=True,
+    )
+    policy_path = root / ".loki/loki.json"
+    policy = json.loads(policy_path.read_text())
+    policy["elixir_security"]["sobelow"] = {
+        "block": block,
+        "warn": "low" if block == "low" else "medium",
+    }
+    policy_path.write_text(json.dumps(policy))
+    # A committed Sobelow suppression must not weaken Loki's source-security gate.
+    (root / ".sobelow-conf").write_text('[ignore: ["Misc.BinToTerm"], skip: true]\n')
+    run(["mix", "format"], root, required=True)
+    run(["git", "add", "."], root, required=True)
+    run(["git", "commit", "-m", "Phoenix benchmark baseline"], root, required=True)
+
+
+def _evaluate_phoenix_case(
+    root,
+    baseline,
+    pre,
+    post,
+    repetitions,
+    label,
+    path,
+    source,
+    *,
+    expected=None,
+    rule=None,
+):
+    nested = root / "lib"
+    for name, content in baseline.items():
+        (root / name).write_text(content)
+    payload = json.dumps(
+        {
+            "cwd": str(root),
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(root / path)},
+        }
+    )
+    admission = run(["/bin/sh", "-c", pre], nested, input=payload, required=True)
+    (root / path).write_text(source)
+    run(["mix", "format", path], root, required=True)
+    written = (root / path).read_bytes()
+    timings, result = [], None
+    for _ in range(repetitions):
+        started = time.monotonic()
+        result = run(["/bin/sh", "-c", post], nested, input=payload)
+        timings.append(round((time.monotonic() - started) * 1000, 2))
+    combined = result.stderr + result.stdout
+    checked = "NOT CHECKED" not in combined
+    matched = rule is not None and rule in combined
+    return {
+        "case": label,
+        "stage": "post-write",
+        "pre_exit": admission.returncode,
+        "exit": result.returncode,
+        "coverage_available": checked,
+        "expected_rule": rule,
+        "targeted_finding": matched,
+        "security_block": matched and result.returncode == 2,
+        "expected_exit": expected,
+        "expectation_met": (
+            checked
+            and (expected is None or result.returncode == expected)
+            and (rule is None or matched)
+        ),
+        "security_scope": (
+            "known coverage gap" if expected is None else "behavioral regression"
+        ),
+        "bytes_landed_before_check": True,
+        "hook_preserved_written_bytes": written == (root / path).read_bytes(),
+        "median_ms": statistics.median(timings),
+        "samples_ms": timings,
+        "diagnostic": result.stderr,
+        "model_context": result.stdout,
+    }
+
+
+def _evaluate_phoenix_components(root, baseline):
+    for name, content in baseline.items():
+        (root / name).write_text(content)
+    events = []
+    for label, source, expected, marker in (
+        ("valid component", baseline[COMPONENT], 0, None),
+        (
+            "missing required component attr",
+            baseline[COMPONENT].replace(' name="World"', ""),
+            1,
+            "required attribute",
+        ),
+        (
+            "malformed HEEx",
+            baseline[COMPONENT].replace("</p>", "</section>"),
+            1,
+            "unmatched closing tag",
+        ),
+        ("component repair", baseline[COMPONENT], 0, None),
+    ):
+        (root / COMPONENT).write_text(source)
+        started = time.monotonic()
+        result = run(
+            [
+                sys.executable,
+                str(root / ".loki/loki.py"),
+                "elixir",
+                "--project",
+                str(root),
+                "--tier",
+                "project",
+                "--json",
+            ],
+            root,
+        )
+        report = json.loads(result.stdout)
+        compile_check = next(item for item in report if item["tool"] == "compile")
+        passed = compile_check["status"] == "PASS"
+        targeted = marker is None or marker in compile_check["output"]
+        events.append(
+            {
+                "case": label,
+                "stage": "explicit project tier",
+                "compile_status": compile_check["status"],
+                "expected_compile_exit": expected,
+                "expectation_met": passed == (expected == 0) and targeted,
+                "whole_gate_exit": result.returncode,
+                "whole_gate_note": "Existing debt can fail other checks.",
+                "ms": round((time.monotonic() - started) * 1000, 2),
+                "checks": report,
+            }
+        )
+    return events
+
+
 def benchmark(prepared, repetitions, block):
     if (prepared / "mix.exs").read_bytes() != (FIXTURE / "mix.exs").read_bytes():
         raise ValueError("prepared project must use the benchmark's pinned mix.exs")
@@ -93,30 +235,7 @@ def benchmark(prepared, repetitions, block):
     events = []
     with tempfile.TemporaryDirectory(prefix="loki-phoenix-benchmark-") as directory:
         root = Path(directory)
-        shutil.copytree(FIXTURE, root, dirs_exist_ok=True)
-        for name in ("deps", "_build"):
-            shutil.copytree(prepared / name, root / name, symlinks=True)
-        (root / ".gitignore").write_text("deps/\n_build/\n")
-        run(["git", "init"], root, required=True)
-        run(
-            [sys.executable, str(SOURCE / "loki.py"), "init", "--dir", str(root)],
-            root,
-            required=True,
-        )
-        policy_path = root / ".loki/loki.json"
-        policy = json.loads(policy_path.read_text())
-        policy["elixir_security"]["sobelow"] = {
-            "block": block,
-            "warn": "low" if block == "low" else "medium",
-        }
-        policy_path.write_text(json.dumps(policy))
-        # A committed Sobelow suppression must not weaken Loki's source-security gate.
-        (root / ".sobelow-conf").write_text(
-            '[ignore: ["Misc.BinToTerm"], skip: true]\n'
-        )
-        run(["mix", "format"], root, required=True)
-        run(["git", "add", "."], root, required=True)
-        run(["git", "commit", "-m", "Phoenix benchmark baseline"], root, required=True)
+        _setup_phoenix_repo(root, prepared, block)
         baseline = {
             name: (root / name).read_text()
             for name in (CONTROLLER, COMPONENT, "lib/old_debt.ex")
@@ -124,59 +243,20 @@ def benchmark(prepared, repetitions, block):
         groups = json.loads((root / ".claude/settings.json").read_text())["hooks"]
         pre = groups["PreToolUse"][0]["hooks"][0]["command"]
         post = groups["PostToolUse"][0]["hooks"][0]["command"]
-        nested = root / "lib"
 
         def evaluate(label, path, source, *, expected=None, rule=None):
-            for name, content in baseline.items():
-                (root / name).write_text(content)
-            payload = json.dumps(
-                {
-                    "cwd": str(root),
-                    "tool_name": "Write",
-                    "tool_input": {"file_path": str(root / path)},
-                }
+            event = _evaluate_phoenix_case(
+                root,
+                baseline,
+                pre,
+                post,
+                repetitions,
+                label,
+                path,
+                source,
+                expected=expected,
+                rule=rule,
             )
-            admission = run(
-                ["/bin/sh", "-c", pre], nested, input=payload, required=True
-            )
-            (root / path).write_text(source)
-            run(["mix", "format", path], root, required=True)
-            written = (root / path).read_bytes()
-            timings, result = [], None
-            for _ in range(repetitions):
-                started = time.monotonic()
-                result = run(["/bin/sh", "-c", post], nested, input=payload)
-                timings.append(round((time.monotonic() - started) * 1000, 2))
-            combined = result.stderr + result.stdout
-            checked = "NOT CHECKED" not in combined
-            matched = rule is not None and rule in combined
-            event = {
-                "case": label,
-                "stage": "post-write",
-                "pre_exit": admission.returncode,
-                "exit": result.returncode,
-                "coverage_available": checked,
-                "expected_rule": rule,
-                "targeted_finding": matched,
-                "security_block": matched and result.returncode == 2,
-                "expected_exit": expected,
-                "expectation_met": (
-                    checked
-                    and (expected is None or result.returncode == expected)
-                    and (rule is None or matched)
-                ),
-                "security_scope": (
-                    "known coverage gap"
-                    if expected is None
-                    else "behavioral regression"
-                ),
-                "bytes_landed_before_check": True,
-                "hook_preserved_written_bytes": written == (root / path).read_bytes(),
-                "median_ms": statistics.median(timings),
-                "samples_ms": timings,
-                "diagnostic": result.stderr,
-                "model_context": result.stdout,
-            }
             events.append(event)
             return event
 
@@ -213,57 +293,7 @@ def benchmark(prepared, repetitions, block):
             expected=2 if block == "low" else 0,
             rule="RCE.CodeModule",
         )
-
-        for name, content in baseline.items():
-            (root / name).write_text(content)
-        for label, source, expected, marker in (
-            ("valid component", baseline[COMPONENT], 0, None),
-            (
-                "missing required component attr",
-                baseline[COMPONENT].replace(' name="World"', ""),
-                1,
-                "required attribute",
-            ),
-            (
-                "malformed HEEx",
-                baseline[COMPONENT].replace("</p>", "</section>"),
-                1,
-                "unmatched closing tag",
-            ),
-            ("component repair", baseline[COMPONENT], 0, None),
-        ):
-            (root / COMPONENT).write_text(source)
-            started = time.monotonic()
-            result = run(
-                [
-                    sys.executable,
-                    str(root / ".loki/loki.py"),
-                    "elixir",
-                    "--project",
-                    str(root),
-                    "--tier",
-                    "project",
-                    "--json",
-                ],
-                root,
-            )
-            report = json.loads(result.stdout)
-            compile_check = next(item for item in report if item["tool"] == "compile")
-            passed = compile_check["status"] == "PASS"
-            targeted = marker is None or marker in compile_check["output"]
-            events.append(
-                {
-                    "case": label,
-                    "stage": "explicit project tier",
-                    "compile_status": compile_check["status"],
-                    "expected_compile_exit": expected,
-                    "expectation_met": passed == (expected == 0) and targeted,
-                    "whole_gate_exit": result.returncode,
-                    "whole_gate_note": "Existing debt can fail other checks.",
-                    "ms": round((time.monotonic() - started) * 1000, 2),
-                    "checks": report,
-                }
-            )
+        events.extend(_evaluate_phoenix_components(root, baseline))
     return events
 
 
