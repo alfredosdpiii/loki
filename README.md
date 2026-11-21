@@ -33,11 +33,16 @@ to fix, and does all of this without calling a model.
   `-c` injection, ReDoS, zip slip, prototype pollution, GitHub Actions
   injection and more.
 - **It's fast when it matters.** A per-repository daemon keeps the TypeScript
-  checker, `dmypy` and build caches warm. A TypeScript check takes about 40 ms
-  warm instead of 500 ms.
+  checker, `dmypy`, `codehygiene`, `nits` and build caches warm. A TypeScript
+  check takes about 40 ms warm instead of 500 ms.
+- **It catches code hygiene and nits on added lines.** Every write runs the
+  vendored [codehygiene](https://github.com/brianbell-x/codehygiene) model
+  alongside [nits](https://github.com/jkomyno/nits) tree-sitter rules, catching
+  swallowed errors, empty-success fallbacks, noisy comments, duplicate blocks
+  and special-casing without complaining about untouched code.
 - **It measures structural sloppiness too.** `loki slop` scores complexity,
   duplication and import cycles in six languages and flags new hotspots as the
-  agent writes them.
+  agent writes them. Loki scores `0/100` on itself.
 
 ## How it compares
 
@@ -107,8 +112,9 @@ git commit -m "Add Loki guardrails"
   (XSS, leaked keys, injection, a type error that breaks a caller, edits to Loki's
   own files), and the agent fixes them.
 - **Reported after the write:** findings from mypy, `tsc`, golangci-lint, Clippy,
-  Credo and Sobelow go back to the agent. Only what the edit introduced counts;
-  existing debt stays quiet.
+  Credo and Sobelow go back to the agent, along with `codehygiene` and `nits`
+  notes on added lines. Only what the edit introduced counts; existing debt
+  stays quiet.
 - **Advisory:** new complexity hotspots, copied code and import cycles, unless you
   make them blocking.
 
@@ -151,8 +157,8 @@ flowchart LR
     B -->|clean| D[File is written]
     D --> E{Post-write}
     E -->|mypy, golangci-lint, Clippy,<br/>Credo, Sobelow, Oxlint| F[Report net-new findings]
-    E --> G[Advisory: new hotspots,<br/>clones, import cycles]
-    H[(Warm daemon)] -. keeps analyzers warm .-> B
+    E -->|codehygiene + nits,<br/>slop hotspots & clones| G[Notes on added lines]
+    H[(Warm daemon)] -. keeps tsc, dmypy,<br/>codehygiene & nits warm .-> B
     H -.-> E
 ```
 
@@ -182,6 +188,40 @@ edits, so an agent can't switch it off.
 Missing analyzers are reported as `NOT CHECKED`, never as clean, and
 `LOKI_STRICT=1` turns them into failures. The [reference](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md)
 documents every rule, threshold and limitation.
+
+## Code hygiene & nits
+
+On every write (`"hygiene": "on"` by default), Loki runs two local readability
+and error-handling checks over the lines the edit added against `HEAD`:
+
+- **[codehygiene](https://github.com/brianbell-x/codehygiene)** (vendored MIT
+  ternary model in `.loki/vendor/codehygiene`, requires NumPy via Loki's Python,
+  `--python`, or `uv`'s offline cache). Default `on` catches `swallowed_error`,
+  `noisy_comment`, `duplicate_block` and `special_casing`.
+- **[nits](https://github.com/jkomyno/nits)** (tree-sitter rules for Python,
+  TypeScript, JavaScript and Rust, pinned to a commit and run only from local
+  Python or `uv`'s offline cache; never downloaded at hook time). Default `on`
+  reports rules with measured precision >= 0.80, such as
+  `error-to-empty-success`.
+
+When both flag the same kind on the same line, Loki keeps only the `nits` note.
+Both workers stay warm in the per-repository daemon so repeated writes avoid
+cold-start overhead.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/hygiene.gif" alt="Loki running codehygiene and nits on added lines, reporting swallowed errors and empty-success fallbacks, then passing once fixed" width="820">
+<br>
+<sub>Real hook and CLI output from <a href="https://github.com/alfredosdpiii/loki/blob/main/docs/demo/hygiene.sh">docs/demo/hygiene.sh</a>. Only the typing is simulated.</sub>
+</div>
+
+Run on demand over modified and untracked files at any time:
+
+```bash
+loki hygiene                       # default high-precision checks against HEAD
+loki hygiene --base main           # everything added on this branch
+loki hygiene --level all           # include layout, naming and lower-precision nits
+loki hygiene --json                # machine-readable findings and not_checked notes
+```
 
 ## Structural sloppiness
 
@@ -259,5 +299,12 @@ bun test ./tests/loki-shim.test.ts ./tests/loki-omp.test.ts
 ruff check --config templates/.ruff.toml loki.py tests benchmarks
 ```
 
-Regenerate the demo with `asciinema rec -c "bash docs/demo/demo.sh" docs/demo/demo.cast`
-followed by `agg docs/demo/demo.cast docs/demo/demo.gif`.
+Regenerate the demos with:
+
+```bash
+asciinema rec --cols 96 --rows 34 --overwrite -c "bash docs/demo/demo.sh" docs/demo/demo.cast
+agg docs/demo/demo.cast docs/demo/demo.gif
+
+asciinema rec --cols 96 --rows 34 --overwrite -c "bash docs/demo/hygiene.sh" docs/demo/hygiene.cast
+agg docs/demo/hygiene.cast docs/demo/hygiene.gif
+```
