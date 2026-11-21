@@ -14,46 +14,55 @@ CAUGHT = {"prevented", "detected_after_write"}
 FALSE_BLOCKS = {"false_block", "false_post_block"}
 
 
+MODULE_NOTICES = (
+    "MODULE_TYPELESS_PACKAGE_JSON",
+    "Reparsing as ES module",
+    "module syntax was detected",
+)
+
+
+def _handler_feedback_parts(handler):
+    parts = []
+    raw = handler["stdout"]
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        value = {}
+        if handler["exit"] == 2:
+            parts.append(raw)
+    if isinstance(value, dict):
+        specific = value.get("hookSpecificOutput", {})
+        specific_dict = specific if isinstance(specific, dict) else {}
+        for text in (
+            value.get("reason"),
+            specific_dict.get("additionalContext"),
+            specific_dict.get("permissionDecisionReason"),
+        ):
+            if isinstance(text, str):
+                parts.append(text)
+    if handler["exit"] == 2:
+        parts.append(handler["stderr"])
+    return parts
+
+
+def _is_module_notice(line):
+    return any(notice in line for notice in MODULE_NOTICES)
+
+
 def feedback_lines(stage):
     """Decode the host envelope before matching; JSON '\\n' is not a line break."""
     if not stage:
         return []
-    parts = []
-    for handler in stage["handlers"]:
-        raw = handler["stdout"]
-        try:
-            value = json.loads(raw)
-        except ValueError:
-            value = {}
-            if handler["exit"] == 2:
-                parts.append(raw)
-        if isinstance(value, dict):
-            specific = value.get("hookSpecificOutput", {})
-            for text in (
-                value.get("reason"),
-                specific.get("additionalContext")
-                if isinstance(specific, dict)
-                else None,
-                specific.get("permissionDecisionReason")
-                if isinstance(specific, dict)
-                else None,
-            ):
-                if isinstance(text, str):
-                    parts.append(text)
-        if handler["exit"] == 2:
-            parts.append(handler["stderr"])
+    parts = [
+        part
+        for handler in stage["handlers"]
+        for part in _handler_feedback_parts(handler)
+    ]
     return [
         line
         for part in parts
         for line in part.splitlines()
-        if not any(
-            notice in line
-            for notice in (
-                "MODULE_TYPELESS_PACKAGE_JSON",
-                "Reparsing as ES module",
-                "module syntax was detected",
-            )
-        )
+        if not _is_module_notice(line)
     ]
 
 
@@ -75,7 +84,7 @@ def scored_outcome(event, step):
     return classify(step["kind"], pre, post)
 
 
-def measurements(directory):
+def _load_validated_records(directory):
     manifest = json.loads((directory / "manifest.json").read_text())
     summary = json.loads((directory / "summary.json").read_text())
     if not summary["identity_unchanged"]:
@@ -89,6 +98,80 @@ def measurements(directory):
     actual = [(item["case"], item["product"], item["profile"]) for item in records]
     if len(actual) != len(set(actual)) or set(actual) != expected:
         raise ValueError("incomplete or duplicate benchmark records")
+    return manifest, records
+
+
+def _sample_metrics(event):
+    post_ms = event["post"]["ms"] if event["post"] else None
+    return {
+        "cache_state": event["cache_state"],
+        "pre_ms": event["pre"]["ms"],
+        "post_ms": post_ms,
+        "total_ms": event["pre"]["ms"] + (post_ms or 0),
+    }
+
+
+def _scoring_corrections(observations, step):
+    corrections = []
+    for event in observations:
+        corrected = scored_outcome(event, step)
+        if event["outcome"] != corrected:
+            corrections.append(
+                {
+                    "repetition": event["repetition"],
+                    "from": event["outcome"],
+                    "to": corrected,
+                }
+            )
+    return corrections
+
+
+def _stage_flags(observations):
+    stages = [
+        stage
+        for event in observations
+        for stage in (event["pre"], event["post"])
+        if stage
+    ]
+    return {
+        "coverage_warning": any(stage["coverage_warning"] for stage in stages),
+        "feedback": any(stage["feedback_present"] for stage in stages),
+        "post_modified": any(
+            event["post_modified_written_bytes"] for event in observations
+        ),
+        "pre_modified": any(event["pre_modified_bytes"] for event in observations),
+    }
+
+
+def _build_measurement_row(case, index, step, record, observations):
+    outcomes = {scored_outcome(event, step) for event in observations}
+    return {
+        "case": case["id"],
+        "step": index,
+        "pair": case["pair"],
+        "family": case["family"],
+        "language": case["language"],
+        "product": record["product"],
+        "profile": record["profile"],
+        "kind": step["kind"],
+        "outcomes": sorted(outcomes),
+        "provisional_outcomes": sorted({event["outcome"] for event in observations}),
+        "scoring_corrections": _scoring_corrections(observations, step),
+        "caught_all_runs": (
+            not record.get("error") and bool(outcomes) and outcomes <= CAUGHT
+        ),
+        "prevented_all_runs": not record.get("error") and outcomes == {"prevented"},
+        "false_block_any_run": bool(outcomes & FALSE_BLOCKS),
+        "inconsistent": len(outcomes) > 1,
+        "error": record.get("error"),
+        **_stage_flags(observations),
+        "samples": [_sample_metrics(event) for event in observations],
+        "scans": record.get("audit_scans", []),
+    }
+
+
+def measurements(directory):
+    manifest, records = _load_validated_records(directory)
     cases = {case["id"]: case for case in manifest["corpus"]["cases"]}
     rows = []
     for record in records:
@@ -99,71 +182,12 @@ def measurements(directory):
             ]
             if "error" not in record and len(observations) != manifest["runs"]:
                 raise ValueError("missing repetitions")
-            outcomes = {scored_outcome(event, step) for event in observations}
-            stages = [
-                stage
-                for event in observations
-                for stage in (event["pre"], event["post"])
-                if stage
-            ]
-            rows.append(
-                {
-                    "case": case["id"],
-                    "step": index,
-                    "pair": case["pair"],
-                    "family": case["family"],
-                    "language": case["language"],
-                    "product": record["product"],
-                    "profile": record["profile"],
-                    "kind": step["kind"],
-                    "outcomes": sorted(outcomes),
-                    "provisional_outcomes": sorted(
-                        {event["outcome"] for event in observations}
-                    ),
-                    "scoring_corrections": [
-                        {
-                            "repetition": event["repetition"],
-                            "from": event["outcome"],
-                            "to": scored_outcome(event, step),
-                        }
-                        for event in observations
-                        if event["outcome"] != scored_outcome(event, step)
-                    ],
-                    "caught_all_runs": (
-                        not record.get("error")
-                        and bool(outcomes)
-                        and outcomes <= CAUGHT
-                    ),
-                    "prevented_all_runs": (
-                        not record.get("error") and outcomes == {"prevented"}
-                    ),
-                    "false_block_any_run": bool(outcomes & FALSE_BLOCKS),
-                    "inconsistent": len(outcomes) > 1,
-                    "error": record.get("error"),
-                    "coverage_warning": any(
-                        stage["coverage_warning"] for stage in stages
-                    ),
-                    "feedback": any(stage["feedback_present"] for stage in stages),
-                    "post_modified": any(
-                        event["post_modified_written_bytes"] for event in observations
-                    ),
-                    "pre_modified": any(
-                        event["pre_modified_bytes"] for event in observations
-                    ),
-                    "samples": [
-                        {
-                            "cache_state": event["cache_state"],
-                            "pre_ms": event["pre"]["ms"],
-                            "post_ms": event["post"]["ms"] if event["post"] else None,
-                            "total_ms": event["pre"]["ms"]
-                            + (event["post"]["ms"] if event["post"] else 0),
-                        }
-                        for event in observations
-                    ],
-                    "scans": record.get("audit_scans", []),
-                }
-            )
+            rows.append(_build_measurement_row(case, index, step, record, observations))
     return manifest, rows
+
+
+def _count_flag(rows, key):
+    return sum(bool(row[key]) for row in rows)
 
 
 def counts(rows):
@@ -171,14 +195,14 @@ def counts(rows):
     good = [row for row in rows if row["kind"] == "control"]
     return {
         "defects": len(bad),
-        "caught": sum(row["caught_all_runs"] for row in bad),
-        "prevented": sum(row["prevented_all_runs"] for row in bad),
+        "caught": _count_flag(bad, "caught_all_runs"),
+        "prevented": _count_flag(bad, "prevented_all_runs"),
         "controls": len(good),
-        "false_blocks": sum(row["false_block_any_run"] for row in good),
-        "control_feedback": sum(row["feedback"] for row in good),
-        "coverage_warning": sum(row["coverage_warning"] for row in rows),
-        "errors": sum(bool(row["error"]) for row in rows),
-        "inconsistent": sum(row["inconsistent"] for row in rows),
+        "false_blocks": _count_flag(good, "false_block_any_run"),
+        "control_feedback": _count_flag(good, "feedback"),
+        "coverage_warning": _count_flag(rows, "coverage_warning"),
+        "errors": _count_flag(rows, "error"),
+        "inconsistent": _count_flag(rows, "inconsistent"),
     }
 
 
@@ -321,7 +345,25 @@ def _render_pairs_and_latency(groups, results):
     return lines
 
 
-def _render_audits_and_misses(rows):
+def _shared_product_scans(rows, product):
+    return [
+        scan
+        for row in rows
+        if row["product"] == product and row["profile"] == "shared"
+        for scan in row["scans"]
+    ]
+
+
+def _product_audit_row(rows, product):
+    scans = _shared_product_scans(rows, product)
+    bad = [scan for scan in scans if scan["kind"] == "defect"]
+    good = [scan for scan in scans if scan["kind"] == "control"]
+    caught = _count_flag(bad, "targeted")
+    clean = sum(scan["exit"] == 0 for scan in good)
+    return f"| {product} | {caught}/{len(bad)} | {clean}/{len(good)} |"
+
+
+def _render_audit_table(rows):
     lines = [
         "",
         "## Explicit Go/Rust audit commands",
@@ -335,19 +377,12 @@ def _render_audits_and_misses(rows):
         "| --- | ---: | ---: |",
     ]
     for product in ("loki", "interlinked"):
-        scans = [
-            scan
-            for row in rows
-            if row["product"] == product and row["profile"] == "shared"
-            for scan in row["scans"]
-        ]
-        bad = [scan for scan in scans if scan["kind"] == "defect"]
-        good = [scan for scan in scans if scan["kind"] == "control"]
-        lines.append(
-            f"| {product} | {sum(scan['targeted'] for scan in bad)}/{len(bad)} | "
-            f"{sum(scan['exit'] == 0 for scan in good)}/{len(good)} |"
-        )
-    lines += ["", "## Misses and unrelated blocks", ""]
+        lines.append(_product_audit_row(rows, product))
+    return lines
+
+
+def _render_misses(rows):
+    lines = ["", "## Misses and unrelated blocks", ""]
     for row in rows:
         if (
             row["profile"] == "shared"
@@ -358,7 +393,11 @@ def _render_audits_and_misses(rows):
             lines.append(
                 f"- {row['product']}: `{row['case']}` step {row['step']}: {outcome}."
             )
-    lines += ["", "## False blocks and instability", ""]
+    return lines
+
+
+def _render_instability(rows):
+    lines = ["", "## False blocks and instability", ""]
     for row in rows:
         if row["false_block_any_run"] or row["inconsistent"] or row["error"]:
             outcome = ", ".join(row["outcomes"]) or "infrastructure error"
@@ -367,6 +406,10 @@ def _render_audits_and_misses(rows):
                 f"step {row['step']}: {outcome}."
             )
     return lines
+
+
+def _render_audits_and_misses(rows):
+    return _render_audit_table(rows) + _render_misses(rows) + _render_instability(rows)
 
 
 def _render_scoring_and_limitations(manifest, rows):

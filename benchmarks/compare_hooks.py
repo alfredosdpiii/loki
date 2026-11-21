@@ -232,6 +232,37 @@ def _init_compare_fixture(name, root, cli, env, reviewed_test_command, oxlint):
     run(["git", "commit", "-m", "Matched hook fixture baseline"], root, required=True)
 
 
+def _run_compare_repetition(commands, root, env, payload):
+    started = time.monotonic()
+    results = [
+        run(["/bin/sh", "-c", command], root, env=env, input=payload)
+        for command in commands
+    ]
+    elapsed_ms = round((time.monotonic() - started) * 1000, 2)
+    decisions = [
+        decision(result.returncode, result.stdout, result.stderr) for result in results
+    ]
+    aggregate = next(
+        (kind for kind in ("deny", "review", "unavailable") if kind in decisions),
+        "allow",
+    )
+    observation = {
+        "decision": aggregate,
+        "checks_unavailable_or_deferred": any(
+            coverage_unavailable(result.stdout, result.stderr) for result in results
+        ),
+        "handlers": [
+            {
+                "exit": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            }
+            for result in results
+        ],
+    }
+    return elapsed_ms, observation
+
+
 def _measure_compare_case(
     name, root, env, label, category, tool, target, content, repetitions
 ):
@@ -253,37 +284,9 @@ def _measure_compare_case(
     )
     samples, observations = [], []
     for _ in range(repetitions):
-        started = time.monotonic()
-        results = [
-            run(["/bin/sh", "-c", command], root, env=env, input=payload)
-            for command in commands
-        ]
-        samples.append(round((time.monotonic() - started) * 1000, 2))
-        decisions = [
-            decision(result.returncode, result.stdout, result.stderr)
-            for result in results
-        ]
-        aggregate = next(
-            (kind for kind in ("deny", "review", "unavailable") if kind in decisions),
-            "allow",
-        )
-        observations.append(
-            {
-                "decision": aggregate,
-                "checks_unavailable_or_deferred": any(
-                    coverage_unavailable(result.stdout, result.stderr)
-                    for result in results
-                ),
-                "handlers": [
-                    {
-                        "exit": result.returncode,
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                    }
-                    for result in results
-                ],
-            }
-        )
+        elapsed_ms, observation = _run_compare_repetition(commands, root, env, payload)
+        samples.append(elapsed_ms)
+        observations.append(observation)
     return {
         "case": label,
         "category": category,

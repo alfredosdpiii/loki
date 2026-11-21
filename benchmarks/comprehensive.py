@@ -57,19 +57,7 @@ def save(path, value):
         stream.write("\n")
 
 
-def decode(result, phase):
-    """Decode native Claude output, including exit-zero post-tool blocks."""
-    status, output = result["exit"], result["stdout"]
-    if status not in (0, 2):
-        return "unavailable"
-    if status == 2:
-        return "deny"
-    if not output.strip():
-        return "allow"
-    try:
-        value = json.loads(output)
-    except ValueError:
-        return "unavailable"
+def _decode_payload(value, phase):
     if not isinstance(value, dict):
         return "unavailable"
     if value.get("continue") is False or value.get("decision") == "block":
@@ -83,6 +71,22 @@ def decode(result, phase):
     if permission not in (None, "allow", "deny", "ask"):
         return "unavailable"
     return {"deny": "deny", "ask": "review"}.get(permission, "allow")
+
+
+def decode(result, phase):
+    """Decode native Claude output, including exit-zero post-tool blocks."""
+    status, output = result["exit"], result["stdout"]
+    if status not in (0, 2):
+        return "unavailable"
+    if status == 2:
+        return "deny"
+    if not output.strip():
+        return "allow"
+    try:
+        value = json.loads(output)
+    except ValueError:
+        return "unavailable"
+    return _decode_payload(value, phase)
 
 
 def visible_text(result):
@@ -111,18 +115,17 @@ def summarize_stage(results, phase, markers):
     }
 
 
-def classify(kind, pre, post):
-    """A denial alone is not proof that the intended defect was identified."""
-    if kind == "control":
-        if pre["decision"] in ("deny", "review"):
-            return "false_block"
-        if post and post["decision"] in ("deny", "review"):
-            return "false_post_block"
-        if pre["decision"] == "unavailable" or (
-            post and post["decision"] == "unavailable"
-        ):
-            return "unavailable"
-        return "admitted"
+def _classify_control(pre, post):
+    if pre["decision"] in ("deny", "review"):
+        return "false_block"
+    if post and post["decision"] in ("deny", "review"):
+        return "false_post_block"
+    if pre["decision"] == "unavailable" or (post and post["decision"] == "unavailable"):
+        return "unavailable"
+    return "admitted"
+
+
+def _classify_defect(pre, post):
     if pre["decision"] == "deny":
         return "prevented" if pre["targeted"] else "blocked_unrelated"
     if pre["decision"] == "unavailable":
@@ -132,6 +135,13 @@ def classify(kind, pre, post):
     if post and post["decision"] == "unavailable":
         return "unavailable"
     return "missed"
+
+
+def classify(kind, pre, post):
+    """A denial alone is not proof that the intended defect was identified."""
+    if kind == "control":
+        return _classify_control(pre, post)
+    return _classify_defect(pre, post)
 
 
 def percentile(values, fraction):
@@ -360,6 +370,48 @@ def _link_shared_js_tools(root, args):
     )
 
 
+def _write_js_configs(root):
+    write(
+        root,
+        "tsconfig.json",
+        json.dumps(
+            {
+                "compilerOptions": {
+                    "strict": True,
+                    "noEmit": True,
+                    "target": "ES2022",
+                    "module": "ESNext",
+                    "moduleResolution": "Bundler",
+                    "skipLibCheck": True,
+                },
+                "include": ["src/**/*.ts"],
+            }
+        ),
+    )
+    write(
+        root,
+        "biome.json",
+        json.dumps(
+            {
+                "formatter": {"enabled": False},
+                "linter": {"enabled": True, "rules": {"recommended": True}},
+                "assist": {"enabled": False},
+            }
+        ),
+    )
+
+
+def _snapshot_fixture(root):
+    ignored = {".git", "node_modules", "deps", "_build", ".interlinked"}
+    return {
+        p.relative_to(root).as_posix(): p.read_bytes()
+        for p in root.rglob("*")
+        if p.is_file()
+        and not p.is_symlink()
+        and not any(part in ignored for part in p.relative_to(root).parts)
+    }
+
+
 def baseline(root, case, product, sandbox, profile):
     args = sandbox.args
     root.mkdir()
@@ -387,34 +439,7 @@ def baseline(root, case, product, sandbox, profile):
     }.items():
         write(root, name, content)
     if case["language"] in ("typescript", "javascript"):
-        write(
-            root,
-            "tsconfig.json",
-            json.dumps(
-                {
-                    "compilerOptions": {
-                        "strict": True,
-                        "noEmit": True,
-                        "target": "ES2022",
-                        "module": "ESNext",
-                        "moduleResolution": "Bundler",
-                        "skipLibCheck": True,
-                    },
-                    "include": ["src/**/*.ts"],
-                }
-            ),
-        )
-        write(
-            root,
-            "biome.json",
-            json.dumps(
-                {
-                    "formatter": {"enabled": False},
-                    "linter": {"enabled": True, "rules": {"recommended": True}},
-                    "assist": {"enabled": False},
-                }
-            ),
-        )
+        _write_js_configs(root)
     for index in range(case.get("tracked_files", 0)):
         write(root, f"corpus/file-{index:05}.txt", "Tracked workload fixture.\n")
     _install_benchmark_product(root, product, sandbox, args)
@@ -424,16 +449,7 @@ def baseline(root, case, product, sandbox, profile):
         (root / "policy-link").symlink_to(".claude/settings.json")
     git(root, "add", ".")
     git(root, "commit", "-m", "Comprehensive benchmark fixture")
-    return {
-        p.relative_to(root).as_posix(): p.read_bytes()
-        for p in root.rglob("*")
-        if p.is_file()
-        and not p.is_symlink()
-        and not any(
-            part in {".git", "node_modules", "deps", "_build", ".interlinked"}
-            for part in p.relative_to(root).parts
-        )
-    }
+    return _snapshot_fixture(root)
 
 
 def formatted(step, language, root, sandbox):
@@ -488,62 +504,68 @@ def payload(root, step, content, phase, session, before, *, tool_id=None):
     )
 
 
-def lifecycle(root, case, sandbox, repetition):
-    events = []
-    for index, step in enumerate(case["steps"]):
-        content = formatted(step, case["language"], root, sandbox)
-        path = root / step["path"] if step["path"] else None
-        before = path.read_bytes() if path and path.is_file() else None
-        stages = {}
-        landed = False
-        for phase in ("PreToolUse", "PostToolUse"):
-            if phase == "PostToolUse":
-                if (
-                    step.get("admission_only")
-                    or stages["PreToolUse"]["decision"] != "allow"
-                ):
-                    break
-                write(root, step["path"], content)
-                landed = True
-            commands = handler_commands(root, phase, step["tool"])
-            results = [
-                sandbox.run(
-                    ["/bin/sh", "-c", command],
-                    root,
-                    payload=payload(
-                        root,
-                        step,
-                        content,
-                        phase,
-                        f"bench-{repetition}",
-                        before,
-                        tool_id=f"bench-{repetition}-step-{index}",
-                    ),
-                    timeout=45,
-                )
-                for command in commands
-            ]
-            stages[phase] = summarize_stage(results, phase, step["markers"])
-        pre, post = stages["PreToolUse"], stages.get("PostToolUse")
-        after = path.read_bytes() if path and path.is_file() else None
-        events.append(
-            {
-                "step": index,
-                "kind": step["kind"],
-                "repetition": repetition,
-                "cache_state": (
-                    "first-invocation" if repetition == 0 else "startup-warmed"
-                ),
-                "outcome": classify(step["kind"], pre, post),
-                "bytes_landed": landed,
-                "proposed_sha256": hashlib.sha256(content.encode()).hexdigest(),
-                "post_modified_written_bytes": landed and after != content.encode(),
-                "pre_modified_bytes": not landed and before != after,
-                "pre": pre,
-                "post": post,
-            }
+def _read_optional_bytes(path):
+    return path.read_bytes() if path and path.is_file() else None
+
+
+def _run_stage(root, step, content, phase, before, sandbox, repetition, index):
+    commands = handler_commands(root, phase, step["tool"])
+    results = [
+        sandbox.run(
+            ["/bin/sh", "-c", command],
+            root,
+            payload=payload(
+                root,
+                step,
+                content,
+                phase,
+                f"bench-{repetition}",
+                before,
+                tool_id=f"bench-{repetition}-step-{index}",
+            ),
+            timeout=45,
         )
-    return events
+        for command in commands
+    ]
+    return summarize_stage(results, phase, step["markers"])
+
+
+def _run_lifecycle_step(root, case, sandbox, repetition, index, step):
+    content = formatted(step, case["language"], root, sandbox)
+    path = root / step["path"] if step["path"] else None
+    before = _read_optional_bytes(path)
+    pre = _run_stage(
+        root, step, content, "PreToolUse", before, sandbox, repetition, index
+    )
+    landed = False
+    post = None
+    if not step.get("admission_only") and pre["decision"] == "allow":
+        write(root, step["path"], content)
+        landed = True
+        post = _run_stage(
+            root, step, content, "PostToolUse", before, sandbox, repetition, index
+        )
+    after = _read_optional_bytes(path)
+    return {
+        "step": index,
+        "kind": step["kind"],
+        "repetition": repetition,
+        "cache_state": "first-invocation" if repetition == 0 else "startup-warmed",
+        "outcome": classify(step["kind"], pre, post),
+        "bytes_landed": landed,
+        "proposed_sha256": hashlib.sha256(content.encode()).hexdigest(),
+        "post_modified_written_bytes": landed and after != content.encode(),
+        "pre_modified_bytes": not landed and before != after,
+        "pre": pre,
+        "post": post,
+    }
+
+
+def lifecycle(root, case, sandbox, repetition):
+    return [
+        _run_lifecycle_step(root, case, sandbox, repetition, index, step)
+        for index, step in enumerate(case["steps"])
+    ]
 
 
 def _start_trial_daemon(parent, root, product, sandbox, args, log):
@@ -700,6 +722,10 @@ def evaluate_trial(case, product, profile, args, repetition):
             log.close()
 
 
+def _flatten_records(records, field):
+    return [entry for item in records for entry in item[field]]
+
+
 def evaluate(case, product, profile, args):
     """Never share reservations, diagnostic caches, or worktree state across trials."""
     records = []
@@ -717,13 +743,41 @@ def evaluate(case, product, profile, args):
         "product": product,
         "profile": profile,
         "setup_ms": [item["setup_ms"] for item in records],
-        "events": [event for item in records for event in item["events"]],
-        "audit_scans": [scan for item in records for scan in item["audit_scans"]],
-        "warmups": [result for item in records for result in item["warmups"]],
+        "events": _flatten_records(records, "events"),
+        "audit_scans": _flatten_records(records, "audit_scans"),
+        "warmups": _flatten_records(records, "warmups"),
     }
     if errors:
         record["error"] = "\n".join(errors)
     return record
+
+
+def _step_has_coverage_warning(events):
+    return any(
+        event["pre"]["coverage_warning"]
+        or (event["post"] and event["post"]["coverage_warning"])
+        for event in events
+    )
+
+
+def _accumulate_record(group, record):
+    if "error" in record:
+        group["errors"].append({"case": record["case"], "error": record["error"]})
+        return
+    by_step = {}
+    for event in record["events"]:
+        by_step.setdefault(event["step"], []).append(event)
+        group["timings"].append(
+            event["pre"]["ms"] + (event["post"]["ms"] if event["post"] else 0)
+        )
+    # Repetitions are timing/stability samples, not independent accuracy cases.
+    for events in by_step.values():
+        outcomes = {event["outcome"] for event in events}
+        if len(outcomes) > 1:
+            group["inconsistent_cases"].append(record["case"])
+        group["outcomes"][events[0]["outcome"]] += 1
+        group["steps"] += 1
+        group["coverage_warning_steps"] += int(_step_has_coverage_warning(events))
 
 
 def summarize(records):
@@ -741,29 +795,7 @@ def summarize(records):
                 "inconsistent_cases": [],
             },
         )
-        if "error" in record:
-            group["errors"].append({"case": record["case"], "error": record["error"]})
-            continue
-        by_step = {}
-        for event in record["events"]:
-            by_step.setdefault(event["step"], []).append(event)
-            group["timings"].append(
-                event["pre"]["ms"] + (event["post"]["ms"] if event["post"] else 0)
-            )
-        # Repetitions are timing/stability samples, not independent accuracy cases.
-        for events in by_step.values():
-            outcomes = {event["outcome"] for event in events}
-            if len(outcomes) > 1:
-                group["inconsistent_cases"].append(record["case"])
-            group["outcomes"][events[0]["outcome"]] += 1
-            group["steps"] += 1
-            group["coverage_warning_steps"] += int(
-                any(
-                    event["pre"]["coverage_warning"]
-                    or (event["post"] and event["post"]["coverage_warning"])
-                    for event in events
-                )
-            )
+        _accumulate_record(group, record)
     for group in groups.values():
         values = group.pop("timings")
         group["latency_ms"] = (
@@ -939,8 +971,7 @@ def _build_manifest(frozen, stamp, args, revision, schedule):
     }
 
 
-def main():
-    parser, args = _parse_comprehensive_args()
+def _validate_comprehensive_env(parser, args):
     revision = git(args.interlinked, "rev-parse", "HEAD").stdout.strip()
     if revision != args.competitor_revision:
         parser.error("competitor revision differs from the declared pin")
@@ -961,7 +992,10 @@ def main():
     )
     if not shutil.which("bwrap"):
         parser.error("bubblewrap is required; no unsandboxed fallback")
-    frozen = corpus.manifest()
+    return revision
+
+
+def _select_cases(frozen, args, parser):
     cases = [
         case
         for case in frozen["cases"]
@@ -969,9 +1003,10 @@ def main():
     ]
     if not cases:
         parser.error("case selection is empty")
-    args.output.mkdir(parents=True, exist_ok=False)
-    args.work_dir.mkdir(parents=True, exist_ok=True)
-    stamp = identity(args)
+    return cases
+
+
+def _build_schedule(cases, args):
     rng = random.Random(args.seed)  # noqa: S311 - reproducible scheduling, not security
     schedule = [
         (case, product, profile)
@@ -981,10 +1016,10 @@ def main():
         for product in ("loki", "interlinked")
     ]
     rng.shuffle(schedule)
-    save(
-        args.output / "manifest.json",
-        _build_manifest(frozen, stamp, args, revision, schedule),
-    )
+    return schedule
+
+
+def _run_schedule(schedule, args):
     records = []
     for index, (case, product, profile) in enumerate(schedule):
         print(
@@ -1001,6 +1036,23 @@ def main():
             }
         save(args.output / f"record-{index:04}.json", record)
         records.append(record)
+    return records
+
+
+def main():
+    parser, args = _parse_comprehensive_args()
+    revision = _validate_comprehensive_env(parser, args)
+    frozen = corpus.manifest()
+    cases = _select_cases(frozen, args, parser)
+    args.output.mkdir(parents=True, exist_ok=False)
+    args.work_dir.mkdir(parents=True, exist_ok=True)
+    stamp = identity(args)
+    schedule = _build_schedule(cases, args)
+    save(
+        args.output / "manifest.json",
+        _build_manifest(frozen, stamp, args, revision, schedule),
+    )
+    records = _run_schedule(schedule, args)
     unchanged = stamp == identity(args)
     save(
         args.output / "summary.json",

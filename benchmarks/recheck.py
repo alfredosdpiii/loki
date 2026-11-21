@@ -11,7 +11,7 @@ sys.path.insert(0, str(SOURCE))
 from benchmarks import compare_hooks, language_rules  # noqa: E402
 
 
-def main():
+def _parse_recheck_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--interlinked", type=Path, required=True)
     parser.add_argument("--node", type=Path, required=True)
@@ -35,6 +35,10 @@ def main():
         required=True,
     ).stdout.strip():
         parser.error("competitor tracked files must be clean")
+    return args, checkout, node, oxlint, revision
+
+
+def _build_recheck_cases():
     additional = [
         (
             f"rules: {name} {phase}",
@@ -53,6 +57,43 @@ def main():
     cases = [*compare_hooks.CASES, *compare_hooks.CONTENT_CONTROLS]
     if len({case[0] for case in cases}) != len(cases):
         raise ValueError("duplicate case labels")
+    return cases
+
+
+def _run_recheck_profile(
+    profile, reviewed, analyzer, checkout, node, cases, identity, args
+):
+    print(f"Running {profile}: {len(cases)} cases", flush=True)
+    events, capabilities = compare_hooks.compare(
+        checkout, node, args.runs, reviewed, analyzer, True
+    )
+    if (
+        identity["loki_sha256"]
+        != hashlib.sha256((SOURCE / "loki.py").read_bytes()).hexdigest()
+    ):
+        raise RuntimeError("engine changed during comparison")
+    report = {
+        **identity,
+        "profile": profile,
+        "scope": "Claude pre-hooks, warm competitor daemon, no proposed tools executed",
+        "loki_shell_guard": True,
+        "analyzer_available": analyzer is not None,
+        "loki_shell_permissions": (
+            [compare_hooks.REVIEWED_TEST_COMMAND] if reviewed else []
+        ),
+        "events": events,
+        "competitor_capabilities": capabilities,
+    }
+    destination = args.output_dir / f"{profile}.json"
+    if destination.exists():
+        raise FileExistsError(f"refusing to replace existing evidence: {destination}")
+    destination.write_text(json.dumps(report, indent=2) + "\n")
+    print(f"Saved {destination}", flush=True)
+
+
+def main():
+    args, checkout, node, oxlint, revision = _parse_recheck_args()
+    cases = _build_recheck_cases()
     identity = {
         "interlinked_sha": revision,
         "interlinked_hook_sha256": hashlib.sha256(
@@ -77,36 +118,9 @@ def main():
         ("analyzer-reviewed-test", True, oxlint),
         ("no-analyzer-reviewed-test", True, None),
     ):
-        print(f"Running {profile}: {len(cases)} cases", flush=True)
-        events, capabilities = compare_hooks.compare(
-            checkout, node, args.runs, reviewed, analyzer, True
+        _run_recheck_profile(
+            profile, reviewed, analyzer, checkout, node, cases, identity, args
         )
-        if (
-            identity["loki_sha256"]
-            != hashlib.sha256((SOURCE / "loki.py").read_bytes()).hexdigest()
-        ):
-            raise RuntimeError("engine changed during comparison")
-        report = {
-            **identity,
-            "profile": profile,
-            "scope": (
-                "Claude pre-hooks, warm competitor daemon, no proposed tools executed"
-            ),
-            "loki_shell_guard": True,
-            "analyzer_available": analyzer is not None,
-            "loki_shell_permissions": (
-                [compare_hooks.REVIEWED_TEST_COMMAND] if reviewed else []
-            ),
-            "events": events,
-            "competitor_capabilities": capabilities,
-        }
-        destination = args.output_dir / f"{profile}.json"
-        if destination.exists():
-            raise FileExistsError(
-                f"refusing to replace existing evidence: {destination}"
-            )
-        destination.write_text(json.dumps(report, indent=2) + "\n")
-        print(f"Saved {destination}", flush=True)
     return 0
 
 

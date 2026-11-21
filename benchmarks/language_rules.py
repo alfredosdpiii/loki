@@ -176,63 +176,67 @@ def run(command, root):
     )
 
 
-def analyze(language, source, root, args):
-    if language == "python":
-        (root / "app.py").write_text(source)
-        return run(
-            [
-                "ruff",
-                "check",
-                "--config",
-                str(SOURCE / "templates/.ruff.toml"),
-                "--output-format",
-                "json",
-                "app.py",
-            ],
-            root,
-        )
-    if language == "typescript":
-        if not args.oxlint:
-            return None
-        binary = root / "node_modules/.bin/oxlint"
-        if not binary.exists():
-            binary.parent.mkdir(parents=True, exist_ok=True)
-            binary.symlink_to(args.oxlint.resolve())
-        messages = loki.preview_oxlint(
-            root, [("source.test.ts", "", source)], deadline=None
-        )
-        return subprocess.CompletedProcess(
-            [], int(bool(messages)), "\n".join(messages), ""
-        )
-    if language == "go":
-        if not args.golangci:
-            return None
-        (root / "go.mod").write_text("module example.invalid/loki/rules\n\ngo 1.25\n")
-        (root / "main.go").write_text(
-            "// Package main validates Loki rules.\n" + source
-        )
-        return run(
-            [
-                str(args.golangci.resolve()),
-                "run",
-                "--config",
-                str(SOURCE / "templates/.golangci.yml"),
-            ],
-            root,
-        )
-    if language == "rust":
-        (root / "Cargo.toml").write_text(
-            '[package]\nname="loki_rule_fixture"\nversion="0.1.0"\nedition="2021"\n'
-        )
-        (root / "src").mkdir(exist_ok=True)
-        (root / "src/lib.rs").write_text(source)
-        _, commands = loki.scan_command("rust", [], root)
-        command = commands[0]
-        index = command.index("--")
-        return run(
-            [*command[:index], "--offline", "--message-format=json", *command[index:]],
-            root,
-        )
+def _analyze_python(source, root):
+    (root / "app.py").write_text(source)
+    return run(
+        [
+            "ruff",
+            "check",
+            "--config",
+            str(SOURCE / "templates/.ruff.toml"),
+            "--output-format",
+            "json",
+            "app.py",
+        ],
+        root,
+    )
+
+
+def _analyze_typescript(source, root, args):
+    if not args.oxlint:
+        return None
+    binary = root / "node_modules/.bin/oxlint"
+    if not binary.exists():
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        binary.symlink_to(args.oxlint.resolve())
+    messages = loki.preview_oxlint(
+        root, [("source.test.ts", "", source)], deadline=None
+    )
+    return subprocess.CompletedProcess([], int(bool(messages)), "\n".join(messages), "")
+
+
+def _analyze_go(source, root, args):
+    if not args.golangci:
+        return None
+    (root / "go.mod").write_text("module example.invalid/loki/rules\n\ngo 1.25\n")
+    (root / "main.go").write_text("// Package main validates Loki rules.\n" + source)
+    return run(
+        [
+            str(args.golangci.resolve()),
+            "run",
+            "--config",
+            str(SOURCE / "templates/.golangci.yml"),
+        ],
+        root,
+    )
+
+
+def _analyze_rust(source, root):
+    (root / "Cargo.toml").write_text(
+        '[package]\nname="loki_rule_fixture"\nversion="0.1.0"\nedition="2021"\n'
+    )
+    (root / "src").mkdir(exist_ok=True)
+    (root / "src/lib.rs").write_text(source)
+    _, commands = loki.scan_command("rust", [], root)
+    command = commands[0]
+    index = command.index("--")
+    return run(
+        [*command[:index], "--offline", "--message-format=json", *command[index:]],
+        root,
+    )
+
+
+def _analyze_elixir(source, root, args):
     if not args.credo_project:
         return None
     (root / "lib").mkdir(exist_ok=True)
@@ -260,6 +264,74 @@ def analyze(language, source, root, args):
     )
 
 
+def analyze(language, source, root, args):
+    if language == "python":
+        return _analyze_python(source, root)
+    if language == "typescript":
+        return _analyze_typescript(source, root, args)
+    if language == "go":
+        return _analyze_go(source, root, args)
+    if language == "rust":
+        return _analyze_rust(source, root)
+    return _analyze_elixir(source, root, args)
+
+
+def _evaluate_rule_phase(language, name, rule, phase, source, root, args):
+    expected_defect_exit = {"rust": 101, "elixir": 16}.get(language, 1)
+    try:
+        result = analyze(language, source, root, args)
+        output = (result.stdout + result.stderr) if result else ""
+        passed = bool(
+            result is not None
+            and (
+                (result.returncode == expected_defect_exit and rule in output)
+                if phase == "defect"
+                else result.returncode == 0
+            )
+        )
+        status = result.returncode if result else None
+    except (
+        OSError,
+        ValueError,
+        IndexError,
+        subprocess.TimeoutExpired,
+    ) as error:
+        status, output, passed = None, str(error), False
+    print(language, name, phase, "PASS" if passed else "FAIL")
+    return {
+        "language": language,
+        "case": name,
+        "phase": phase,
+        "rule": rule,
+        "exit": status,
+        "expectation_met": passed,
+        "output": output,
+    }
+
+
+def _collect_tool_versions(args):
+    commands = {
+        "ruff": ["ruff", "--version"],
+        "go": ["go", "version"],
+        "clippy": ["cargo", "clippy", "--version"],
+        "elixir": ["elixir", "--version"],
+    }
+    for name, binary in (("oxlint", args.oxlint), ("golangci", args.golangci)):
+        if binary:
+            commands[name] = [str(binary.resolve()), "--version"]
+    versions = {}
+    for name, command in commands.items():
+        try:
+            result = run(command, SOURCE)
+            versions[name] = {
+                "exit": result.returncode,
+                "output": (result.stdout + result.stderr).strip(),
+            }
+        except (OSError, subprocess.TimeoutExpired) as error:
+            versions[name] = {"exit": None, "output": str(error)}
+    return versions
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--oxlint", type=Path)
@@ -273,44 +345,11 @@ def main():
             root = Path(directory)
             for name, rule, defect, repair in cases:
                 for phase, source in (("defect", defect), ("repair", repair)):
-                    try:
-                        result = analyze(language, source, root, args)
-                        output = (result.stdout + result.stderr) if result else ""
-                        passed = bool(
-                            result is not None
-                            and (
-                                (
-                                    result.returncode
-                                    == {
-                                        "rust": 101,
-                                        "elixir": 16,
-                                    }.get(language, 1)
-                                    and rule in output
-                                )
-                                if phase == "defect"
-                                else result.returncode == 0
-                            )
-                        )
-                        status = result.returncode if result else None
-                    except (
-                        OSError,
-                        ValueError,
-                        IndexError,
-                        subprocess.TimeoutExpired,
-                    ) as error:
-                        status, output, passed = None, str(error), False
                     results.append(
-                        {
-                            "language": language,
-                            "case": name,
-                            "phase": phase,
-                            "rule": rule,
-                            "exit": status,
-                            "expectation_met": passed,
-                            "output": output,
-                        }
+                        _evaluate_rule_phase(
+                            language, name, rule, phase, source, root, args
+                        )
                     )
-                    print(language, name, phase, "PASS" if passed else "FAIL")
     report = {
         "scope": (
             "shipped rules on isolated defects and repairs; no fixture code executed"
@@ -321,26 +360,8 @@ def main():
             for name in (".ruff.toml", ".oxlintrc.json", ".golangci.yml", ".credo.exs")
         },
         "results": results,
+        "versions": _collect_tool_versions(args),
     }
-    versions = {
-        "ruff": ["ruff", "--version"],
-        "go": ["go", "version"],
-        "clippy": ["cargo", "clippy", "--version"],
-        "elixir": ["elixir", "--version"],
-    }
-    for name, binary in (("oxlint", args.oxlint), ("golangci", args.golangci)):
-        if binary:
-            versions[name] = [str(binary.resolve()), "--version"]
-    report["versions"] = {}
-    for name, command in versions.items():
-        try:
-            result = run(command, SOURCE)
-            report["versions"][name] = {
-                "exit": result.returncode,
-                "output": (result.stdout + result.stderr).strip(),
-            }
-        except (OSError, subprocess.TimeoutExpired) as error:
-            report["versions"][name] = {"exit": None, "output": str(error)}
     if args.credo_project:
         report["credo_lock_sha256"] = hashlib.sha256(
             (args.credo_project / "mix.lock").read_bytes()

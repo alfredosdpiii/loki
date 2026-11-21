@@ -14,7 +14,7 @@ from pathlib import Path
 PIN = "a2d4e41fb1ccb0a6514e9e177170f0386e399f06"
 
 
-def main():
+def _parse_compare_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--interlinked", type=Path, required=True)
     parser.add_argument("--runs", type=int, default=10)
@@ -30,6 +30,42 @@ def main():
     ).strip()
     if revision != PIN:
         parser.error(f"Interlinked must be pinned to {PIN}")
+    return args, revision
+
+
+def _measure_tool(case, label, command, root, env, payload, runs):
+    samples = []
+    for _ in range(runs):
+        started = time.perf_counter()
+        result = subprocess.run(
+            command,
+            cwd=root,
+            env=env,
+            input=payload,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        samples.append((time.perf_counter() - started) * 1000)
+    if "unknown runner" in result.stderr:
+        raise RuntimeError("invalid competitor runner protocol")
+    output = json.loads(result.stdout) if result.stdout.strip() else {}
+    decision = output.get("hookSpecificOutput", {}).get("permissionDecision")
+    return {
+        "case": case,
+        "tool": label,
+        "exit": result.returncode,
+        "denied": result.returncode == 2 or decision == "deny",
+        "unavailable": "evaluator skipped" in result.stderr,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "median_ms": round(statistics.median(samples), 2),
+        "max_ms": round(max(samples), 2),
+    }
+
+
+def main():
+    args, revision = _parse_compare_args()
     source = Path(__file__).resolve().parents[1] / "loki.py"
     report = {
         "interlinked_sha": revision,
@@ -51,6 +87,25 @@ def main():
             "HOME": str(home),
             "INTERLINKED_SOCKET": str(socket),
         }
+        tools = [
+            (
+                "loki",
+                [sys.executable, str(source), "protect", "--harness", "claude"],
+            ),
+            (
+                "interlinked",
+                [
+                    "node",
+                    str(args.interlinked / "dist/hook-entry.js"),
+                    "--runner",
+                    "claude-code",
+                    "--event",
+                    "PreToolUse",
+                    "--socket",
+                    str(socket),
+                ],
+            ),
+        ]
         for case, path in [
             ("ordinary", "ordinary.txt"),
             ("outside", "../outside.txt"),
@@ -67,56 +122,9 @@ def main():
                     },
                 }
             )
-            for label, command in [
-                (
-                    "loki",
-                    [sys.executable, str(source), "protect", "--harness", "claude"],
-                ),
-                (
-                    "interlinked",
-                    [
-                        "node",
-                        str(args.interlinked / "dist/hook-entry.js"),
-                        "--runner",
-                        "claude-code",
-                        "--event",
-                        "PreToolUse",
-                        "--socket",
-                        str(socket),
-                    ],
-                ),
-            ]:
-                samples = []
-                for _ in range(args.runs):
-                    started = time.perf_counter()
-                    result = subprocess.run(
-                        command,
-                        cwd=root,
-                        env=env,
-                        input=payload,
-                        text=True,
-                        capture_output=True,
-                        timeout=30,
-                    )
-                    samples.append((time.perf_counter() - started) * 1000)
-                if "unknown runner" in result.stderr:
-                    raise RuntimeError("invalid competitor runner protocol")
-                output = json.loads(result.stdout) if result.stdout.strip() else {}
-                decision = output.get("hookSpecificOutput", {}).get(
-                    "permissionDecision"
-                )
+            for label, command in tools:
                 report["results"].append(
-                    {
-                        "case": case,
-                        "tool": label,
-                        "exit": result.returncode,
-                        "denied": result.returncode == 2 or decision == "deny",
-                        "unavailable": "evaluator skipped" in result.stderr,
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                        "median_ms": round(statistics.median(samples), 2),
-                        "max_ms": round(max(samples), 2),
-                    }
+                    _measure_tool(case, label, command, root, env, payload, args.runs)
                 )
     print(json.dumps(report, indent=2))
 

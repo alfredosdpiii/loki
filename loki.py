@@ -304,6 +304,35 @@ def load_config(root: Path) -> dict[str, Any]:
     return validate_config(value)
 
 
+def _validate_config_lists(value: dict[str, Any]) -> None:
+    for key in ("approved_dependencies", "private_packages"):
+        items = value.get(key, None if key == "approved_dependencies" else [])
+        if key == "approved_dependencies" and items is None:
+            continue
+        if not isinstance(items, list) or any(
+            not isinstance(item, str) or not item or "\0" in item for item in items
+        ):
+            raise ValueError(f"loki: {key} must be a list of nonempty strings")
+
+
+def _validate_config_languages_and_commands(value: dict[str, Any]) -> None:
+    languages = value.get("languages", {})
+    if not isinstance(languages, dict) or any(
+        language not in LANGUAGE_EXTENSIONS.values() or not isinstance(enabled, bool)
+        for language, enabled in languages.items()
+    ):
+        raise ValueError("loki: languages must map known language names to booleans")
+    commands = value.get("commands", {})
+    if not isinstance(commands, dict):
+        raise ValueError("loki: commands must be a JSON object")
+    for group in commands:
+        if group not in COMMAND_GROUPS:
+            raise ValueError(f"loki: unknown command group: {group}")
+    for group in COMMAND_GROUPS:
+        if isinstance(result := configured_commands(value, group), str):
+            raise ValueError(result)
+
+
 def validate_config(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("loki config must be a JSON object")
@@ -330,29 +359,8 @@ def validate_config(value: Any) -> dict[str, Any]:
     hygiene_policy(value)
     if not isinstance(value.get("typescript_check", False), bool):
         raise ValueError("typescript_check must be a boolean")
-    for key in ("approved_dependencies", "private_packages"):
-        items = value.get(key, None if key == "approved_dependencies" else [])
-        if key == "approved_dependencies" and items is None:
-            continue
-        if not isinstance(items, list) or any(
-            not isinstance(item, str) or not item or "\0" in item for item in items
-        ):
-            raise ValueError(f"loki: {key} must be a list of nonempty strings")
-    languages = value.get("languages", {})
-    if not isinstance(languages, dict) or any(
-        language not in LANGUAGE_EXTENSIONS.values() or not isinstance(enabled, bool)
-        for language, enabled in languages.items()
-    ):
-        raise ValueError("loki: languages must map known language names to booleans")
-    commands = value.get("commands", {})
-    if not isinstance(commands, dict):
-        raise ValueError("loki: commands must be a JSON object")
-    for group in commands:
-        if group not in COMMAND_GROUPS:
-            raise ValueError(f"loki: unknown command group: {group}")
-    for group in COMMAND_GROUPS:
-        if isinstance(result := configured_commands(value, group), str):
-            raise ValueError(result)
+    _validate_config_lists(value)
+    _validate_config_languages_and_commands(value)
     return value
 
 
@@ -436,15 +444,43 @@ def valid_path(value: Any) -> str:
     return value
 
 
+def _patch_operation(line: str) -> str | None:
+    for op in ("Add", "Update", "Delete"):
+        if line.startswith(f"*** {op} File: "):
+            return op
+    return None
+
+
+def _step_patch_update_line(
+    line: str, content: int, pending_context: bool
+) -> tuple[int, bool, bool]:
+    if line == "@@" or line.startswith("@@ "):
+        if pending_context:
+            raise ValueError("empty change hunk")
+        return content, True, False
+    if line and line[0] in "+- ":
+        return content + 1, False, False
+    if line == "*** End of File" and content and not pending_context:
+        return content, pending_context, True
+    raise ValueError("unknown patch structural marker")
+
+
+def _check_patch_body_complete(
+    operation: str, content: int, moved: bool, pending: bool
+) -> None:
+    empty_add = operation == "Add" and not content
+    empty_update = operation == "Update" and not content and not moved
+    if pending or empty_add or empty_update:
+        raise ValueError("empty patch operation")
+
+
 def _scan_patch_body(lines: list[str], index: int, operation: str, moved: bool) -> int:
     content = 0
     pending_context = False
     ended = False
     while index < len(lines) - 1:
         line = lines[index]
-        if any(
-            line.startswith(f"*** {op} File: ") for op in ("Add", "Update", "Delete")
-        ):
+        if _patch_operation(line) is not None:
             break
         if ended or operation == "Delete":
             raise ValueError("unexpected patch body")
@@ -452,28 +488,16 @@ def _scan_patch_body(lines: list[str], index: int, operation: str, moved: bool) 
             if not line.startswith("+"):
                 raise ValueError("Add requires added content lines")
             content += 1
-        elif line == "@@" or line.startswith("@@ "):
-            if pending_context:
-                raise ValueError("empty change hunk")
-            pending_context = True
-        elif line and line[0] in "+- ":
-            content += 1
-            pending_context = False
-        elif line == "*** End of File" and content and not pending_context:
-            ended = True
         else:
-            raise ValueError("unknown patch structural marker")
+            content, pending_context, ended = _step_patch_update_line(
+                line, content, pending_context
+            )
         index += 1
-    if (
-        pending_context
-        or (operation == "Add" and not content)
-        or (operation == "Update" and not content and not moved)
-    ):
-        raise ValueError("empty patch operation")
+    _check_patch_body_complete(operation, content, moved, pending_context)
     return index
 
 
-def patch_paths(patch: str) -> list[str]:
+def _split_patch_lines(patch: str) -> list[str]:
     if not isinstance(patch, str) or "\0" in patch:
         raise ValueError("patch must be a string without NUL")
     lines = patch.split("\n")
@@ -481,32 +505,29 @@ def patch_paths(patch: str) -> list[str]:
         lines.pop()
     if len(lines) < 3 or lines[0] != "*** Begin Patch" or lines[-1] != "*** End Patch":
         raise ValueError("invalid patch boundaries")
+    return lines
+
+
+def patch_paths(patch: str) -> list[str]:
+    lines = _split_patch_lines(patch)
     paths: list[str] = []
     index = 1
     while index < len(lines) - 1:
         header = lines[index]
-        operation = next(
-            (
-                op
-                for op in ("Add", "Update", "Delete")
-                if header.startswith(f"*** {op} File: ")
-            ),
-            None,
-        )
+        operation = _patch_operation(header)
         if operation is None:
             raise ValueError("unknown patch operation")
         paths.append(valid_path(header[len(f"*** {operation} File: ") :]))
         index += 1
-        moved = False
-        if operation == "Update" and lines[index].startswith("*** Move to: "):
+        moved = operation == "Update" and lines[index].startswith("*** Move to: ")
+        if moved:
             paths.append(valid_path(lines[index][len("*** Move to: ") :]))
-            moved = True
             index += 1
         index = _scan_patch_body(lines, index, operation, moved)
     return list(dict.fromkeys(paths))
 
 
-def harness_paths(raw: str, harness: str) -> list[str]:
+def _parse_harness_envelope(raw: str) -> tuple[str, dict[str, Any], str]:
     payload = json.loads(raw)
     if not isinstance(payload, dict):
         raise ValueError("hook envelope must be an object")
@@ -517,6 +538,11 @@ def harness_paths(raw: str, harness: str) -> list[str]:
         raise ValueError("cwd must be absolute")
     if not isinstance(name, str) or not name or not isinstance(tool_input, dict):
         raise ValueError("tool_name and object tool_input are required")
+    return name, tool_input, cwd
+
+
+def harness_paths(raw: str, harness: str) -> list[str]:
+    name, tool_input, cwd = _parse_harness_envelope(raw)
     supported = {
         "claude": {"Write", "Edit", "MultiEdit"},
         "codex": {"apply_patch"},
@@ -576,34 +602,40 @@ def dependency_name(requirement: str) -> str | None:
     return match.group(1).lower().replace("-", "_") if match else None
 
 
-def declared_python_dependencies(root: Path) -> set[str]:
-    dependencies: set[str] = set()
+def _pyproject_dependencies(root: Path) -> set[str]:
     pyproject = root / "pyproject.toml"
-    if pyproject.is_file():
-        with contextlib.suppress(OSError, tomllib.TOMLDecodeError):
-            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-            project = data.get("project", {})
-            if isinstance(project, dict):
-                values = project.get("dependencies", [])
-                if isinstance(values, list):
-                    dependencies.update(
-                        name
-                        for value in values
-                        if isinstance(value, str) and (name := dependency_name(value))
-                    )
+    if not pyproject.is_file():
+        return set()
+    with contextlib.suppress(OSError, tomllib.TOMLDecodeError):
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        project = data.get("project", {})
+        values = project.get("dependencies", []) if isinstance(project, dict) else []
+        if isinstance(values, list):
+            return {
+                name
+                for value in values
+                if isinstance(value, str) and (name := dependency_name(value))
+            }
+    return set()
+
+
+def _requirements_dependencies(root: Path) -> set[str]:
+    found: set[str] = set()
     for requirements in root.glob("requirements*.txt"):
-        try:
-            lines = requirements.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            continue
-        for line in lines:
-            stripped = line.strip()
-            if not stripped or stripped.startswith(("#", "-")):
-                continue
-            name = dependency_name(stripped)
-            if name:
-                dependencies.add(name)
-    return dependencies
+        with contextlib.suppress(OSError):
+            for line in requirements.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if (
+                    stripped
+                    and not stripped.startswith(("#", "-"))
+                    and (name := dependency_name(stripped))
+                ):
+                    found.add(name)
+    return found
+
+
+def declared_python_dependencies(root: Path) -> set[str]:
+    return _pyproject_dependencies(root) | _requirements_dependencies(root)
 
 
 def local_python_module(root: Path, module: str, directory: Path | None = None) -> bool:
@@ -642,24 +674,29 @@ def interface_class(node: ast.ClassDef) -> bool:
     )
 
 
-def stub_statement(node: ast.FunctionDef | ast.AsyncFunctionDef) -> ast.stmt | None:
-    """The single placeholder statement a function consists of, if it is one."""
-    body = node.body
-    if (
-        body
-        and isinstance(body[0], ast.Expr)
-        and isinstance(body[0].value, ast.Constant)
-        and isinstance(body[0].value.value, str)
-    ):
-        body = body[1:]
-    if len(body) != 1:
-        return None
-    statement = body[0]
-    if isinstance(statement, ast.Pass) or (
+def _is_docstring(statement: ast.stmt) -> bool:
+    return (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Constant)
+        and isinstance(statement.value.value, str)
+    )
+
+
+def _is_ellipsis_or_pass(statement: ast.stmt) -> bool:
+    return isinstance(statement, ast.Pass) or (
         isinstance(statement, ast.Expr)
         and isinstance(statement.value, ast.Constant)
         and statement.value.value is Ellipsis
-    ):
+    )
+
+
+def stub_statement(node: ast.FunctionDef | ast.AsyncFunctionDef) -> ast.stmt | None:
+    """The single placeholder statement a function consists of, if it is one."""
+    body = node.body[1:] if node.body and _is_docstring(node.body[0]) else node.body
+    if len(body) != 1:
+        return None
+    statement = body[0]
+    if _is_ellipsis_or_pass(statement):
         return statement
     if isinstance(statement, ast.Raise) and isinstance(
         statement.exc, (ast.Name, ast.Call)
@@ -669,6 +706,21 @@ def stub_statement(node: ast.FunctionDef | ast.AsyncFunctionDef) -> ast.stmt | N
         if isinstance(name, ast.Name) and name.id == "NotImplementedError":
             return statement
     return None
+
+
+def _is_declared_stub(
+    child: ast.FunctionDef | ast.AsyncFunctionDef,
+    owner: ast.ClassDef | None,
+    statement: ast.stmt | None,
+) -> bool:
+    return (
+        any(
+            reference_name(decorator) in ABSTRACT_DECORATORS
+            for decorator in child.decorator_list
+        )
+        or (owner is not None and interface_class(owner))
+        or (owner is not None and isinstance(statement, ast.Raise))
+    )
 
 
 def python_stubs(tree: ast.AST) -> list[tuple[int, str]]:
@@ -684,15 +736,9 @@ def python_stubs(tree: ast.AST) -> list[tuple[int, str]]:
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 statement = stub_statement(child)
-                declared = (
-                    any(
-                        reference_name(decorator) in ABSTRACT_DECORATORS
-                        for decorator in child.decorator_list
-                    )
-                    or (owner is not None and interface_class(owner))
-                    or (owner is not None and isinstance(statement, ast.Raise))
-                )
-                if statement is not None and not declared:
+                if statement is not None and not _is_declared_stub(
+                    child, owner, statement
+                ):
                     found.append((child.lineno, child.name))
                 visit(child, None)
             else:
@@ -700,6 +746,36 @@ def python_stubs(tree: ast.AST) -> list[tuple[int, str]]:
 
     visit(tree, None)
     return sorted(found)
+
+
+def _catches_optional_import(handler: ast.ExceptHandler) -> bool:
+    if handler.type is None:
+        return True
+    items = handler.type.elts if isinstance(handler.type, ast.Tuple) else [handler.type]
+    return any(reference_name(item) in OPTIONAL_IMPORT_ERRORS for item in items)
+
+
+def _optional_import_nodes(tree: ast.AST) -> set[int]:
+    optional: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try) and any(
+            _catches_optional_import(handler) for handler in node.handlers
+        ):
+            for statement in node.body:
+                optional.update(id(inner) for inner in ast.walk(statement))
+    return optional
+
+
+def _is_known_python_module(
+    module: str, root: Path, directory: Path, declared: set[str]
+) -> bool:
+    return (
+        module in sys.stdlib_module_names
+        or module in sys.builtin_module_names
+        or module == "__main__"
+        or module.lower().replace("-", "_") in declared
+        or local_python_module(root, module, directory)
+    )
 
 
 def python_unknown_imports(
@@ -711,22 +787,7 @@ def python_unknown_imports(
     imports guarded by `except ImportError` are known. Whether the rest exist is
     a question for the project's interpreter (resolve_imports).
     """
-    optional: set[int] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Try) and any(
-            handler.type is None
-            or any(
-                reference_name(item) in OPTIONAL_IMPORT_ERRORS
-                for item in (
-                    handler.type.elts
-                    if isinstance(handler.type, ast.Tuple)
-                    else [handler.type]
-                )
-            )
-            for handler in node.handlers
-        ):
-            for statement in node.body:
-                optional.update(id(inner) for inner in ast.walk(statement))
+    optional = _optional_import_nodes(tree)
     imported: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if id(node) in optional:
@@ -740,11 +801,7 @@ def python_unknown_imports(
     return [
         (line, module)
         for line, module in imported
-        if module not in sys.stdlib_module_names
-        and module not in sys.builtin_module_names
-        and module != "__main__"
-        and module.lower().replace("-", "_") not in declared
-        and not local_python_module(root, module, directory)
+        if not _is_known_python_module(module, root, directory, declared)
     ]
 
 
@@ -788,6 +845,32 @@ def project_python(root: Path, explicit: str | None = None) -> str | None:
     return None
 
 
+def _probe_python_imports(
+    interpreter: str, root: Path, asked: list[str], deadline: float | None
+) -> list[str]:
+    try:
+        result = subprocess.run(
+            [interpreter, "-c", IMPORT_PROBE, *asked],
+            cwd=root,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=min(15, command_timeout(deadline)),
+            check=False,
+        )
+        missing = json.loads(result.stdout) if result.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+        raise ValueError(
+            f"project interpreter {interpreter} unavailable: {error}"
+        ) from error
+    if not isinstance(missing, list):
+        raise ValueError(
+            f"project interpreter {interpreter} unavailable: "
+            + (result.stderr.strip()[:200] or f"exited {result.returncode}")
+        )
+    return missing
+
+
 def resolve_imports(
     root: Path,
     modules: Iterable[str],
@@ -811,26 +894,7 @@ def resolve_imports(
     known = IMPORT_MEMO.setdefault((interpreter, str(root)), {})
     asked = [module for module in wanted if module not in known]
     if asked:
-        try:
-            result = subprocess.run(
-                [interpreter, "-c", IMPORT_PROBE, *asked],
-                cwd=root,
-                capture_output=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=min(15, command_timeout(deadline)),
-                check=False,
-            )
-            missing = json.loads(result.stdout) if result.returncode == 0 else None
-        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
-            raise ValueError(
-                f"project interpreter {interpreter} unavailable: {error}"
-            ) from error
-        if not isinstance(missing, list):
-            raise ValueError(
-                f"project interpreter {interpreter} unavailable: "
-                + (result.stderr.strip()[:200] or f"exited {result.returncode}")
-            )
+        missing = _probe_python_imports(interpreter, root, asked, deadline)
         known.update({module: module not in missing for module in asked})
     return {module for module in wanted if not known[module]}
 
@@ -1006,6 +1070,32 @@ def comment_end(text: str, index: int) -> int | None:
     return None
 
 
+def _js_regex_end(text: str, index: int) -> int:
+    end, in_class = index + 1, False
+    while end < len(text) and text[end] != "\n":
+        if text[end] == "\\":
+            end += 2
+            continue
+        if text[end] == "/" and not in_class:
+            break
+        if text[end] in "[]":
+            in_class = text[end] == "["
+        end += 1
+    return end
+
+
+def _js_allows_regex(previous: str, word: str) -> bool:
+    return not previous or previous in JS_REGEX_PRECEDERS or word in JS_REGEX_KEYWORDS
+
+
+def _advance_js_token(char: str, previous: str, word: str) -> tuple[str, str]:
+    if char.isalnum() or char in "_$":
+        return "word", (word + char if previous == "word" else char)
+    if not char.isspace():
+        return char, ""
+    return previous, word
+
+
 def mask_javascript(text: str) -> str:
     """Blank comments and literal contents; quotes and offsets stay in place."""
     chars = list(text)
@@ -1021,29 +1111,35 @@ def mask_javascript(text: str) -> str:
             blank(chars, index + 1, end)
             index, previous, word = end + 1, char, ""
             continue
-        if char == "/" and (
-            not previous or previous in JS_REGEX_PRECEDERS or word in JS_REGEX_KEYWORDS
-        ):
-            end, in_class = index + 1, False
-            while end < len(text) and text[end] != "\n":
-                if text[end] == "\\":
-                    end += 2
-                    continue
-                if text[end] == "/" and not in_class:
-                    break
-                if text[end] in "[]":
-                    in_class = text[end] == "["
-                end += 1
+        if char == "/" and _js_allows_regex(previous, word):
+            end = _js_regex_end(text, index)
             blank(chars, index + 1, end)
             index, previous, word = end + 1, "/", ""
             continue
-        if char.isalnum() or char in "_$":
-            word = word + char if previous == "word" else char
-            previous = "word"
-        elif not char.isspace():
-            previous, word = char, ""
+        previous, word = _advance_js_token(char, previous, word)
         index += 1
     return "".join(chars)
+
+
+def _is_elixir_char_literal(text: str, index: int) -> bool:
+    if text[index] != "?" or index + 1 >= len(text):
+        return False
+    return index == 0 or not (text[index - 1].isalnum() or text[index - 1] in "_?!")
+
+
+def _mask_elixir_string(
+    text: str, chars: list[str], index: int, closers: dict[str, str]
+) -> int:
+    opener = text[index]
+    triple = text[index : index + 3]
+    if triple in ('"""', "'''"):
+        end = text.find(triple, index + 3)
+        end = len(text) if end < 0 else end
+        blank(chars, index + 3, end)
+        return end + 3
+    end = closing_quote(text, index + 1, closers.get(opener, opener), True)
+    blank(chars, index + 1, end)
+    return end + 1
 
 
 def mask_elixir(text: str) -> str:
@@ -1058,14 +1154,7 @@ def mask_elixir(text: str) -> str:
             blank(chars, index, end)
             index = end
             continue
-        if (
-            char == "?"
-            and index + 1 < len(text)
-            and (
-                index == 0
-                or not (text[index - 1].isalnum() or text[index - 1] in "_?!")
-            )
-        ):
+        if _is_elixir_char_literal(text, index):
             width = 3 if text[index + 1] == "\\" else 2
             blank(chars, index + 1, index + width)
             index += width
@@ -1075,17 +1164,7 @@ def mask_elixir(text: str) -> str:
         elif char not in "\"'":
             index += 1
             continue
-        opener = text[index]
-        triple = text[index : index + 3]
-        if triple in ('"""', "'''"):
-            end = text.find(triple, index + 3)
-            end = len(text) if end < 0 else end
-            blank(chars, index + 3, end)
-            index = end + 3
-            continue
-        end = closing_quote(text, index + 1, closers.get(opener, opener), True)
-        blank(chars, index + 1, end)
-        index = end + 1
+        index = _mask_elixir_string(text, chars, index, closers)
     return "".join(chars)
 
 
@@ -1095,57 +1174,61 @@ RUST_CHAR = re.compile(r"'(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\\'\n])'")
 GO_INTERESTING = re.compile(r"/[/*]|[\"'`]")
 
 
+def _rust_block_comment_end(text: str, index: int) -> int:
+    depth, end = 1, index + 2
+    while end < len(text) and depth:
+        step = text[end : end + 2]
+        depth += {"/*": 1, "*/": -1}.get(step, 0)
+        end += 2 if step in ("/*", "*/") else 1
+    return end
+
+
+def _mask_rust_raw_string(text: str, chars: list[str], index: int) -> int:
+    identifier = index and (text[index - 1].isalnum() or text[index - 1] == "_")
+    raw = RUST_RAW.match(text, index)
+    if raw is None or identifier:
+        return text.index('"', index)
+    start = raw.end()
+    end = text.find('"' + raw.group(1), start)
+    end = len(text) if end < 0 else end
+    blank(chars, start, end)
+    return end + 1 + len(raw.group(1))
+
+
+def _mask_rust_token(text: str, chars: list[str], index: int) -> int:
+    if text[index] == "`":
+        end = text.find("`", index + 1)
+        end = len(text) if end < 0 else end
+        blank(chars, index + 1, end)
+        return end + 1
+    if text.startswith("/*", index):
+        end = _rust_block_comment_end(text, index)
+        blank(chars, index, end)
+        return end
+    if text.startswith("//", index):
+        end = text.find("\n", index)
+        end = len(text) if end < 0 else end
+        blank(chars, index, end)
+        return end
+    if text[index] not in "\"'":
+        return _mask_rust_raw_string(text, chars, index)
+    if text[index] == '"':
+        end = closing_quote(text, index + 1, '"', True)
+        blank(chars, index + 1, end)
+        return end + 1
+    if literal := RUST_CHAR.match(text, index):
+        blank(chars, index + 1, literal.end() - 1)
+        return literal.end()
+    return index + 1
+
+
 def mask_rust(text: str, go: bool = False) -> str:
     """Blank comments and literals in Rust, Go and other C-family source."""
     chars = list(text)
     index = 0
     interesting = GO_INTERESTING if go else RUST_INTERESTING
     while found := interesting.search(text, index):
-        index = found.start()
-        if text[index] == "`":
-            end = text.find("`", index + 1)
-            end = len(text) if end < 0 else end
-            blank(chars, index + 1, end)
-            index = end + 1
-            continue
-        if text.startswith("/*", index):
-            depth, end = 1, index + 2
-            while end < len(text) and depth:
-                step = text[end : end + 2]
-                depth += {"/*": 1, "*/": -1}.get(step, 0)
-                end += 2 if step in ("/*", "*/") else 1
-            blank(chars, index, end)
-            index = end
-            continue
-        if text.startswith("//", index):
-            end = text.find("\n", index)
-            end = len(text) if end < 0 else end
-            blank(chars, index, end)
-            index = end
-            continue
-        if text[index] not in "\"'":
-            identifier = index and (text[index - 1].isalnum() or text[index - 1] == "_")
-            raw = RUST_RAW.match(text, index)
-            if raw is None or identifier:
-                index = text.index('"', index)
-                continue
-            start = raw.end()
-            end = text.find('"' + raw.group(1), start)
-            end = len(text) if end < 0 else end
-            blank(chars, start, end)
-            index = end + 1 + len(raw.group(1))
-            continue
-        if text[index] == '"':
-            end = closing_quote(text, index + 1, '"', True)
-            blank(chars, index + 1, end)
-            index = end + 1
-            continue
-        literal = RUST_CHAR.match(text, index)
-        if literal:
-            blank(chars, index + 1, literal.end() - 1)
-            index = literal.end()
-            continue
-        index += 1
+        index = _mask_rust_token(text, chars, found.start())
     return "".join(chars)
 
 
@@ -1277,7 +1360,7 @@ def _js_xss_findings(text: str, masked: str) -> list[Finding]:
     return findings
 
 
-def _js_redirect_and_tls_findings(text: str, masked: str) -> list[Finding]:
+def _js_redirect_findings(text: str, masked: str) -> list[Finding]:
     findings: list[Finding] = []
     for match in re.finditer(
         r"(?<![\w$.])(?:(?:window|document|self|top)\s*\.\s*)?location"
@@ -1295,13 +1378,6 @@ def _js_redirect_and_tls_findings(text: str, masked: str) -> list[Finding]:
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and not fixed_origin(text, masked, *arguments[0]):
             findings.append(("loki/open-redirect", OPEN_REDIRECT, match.start()))
-    for match in re.finditer(
-        r"\brejectUnauthorized\s*:\s*false\b|"
-        r"\bNODE_TLS_REJECT_UNAUTHORIZED\b\s*(?:\]\s*)?=(?!=)\s*['\"`]?\s*0",
-        text,
-    ):
-        if masked[match.start()] != " ":
-            findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
     for match in re.finditer(r"\bres(?:ponse)?\s*\.\s*redirect\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if arguments and re.search(
@@ -1312,7 +1388,19 @@ def _js_redirect_and_tls_findings(text: str, masked: str) -> list[Finding]:
     return findings
 
 
-def _js_command_and_sql_findings(text: str, masked: str) -> list[Finding]:
+def _js_redirect_and_tls_findings(text: str, masked: str) -> list[Finding]:
+    findings = _js_redirect_findings(text, masked)
+    for match in re.finditer(
+        r"\brejectUnauthorized\s*:\s*false\b|"
+        r"\bNODE_TLS_REJECT_UNAUTHORIZED\b\s*(?:\]\s*)?=(?!=)\s*['\"`]?\s*0",
+        text,
+    ):
+        if masked[match.start()] != " ":
+            findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
+    return findings
+
+
+def _js_command_findings(text: str, masked: str) -> list[Finding]:
     findings: list[Finding] = []
     shell = re.search(r"child_process|(['\"])node:child_process\1", text)
     aliases = re.findall(
@@ -1338,34 +1426,65 @@ def _js_command_and_sql_findings(text: str, masked: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_sql_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for match in re.finditer(r"\.\s*(?:query|execute|raw|unsafe|prepare)\s*\(", masked):
         arguments = split_arguments(masked, match.end() - 1)
         if not arguments:
             continue
         start, end = arguments[0]
         argument = text[start:end]
-        if re.search(SQL_WORD, argument, re.I) and (
-            "${" in argument or re.search(r"['\"`]\s*\+|\+\s*['\"`]", argument)
-        ):
-            identifier = (
-                "${" in argument
-                and "+" not in argument
-                and all(
-                    re.search(SQL_IDENTIFIER_POSITION, argument[: found.start()], re.I)
-                    for found in re.finditer(r"\$\{", argument)
-                )
+        if not re.search(SQL_WORD, argument, re.I):
+            continue
+        if "${" not in argument and not re.search(r"['\"`]\s*\+|\+\s*['\"`]", argument):
+            continue
+        identifier = (
+            "${" in argument
+            and "+" not in argument
+            and all(
+                re.search(SQL_IDENTIFIER_POSITION, argument[: found.start()], re.I)
+                for found in re.finditer(r"\$\{", argument)
             )
-            findings.append(
-                (
-                    "loki/sql-injection",
-                    SQL_IDENTIFIER if identifier else SQL_QUERY,
-                    match.start(),
-                )
+        )
+        findings.append(
+            (
+                "loki/sql-injection",
+                SQL_IDENTIFIER if identifier else SQL_QUERY,
+                match.start(),
             )
+        )
     return findings
 
 
-def _js_crypto_and_origin_findings(text: str, masked: str) -> list[Finding]:
+def _js_command_and_sql_findings(text: str, masked: str) -> list[Finding]:
+    return [
+        *_js_command_findings(text, masked),
+        *_js_sql_findings(text, masked),
+    ]
+
+
+def _is_js_secret_expr(side: str) -> bool:
+    return bool(
+        re.search(r"\.digest\(|(?:signature|hmac|digest)[\w$]*$", side, re.I)
+        and not re.search(r"\.length$", side)
+    )
+
+
+def _is_js_timing_pair(sides: list[str], raw_expr: str) -> bool:
+    if any(side.startswith("`") for side in sides) and "${" not in raw_expr:
+        return False
+    if not any(_is_js_secret_expr(side) for side in sides):
+        return False
+    return not any(
+        re.fullmatch(r"null|undefined|true|false|\d+|[\w$.]*\.length", side)
+        for side in sides
+    )
+
+
+def _js_timing_findings(text: str, masked: str) -> list[Finding]:
     findings: list[Finding] = []
     for match in re.finditer(
         r"([\w$.]+(?:\([^()]*\))?|`[^`]*`)\s*(?:===?|!==?)\s*"
@@ -1373,20 +1492,7 @@ def _js_crypto_and_origin_findings(text: str, masked: str) -> list[Finding]:
         masked,
     ):
         sides = [match.group(1), match.group(2)]
-        literal = [side for side in sides if side.startswith("`")]
-        # A template literal counts only when it interpolates a value.
-        if literal and "${" not in text[match.start() : match.end()]:
-            continue
-        secret = [
-            side
-            for side in sides
-            if re.search(r"\.digest\(|(?:signature|hmac|digest)[\w$]*$", side, re.I)
-            and not re.search(r"\.length$", side)
-        ]
-        if secret and not any(
-            re.fullmatch(r"null|undefined|true|false|\d+|[\w$.]*\.length", side)
-            for side in sides
-        ):
+        if _is_js_timing_pair(sides, text[match.start() : match.end()]):
             findings.append(
                 (
                     "loki/timing-compare",
@@ -1395,6 +1501,11 @@ def _js_crypto_and_origin_findings(text: str, masked: str) -> list[Finding]:
                     match.start(),
                 )
             )
+    return findings
+
+
+def _js_crypto_and_origin_findings(text: str, masked: str) -> list[Finding]:
+    findings = _js_timing_findings(text, masked)
     for match in re.finditer(r"\baddEventListener\s*\(\s*(['\"`])", masked):
         quote = masked.index(match.group(1), match.start())
         if not text.startswith("message", quote + 1):
@@ -1552,6 +1663,21 @@ REDOS_MESSAGE = (
 )
 
 
+def _char_class_contains(members: list[str], delimiter: str) -> bool:
+    inside = False
+    for index, member in enumerate(members):
+        ranged = (
+            0 < index < len(members) - 1
+            and member == "-"
+            and members[index - 1][-1] <= delimiter <= members[index + 1][-1]
+        )
+        if ranged or (member[-1] == delimiter and member != "-"):
+            inside = True
+    if members[:1] == ["-"] or members[-1:] == ["-"]:
+        inside = inside or delimiter == "-"
+    return inside
+
+
 def delimiter_separated(body: str) -> bool:
     """Whether a repeated group starts or ends with a literal no atom can absorb."""
     literal = r"(?:\\[^dDwWsSbB]|[^\\\[(.|^$?*+{}])"
@@ -1565,20 +1691,41 @@ def delimiter_separated(body: str) -> bool:
         return False
     for match in re.finditer(r"\[(\^?)((?:\\.|[^\]\\])*)\]", body):
         members = re.findall(r"\\.|.", match.group(2))
-        inside = False
-        for index, member in enumerate(members):
-            ranged = (
-                0 < index < len(members) - 1
-                and member == "-"
-                and members[index - 1][-1] <= delimiter <= members[index + 1][-1]
-            )
-            if ranged or member[-1] == delimiter and member not in ("-",):
-                inside = True
-        if members[:1] == ["-"] or members[-1:] == ["-"]:
-            inside = inside or delimiter == "-"
-        if inside != bool(match.group(1)):
+        if _char_class_contains(members, delimiter) != bool(match.group(1)):
             return False
     return True
+
+
+def _closes_nested_quantifier(
+    pattern: str, index: int, inner: bool, start: int
+) -> bool:
+    if not inner:
+        return False
+    body = re.sub(r"^\?(?:[:=!]|<[=!]|<\w+>)", "", pattern[start:index])
+    delimited = "|" not in body and delimiter_separated(body)
+    return not delimited and bool(re.match(r"[+*]|\{\d+,\}", pattern[index + 1 :]))
+
+
+def _is_quantifier_at(pattern: str, index: int) -> bool:
+    char = pattern[index]
+    return char in "+*" or (
+        char == "{" and bool(re.match(r"\{\d*,\d*\}", pattern[index:]))
+    )
+
+
+def _step_quantifier_stack(pattern: str, index: int, stack: list[list[Any]]) -> bool:
+    char = pattern[index]
+    if char == "(":
+        stack.append([False, index + 1])
+    elif stack and _is_quantifier_at(pattern, index):
+        stack[-1][0] = True
+    elif char == ")" and stack:
+        inner, start = stack.pop()
+        if _closes_nested_quantifier(pattern, index, inner, start):
+            return True
+        if inner and stack:
+            stack[-1][0] = True
+    return False
 
 
 def nested_quantifier(pattern: str) -> bool:
@@ -1599,24 +1746,8 @@ def nested_quantifier(pattern: str) -> bool:
             close = pattern.find("]", index + 2)
             index = len(pattern) if close < 0 else close + 1
             continue
-        if char == "(":
-            stack.append([False, index + 1])
-        elif char in "+*" and stack:
-            stack[-1][0] = True
-        elif char == "{" and stack and re.match(r"\{\d*,\d*\}", pattern[index:]):
-            stack[-1][0] = True
-        elif char == ")" and stack:
-            inner, start = stack.pop()
-            body = re.sub(r"^\?(?:[:=!]|<[=!]|<\w+>)", "", pattern[start:index])
-            delimited = "|" not in body and delimiter_separated(body)
-            if (
-                inner
-                and not delimited
-                and re.match(r"[+*]|\{\d+,\}", pattern[index + 1 :])
-            ):
-                return True
-            if inner and stack:
-                stack[-1][0] = True
+        if _step_quantifier_stack(pattern, index, stack):
+            return True
         index += 1
     return False
 
@@ -1646,6 +1777,39 @@ def javascript_test_names(relative: str, text: str, masked: str) -> set[str]:
                     names.add(parts[-1])
     declared = re.findall(r"\b(?:const|let|var|function|class)\s+([\w$]+)", masked)
     return names - set(declared)
+
+
+def _js_fallback_test_findings(relative: str, text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
+    for name in sorted(javascript_test_names(relative, text, masked)):
+        for match in re.finditer(
+            rf"(?<![\w$.]){re.escape(name)}\s*(?:\.\s*(only|skip)\b|"
+            r"\[\s*(['\"`])\s*\2\s*\])\s*\(",
+            masked,
+        ):
+            kind = match.group(1)
+            if kind is None:
+                quote = masked.index(match.group(2), match.start())
+                kind = text[
+                    quote + 1 : closing_quote(text, quote + 1, text[quote], False)
+                ]
+            if kind == "only":
+                findings.append(
+                    (
+                        "no-focused-tests",
+                        "focused test (.only) silently skips the rest of the suite",
+                        match.start(),
+                    )
+                )
+            elif kind == "skip":
+                findings.append(
+                    (
+                        "no-disabled-tests",
+                        "disabled test (.skip) removes coverage",
+                        match.start(),
+                    )
+                )
+    return findings
 
 
 def javascript_fallback_rules(relative: str, text: str) -> list[Finding]:
@@ -1679,50 +1843,29 @@ def javascript_fallback_rules(relative: str, text: str) -> list[Finding]:
             )
     for match in re.finditer(r"(?<![\w$.])debugger\b", masked):
         findings.append(("no-debugger", "debugger statement", match.start()))
-    for name in sorted(javascript_test_names(relative, text, masked)):
-        for match in re.finditer(
-            rf"(?<![\w$.]){re.escape(name)}\s*(?:\.\s*(only|skip)\b|"
-            r"\[\s*(['\"`])\s*\2\s*\])\s*\(",
-            masked,
-        ):
-            kind = match.group(1)
-            if kind is None:
-                quote = masked.index(match.group(2), match.start())
-                kind = text[
-                    quote + 1 : closing_quote(text, quote + 1, text[quote], False)
-                ]
-            if kind == "only":
-                findings.append(
-                    (
-                        "no-focused-tests",
-                        "focused test (.only) silently skips the rest of the suite",
-                        match.start(),
-                    )
-                )
-            elif kind == "skip":
-                findings.append(
-                    (
-                        "no-disabled-tests",
-                        "disabled test (.skip) removes coverage",
-                        match.start(),
-                    )
-                )
+    findings.extend(_js_fallback_test_findings(relative, text, masked))
     return findings
 
 
-def request_field(node: ast.AST) -> str | None:
-    """Privilege-looking key read from client-controlled request data."""
+def _request_field_target(node: ast.AST) -> tuple[ast.AST, ast.AST] | None:
     if isinstance(node, ast.Subscript):
-        key, owner = node.slice, node.value
-    elif (
+        return node.slice, node.value
+    if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "get"
         and node.args
     ):
-        key, owner = node.args[0], node.func.value
-    else:
+        return node.args[0], node.func.value
+    return None
+
+
+def request_field(node: ast.AST) -> str | None:
+    """Privilege-looking key read from client-controlled request data."""
+    target = _request_field_target(node)
+    if target is None:
         return None
+    key, owner = target
     if not (
         isinstance(key, ast.Constant)
         and isinstance(key.value, str)
@@ -1833,6 +1976,10 @@ def request_scopes(tree: ast.AST) -> list[tuple[list[tuple[ast.Call, str]], set[
     return found
 
 
+def _call_uses_tainted_args(node: ast.Call, arguments: Any, tainted: set[str]) -> bool:
+    return any(tainted_by(argument, tainted) for argument in arguments(node))
+
+
 def request_tainted_calls(
     scopes: list[tuple[list[tuple[ast.Call, str]], set[str]]],
     sink: Any,
@@ -1850,12 +1997,7 @@ def request_tainted_calls(
         if sanitizer and any(sanitizer(name.split(".")[-1]) for _, name in calls):
             continue
         for node, name in calls:
-            if sink(name) and any(
-                request_source(item)
-                or (isinstance(item, ast.Name) and item.id in tainted)
-                for argument in arguments(node)
-                for item in ast.walk(argument)
-            ):
+            if sink(name) and _call_uses_tainted_args(node, arguments, tainted):
                 found.append(node)
                 break
     unique = {(call.lineno, call.col_offset): call for call in found}
@@ -2036,6 +2178,32 @@ def computed_call(node: ast.AST, values: dict[str, str]) -> str | None:
     return ast.dump(node) if isinstance(node, ast.Call) else None
 
 
+def _assertion_pair(node: ast.AST) -> list[ast.AST]:
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"assertEqual", "assertEquals", "assertAlmostEqual"}
+    ):
+        return node.args[:2]
+    if (
+        isinstance(node, ast.Assert)
+        and isinstance(node.test, ast.Compare)
+        and isinstance(node.test.ops[0], ast.Eq)
+    ):
+        return [node.test.left, node.test.comparators[0]]
+    return []
+
+
+def _function_call_bindings(function: ast.AST) -> dict[str, str]:
+    return {
+        target.id: ast.dump(node.value)
+        for node in ast.walk(function)
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+
+
 def tautological_assertions(tree: ast.AST) -> list[ast.AST]:
     """Assertions in tests comparing two copies of the same computed call."""
     found: list[ast.AST] = []
@@ -2045,68 +2213,58 @@ def tautological_assertions(tree: ast.AST) -> list[ast.AST]:
             and function.name.startswith("test")
         ):
             continue
-        values = {
-            target.id: ast.dump(node.value)
-            for node in ast.walk(function)
-            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
-            for target in node.targets
-            if isinstance(target, ast.Name)
-        }
-
+        values = _function_call_bindings(function)
         for node in ast.walk(function):
-            pair: list[ast.AST] = []
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr
-                in {"assertEqual", "assertEquals", "assertAlmostEqual"}
-            ):
-                pair = node.args[:2]
-            elif isinstance(node, ast.Assert) and isinstance(node.test, ast.Compare):
-                if isinstance(node.test.ops[0], ast.Eq):
-                    pair = [node.test.left, node.test.comparators[0]]
-            if len(pair) == 2 and computed_call(pair[0], values) is not None:
-                if computed_call(pair[0], values) == computed_call(pair[1], values):
+            pair = _assertion_pair(node)
+            if len(pair) == 2 and (left := computed_call(pair[0], values)) is not None:
+                if left == computed_call(pair[1], values):
                     found.append(node)
     return found
 
 
-def python_injection_rules(
-    tree: ast.AST, scopes: list[Any], offsets: list[int]
-) -> list[Finding]:
-    """SQL built from values, unsafe YAML, disabled TLS, and request data reaching
-    eval, deserializers or redirects."""
+def _assign_disables_hostname_check(node: ast.Assign) -> bool:
+    return (
+        isinstance(node.value, ast.Constant)
+        and node.value.value is False
+        and any(
+            isinstance(target, ast.Attribute) and target.attr == "check_hostname"
+            for target in node.targets
+        )
+    )
+
+
+def _python_node_security_findings(node: ast.AST, offsets: list[int]) -> list[Finding]:
+    if not isinstance(node, ast.Call | ast.Assign):
+        return []
+    at = offsets[node.lineno - 1] + node.col_offset
+    if isinstance(node, ast.Assign):
+        return (
+            [("loki/tls-verification", TLS_VERIFICATION, at)]
+            if _assign_disables_hostname_check(node)
+            else []
+        )
     findings: list[Finding] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call | ast.Assign):
-            continue
-        at = offsets[node.lineno - 1] + node.col_offset
-        if isinstance(node, ast.Assign):
-            if (
-                isinstance(node.value, ast.Constant)
-                and node.value.value is False
-                and any(
-                    isinstance(target, ast.Attribute)
-                    and target.attr == "check_hostname"
-                    for target in node.targets
-                )
-            ):
-                findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
-            continue
-        name = ast.unparse(node.func)
-        if name.split(".")[-1] in SQL_CALLS and node.args and built_sql(node.args[0]):
-            findings.append(("loki/sql-injection", SQL_QUERY, at))
-        if unsafe_yaml(node):
-            findings.append(
-                (
-                    "loki/unsafe-deserialization",
-                    f"unsafe deserialization: {name} without SafeLoader can build "
-                    "arbitrary Python objects; use yaml.safe_load",
-                    at,
-                )
+    name = ast.unparse(node.func)
+    if name.split(".")[-1] in SQL_CALLS and node.args and built_sql(node.args[0]):
+        findings.append(("loki/sql-injection", SQL_QUERY, at))
+    if unsafe_yaml(node):
+        findings.append(
+            (
+                "loki/unsafe-deserialization",
+                f"unsafe deserialization: {name} without SafeLoader can build "
+                "arbitrary Python objects; use yaml.safe_load",
+                at,
             )
-        if tls_unverified(node):
-            findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
+        )
+    if tls_unverified(node):
+        findings.append(("loki/tls-verification", TLS_VERIFICATION, at))
+    return findings
+
+
+def _python_tainted_security_findings(
+    scopes: list[Any], offsets: list[int]
+) -> list[Finding]:
+    findings: list[Finding] = []
     first = lambda call: call.args[:1]  # noqa: E731
     for call in request_tainted_calls(
         scopes, lambda name: name in {"eval", "exec", "compile"}, first
@@ -2147,6 +2305,18 @@ def python_injection_rules(
                 offsets[call.lineno - 1] + call.col_offset,
             )
         )
+    return findings
+
+
+def python_injection_rules(
+    tree: ast.AST, scopes: list[Any], offsets: list[int]
+) -> list[Finding]:
+    """SQL built from values, unsafe YAML, disabled TLS, and request data reaching
+    eval, deserializers or redirects."""
+    findings: list[Finding] = []
+    for node in ast.walk(tree):
+        findings.extend(_python_node_security_findings(node, offsets))
+    findings.extend(_python_tainted_security_findings(scopes, offsets))
     return findings
 
 
@@ -2220,19 +2390,21 @@ def request_authorization_findings(tree: ast.AST, offsets: list[int]) -> list[Fi
     return findings
 
 
-def shell_command_call(node: ast.AST) -> bool:
-    """subprocess-style call running `sh -c` with a non-constant after -c."""
-    if not (
+def _is_shell_list_call(node: ast.AST) -> bool:
+    return (
         isinstance(node, ast.Call)
         and ast.unparse(node.func).split(".")[-1] in SHELL_RUNNERS
-        and node.args
+        and bool(node.args)
         and isinstance(node.args[0], ast.List)
-    ):
+    )
+
+
+def shell_command_call(node: ast.AST) -> bool:
+    """subprocess-style call running `sh -c` with a non-constant after -c."""
+    if not _is_shell_list_call(node):
         return False
-    constant = [
-        item.value if isinstance(item, ast.Constant) else None
-        for item in node.args[0].elts
-    ]
+    elts = getattr(getattr(node, "args", [None])[0], "elts", ())
+    constant = [item.value if isinstance(item, ast.Constant) else None for item in elts]
     return bool(
         constant[:1]
         and constant[0] in SHELLS
@@ -2400,14 +2572,14 @@ def _elixir_redirect_and_ssrf(masked: str, tainted: set[str]) -> list[Finding]:
     return findings
 
 
-def _elixir_file_and_sort(masked: str) -> list[Finding]:
+def _elixir_date_sort_findings(masked: str) -> list[Finding]:
     findings: list[Finding] = []
+    field = r"\.\w*(?:_at|_on|date|time|timestamp)\b"
     for call in re.finditer(r"\bEnum\.(?:sort_by|max_by|min_by)\s*\(", masked):
         arguments = [
             masked[start:end].strip()
             for start, end in split_arguments(masked, call.end() - 1)
         ]
-        field = r"\.\w*(?:_at|_on|date|time|timestamp)\b"
         mapper = next((item for item in arguments if re.search(field, item)), None)
         sorter = arguments[-1] if arguments and arguments[-1] != mapper else ""
         if mapper and (not sorter or re.fullmatch(r":(?:asc|desc)", sorter)):
@@ -2419,6 +2591,11 @@ def _elixir_file_and_sort(masked: str) -> list[Finding]:
                     call.start(),
                 )
             )
+    return findings
+
+
+def _elixir_file_and_sort(masked: str) -> list[Finding]:
+    findings = _elixir_date_sort_findings(masked)
     for match in re.finditer(
         r"\{:ok,\s*[\w_]+\}\s*=\s*File\.(read|open|stat|ls|lstat|read_link)\s*\(",
         masked,
@@ -2499,16 +2676,8 @@ SHELL_COMMAND = (
 )
 
 
-def rust_rules(text: str) -> list[Finding]:
-    masked = mask_rust(text)
-    findings: list[Finding] = [
-        (
-            "loki/placeholder",
-            f"{match.group(1)}!() placeholder left in code panics at runtime",
-            match.start(),
-        )
-        for match in re.finditer(r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]", masked)
-    ]
+def _rust_function_findings(masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for function in re.finditer(r"\bfn\s+\w+[^{;]*\{", masked):
         body = masked[function.end() - 1 : matching_close(masked, function.end() - 1)]
         writer = re.search(r"\bBufWriter\s*::\s*(?:new|with_capacity)\s*\(", body)
@@ -2540,17 +2709,11 @@ def rust_rules(text: str) -> list[Finding]:
                         function.end() - 1 + match.start(),
                     )
                 )
-    for match in re.finditer(r"\bCommand\s*::\s*new\s*\(\s*\"", masked):
-        program = text[match.end() : closing_quote(text, match.end(), '"', False)]
-        end = masked.find(";", match.end())
-        chain = text[match.end() : len(text) if end < 0 else end]
-        dynamic = re.search(r"format!|\.args?\s*\(\s*(?![\"\[\s])", chain)
-        if program in SHELLS and '"-c"' in chain and dynamic:
-            findings.append(("loki/command-injection", SHELL_COMMAND, match.start()))
-    for match in re.finditer(
-        r"\.\s*danger_accept_invalid_(?:certs|hostnames)\s*\(\s*true\s*\)", masked
-    ):
-        findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
+    return findings
+
+
+def _rust_sql_findings(text: str, masked: str) -> list[Finding]:
+    findings: list[Finding] = []
     for match in re.finditer(
         r"(?:(?<![\w.])(?:sqlx\s*::\s*)?query(?:_as|_scalar)?(?:\s*::\s*<[^>()]*>)?"
         r"|\.\s*execute|(?<![\w.])(?:diesel\s*::\s*)?sql_query)"
@@ -2562,9 +2725,36 @@ def rust_rules(text: str) -> list[Finding]:
         if not re.match(r'r?#*"', literal):
             continue
         holes = re.finditer(r"\{(\{)?", literal)
-        message = sql_message(literal, [h.start() for h in holes if not h.group(1)])
-        if message:
+        if message := sql_message(
+            literal, [h.start() for h in holes if not h.group(1)]
+        ):
             findings.append(("loki/sql-injection", message, match.start()))
+    return findings
+
+
+def rust_rules(text: str) -> list[Finding]:
+    masked = mask_rust(text)
+    findings: list[Finding] = [
+        (
+            "loki/placeholder",
+            f"{match.group(1)}!() placeholder left in code panics at runtime",
+            match.start(),
+        )
+        for match in re.finditer(r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]", masked)
+    ]
+    findings.extend(_rust_function_findings(masked))
+    for match in re.finditer(r"\bCommand\s*::\s*new\s*\(\s*\"", masked):
+        program = text[match.end() : closing_quote(text, match.end(), '"', False)]
+        end = masked.find(";", match.end())
+        chain = text[match.end() : len(text) if end < 0 else end]
+        dynamic = re.search(r"format!|\.args?\s*\(\s*(?![\"\[\s])", chain)
+        if program in SHELLS and '"-c"' in chain and dynamic:
+            findings.append(("loki/command-injection", SHELL_COMMAND, match.start()))
+    for match in re.finditer(
+        r"\.\s*danger_accept_invalid_(?:certs|hostnames)\s*\(\s*true\s*\)", masked
+    ):
+        findings.append(("loki/tls-verification", TLS_VERIFICATION, match.start()))
+    findings.extend(_rust_sql_findings(text, masked))
     return findings
 
 
@@ -2686,6 +2876,27 @@ def sql_message(literal: str, holes: list[int]) -> str | None:
     return SQL_QUERY
 
 
+def _go_sprintf_sql_message(text: str, masked: str, open_paren: int) -> str | None:
+    inner = split_arguments(masked, open_paren)
+    dynamic = [span for span in inner[1:] if not go_literal(masked[slice(*span)])]
+    if not dynamic or not go_literal(masked[slice(*inner[0])]):
+        return None
+    literal = text[slice(*inner[0])]
+    holes = re.finditer(r"%(?:%|[-+# 0-9.]*([sv]))", literal)
+    return sql_message(literal, [h.start() for h in holes if h.group(1)])
+
+
+def _go_sql_arg_message(text: str, masked: str, start: int, end: int) -> str | None:
+    sprintf = re.match(r"\s*fmt\s*\.\s*Sprintf\s*\(", masked[start:end])
+    if sprintf:
+        return _go_sprintf_sql_message(text, masked, start + sprintf.end() - 1)
+    parts = top_level_split(masked, start, end, "+")
+    literals = [part for part in parts if go_literal(masked[slice(*part)])]
+    if not literals or len(literals) == len(parts):
+        return None
+    return sql_message("".join(text[slice(*p)] for p in literals), [0])
+
+
 def _go_sql_findings(text: str, masked: str) -> list[Finding]:
     findings: list[Finding] = []
     for call in re.finditer(
@@ -2694,25 +2905,7 @@ def _go_sql_findings(text: str, masked: str) -> list[Finding]:
         arguments = split_arguments(masked, call.end() - 1)[bool(call.group(1)) :]
         if not arguments:
             continue
-        start, end = arguments[0]
-        sprintf = re.match(r"\s*fmt\s*\.\s*Sprintf\s*\(", masked[start:end])
-        if sprintf:
-            inner = split_arguments(masked, start + sprintf.end() - 1)
-            dynamic = [
-                span for span in inner[1:] if not go_literal(masked[slice(*span)])
-            ]
-            if not dynamic or not go_literal(masked[slice(*inner[0])]):
-                continue
-            literal = text[slice(*inner[0])]
-            holes = re.finditer(r"%(?:%|[-+# 0-9.]*([sv]))", literal)
-            message = sql_message(literal, [h.start() for h in holes if h.group(1)])
-        else:
-            parts = top_level_split(masked, start, end, "+")
-            literals = [part for part in parts if go_literal(masked[slice(*part)])]
-            if not literals or len(literals) == len(parts):
-                continue
-            message = sql_message("".join(text[slice(*p)] for p in literals), [0])
-        if message:
+        if message := _go_sql_arg_message(text, masked, *arguments[0]):
             findings.append(("loki/sql-injection", message, call.start()))
     return findings
 
@@ -2942,6 +3135,24 @@ def python_functions(path: str, text: str) -> list[FunctionMetric]:
     )
 
 
+def _python_decision_weight(child: ast.AST) -> int:
+    if isinstance(
+        child,
+        ast.If | ast.For | ast.AsyncFor | ast.While | ast.IfExp | ast.ExceptHandler,
+    ):
+        return 1
+    if isinstance(child, ast.match_case) and not (
+        isinstance(child.pattern, ast.MatchAs) and child.pattern.pattern is None
+    ):
+        # A bare `case _:` is the default branch, like `default:` elsewhere.
+        return 1
+    if isinstance(child, ast.BoolOp):
+        return len(child.values) - 1
+    if isinstance(child, ast.comprehension):
+        return 1 + len(child.ifs)
+    return 0
+
+
 def python_functions_uncached(path: str, text: str) -> list[FunctionMetric]:
     tree = None
     with contextlib.suppress(SyntaxError, ValueError):
@@ -2957,23 +3168,16 @@ def python_functions_uncached(path: str, text: str) -> list[FunctionMetric]:
             if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
                 continue
             nested = isinstance(
-                child, ast.If | ast.For | ast.AsyncFor | ast.While | ast.Try | ast.With
-            ) or (isinstance(child, ast.Match))
-            if isinstance(
-                child, ast.If | ast.For | ast.AsyncFor | ast.While | ast.IfExp
-            ):
-                total += 1
-            elif isinstance(child, ast.ExceptHandler):
-                total += 1
-            elif isinstance(child, ast.match_case) and not (
-                isinstance(child.pattern, ast.MatchAs) and child.pattern.pattern is None
-            ):
-                # A bare `case _:` is the default branch, like `default:` elsewhere.
-                total += 1
-            elif isinstance(child, ast.BoolOp):
-                total += len(child.values) - 1
-            elif isinstance(child, ast.comprehension):
-                total += 1 + len(child.ifs)
+                child,
+                ast.If
+                | ast.For
+                | ast.AsyncFor
+                | ast.While
+                | ast.Try
+                | ast.With
+                | ast.Match,
+            )
+            total += _python_decision_weight(child)
             count, reached = decisions(child, depth + 1 if nested else depth)
             total += count
             deepest = max(deepest, reached)
@@ -2996,6 +3200,102 @@ def python_functions_uncached(path: str, text: str) -> list[FunctionMetric]:
     return results
 
 
+def _indent_function_spans(masked: str) -> list[tuple[str, int, int]]:
+    spans: list[tuple[str, int, int]] = []
+    lines = masked.splitlines(keepends=True)
+    offsets = [0]
+    for line in lines:
+        offsets.append(offsets[-1] + len(line))
+    for index, line in enumerate(lines):
+        head = re.match(r"(\s*)defp?\s+(?:self\.)?([\w?!=]+)", line)
+        if not head:
+            continue
+        if re.search(r",\s*do:", line):
+            spans.append((head.group(2), offsets[index], offsets[index + 1]))
+            continue
+        indent = len(head.group(1))
+        for other in range(index + 1, len(lines)):
+            if (
+                lines[other].strip() == "end"
+                and len(lines[other]) - len(lines[other].lstrip()) <= indent
+            ):
+                spans.append((head.group(2), offsets[index], offsets[other + 1]))
+                break
+    return spans
+
+
+def _brace_function_spans(masked: str, language: str) -> list[tuple[str, int, int]]:
+    pattern = {
+        "go": r"\bfunc\s*(?:\([^)]*\)\s*)?([\w]*)\s*\(",
+        "rust": r"\bfn\s+(\w+)",
+        "typescript": r"\bfunction\s*\*?\s*([\w$]*)\s*\(|([\w$]+)\s*=\s*"
+        r"(?:async\s*)?(?:\([^()]*\)|[\w$]+)\s*(?::[^=;{]+)?=>\s*\{|"
+        r"^\s*(?:(?:public|private|protected|static|async|get|set)\s+)*"
+        r"([\w$]+)\s*\([^()]*\)\s*(?::[^{;]+)?\{",
+    }.get(
+        language,
+        # Brace languages: `fun`/`func`/`function`/`def` heads, or C-family
+        # `type name(params) {` heads.
+        r"\b(?:fun|func|function|def)\s+(?:[\w.<>]+\.)?([\w$]+)|"
+        r"^[ \t]*(?:[\w<>\[\],.*&:~?]+[ \t]+)+([A-Za-z_]\w*)\s*\([^;{}]*\)"
+        r"[^;{}=]*\{",
+    )
+    spans: list[tuple[str, int, int]] = []
+    for match in re.finditer(pattern, masked, re.M):
+        opening = masked.find("{", match.end() - 1)
+        if opening < 0 or ";" in masked[match.end() : opening]:
+            continue
+        name = next((group for group in match.groups() if group), "<anonymous>")
+        if name in {"if", "for", "while", "switch", "catch", "function", "foreach"}:
+            continue
+        spans.append((name, match.start(), matching_close(masked, opening)))
+    return spans
+
+
+def _masked_nesting_depth(body: str) -> int:
+    depth, deepest = 0, 0
+    for char in body:
+        if char in "{(":
+            depth += 1
+            deepest = max(deepest, depth)
+        elif char in "})":
+            depth -= 1
+    return max(0, deepest - 1)
+
+
+def _masked_function_metric(
+    path: str,
+    masked: str,
+    language: str,
+    decision: str,
+    span: tuple[str, int, int],
+    spans: list[tuple[str, int, int]],
+) -> FunctionMetric:
+    name, start, end = span
+    body = masked[start:end]
+    # Nested functions are measured separately, never folded into the parent.
+    for _, inner_start, inner_end in spans:
+        if start < inner_start and inner_end <= end:
+            body = body.replace(masked[inner_start:inner_end], "", 1)
+    count = len(re.findall(decision, body))
+    if language == "rust":
+        # A match with n arms adds n - 1 decisions.
+        count -= len(re.findall(r"\bmatch\b", body))
+    if language == "elixir":
+        count -= len(re.findall(r"\bfn\b", body))
+    first = masked.count("\n", 0, start) + 1
+    last = masked.count("\n", 0, max(start, end - 1)) + 1
+    return FunctionMetric(
+        path,
+        name,
+        first,
+        last,
+        1 + max(0, count),
+        source_lines(masked, first, last),
+        _masked_nesting_depth(body),
+    )
+
+
 def masked_functions(path: str, text: str, language: str) -> list[FunctionMetric]:
     """Approximate complexity for Go, Rust, Elixir (and JS/TS without a compiler).
 
@@ -3004,52 +3304,11 @@ def masked_functions(path: str, text: str, language: str) -> list[FunctionMetric
     excluding nested functions.
     """
     masked = slop_mask(language, text)
-    spans: list[tuple[str, int, int]] = []
-    if language in {"elixir", "ruby"}:
-        lines = masked.splitlines(keepends=True)
-        offsets = [0]
-        for line in lines:
-            offsets.append(offsets[-1] + len(line))
-        for index, line in enumerate(lines):
-            head = re.match(r"(\s*)defp?\s+(?:self\.)?([\w?!=]+)", line)
-            if not head:
-                continue
-            if re.search(r",\s*do:", line):
-                spans.append((head.group(2), offsets[index], offsets[index + 1]))
-                continue
-            indent = len(head.group(1))
-            for other in range(index + 1, len(lines)):
-                stripped = lines[other].strip()
-                if (
-                    stripped == "end"
-                    and len(lines[other]) - len(lines[other].lstrip()) <= indent
-                ):
-                    spans.append((head.group(2), offsets[index], offsets[other + 1]))
-                    break
-    else:
-        pattern = {
-            "go": r"\bfunc\s*(?:\([^)]*\)\s*)?([\w]*)\s*\(",
-            "rust": r"\bfn\s+(\w+)",
-            "typescript": r"\bfunction\s*\*?\s*([\w$]*)\s*\(|([\w$]+)\s*=\s*"
-            r"(?:async\s*)?(?:\([^()]*\)|[\w$]+)\s*(?::[^=;{]+)?=>\s*\{|"
-            r"^\s*(?:(?:public|private|protected|static|async|get|set)\s+)*"
-            r"([\w$]+)\s*\([^()]*\)\s*(?::[^{;]+)?\{",
-        }.get(
-            language,
-            # Brace languages: `fun`/`func`/`function`/`def` heads, or C-family
-            # `type name(params) {` heads.
-            r"\b(?:fun|func|function|def)\s+(?:[\w.<>]+\.)?([\w$]+)|"
-            r"^[ \t]*(?:[\w<>\[\],.*&:~?]+[ \t]+)+([A-Za-z_]\w*)\s*\([^;{}]*\)"
-            r"[^;{}=]*\{",
-        )
-        for match in re.finditer(pattern, masked, re.M):
-            opening = masked.find("{", match.end() - 1)
-            if opening < 0 or ";" in masked[match.end() : opening]:
-                continue
-            name = next((group for group in match.groups() if group), "<anonymous>")
-            if name in {"if", "for", "while", "switch", "catch", "function", "foreach"}:
-                continue
-            spans.append((name, match.start(), matching_close(masked, opening)))
+    spans = (
+        _indent_function_spans(masked)
+        if language in {"elixir", "ruby"}
+        else _brace_function_spans(masked, language)
+    )
     decision = {
         "go": r"\bif\b|\bfor\b|\bcase\b|&&|\|\|",
         "rust": r"\bif\b|\bwhile\b|\bfor\b|=>|&&|\|\||\?(?![\w?])",
@@ -3062,40 +3321,10 @@ def masked_functions(path: str, text: str, language: str) -> list[FunctionMetric
         language,
         r"\b(?:if|for|foreach|while|case|catch|when)\b|&&|\|\||\?\?|\?(?![.:?])",
     )
-    results = []
-    for name, start, end in spans:
-        body = masked[start:end]
-        # Nested functions are measured separately, never folded into the parent.
-        for _, inner_start, inner_end in spans:
-            if start < inner_start and inner_end <= end:
-                body = body.replace(masked[inner_start:inner_end], "", 1)
-        count = len(re.findall(decision, body))
-        if language == "rust":
-            # A match with n arms adds n - 1 decisions.
-            count -= len(re.findall(r"\bmatch\b", body))
-        if language == "elixir":
-            count -= len(re.findall(r"\bfn\b", body))
-        first = masked.count("\n", 0, start) + 1
-        last = masked.count("\n", 0, max(start, end - 1)) + 1
-        depth, deepest = 0, 0
-        for char in body:
-            if char in "{(":
-                depth += 1
-                deepest = max(deepest, depth)
-            elif char in "})":
-                depth -= 1
-        results.append(
-            FunctionMetric(
-                path,
-                name,
-                first,
-                last,
-                1 + max(0, count),
-                source_lines(masked, first, last),
-                max(0, deepest - 1),
-            )
-        )
-    return results
+    return [
+        _masked_function_metric(path, masked, language, decision, span, spans)
+        for span in spans
+    ]
 
 
 def function_metrics(
@@ -3510,6 +3739,32 @@ def go_function_metrics(
     return metrics
 
 
+def _parse_elixir_metrics_output(
+    stdout: str, texts: dict[str, str]
+) -> dict[str, list[FunctionMetric]]:
+    metrics: dict[str, list[FunctionMetric]] = {name: [] for name in texts}
+    masks: dict[str, str] = {}
+    for line in stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 6 or fields[0] not in texts:
+            continue
+        name, label, start, end, complexity, nesting = fields
+        if name not in masks:
+            masks[name] = mask_elixir(texts[name])
+        metrics[name].append(
+            FunctionMetric(
+                name,
+                label,
+                int(start),
+                int(end),
+                int(complexity),
+                source_lines(masks[name], int(start), int(end)),
+                int(nesting),
+            )
+        )
+    return metrics
+
+
 def elixir_function_metrics(
     texts: dict[str, str], *, deadline: float | None = None
 ) -> dict[str, list[FunctionMetric]] | None:
@@ -3534,28 +3789,9 @@ def elixir_function_metrics(
             )
     if result is None or result.returncode:
         return None
-    metrics: dict[str, list[FunctionMetric]] = {name: [] for name in texts}
-    masks: dict[str, str] = {}
-    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
-        fields = line.split("\t")
-        if len(fields) != 6 or fields[0] not in texts:
-            continue
-        name, label, start, end, complexity, nesting = fields
-        if name not in masks:
-            masks[name] = mask_elixir(texts[name])
-        masked = masks[name]
-        metrics[name].append(
-            FunctionMetric(
-                name,
-                label,
-                int(start),
-                int(end),
-                int(complexity),
-                source_lines(masked, int(start), int(end)),
-                int(nesting),
-            )
-        )
-    return metrics
+    return _parse_elixir_metrics_output(
+        result.stdout.decode("utf-8", errors="replace"), texts
+    )
 
 
 def elixir_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
@@ -3706,6 +3942,75 @@ def _group_clone_runs(
     return components
 
 
+def _filter_indexed_focus(
+    indexed: dict[str, tuple[list[tuple[str, int]], list[int]]],
+    focus: set[str] | None,
+) -> tuple[dict[str, tuple[list[tuple[str, int]], list[int]]], set[int]]:
+    if focus is None:
+        return indexed, set()
+    wanted = {value for path in focus if path in indexed for value in indexed[path][1]}
+    filtered = {
+        path: item
+        for path, item in indexed.items()
+        if path in focus or not wanted.isdisjoint(item[1])
+    }
+    return filtered, wanted
+
+
+def _index_clone_windows(
+    files: dict[str, str], focus: set[str] | None
+) -> tuple[dict[str, list[tuple[str, int]]], list[list[tuple[str, int]]]]:
+    indexed, wanted = _filter_indexed_focus(
+        {path: token_windows(path, text) for path, text in files.items()}, focus
+    )
+    streams = {path: tokens for path, (tokens, _) in indexed.items()}
+    windows: dict[int, list[tuple[str, int]]] = {}
+    for path, (_, hashes) in indexed.items():
+        for index, value in enumerate(hashes):
+            if focus is None or value in wanted:
+                windows.setdefault(value, []).append((path, index))
+    duplicates = [positions for positions in windows.values() if len(positions) > 1]
+    return streams, duplicates
+
+
+def _component_clone_lines(
+    members: list[int],
+    runs: list[tuple[str, int, int]],
+    streams: dict[str, list[tuple[str, int]]],
+    focus: set[str] | None,
+) -> list[tuple[str, int, int]] | None:
+    if len(members) < 2:
+        return None
+    lines = [
+        (path, streams[path][first][1], streams[path][last][1])
+        for run in members
+        for path, first, last in (runs[run],)
+    ]
+    if all(end - start + 1 < CLONE_MIN_LINES for _, start, end in lines):
+        return None
+    if focus is not None and not any(path in focus for path, _, _ in lines):
+        return None
+    return lines
+
+
+def _collect_clone_spans(
+    components: dict[int, list[int]],
+    runs: list[tuple[str, int, int]],
+    streams: dict[str, list[tuple[str, int]]],
+    focus: set[str] | None,
+) -> tuple[dict[str, set[int]], list[list[tuple[str, int, int]]]]:
+    covered: dict[str, set[int]] = {}
+    spans = []
+    for members in components.values():
+        lines = _component_clone_lines(members, runs, streams, focus)
+        if lines is None:
+            continue
+        for path, start, end in lines:
+            covered.setdefault(path, set()).update(range(start, end + 1))
+        spans.append(sorted(lines))
+    return covered, sorted(spans)
+
+
 def clone_lines(
     files: dict[str, str], *, focus: set[str] | None = None
 ) -> tuple[dict[str, set[int]], list[list[tuple[str, int, int]]]]:
@@ -3716,48 +4021,13 @@ def clone_lines(
     focus member are kept. Returns the union of cloned lines per file and each
     group's member line spans.
     """
-    indexed = {path: token_windows(path, text) for path, text in files.items()}
-    wanted: set[int] = set()
-    if focus is not None:
-        wanted = {
-            value for path in focus if path in indexed for value in indexed[path][1]
-        }
-        indexed = {
-            path: item
-            for path, item in indexed.items()
-            if path in focus or not wanted.isdisjoint(item[1])
-        }
-    streams = {path: tokens for path, (tokens, _) in indexed.items()}
-    windows: dict[int, list[tuple[str, int]]] = {}
-    for path, (_, hashes) in indexed.items():
-        for index, value in enumerate(hashes):
-            # Focused searches only need windows a focus file also contains.
-            if focus is None or value in wanted:
-                windows.setdefault(value, []).append((path, index))
+    streams, duplicates = _index_clone_windows(files, focus)
     # Tokens covered by a duplicated window form maximal runs per file; runs that
     # share a window are one clone group. A repetitive region that only matches
     # itself is a single run and is not a clone.
-    duplicates = [positions for positions in windows.values() if len(positions) > 1]
     runs, run_of = _clone_runs(duplicates)
     components = _group_clone_runs(runs, run_of, duplicates)
-    covered: dict[str, set[int]] = {}
-    spans = []
-    for members in components.values():
-        if len(members) < 2:
-            continue
-        lines = [
-            (path, streams[path][first][1], streams[path][last][1])
-            for run in members
-            for path, first, last in (runs[run],)
-        ]
-        if all(end - start + 1 < CLONE_MIN_LINES for _, start, end in lines):
-            continue
-        if focus is not None and not any(path in focus for path, _, _ in lines):
-            continue
-        for path, start, end in lines:
-            covered.setdefault(path, set()).update(range(start, end + 1))
-        spans.append(sorted(lines))
-    return covered, sorted(spans)
+    return _collect_clone_spans(components, runs, streams, focus)
 
 
 def content_memo(kind: str, path: str, text: str, compute: Any) -> Any:
@@ -3793,6 +4063,17 @@ def python_imports(path: str, text: str) -> list[tuple[int | None, str, list[str
     return content_memo("imports", path, text, parse)
 
 
+def _resolved_python_import_names(
+    package: str, level: int | None, base: str, aliases: list[str]
+) -> list[str]:
+    if level is None:
+        return aliases
+    if level:
+        parts = package.split(".")[: len(package.split(".")) - level + 1]
+        base = ".".join([*parts, base] if base else parts)
+    return [base, *(f"{base}.{alias}" for alias in aliases)]
+
+
 def python_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
     modules = {
         Path(path)
@@ -3810,14 +4091,7 @@ def python_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
         )
         edges = set()
         for level, base, aliases in python_imports(path, files[path]):
-            if level is None:
-                names = aliases
-            else:
-                if level:
-                    parts = package.split(".")[: len(package.split(".")) - level + 1]
-                    base = ".".join([*parts, base] if base else parts)
-                names = [base, *(f"{base}.{alias}" for alias in aliases)]
-            for name in names:
+            for name in _resolved_python_import_names(package, level, base, aliases):
                 if name in modules and modules[name] != path:
                     edges.add(modules[name])
         graph[path] = edges
@@ -3859,6 +4133,28 @@ def javascript_import_graph(files: dict[str, str]) -> dict[str, set[str]]:
     return graph
 
 
+def _tarjan_step(
+    graph: dict[str, set[str]],
+    index: dict[str, int],
+    low: dict[str, int],
+    stack: list[str],
+    on_stack: set[str],
+    work: list[tuple[str, Any]],
+    counter: int,
+) -> tuple[bool, int]:
+    node, edges = work[-1]
+    for target in edges:
+        if target not in index:
+            index[target] = low[target] = counter
+            stack.append(target)
+            on_stack.add(target)
+            work.append((target, iter(sorted(graph.get(target, ())))))
+            return True, counter + 1
+        if target in on_stack:
+            low[node] = min(low[node], index[target])
+    return False, counter
+
+
 def import_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
     """Strongly connected components with more than one module (Tarjan)."""
     index: dict[str, int] = {}
@@ -3876,19 +4172,10 @@ def import_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
         stack.append(start)
         on_stack.add(start)
         while work:
-            node, edges = work[-1]
-            advanced = False
-            for target in edges:
-                if target not in index:
-                    index[target] = low[target] = counter
-                    counter += 1
-                    stack.append(target)
-                    on_stack.add(target)
-                    work.append((target, iter(sorted(graph.get(target, ())))))
-                    advanced = True
-                    break
-                if target in on_stack:
-                    low[node] = min(low[node], index[target])
+            node, _ = work[-1]
+            advanced, counter = _tarjan_step(
+                graph, index, low, stack, on_stack, work, counter
+            )
             if advanced:
                 continue
             work.pop()
@@ -3924,24 +4211,21 @@ def _python_verbose_assign_return(body: list[Any], flagged: set[int]) -> None:
             flagged.update({first.lineno, second.lineno})
 
 
-def _python_verbose_node(node: ast.AST, flagged: set[int]) -> None:
-    if isinstance(node, ast.If) and len(node.body) == 1 and len(node.orelse) == 1:
-        returns = [node.body[0], node.orelse[0]]
-        if all(
-            isinstance(item, ast.Return)
-            and isinstance(item.value, ast.Constant)
-            and isinstance(item.value.value, bool)
-            for item in returns
-        ):
-            flagged.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
-    if isinstance(node, ast.Compare) and any(
-        isinstance(item, ast.Constant) and isinstance(item.value, bool)
-        for item in node.comparators
-    ):
-        flagged.add(node.lineno)
-    if (
+def _is_bool_return_if(node: ast.AST) -> bool:
+    if not (isinstance(node, ast.If) and len(node.body) == 1 and len(node.orelse) == 1):
+        return False
+    return all(
+        isinstance(item, ast.Return)
+        and isinstance(item.value, ast.Constant)
+        and isinstance(item.value.value, bool)
+        for item in (node.body[0], node.orelse[0])
+    )
+
+
+def _is_bare_reraise_try(node: ast.AST) -> bool:
+    return (
         isinstance(node, ast.Try)
-        and node.handlers
+        and bool(node.handlers)
         and not node.finalbody
         and not node.orelse
         and all(
@@ -3950,8 +4234,17 @@ def _python_verbose_node(node: ast.AST, flagged: set[int]) -> None:
             and handler.body[0].exc is None
             for handler in node.handlers
         )
-    ):
+    )
+
+
+def _python_verbose_node(node: ast.AST, flagged: set[int]) -> None:
+    if _is_bool_return_if(node) or _is_bare_reraise_try(node):
         flagged.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+    if isinstance(node, ast.Compare) and any(
+        isinstance(item, ast.Constant) and isinstance(item.value, bool)
+        for item in node.comparators
+    ):
+        flagged.add(node.lineno)
     body = getattr(node, "body", None)
     if isinstance(body, list):
         _python_verbose_assign_return(body, flagged)
@@ -4018,83 +4311,119 @@ def slop_count(count: float, scale: float) -> float:
     return 100 * blend / (1 + blend)
 
 
-def slop_measure(
-    root: Path, files: dict[str, str], *, deadline: float | None = None
+def _nonempty_line_count(text: str) -> int:
+    return sum(1 for line in text.splitlines() if line.strip())
+
+
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    return numerator / denominator if denominator else 0
+
+
+def _slop_raw_metrics(
+    production: dict[str, str],
+    functions: list[FunctionMetric],
+    eroded: list[FunctionMetric],
+    covered: dict[str, set[int]],
+    groups: list[list[tuple[str, int, int]]],
+    graph: dict[str, set[str]],
+    cycles: list[list[str]],
+    approximate: set[str],
 ) -> dict[str, Any]:
-    """Raw structural metrics and the 0-100 sloppiness index (lower is better)."""
-    production = {
+    total_mass = sum(item.mass for item in functions)
+    lines = sum(_nonempty_line_count(text) for text in production.values())
+    cloned = sum(len(value) for value in covered.values())
+    verbose_count = sum(
+        len(verbose_lines(path, text) | covered.get(path, set()))
+        for path, text in production.items()
+    )
+    return {
+        "functions": len(functions),
+        "eroded_functions": len(eroded),
+        "eroded_share": _safe_ratio(sum(item.mass for item in eroded), total_mass),
+        "duplication_density": _safe_ratio(cloned, lines),
+        "clone_groups": len(groups),
+        "cycle_density": _safe_ratio(sum(len(cycle) for cycle in cycles), len(graph)),
+        "cycle_groups": len(cycles),
+        "verbosity": _safe_ratio(verbose_count, lines),
+        "lines": lines,
+        "approximate_complexity": sorted(approximate),
+        "languages": sorted({slop_language(path) for path in production}),
+    }
+
+
+def _slop_hotspots(eroded: list[FunctionMetric]) -> list[dict[str, Any]]:
+    return [
+        {
+            "path": item.path,
+            "function": item.name,
+            "lines": [item.start, item.end],
+            "complexity": item.complexity,
+            "sloc": item.sloc,
+            "nesting": item.nesting,
+            "mass": round(item.mass, 1),
+        }
+        for item in sorted(eroded, key=lambda item: -item.mass)
+    ]
+
+
+def _slop_contributions(raw: dict[str, Any]) -> dict[str, float]:
+    return {
+        name: round(
+            weight
+            * (slop_saturate(raw[density], saturation) + slop_count(raw[count], scale))
+            / 2,
+            2,
+        )
+        for name, weight, density, saturation, count, scale in SLOP_DIMENSIONS
+    }
+
+
+def _slop_production_files(files: dict[str, str]) -> dict[str, str]:
+    return {
         path: text
         for path, text in files.items()
         if slop_language(path) and slop_included(path) and not TEST_PATH_RE.search(path)
     }
+
+
+def _slop_clone_groups_payload(
+    groups: list[list[tuple[str, int, int]]],
+) -> list[list[dict[str, Any]]]:
+    return [
+        [{"path": path, "lines": [start, end]} for path, start, end in group]
+        for group in groups
+    ]
+
+
+def slop_measure(
+    root: Path, files: dict[str, str], *, deadline: float | None = None
+) -> dict[str, Any]:
+    """Raw structural metrics and the 0-100 sloppiness index (lower is better)."""
+    production = _slop_production_files(files)
     exact, approximate = exact_function_metrics(root, production, deadline=deadline)
-    functions: list[FunctionMetric] = []
-    for path, text in production.items():
-        functions.extend(function_metrics(path, text, exact.get(path)))
-    total_mass = sum(item.mass for item in functions)
-    eroded = [item for item in functions if item.complexity > SLOP_COMPLEXITY]
-    loc = {
-        path: sum(1 for line in text.splitlines() if line.strip())
+    functions = [
+        metric
         for path, text in production.items()
-    }
+        for metric in function_metrics(path, text, exact.get(path))
+    ]
+    eroded = [item for item in functions if item.complexity > SLOP_COMPLEXITY]
     covered, groups = clone_lines(production)
-    lines = sum(loc.values())
-    cloned = sum(len(value) for value in covered.values())
     graph = {
         **python_import_graph(production),
         **javascript_import_graph(production),
         **elixir_import_graph(production),
     }
     cycles = import_cycles(graph)
-    verbose = {
-        path: verbose_lines(path, text) | covered.get(path, set())
-        for path, text in production.items()
-    }
-    raw = {
-        "functions": len(functions),
-        "eroded_functions": len(eroded),
-        "eroded_share": sum(item.mass for item in eroded) / total_mass
-        if total_mass
-        else 0,
-        "duplication_density": cloned / lines if lines else 0,
-        "clone_groups": len(groups),
-        "cycle_density": (
-            sum(len(cycle) for cycle in cycles) / len(graph) if graph else 0
-        ),
-        "cycle_groups": len(cycles),
-        "verbosity": sum(len(value) for value in verbose.values()) / lines
-        if lines
-        else 0,
-        "lines": lines,
-        "approximate_complexity": sorted(approximate),
-        "languages": sorted({slop_language(path) for path in production}),
-    }
-    contributions = {}
-    for name, weight, density, saturation, count, scale in SLOP_DIMENSIONS:
-        points = (
-            slop_saturate(raw[density], saturation) + slop_count(raw[count], scale)
-        ) / 2
-        contributions[name] = round(weight * points, 2)
+    raw = _slop_raw_metrics(
+        production, functions, eroded, covered, groups, graph, cycles, approximate
+    )
+    contributions = _slop_contributions(raw)
     return {
         "index": max(0, min(100, int(sum(contributions.values()) + 0.5))),
         "contributions": contributions,
         "metrics": raw,
-        "hotspots": [
-            {
-                "path": item.path,
-                "function": item.name,
-                "lines": [item.start, item.end],
-                "complexity": item.complexity,
-                "sloc": item.sloc,
-                "nesting": item.nesting,
-                "mass": round(item.mass, 1),
-            }
-            for item in sorted(eroded, key=lambda item: -item.mass)
-        ],
-        "clone_groups": [
-            [{"path": path, "lines": [start, end]} for path, start, end in group]
-            for group in groups
-        ],
+        "hotspots": _slop_hotspots(eroded),
+        "clone_groups": _slop_clone_groups_payload(groups),
         "import_cycles": cycles,
     }
 
@@ -4145,6 +4474,15 @@ def slop_included(path: str) -> bool:
     )
 
 
+def _is_repo_source(root: Path, name: str) -> bool:
+    return bool(
+        name
+        and slop_language(name)
+        and not SKIP_DIRECTORIES & set(Path(name).parts)
+        and (root / name).is_file()
+    )
+
+
 def source_paths(root: Path) -> list[Path]:
     """Tracked and non-ignored untracked sources; every source outside Git."""
     try:
@@ -4159,17 +4497,11 @@ def source_paths(root: Path) -> list[Path]:
             and slop_language(path.name)
             and not SKIP_DIRECTORIES & set(path.relative_to(root).parts)
         )
-    paths = []
-    for raw in listing.split(b"\0"):
-        name = os.fsdecode(raw)
-        if (
-            name
-            and slop_language(name)
-            and not SKIP_DIRECTORIES & set(Path(name).parts)
-            and (root / name).is_file()
-        ):
-            paths.append(root / name)
-    return sorted(paths)
+    return sorted(
+        root / name
+        for raw in listing.split(b"\0")
+        if _is_repo_source(root, name := os.fsdecode(raw))
+    )
 
 
 def repository_sources(root: Path, limit: int | None = None) -> dict[str, str]:
@@ -4242,12 +4574,9 @@ def slop_report_text(report: dict[str, Any], top: int) -> str:
     return "\n".join(lines)
 
 
-def slop_command(
-    root: Path, config: dict[str, Any], base: str | None, as_json: bool, top: int
-) -> int:
-    policy = slop_policy(config)
-    current = slop_measure(root, repository_sources(root))
-    previous = slop_measure(root, base_sources(root, base)) if base else None
+def _slop_policy_failures(
+    policy: dict[str, Any], current: dict[str, Any], previous: dict[str, Any] | None
+) -> list[str]:
     failures = []
     if "max_index" in policy and current["index"] > policy["max_index"]:
         failures.append(
@@ -4260,6 +4589,29 @@ def slop_command(
                 f"index rose by {increase}, above max_index_increase "
                 f"{policy['max_index_increase']}"
             )
+    return failures
+
+
+def _print_slop_base_diff(
+    base: str | None, previous: dict[str, Any], current: dict[str, Any]
+) -> None:
+    print(
+        f"Base {base}: index {previous['index']} -> {current['index']} "
+        f"({current['index'] - previous['index']:+d})"
+    )
+    known = {(item["path"], item["function"]) for item in previous["hotspots"]}
+    for item in current["hotspots"]:
+        if (item["path"], item["function"]) not in known:
+            print(f"new hotspot {item['path']}:{item['lines'][0]} {item['function']}")
+
+
+def slop_command(
+    root: Path, config: dict[str, Any], base: str | None, as_json: bool, top: int
+) -> int:
+    policy = slop_policy(config)
+    current = slop_measure(root, repository_sources(root))
+    previous = slop_measure(root, base_sources(root, base)) if base else None
+    failures = _slop_policy_failures(policy, current, previous)
     if as_json:
         print(
             json.dumps(
@@ -4267,21 +4619,12 @@ def slop_command(
                 indent=2,
             )
         )
-    else:
-        print(slop_report_text(current, top))
-        if previous is not None:
-            print(
-                f"Base {base}: index {previous['index']} -> {current['index']} "
-                f"({current['index'] - previous['index']:+d})"
-            )
-            known = {(item["path"], item["function"]) for item in previous["hotspots"]}
-            for item in current["hotspots"]:
-                if (item["path"], item["function"]) not in known:
-                    print(
-                        f"new hotspot {item['path']}:{item['lines'][0]} {item['function']}"
-                    )
-        for failure in failures:
-            print(f"loki slop: {failure}")
+        return int(bool(failures))
+    print(slop_report_text(current, top))
+    if previous is not None:
+        _print_slop_base_diff(base, previous, current)
+    for failure in failures:
+        print(f"loki slop: {failure}")
     return int(bool(failures))
 
 
@@ -4321,13 +4664,13 @@ def changed_functions(
     return sorted(pairs, key=lambda pair: pair[0].start)
 
 
-def _written_complexity_notes(
+def _exact_written_metrics(
     root: Path,
     names: list[str],
     before: dict[str, str],
     after: dict[str, str],
     deadline: float | None,
-) -> list[str]:
+) -> tuple[dict[str, list[FunctionMetric]], dict[str, list[FunctionMetric]]]:
     # One analyzer call covers both versions; BEAM-backed Elixir stays structural
     # at write time and exact in `loki slop` audits.
     cheap = {
@@ -4341,12 +4684,22 @@ def _written_complexity_notes(
         if text
     }
     exact, _ = exact_function_metrics(root, cheap, deadline=deadline)
-    exact_after = {
-        key[6:]: value for key, value in exact.items() if key.startswith("after/")
-    }
-    exact_before = {
-        key[7:]: value for key, value in exact.items() if key.startswith("before/")
-    }
+    return (
+        {key[7:]: value for key, value in exact.items() if key.startswith("before/")},
+        {key[6:]: value for key, value in exact.items() if key.startswith("after/")},
+    )
+
+
+def _written_complexity_notes(
+    root: Path,
+    names: list[str],
+    before: dict[str, str],
+    after: dict[str, str],
+    deadline: float | None,
+) -> list[str]:
+    exact_before, exact_after = _exact_written_metrics(
+        root, names, before, after, deadline
+    )
     notes: list[str] = []
     for name in names:
         for item, prior in changed_functions(
@@ -4367,6 +4720,19 @@ def _written_complexity_notes(
     return notes
 
 
+def _format_clone_group_note(group: list[tuple[str, int, int]], focus: set[str]) -> str:
+    here = next((member for member in group if member[0] in focus), group[0])
+    others = ", ".join(
+        f"{path}:{start}-{end}"
+        for path, start, end in group
+        if (path, start, end) != here
+    )
+    return (
+        f"{here[0]}:{here[1]}: loki/slop-duplication: lines {here[1]}-{here[2]} "
+        f"duplicate {others}; reuse or extract the shared code"
+    )
+
+
 def _written_clone_notes(
     repository: dict[str, str], before: dict[str, str], focus: set[str]
 ) -> list[str]:
@@ -4375,21 +4741,11 @@ def _written_clone_notes(
     if len(groups_after) <= len(groups_before):
         return []
     seen = {tuple(sorted(path for path, _, _ in group)) for group in groups_before}
-    notes: list[str] = []
-    for group in groups_after:
-        if tuple(sorted(path for path, _, _ in group)) in seen:
-            continue
-        here = next((member for member in group if member[0] in focus), group[0])
-        others = ", ".join(
-            f"{path}:{start}-{end}"
-            for path, start, end in group
-            if (path, start, end) != here
-        )
-        notes.append(
-            f"{here[0]}:{here[1]}: loki/slop-duplication: lines {here[1]}-{here[2]} "
-            f"duplicate {others}; reuse or extract the shared code"
-        )
-    return notes
+    return [
+        _format_clone_group_note(group, focus)
+        for group in groups_after
+        if tuple(sorted(path for path, _, _ in group)) not in seen
+    ]
 
 
 def _written_cycle_notes(
@@ -4455,19 +4811,19 @@ def ruff_command(root: Path) -> list[str] | None:
 
 
 def missing_tool(language: str, root: Path) -> str | None:
-    if language == "python":
-        return None if ruff_command(root) else "ruff"
-    if language == "typescript":
-        return None if resolve_tool(root, "oxlint") else "oxlint"
-    if language == "go":
-        if not shutil.which("gofmt"):
-            return "gofmt"
-        return None if shutil.which("go") else "go"
-    if language == "rust":
-        return None if shutil.which("rustfmt") else "rustfmt"
-    if language == "elixir":
-        return None if shutil.which("mix") else "mix"
-    return "toolchain"
+    checks = {
+        "python": lambda: None if ruff_command(root) else "ruff",
+        "typescript": lambda: None if resolve_tool(root, "oxlint") else "oxlint",
+        "go": lambda: (
+            "gofmt"
+            if not shutil.which("gofmt")
+            else (None if shutil.which("go") else "go")
+        ),
+        "rust": lambda: None if shutil.which("rustfmt") else "rustfmt",
+        "elixir": lambda: None if shutil.which("mix") else "mix",
+    }
+    check = checks.get(language)
+    return check() if check is not None else "toolchain"
 
 
 MYPY_LINE_RE = re.compile(
@@ -4861,6 +5217,27 @@ def added_line_numbers(before: str, after: str) -> set[int]:
     }
 
 
+def _format_hygiene_note(
+    name: str, after: str, tool: str, item: HygieneSquiggle
+) -> str:
+    snippet = line_text(after, item.line)[:HYGIENE_SNIPPET_CHARS]
+    kind = item.kind.replace("_", "-")
+    return f"{name}:{item.line}: loki/{tool}-{kind}: {item.message}: `{snippet}`"
+
+
+def _include_model_squiggle(
+    item: HygieneSquiggle,
+    added: set[int],
+    seen: set[tuple[int, str]],
+    level: str,
+) -> bool:
+    return (
+        item.line in added
+        and (level == "all" or item.kind in HYGIENE_DEFAULT_KINDS)
+        and (item.line, item.kind) not in seen
+    )
+
+
 def merge_hygiene_notes(
     name: str,
     before: str,
@@ -4875,21 +5252,11 @@ def merge_hygiene_notes(
     added = added_line_numbers(before, after)
     kept = [item for item in nits if item.line in added]
     seen = {(item.line, item.kind) for item in kept}
-    model = [
-        item
-        for item in model
-        if item.line in added
-        and (level == "all" or item.kind in HYGIENE_DEFAULT_KINDS)
-        and (item.line, item.kind) not in seen
+    model_kept = [
+        item for item in model if _include_model_squiggle(item, added, seen, level)
     ]
-
-    def note(tool: str, item: HygieneSquiggle) -> str:
-        snippet = line_text(after, item.line)[:HYGIENE_SNIPPET_CHARS]
-        kind = item.kind.replace("_", "-")
-        return f"{name}:{item.line}: loki/{tool}-{kind}: {item.message}: `{snippet}`"
-
-    return [note("nits", item) for item in kept] + [
-        note("hygiene", item) for item in model
+    return [_format_hygiene_note(name, after, "nits", item) for item in kept] + [
+        _format_hygiene_note(name, after, "hygiene", item) for item in model_kept
     ]
 
 
@@ -4899,6 +5266,41 @@ def hygiene_checked(name: str) -> bool:
 
 def nits_reads(name: str) -> bool:
     return Path(name).suffix.lower() in NITS_SUFFIXES
+
+
+def _read_hygiene_sources(root: Path, files: list[str]) -> list[tuple[str, str]]:
+    sources: list[tuple[str, str]] = []
+    for name in filter(hygiene_checked, files):
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            sources.append((name, (root / name).read_text(encoding="utf-8")))
+    return sources
+
+
+def _collect_hygiene_notes(
+    root: Path,
+    base: str,
+    level: str,
+    sources: list[tuple[str, str]],
+    scored: list[list[HygieneSquiggle]],
+    parsed: list[list[HygieneSquiggle]],
+    deadline: float,
+    gaps: list[str],
+) -> list[str]:
+    found: list[str] = []
+    for (name, after), model, nits in zip(sources, scored, parsed, strict=True):
+        if not model and not nits:
+            continue
+        try:
+            before = revision_text(root, base, name, deadline=deadline)
+        except ValueError as error:
+            found.clear()
+            gaps.append(f"NOT CHECKED hygiene: {error}")
+            break
+        found.extend(merge_hygiene_notes(name, before, after, model, nits, level))
+    if len(found) > HYGIENE_MAX_NOTES:
+        more = len(found) - HYGIENE_MAX_NOTES
+        found = [*found[:HYGIENE_MAX_NOTES], f"... {more} more hygiene notes"]
+    return found
 
 
 def hygiene_against(
@@ -4916,12 +5318,7 @@ def hygiene_against(
     `NOT CHECKED <tool>` line per tool that could not run."""
     if level == "off":
         return []
-    sources = []
-    for name in filter(hygiene_checked, files):
-        try:
-            sources.append((name, (root / name).read_text(encoding="utf-8")))
-        except (OSError, UnicodeDecodeError):
-            continue
+    sources = _read_hygiene_sources(root, files)
     if not sources:
         return []
     if deadline is None:
@@ -4959,20 +5356,9 @@ def hygiene_against(
             python=python,
         ),
     )
-    found: list[str] = []
-    for (name, after), model, nits in zip(sources, scored, parsed, strict=True):
-        if not model and not nits:
-            continue
-        try:
-            before = revision_text(root, base, name, deadline=deadline)
-        except ValueError as error:
-            found.clear()
-            gaps.append(f"NOT CHECKED hygiene: {error}")
-            break
-        found.extend(merge_hygiene_notes(name, before, after, model, nits, level))
-    if len(found) > HYGIENE_MAX_NOTES:
-        more = len(found) - HYGIENE_MAX_NOTES
-        found = [*found[:HYGIENE_MAX_NOTES], f"... {more} more hygiene notes"]
+    found = _collect_hygiene_notes(
+        root, base, level, sources, scored, parsed, deadline, gaps
+    )
     return found + gaps
 
 
@@ -5167,12 +5553,23 @@ def mypy_errors(
     return found, lines
 
 
+def _mypy_base_errors(
+    root: Path, paths: list[str], before: dict[str, str], deadline: float | None
+) -> Counter[tuple]:
+    with tempfile.TemporaryDirectory(prefix="loki-mypy-") as directory:
+        shadows = []
+        for index, name in enumerate(paths):
+            shadow = Path(directory) / f"{index}.py"
+            shadow.write_text(before[name], encoding="utf-8")
+            shadows.extend(["--shadow-file", name, str(shadow)])
+        output = mypy_run(root, paths, deadline=deadline, shadows=shadows)
+        return mypy_errors(output, before)[0]
+
+
 def mypy_violations(
     root: Path, paths: list[str], *, deadline: float | None = None
 ) -> list[str]:
     """Net-new mypy errors in written files, against their committed text."""
-    import tempfile
-
     if not paths or mypy_binary(root) is None:
         return []
     after = {name: (root / name).read_text(encoding="utf-8") for name in paths}
@@ -5183,16 +5580,11 @@ def mypy_violations(
     if not current:
         return []
     before = {name: head_text(root, name, deadline=deadline) for name in paths}
-    previous: Counter[tuple] = Counter()
-    if possibly_existing(current, before):
-        with tempfile.TemporaryDirectory(prefix="loki-mypy-") as directory:
-            shadows = []
-            for index, name in enumerate(paths):
-                shadow = Path(directory) / f"{index}.py"
-                shadow.write_text(before[name], encoding="utf-8")
-                shadows.extend(["--shadow-file", name, str(shadow)])
-            output = mypy_run(root, paths, deadline=deadline, shadows=shadows)
-            previous = mypy_errors(output, before)[0]
+    previous = (
+        _mypy_base_errors(root, paths, before, deadline)
+        if possibly_existing(current, before)
+        else Counter()
+    )
     violations = []
     for key, count in (current - previous).items():
         name, code, message, _ = key
@@ -5247,6 +5639,16 @@ def cargo_project(path: Path, root: Path) -> Path | None:
     return None
 
 
+def _cargo_edition_entry(directory: Path, inherit: bool) -> Any:
+    data: dict[str, Any] = {}
+    with contextlib.suppress(OSError, tomllib.TOMLDecodeError):
+        data = tomllib.loads((directory / "Cargo.toml").read_text(encoding="utf-8"))
+    table = (
+        (data.get("workspace") or {}).get("package") if inherit else data.get("package")
+    )
+    return table.get("edition") if isinstance(table, dict) else None
+
+
 def cargo_edition(crate: Path | None, root: Path) -> str | None:
     """The crate's Rust edition from Cargo.toml, following `edition.workspace = true` up to the workspace."""
     if crate is None:
@@ -5254,16 +5656,7 @@ def cargo_edition(crate: Path | None, root: Path) -> str | None:
     inherit = False
     directory = crate.resolve()
     while directory.is_relative_to(root.resolve()):
-        try:
-            data = tomllib.loads((directory / "Cargo.toml").read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            data = {}
-        table = (
-            (data.get("workspace") or {}).get("package")
-            if inherit
-            else data.get("package")
-        )
-        edition = table.get("edition") if isinstance(table, dict) else None
+        edition = _cargo_edition_entry(directory, inherit)
         if isinstance(edition, str):
             return edition
         if isinstance(edition, dict) and edition.get("workspace") is True:
@@ -5282,6 +5675,54 @@ def clippy_command(target: Path) -> list[str]:
     return command
 
 
+def _clippy_message(line: str) -> dict[str, Any] | None:
+    item = None
+    with contextlib.suppress(ValueError):
+        item = json.loads(line)
+    if not isinstance(item, dict) or item.get("reason") != "compiler-message":
+        return None
+    message = item.get("message")
+    if not isinstance(message, dict) or message.get("level") not in (
+        "error",
+        "warning",
+    ):
+        return None
+    return message
+
+
+def _parse_clippy_line(
+    line: str, crate: Path
+) -> tuple[tuple[str, str, str, str], int] | None:
+    message = _clippy_message(line)
+    if message is None:
+        return None
+    span = next(
+        (span for span in message.get("spans", []) if span.get("is_primary")), None
+    )
+    if span is None:
+        return None
+    source = (crate / span["file_name"]).resolve()
+    if not source.is_relative_to(crate.resolve()):
+        return None
+    relative = source.relative_to(crate.resolve()).as_posix()
+    text = line_text(source.read_text(encoding="utf-8"), span["line_start"])
+    code = (message.get("code") or {}).get("code") or message["level"]
+    return (relative, code, message["message"], text), span["line_start"]
+
+
+def _raise_clippy_failure(result: subprocess.CompletedProcess[str]) -> None:
+    stderr = result.stderr.strip()
+    if "--offline was specified" in stderr or "no matching package named" in stderr:
+        raise ValueError(
+            "cargo clippy needs dependencies that are not downloaded yet; "
+            "run `cargo fetch` once to check this crate"
+        )
+    if "either src/lib.rs, src/main.rs, a [lib] section" in stderr:
+        raise ValueError("the crate has no library or binary target yet")
+    reason = stderr.splitlines()[-1:] or [f"exit {result.returncode}"]
+    raise ValueError(f"cargo clippy failed: {reason[0]}")
+
+
 def clippy_diagnostics(
     crate: Path, target: Path, *, deadline: float | None
 ) -> list[tuple[tuple[str, str, str, str], int]]:
@@ -5295,43 +5736,13 @@ def clippy_diagnostics(
         timeout=command_timeout(deadline),
         check=False,
     )
-    found = []
-    for line in result.stdout.splitlines():
-        try:
-            item = json.loads(line)
-        except ValueError:
-            continue
-        message = (
-            item.get("message") if item.get("reason") == "compiler-message" else None
-        )
-        if not isinstance(message, dict) or message.get("level") not in (
-            "error",
-            "warning",
-        ):
-            continue
-        span = next(
-            (span for span in message.get("spans", []) if span.get("is_primary")), None
-        )
-        if span is None:
-            continue
-        source = (crate / span["file_name"]).resolve()
-        if not source.is_relative_to(crate.resolve()):
-            continue
-        relative = source.relative_to(crate.resolve()).as_posix()
-        text = line_text(source.read_text(encoding="utf-8"), span["line_start"])
-        code = (message.get("code") or {}).get("code") or message["level"]
-        found.append(((relative, code, message["message"], text), span["line_start"]))
+    found = [
+        entry
+        for line in result.stdout.splitlines()
+        if (entry := _parse_clippy_line(line, crate)) is not None
+    ]
     if result.returncode and not found:
-        stderr = result.stderr.strip()
-        if "--offline was specified" in stderr or "no matching package named" in stderr:
-            raise ValueError(
-                "cargo clippy needs dependencies that are not downloaded yet; "
-                "run `cargo fetch` once to check this crate"
-            )
-        if "either src/lib.rs, src/main.rs, a [lib] section" in stderr:
-            raise ValueError("the crate has no library or binary target yet")
-        reason = stderr.splitlines()[-1:] or [f"exit {result.returncode}"]
-        raise ValueError(f"cargo clippy failed: {reason[0]}")
+        _raise_clippy_failure(result)
     return found
 
 
@@ -5387,6 +5798,35 @@ def clippy_base(
         )
 
 
+def _report_oxlint_advisory(advisory: list[str], warnings: list[str] | None) -> None:
+    if not advisory:
+        return
+    extra = f"\n... {len(advisory) - 10} more" if len(advisory) > 10 else ""
+    message = "oxlint advisory (not blocking):\n" + "\n".join(advisory[:10]) + extra
+    if warnings is None:
+        print(message, file=sys.stderr)
+    else:
+        warnings.append(message)
+
+
+def _oxlint_result_violations(
+    result: subprocess.CompletedProcess[str], warnings: list[str] | None
+) -> list[str]:
+    findings = [
+        line.strip()
+        for line in result.stdout.splitlines()
+        if re.search(r"\[(?:Error|Warning)/", line)
+    ]
+    _report_oxlint_advisory(
+        [line for line in findings if "[Warning/" in line], warnings
+    )
+    if not result.returncode:
+        return []
+    evidence_finding("external-check-failed")
+    errors = [line for line in findings if "[Error/" in line]
+    return [f"oxlint: {line}" for line in errors or command_output(result)]
+
+
 def oxlint_violations(
     path: Path,
     root: Path,
@@ -5410,24 +5850,7 @@ def oxlint_violations(
     except (OSError, subprocess.TimeoutExpired, ValueError) as error:
         evidence_finding("checker-unavailable")
         return [f"oxlint: {error}"]
-    findings = [
-        line.strip()
-        for line in result.stdout.splitlines()
-        if re.search(r"\[(?:Error|Warning)/", line)
-    ]
-    advisory = [line for line in findings if "[Warning/" in line]
-    if advisory:
-        extra = f"\n... {len(advisory) - 10} more" if len(advisory) > 10 else ""
-        message = "oxlint advisory (not blocking):\n" + "\n".join(advisory[:10])
-        if warnings is None:
-            print(message + extra, file=sys.stderr)
-        else:
-            warnings.append(message + extra)
-    if not result.returncode:
-        return []
-    evidence_finding("external-check-failed")
-    errors = [line for line in findings if "[Error/" in line]
-    return [f"oxlint: {line}" for line in errors or command_output(result)]
+    return _oxlint_result_violations(result, warnings)
 
 
 def mix_project(path: Path, root: Path) -> Path | None:
@@ -5482,6 +5905,35 @@ def _run_optional_analyzer(
         _emit_check_notice(message, strict, warnings, violations)
 
 
+def _run_python_ruff(
+    root: Path,
+    display: str,
+    names: list[str],
+    strict: bool,
+    *,
+    deadline: float | None,
+    warnings: list[str] | None,
+    violations: list[str],
+) -> None:
+    try:
+        violations.extend(
+            ruff_new_violations(root, None, paths=set(names), deadline=deadline)
+        )
+    except SnapshotTooLarge as error:
+        violations.extend(
+            not_checked(f"NOT CHECKED python ruff: {error}", strict, warnings)
+        )
+    except MissingRuffConfig as error:
+        # A minimal install (init --minimal) adds no .ruff.toml.
+        _emit_check_notice(
+            f"NOT CHECKED python ruff: {error}",
+            strict,
+            warnings,
+            violations,
+            strict_message=f"{display}: loki: {error}",
+        )
+
+
 def _check_python_file(
     path: Path,
     root: Path,
@@ -5503,23 +5955,15 @@ def _check_python_file(
         for item in selected
         if item.suffix == ".py" and item.is_file()
     )
-    try:
-        violations.extend(
-            ruff_new_violations(root, None, paths=set(names), deadline=deadline)
-        )
-    except SnapshotTooLarge as error:
-        violations.extend(
-            not_checked(f"NOT CHECKED python ruff: {error}", strict, warnings)
-        )
-    except MissingRuffConfig as error:
-        # A minimal install (init --minimal) adds no .ruff.toml.
-        _emit_check_notice(
-            f"NOT CHECKED python ruff: {error}",
-            strict,
-            warnings,
-            violations,
-            strict_message=f"{display}: loki: {error}",
-        )
+    _run_python_ruff(
+        root,
+        display,
+        names,
+        strict,
+        deadline=deadline,
+        warnings=warnings,
+        violations=violations,
+    )
     if not violations:
         _run_optional_analyzer(
             "python types",
@@ -5615,6 +6059,48 @@ def _check_rust_file(
             checked_projects.add(key)
 
 
+def _collect_elixir_jobs(
+    jobs: dict[str, Any],
+    notices: dict[str, list[str]],
+    strict: bool,
+    warnings: list[str] | None,
+    violations: list[str],
+) -> None:
+    for analyzer, job in jobs.items():
+        try:
+            violations.extend(job.result())
+            for notice in notices[analyzer]:
+                _emit_check_notice(
+                    notice,
+                    strict and notice.startswith("NOT CHECKED"),
+                    warnings,
+                    violations,
+                )
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            _emit_check_notice(
+                f"NOT CHECKED {analyzer}: {error}", strict, warnings, violations
+            )
+
+
+def _submit_elixir_analyzer(
+    pool: Any,
+    name: str,
+    project: Path,
+    config: dict[str, Any],
+    deadline: float | None,
+    notices: list[str],
+) -> Any:
+    if name == "Credo":
+        return pool.submit(credo_new_violations, project, deadline=deadline)
+    return pool.submit(
+        sobelow_new_violations,
+        project,
+        config,
+        deadline=deadline,
+        warnings=notices,
+    )
+
+
 def _check_elixir_file(
     path: Path,
     root: Path,
@@ -5637,9 +6123,11 @@ def _check_elixir_file(
 
     key = ("elixir", project)
     reused = checked_projects is not None and key in checked_projects
-    analyzers = [] if reused else ["Credo"]
-    if not reused and "phoenix" in rule_packs(config):
-        analyzers.append("Sobelow")
+    analyzers = (
+        []
+        if reused
+        else ["Credo", *(["Sobelow"] if "phoenix" in rule_packs(config) else [])]
+    )
     notices: dict[str, list[str]] = {name: [] for name in analyzers}
     # Format, Credo and Sobelow each start a BEAM; run them side by side.
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -5651,81 +6139,35 @@ def _check_elixir_file(
             deadline=deadline,
         )
         jobs = {
-            name: pool.submit(credo_new_violations, project, deadline=deadline)
-            if name == "Credo"
-            else pool.submit(
-                sobelow_new_violations,
-                project,
-                config,
-                deadline=deadline,
-                warnings=notices[name],
+            name: _submit_elixir_analyzer(
+                pool, name, project, config, deadline, notices[name]
             )
             for name in analyzers
         }
     violations.extend(formatting.result())
     if reused:
         return violations[:MAX_VIOLATIONS]
-    for analyzer, job in jobs.items():
-        try:
-            violations.extend(job.result())
-            for notice in notices[analyzer]:
-                _emit_check_notice(
-                    notice,
-                    strict and notice.startswith("NOT CHECKED"),
-                    warnings,
-                    violations,
-                )
-        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-            _emit_check_notice(
-                f"NOT CHECKED {analyzer}: {error}", strict, warnings, violations
-            )
+    _collect_elixir_jobs(jobs, notices, strict, warnings, violations)
     if checked_projects is not None:
         checked_projects.add(key)
     return None
 
 
-def check_file(
+def _check_language_file(
+    language: str,
     path: Path,
     root: Path,
+    display: str,
     config: dict[str, Any],
-    strict: bool = False,
+    strict: bool,
     *,
-    deadline: float | None = None,
-    warnings: list[str] | None = None,
-    batch_paths: list[Path] | None = None,
-    checked_projects: set[tuple[str, Path]] | None = None,
-    python: str | None = None,
-) -> list[str]:
-    if message := protect_path(str(path), root, config):
-        return [message]
-    language = LANGUAGE_EXTENSIONS.get(path.suffix.lower())
-    if not path.is_file():
-        return []
-    display = relative_display(path, root)
-    if not language or not language_enabled(config, language):
-        return written_content_violations(
-            path, root, display, fallback=False, deadline=deadline
-        )
-    missing = missing_tool(language, root)
-    violations: list[str] = []
-    violations.extend(
-        written_content_violations(
-            path,
-            root,
-            display,
-            fallback=language == "typescript" and missing is not None,
-            deadline=deadline,
-        )
-    )
-    if missing:
-        _emit_check_notice(
-            f"NOT CHECKED {language}: missing {missing}",
-            strict,
-            warnings,
-            violations,
-            strict_message=f"{display}: loki: missing {missing}",
-        )
-    elif language == "python":
+    deadline: float | None,
+    warnings: list[str] | None,
+    batch_paths: list[Path] | None,
+    checked_projects: set[tuple[str, Path]] | None,
+    violations: list[str],
+) -> list[str] | None:
+    if language == "python":
         _check_python_file(
             path,
             root,
@@ -5762,7 +6204,7 @@ def check_file(
             violations=violations,
         )
     elif language == "elixir":
-        early = _check_elixir_file(
+        return _check_elixir_file(
             path,
             root,
             config,
@@ -5772,20 +6214,94 @@ def check_file(
             checked_projects=checked_projects,
             violations=violations,
         )
+    return None
+
+
+def _check_python_ast_file(
+    path: Path,
+    root: Path,
+    display: str,
+    *,
+    python: str | None,
+    strict: bool,
+    warnings: list[str] | None,
+    deadline: float | None,
+) -> list[str]:
+    base = ""
+    with contextlib.suppress(ValueError):
+        # No committed base (outside Git, or before the first commit).
+        base = head_text(root, display, deadline=deadline)
+    return python_ast_violations(
+        path,
+        root,
+        base=base,
+        python=python,
+        strict=strict,
+        warnings=warnings,
+        deadline=deadline,
+    )
+
+
+def check_file(
+    path: Path,
+    root: Path,
+    config: dict[str, Any],
+    strict: bool = False,
+    *,
+    deadline: float | None = None,
+    warnings: list[str] | None = None,
+    batch_paths: list[Path] | None = None,
+    checked_projects: set[tuple[str, Path]] | None = None,
+    python: str | None = None,
+) -> list[str]:
+    if message := protect_path(str(path), root, config):
+        return [message]
+    language = LANGUAGE_EXTENSIONS.get(path.suffix.lower())
+    if not path.is_file():
+        return []
+    display = relative_display(path, root)
+    if not language or not language_enabled(config, language):
+        return written_content_violations(
+            path, root, display, fallback=False, deadline=deadline
+        )
+    missing = missing_tool(language, root)
+    violations = written_content_violations(
+        path,
+        root,
+        display,
+        fallback=language == "typescript" and missing is not None,
+        deadline=deadline,
+    )
+    if missing:
+        _emit_check_notice(
+            f"NOT CHECKED {language}: missing {missing}",
+            strict,
+            warnings,
+            violations,
+            strict_message=f"{display}: loki: missing {missing}",
+        )
+    else:
+        early = _check_language_file(
+            language,
+            path,
+            root,
+            display,
+            config,
+            strict,
+            deadline=deadline,
+            warnings=warnings,
+            batch_paths=batch_paths,
+            checked_projects=checked_projects,
+            violations=violations,
+        )
         if early is not None:
             return early
-
     if language == "python":
-        try:
-            base = head_text(root, display, deadline=deadline)
-        except ValueError:
-            # No committed base (outside Git, or before the first commit).
-            base = ""
         violations.extend(
-            python_ast_violations(
+            _check_python_ast_file(
                 path,
                 root,
-                base=base,
+                display,
                 python=python,
                 strict=strict,
                 warnings=warnings,
@@ -5846,6 +6362,25 @@ def _format_sobelow_delta(
     return findings
 
 
+def _check_sobelow_config_changes(changes: list[FileChange], relative: Path) -> None:
+    for change in changes:
+        name = Path(change.path)
+        if name.name in {"mix.exs", "mix.lock", ".sobelow-conf", ".sobelow-skips"} or (
+            name.is_relative_to(relative / "config")
+        ):
+            raise ValueError(
+                f"{change.path}: analyzer configuration change requires review"
+            )
+
+
+def _emit_sobelow_notices(notices: set[str], warnings: list[str] | None) -> None:
+    for notice in sorted(notices):
+        if warnings is not None:
+            warnings.append(notice)
+        else:
+            print(notice, file=sys.stderr)
+
+
 def sobelow_new_violations(
     project: Path,
     config: dict[str, Any],
@@ -5868,14 +6403,7 @@ def sobelow_new_violations(
     ):
         return protected
     relative = project.relative_to(root)
-    for change in changes:
-        name = Path(change.path)
-        if name.name in {"mix.exs", "mix.lock", ".sobelow-conf", ".sobelow-skips"} or (
-            name.is_relative_to(relative / "config")
-        ):
-            raise ValueError(
-                f"{change.path}: analyzer configuration change requires review"
-            )
+    _check_sobelow_config_changes(changes, relative)
     ebin = project / "_build/dev/lib/sobelow/ebin"
     if not ebin.is_dir():
         raise ValueError("compiled dev Sobelow required; prepare dependencies first")
@@ -5912,11 +6440,7 @@ def sobelow_new_violations(
             _run_sobelow_workspace(command, workspace, deadline, notices)
             for workspace in (before / relative, after / relative)
         ]
-        for notice in sorted(notices):
-            if warnings is not None:
-                warnings.append(notice)
-            else:
-                print(notice, file=sys.stderr)
+        _emit_sobelow_notices(notices, warnings)
         return _format_sobelow_delta(reports, relative, thresholds, warnings)
 
 
@@ -5924,6 +6448,38 @@ def severity_matches(confidence: str, threshold: str) -> bool:
     return threshold != "none" and SECURITY_LEVELS.index(
         confidence
     ) >= SECURITY_LEVELS.index(threshold)
+
+
+def _validate_sobelow_item_fields(item: Any) -> tuple[str, str, int]:
+    if not isinstance(item, dict):
+        raise ValueError("finding must be an object")
+    filename, rule, line = item["file"], item["type"], item["line"]
+    if not (isinstance(filename, str) and filename and isinstance(rule, str) and rule):
+        raise ValueError("invalid finding path or rule")
+    if type(line) is not int or line < 0:
+        raise ValueError("invalid finding line")
+    return filename, rule, line
+
+
+def _parse_sobelow_item(
+    confidence: str, item: Any, workspace: Path
+) -> tuple[tuple[str, str, str, str, str], int]:
+    filename, rule, line = _validate_sobelow_item_fields(item)
+    path = (workspace / filename).resolve()
+    name = path.relative_to(workspace.resolve()).as_posix()
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if line > len(lines):
+        raise ValueError("finding line outside source")
+    text = lines[line - 1].strip() if line else ""
+    details = json.dumps(
+        {
+            key: value
+            for key, value in item.items()
+            if key not in {"file", "line", "column", "type", "fingerprint"}
+        },
+        sort_keys=True,
+    )
+    return (confidence, name, rule, text, details), line
 
 
 def sobelow_findings(output: str, workspace: Path) -> list[tuple[tuple, int]]:
@@ -5938,34 +6494,9 @@ def sobelow_findings(output: str, workspace: Path) -> list[tuple[tuple, int]]:
             items = groups[f"{confidence}_confidence"]
             if not isinstance(items, list):
                 raise ValueError("findings must be arrays")
-            for item in items:
-                if not isinstance(item, dict):
-                    raise ValueError("finding must be an object")
-                filename, rule, line = item["file"], item["type"], item["line"]
-                if (
-                    not isinstance(filename, str)
-                    or not filename
-                    or not isinstance(rule, str)
-                    or not rule
-                ):
-                    raise ValueError("invalid finding path or rule")
-                if type(line) is not int or line < 0:
-                    raise ValueError("invalid finding line")
-                path = (workspace / filename).resolve()
-                name = path.relative_to(workspace.resolve()).as_posix()
-                lines = path.read_text(encoding="utf-8").splitlines()
-                if line > len(lines):
-                    raise ValueError("finding line outside source")
-                text = lines[line - 1].strip() if line else ""
-                details = json.dumps(
-                    {
-                        key: value
-                        for key, value in item.items()
-                        if key not in {"file", "line", "column", "type", "fingerprint"}
-                    },
-                    sort_keys=True,
-                )
-                findings.append(((confidence, name, rule, text, details), line))
+            findings.extend(
+                _parse_sobelow_item(confidence, item, workspace) for item in items
+            )
         return findings
     except (ValueError, KeyError, TypeError, OSError) as error:
         raise ValueError(f"Sobelow unavailable: invalid report ({error})") from error
@@ -5986,9 +6517,67 @@ def iter_source_files(root: Path) -> Iterable[Path]:
                 yield path
 
 
-def credo_new_violations(project: Path, *, deadline: float | None = None) -> list[str]:
-    import tempfile
+def _run_credo_workspace(
+    workspace: Path, ebin: list[Path], config_file: Path, deadline: float | None
+) -> Counter[tuple[str, str, str, str]]:
+    runner = "Application.ensure_all_started(:credo); Credo.CLI.main(System.argv())"
+    command = [
+        "elixir",
+        *[part for path in ebin for part in ("-pa", str(path))],
+        "-e",
+        runner,
+        "--",
+        "--strict",
+        "--format",
+        "json",
+        "--config-file",
+        str(config_file),
+    ]
+    result = subprocess.run(
+        command,
+        cwd=workspace,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    try:
+        issues = json.loads(result.stdout)["issues"]
+    except (ValueError, KeyError, TypeError) as error:
+        raise ValueError(
+            "Credo unavailable: " + result.stderr + result.stdout
+        ) from error
+    if result.returncode and not issues:
+        raise ValueError("Credo failed without diagnostics")
+    fingerprints = []
+    for issue in issues:
+        path = (workspace / issue["filename"]).resolve()
+        name = path.relative_to(workspace).as_posix()
+        lines = path.read_text(encoding="utf-8").splitlines()
+        line = issue.get("line_no") or 0
+        text = lines[line - 1].strip() if 0 < line <= len(lines) else ""
+        fingerprints.append((name, issue["check"], issue["message"], text))
+    return Counter(fingerprints)
 
+
+def _check_credo_config_changes(changes: list[FileChange]) -> None:
+    for change in changes:
+        if Path(change.path).name in {".credo.exs", "mix.exs", "mix.lock"}:
+            raise ValueError(
+                f"{change.path}: analyzer configuration change requires review"
+            )
+
+
+def _format_credo_delta(counts: list[Counter[tuple[str, str, str, str]]]) -> list[str]:
+    findings = []
+    for (path, check, message, _), count in (counts[1] - counts[0]).items():
+        evidence_finding(check, path)
+        findings.extend([f"{path}: {check}: {message}"] * count)
+    return findings
+
+
+def credo_new_violations(project: Path, *, deadline: float | None = None) -> list[str]:
     project = project.resolve()
     root = Path(
         os.fsdecode(
@@ -5998,20 +6587,19 @@ def credo_new_violations(project: Path, *, deadline: float | None = None) -> lis
     base, changes = git_changes(root, None, deadline=deadline)
     if base is None:
         raise ValueError("Credo comparison requires committed base")
-    for change in changes:
-        if Path(change.path).name in {".credo.exs", "mix.exs", "mix.lock"}:
-            raise ValueError(
-                f"{change.path}: analyzer configuration change requires review"
-            )
-    protected = protected_change_violations(
+    _check_credo_config_changes(changes)
+    if protected := protected_change_violations(
         changes, base_policy(root, base, deadline=deadline) or {}
-    )
-    if protected:
+    ):
         return protected
     relative = project.relative_to(root)
     config_path = (relative / ".credo.exs").as_posix()
     raw = git_output(root, ["show", f"{base}:{config_path}"], deadline=deadline)
     evidence_policy("base", config_path, raw, base=base)
+    # Run the same trusted compiled analyzer without evaluating candidate mix.exs.
+    ebin = sorted((project / "_build/dev/lib").glob("*/ebin"))
+    if not any(path.parent.name == "credo" for path in ebin):
+        raise ValueError("compiled dev Credo required; prepare dependencies first")
     with tempfile.TemporaryDirectory(prefix="loki-credo-") as directory:
         before = Path(directory) / "before"
         materialize_base(root, base, before, deadline=deadline)
@@ -6019,78 +6607,18 @@ def credo_new_violations(project: Path, *, deadline: float | None = None) -> lis
         shutil.copytree(before, after)
         for change in changes:
             apply_snapshot_change(after, change)
-        # Run the same trusted compiled analyzer without evaluating candidate mix.exs.
-        ebin = sorted((project / "_build/dev/lib").glob("*/ebin"))
-        if not any(path.parent.name == "credo" for path in ebin):
-            raise ValueError("compiled dev Credo required; prepare dependencies first")
-        runner = "Application.ensure_all_started(:credo); Credo.CLI.main(System.argv())"
-        counts = []
-        for workspace in (before / relative, after / relative):
-            command = [
-                "elixir",
-                *[part for path in ebin for part in ("-pa", str(path))],
-                "-e",
-                runner,
-                "--",
-                "--strict",
-                "--format",
-                "json",
-                "--config-file",
-                str(before / relative / ".credo.exs"),
-            ]
-            result = subprocess.run(
-                command,
-                cwd=workspace,
-                capture_output=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=command_timeout(deadline),
-                check=False,
-            )
-            try:
-                payload = json.loads(result.stdout)
-                issues = payload["issues"]
-            except (ValueError, KeyError, TypeError) as error:
-                raise ValueError(
-                    "Credo unavailable: " + result.stderr + result.stdout
-                ) from error
-            if result.returncode and not issues:
-                raise ValueError("Credo failed without diagnostics")
-            fingerprints = []
-            for issue in issues:
-                filename = issue["filename"]
-                path = (workspace / filename).resolve()
-                name = path.relative_to(workspace).as_posix()
-                lines = path.read_text(encoding="utf-8").splitlines()
-                line = issue.get("line_no") or 0
-                text = lines[line - 1].strip() if 0 < line <= len(lines) else ""
-                fingerprints.append((name, issue["check"], issue["message"], text))
-            counts.append(Counter(fingerprints))
-        findings = []
-        for (path, check, message, _), count in (counts[1] - counts[0]).items():
-            evidence_finding(check, path)
-            findings.extend([f"{path}: {check}: {message}"] * count)
-        return findings
+        config_file = before / relative / ".credo.exs"
+        counts = [
+            _run_credo_workspace(workspace, ebin, config_file, deadline)
+            for workspace in (before / relative, after / relative)
+        ]
+        return _format_credo_delta(counts)
 
 
-def elixir_analysis(
-    project: Path, tier: str, files: list[Path], *, deadline: float | None = None
-) -> list[dict[str, Any]]:
-    project = project.resolve()
-    if tier not in {"fast", "project", "deep"}:
-        raise ValueError("unknown Elixir analysis tier")
-    if not (project / "mix.exs").is_file():
-        raise ValueError("Mix project required; use --project api for nested projects")
-    selected = []
-    for path in files:
-        candidate = (project / path).resolve()
-        if not candidate.is_file():
-            raise ValueError(f"Elixir target is not a file: {path}")
-        try:
-            selected.append(candidate.relative_to(project).as_posix())
-        except ValueError as error:
-            raise ValueError("Elixir target outside Mix project") from error
-    checks = [
+def _elixir_tier_checks(
+    tier: str, selected: list[str]
+) -> list[tuple[str, list[str], str | None]]:
+    checks: list[tuple[str, list[str], str | None]] = [
         ("format", ["mix", "format", "--check-formatted", *selected], None),
         ("credo", ["mix", "credo", "--strict", "--format", "json", *selected], "credo"),
     ]
@@ -6117,46 +6645,69 @@ def elixir_analysis(
         checks.append(
             ("dialyzer", ["mix", "dialyzer", "--format", "short"], "dialyxir")
         )
+    return checks
+
+
+def _run_elixir_tool(
+    project: Path,
+    tool: str,
+    command: list[str],
+    dependency: str | None,
+    deadline: float | None,
+) -> tuple[str, str]:
+    if not shutil.which("mix"):
+        return "NOT CHECKED", "mix is missing"
+    if dependency and not (project / "deps" / dependency / "mix.exs").is_file():
+        return "NOT CHECKED", f"required analyzer dependency missing: {dependency}"
+    try:
+        result = subprocess.run(
+            command,
+            cwd=project,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=command_timeout(deadline),
+            env={**os.environ, "MIX_ENV": "dev"},
+            check=False,
+        )
+        output = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        status = "PASS" if result.returncode == 0 else "FAIL"
+        if tool in {"credo", "sobelow"}:
+            return _record_elixir_json(tool, result.stdout, status, output)
+        return status, output
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        subprocess.TimeoutExpired,
+    ) as error:
+        return "NOT CHECKED", str(error)
+
+
+def elixir_analysis(
+    project: Path, tier: str, files: list[Path], *, deadline: float | None = None
+) -> list[dict[str, Any]]:
+    project = project.resolve()
+    if tier not in {"fast", "project", "deep"}:
+        raise ValueError("unknown Elixir analysis tier")
+    if not (project / "mix.exs").is_file():
+        raise ValueError("Mix project required; use --project api for nested projects")
+    selected = []
+    for path in files:
+        candidate = (project / path).resolve()
+        if not candidate.is_file():
+            raise ValueError(f"Elixir target is not a file: {path}")
+        try:
+            selected.append(candidate.relative_to(project).as_posix())
+        except ValueError as error:
+            raise ValueError("Elixir target outside Mix project") from error
     report = []
-    for tool, command, dependency in checks:
+    for tool, command, dependency in _elixir_tier_checks(tier, selected):
         start = time.monotonic()
-        output = ""
-        status = "NOT CHECKED"
-        if not shutil.which("mix"):
-            output = "mix is missing"
-        elif dependency and not (project / "deps" / dependency / "mix.exs").is_file():
-            output = f"required analyzer dependency missing: {dependency}"
-        else:
-            try:
-                result = subprocess.run(
-                    command,
-                    cwd=project,
-                    capture_output=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=command_timeout(deadline),
-                    env={**os.environ, "MIX_ENV": "dev"},
-                    check=False,
-                )
-                output = "\n".join(
-                    part.strip()
-                    for part in (result.stdout, result.stderr)
-                    if part.strip()
-                )
-                status = "PASS" if result.returncode == 0 else "FAIL"
-                if tool in {"credo", "sobelow"}:
-                    status, output = _record_elixir_json(
-                        tool, result.stdout, status, output
-                    )
-            except (
-                OSError,
-                ValueError,
-                KeyError,
-                TypeError,
-                subprocess.TimeoutExpired,
-            ) as error:
-                status = "NOT CHECKED"
-                output = str(error)
+        status, output = _run_elixir_tool(project, tool, command, dependency, deadline)
         report.append(
             {
                 "tool": tool,
@@ -6189,56 +6740,77 @@ def _record_elixir_json(
     return status, output
 
 
+def _python_scan_command(
+    relative_files: list[str], root: Path
+) -> tuple[str | None, list[list[str]]]:
+    ruff = ruff_command(root)
+    if not ruff:
+        return "ruff", []
+    return None, [
+        [*ruff, "check", *relative_files],
+        [*ruff, "format", "--check", *relative_files],
+    ]
+
+
+def _typescript_scan_command(
+    relative_files: list[str], root: Path
+) -> tuple[str | None, list[list[str]]]:
+    oxlint = resolve_tool(root, "oxlint")
+    return (None, [[oxlint, *relative_files]]) if oxlint else ("oxlint", [])
+
+
+def _rust_scan_command(
+    relative_files: list[str], root: Path
+) -> tuple[str | None, list[list[str]]]:
+    if not shutil.which("cargo"):
+        return "cargo", []
+    return None, [
+        [
+            "cargo",
+            "clippy",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings",
+            "-D",
+            "clippy::todo",
+            "-D",
+            "clippy::unimplemented",
+            "-D",
+            "clippy::unwrap_used",
+            "-D",
+            "clippy::expect_used",
+        ]
+    ]
+
+
 def scan_command(
     language: str, files: list[Path], root: Path
 ) -> tuple[str | None, list[list[str]]]:
     relative_files = [relative_display(path, root) for path in files]
-    if language == "python":
-        ruff = ruff_command(root)
-        if not ruff:
-            return "ruff", []
-        return None, [
-            [*ruff, "check", *relative_files],
-            [*ruff, "format", "--check", *relative_files],
-        ]
-    if language == "typescript":
-        oxlint = resolve_tool(root, "oxlint")
-        if not oxlint:
-            return "oxlint", []
-        return None, [[oxlint, *relative_files]]
-    if language == "go":
-        if not shutil.which("golangci-lint"):
-            return "golangci-lint", []
-        return None, [["golangci-lint", "run"]]
-    if language == "rust":
-        if not shutil.which("cargo"):
-            return "cargo", []
-        return None, [
-            [
-                "cargo",
-                "clippy",
-                "--all-targets",
-                "--",
-                "-D",
-                "warnings",
-                "-D",
-                "clippy::todo",
-                "-D",
-                "clippy::unimplemented",
-                "-D",
-                "clippy::unwrap_used",
-                "-D",
-                "clippy::expect_used",
-            ]
-        ]
-    if language == "elixir":
-        if not shutil.which("mix"):
-            return "mix", []
-        return None, [
-            ["mix", "credo", "--strict"],
-            ["mix", "compile", "--warnings-as-errors"],
-        ]
-    return "toolchain", []
+    builders = {
+        "python": _python_scan_command,
+        "typescript": _typescript_scan_command,
+        "go": lambda _f, _r: (
+            (None, [["golangci-lint", "run"]])
+            if shutil.which("golangci-lint")
+            else ("golangci-lint", [])
+        ),
+        "rust": _rust_scan_command,
+        "elixir": lambda _f, _r: (
+            (
+                None,
+                [
+                    ["mix", "credo", "--strict"],
+                    ["mix", "compile", "--warnings-as-errors"],
+                ],
+            )
+            if shutil.which("mix")
+            else ("mix", [])
+        ),
+    }
+    builder = builders.get(language)
+    return builder(relative_files, root) if builder is not None else ("toolchain", [])
 
 
 def _npm_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
@@ -6259,30 +6831,9 @@ def _npm_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
 
 
 def _python_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
-    pyproject = root / "pyproject.toml"
-    if pyproject.is_file():
-        try:
-            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            data = {}
-        project = data.get("project", {})
-        values = project.get("dependencies", []) if isinstance(project, dict) else []
-        for value in values if isinstance(values, list) else []:
-            if isinstance(value, str) and (name := dependency_name(value)):
-                found.add(("pypi", name.replace("_", "-")))
-    for requirements in root.glob("requirements*.txt"):
-        try:
-            lines = requirements.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            continue
-        for line in lines:
-            stripped = line.strip()
-            if (
-                stripped
-                and not stripped.startswith(("#", "-"))
-                and (name := dependency_name(stripped))
-            ):
-                found.add(("pypi", name.replace("_", "-")))
+    found.update(
+        ("pypi", name.replace("_", "-")) for name in declared_python_dependencies(root)
+    )
 
 
 def _go_manifest_dependencies(root: Path, found: set[tuple[str, str]]) -> None:
@@ -6449,6 +7000,39 @@ def git_output(
     return result.stdout
 
 
+def _parse_blob_header(row: bytes, oid: str, message: str) -> int:
+    fields = row.split()
+    if (
+        len(fields) != 3
+        or fields[0] != oid.encode("ascii")
+        or fields[1] != b"blob"
+        or not fields[2].isdigit()
+    ):
+        raise ValueError(message)
+    return int(fields[2])
+
+
+def _unpack_git_blobs(unique: list[str], data: bytes) -> dict[str, bytes]:
+    blobs: dict[str, bytes] = {}
+    offset = 0
+    for oid in unique:
+        end = data.find(b"\n", offset)
+        if end < 0:
+            raise ValueError("git: invalid batch blob response")
+        size = _parse_blob_header(
+            data[offset:end], oid, "git: invalid batch blob response"
+        )
+        start = end + 1
+        end = start + size
+        if end >= len(data) or data[end : end + 1] != b"\n":
+            raise ValueError("git: truncated batch blob response")
+        blobs[oid] = data[start:end]
+        offset = end + 1
+    if offset != len(data):
+        raise ValueError("git: unexpected batch blob response")
+    return blobs
+
+
 def git_blobs(
     root: Path, oids: list[str], *, deadline: float | None = None
 ) -> dict[str, bytes]:
@@ -6461,19 +7045,11 @@ def git_blobs(
     metadata = git_output(
         root, ["cat-file", "--batch-check"], deadline=deadline, input_data=request
     ).splitlines()
-    total = 0
     if len(metadata) != len(unique):
         raise ValueError("git: invalid batch metadata response")
+    total = 0
     for oid, row in zip(unique, metadata, strict=True):
-        fields = row.split()
-        if (
-            len(fields) != 3
-            or fields[0] != oid.encode("ascii")
-            or fields[1] != b"blob"
-            or not fields[2].isdigit()
-        ):
-            raise ValueError("git: invalid batch metadata response")
-        total += int(fields[2])
+        total += _parse_blob_header(row, oid, "git: invalid batch metadata response")
         if total > 64 * 1024 * 1024:
             raise SnapshotTooLarge("git: snapshot base content exceeds 64 MiB")
     data = git_output(
@@ -6482,28 +7058,7 @@ def git_blobs(
         deadline=deadline,
         input_data=request,
     )
-    blobs: dict[str, bytes] = {}
-    offset = 0
-    for oid in unique:
-        end = data.find(b"\n", offset)
-        header = data[offset:end].split()
-        if (
-            end < 0
-            or len(header) != 3
-            or header[0] != oid.encode("ascii")
-            or header[1] != b"blob"
-            or not header[2].isdigit()
-        ):
-            raise ValueError("git: invalid batch blob response")
-        start = end + 1
-        end = start + int(header[2])
-        if end >= len(data) or data[end : end + 1] != b"\n":
-            raise ValueError("git: truncated batch blob response")
-        blobs[oid] = data[start:end]
-        offset = end + 1
-    if offset != len(data):
-        raise ValueError("git: unexpected batch blob response")
-    return blobs
+    return _unpack_git_blobs(unique, data)
 
 
 def candidate_content(
@@ -6642,6 +7197,91 @@ def _check_directory_children(directory: str, parent: str, filenames: set[str]) 
                 raise ValueError(f"loki: unsupported changed file type: {name}")
 
 
+def _git_tree_and_names(
+    root: Path, resolved: str | None, deadline: float | None
+) -> tuple[dict[str, tuple[str, str, str]], bytes]:
+    if not resolved:
+        return {}, git_output(
+            root,
+            ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            deadline=deadline,
+        )
+    entries: dict[str, tuple[str, str, str]] = {}
+    for entry in git_output(
+        root, ["ls-tree", "-r", "-z", resolved], deadline=deadline
+    ).split(b"\0"):
+        if entry:
+            metadata, path = entry.split(b"\t", 1)
+            mode, kind, oid = metadata.decode("ascii").split()
+            entries[os.fsdecode(path)] = (mode, kind, oid)
+    _verify_tracked_file_types(root, entries, deadline)
+    names = git_output(
+        root,
+        [
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-renames",
+            "--name-only",
+            "-z",
+            resolved,
+            "--",
+        ],
+        deadline=deadline,
+    )
+    names += git_output(
+        root,
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+        deadline=deadline,
+    )
+    return entries, names
+
+
+def _build_file_change(
+    root: Path,
+    name: str,
+    entries: dict[str, tuple[str, str, str]],
+    blobs: dict[str, bytes],
+    remaining_bytes: int,
+) -> tuple[FileChange | None, int]:
+    path = root / name
+    try:
+        Path(os.path.abspath(path)).relative_to(root)
+        path.parent.resolve().relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"loki: outside project root: {name}") from error
+    before = before_mode = None
+    if name in entries:
+        before_mode, kind, oid = entries[name]
+        if kind != "blob" or before_mode not in {"100644", "100755", "120000"}:
+            raise ValueError(f"loki: unsupported changed file type: {name}")
+        before = blobs[oid]
+    after, after_mode = candidate_content(root, name, remaining_bytes)
+    remaining_bytes -= len(after) if after is not None else 0
+    if before != after or before_mode != after_mode:
+        return FileChange(name, before, after, before_mode, after_mode), remaining_bytes
+    return None, remaining_bytes
+
+
+def _validate_git_changes_state(
+    root: Path, base: str | None, deadline: float | None
+) -> None:
+    gap = repository_gap(root, deadline=deadline)
+    if gap is not None:
+        raise ValueError(gap)
+    if git_output(root, ["ls-files", "--unmerged", "-z"], deadline=deadline):
+        raise ValueError("loki: unresolved index conflict")
+    if base == "":
+        raise ValueError("git: empty base reference")
+
+
+def _select_changed_names(names: bytes, only: set[str] | None) -> list[str]:
+    changed_names = sorted({os.fsdecode(name) for name in names.split(b"\0") if name})
+    if only is not None:
+        return [name for name in changed_names if name in only]
+    return changed_names
+
+
 def git_changes(
     root: Path,
     base: str | None,
@@ -6651,52 +7291,10 @@ def git_changes(
 ) -> tuple[str | None, list[FileChange]]:
     """The changes against base; `only` limits the snapshot to those repository-relative paths."""
     root = root.resolve()
-    gap = repository_gap(root, deadline=deadline)
-    if gap is not None:
-        raise ValueError(gap)
-    if git_output(root, ["ls-files", "--unmerged", "-z"], deadline=deadline):
-        raise ValueError("loki: unresolved index conflict")
-    if base == "":
-        raise ValueError("git: empty base reference")
+    _validate_git_changes_state(root, base, deadline)
     resolved = _resolve_git_base(root, base, deadline)
-    entries: dict[str, tuple[str, str, str]] = {}
-    if resolved:
-        for entry in git_output(
-            root, ["ls-tree", "-r", "-z", resolved], deadline=deadline
-        ).split(b"\0"):
-            if entry:
-                metadata, path = entry.split(b"\t", 1)
-                mode, kind, oid = metadata.decode("ascii").split()
-                entries[os.fsdecode(path)] = (mode, kind, oid)
-        _verify_tracked_file_types(root, entries, deadline)
-        names = git_output(
-            root,
-            [
-                "diff",
-                "--no-ext-diff",
-                "--no-textconv",
-                "--no-renames",
-                "--name-only",
-                "-z",
-                resolved,
-                "--",
-            ],
-            deadline=deadline,
-        )
-        names += git_output(
-            root,
-            ["ls-files", "--others", "--exclude-standard", "-z"],
-            deadline=deadline,
-        )
-    else:
-        names = git_output(
-            root,
-            ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-            deadline=deadline,
-        )
-    changed_names = sorted({os.fsdecode(name) for name in names.split(b"\0") if name})
-    if only is not None:
-        changed_names = [name for name in changed_names if name in only]
+    entries, names = _git_tree_and_names(root, resolved, deadline)
+    changed_names = _select_changed_names(names, only)
     blobs = git_blobs(
         root,
         [
@@ -6709,23 +7307,11 @@ def git_changes(
     changes: list[FileChange] = []
     remaining_bytes = 64 * 1024 * 1024 - sum(len(blob) for blob in blobs.values())
     for name in changed_names:
-        path = root / name
-        try:
-            Path(os.path.abspath(path)).relative_to(root)
-            path.parent.resolve().relative_to(root)
-        except ValueError as error:
-            raise ValueError(f"loki: outside project root: {name}") from error
-        before = after = None
-        before_mode = after_mode = None
-        if name in entries:
-            before_mode, kind, oid = entries[name]
-            if kind != "blob" or before_mode not in {"100644", "100755", "120000"}:
-                raise ValueError(f"loki: unsupported changed file type: {name}")
-            before = blobs[oid]
-        after, after_mode = candidate_content(root, name, remaining_bytes)
-        remaining_bytes -= len(after) if after is not None else 0
-        if before != after or before_mode != after_mode:
-            changes.append(FileChange(name, before, after, before_mode, after_mode))
+        change, remaining_bytes = _build_file_change(
+            root, name, entries, blobs, remaining_bytes
+        )
+        if change is not None:
+            changes.append(change)
     return resolved, changes
 
 
@@ -6769,30 +7355,30 @@ def protected_change_violations(
     return findings
 
 
+def _regular_test_key(change: FileChange, added: bool) -> tuple[bytes, str] | None:
+    if not TEST_PATH_RE.search(change.path):
+        return None
+    if added and change.before is None and change.after is not None:
+        if change.after_mode in {"100644", "100755"}:
+            return change.after, change.after_mode
+    if not added and change.after is None and change.before is not None:
+        if change.before_mode in {"100644", "100755"}:
+            return change.before, change.before_mode
+    return None
+
+
 def _moved_test_paths(changes: list[FileChange]) -> set[str]:
     # Pair one deletion with one addition; duplicate content is not a blanket waiver.
     additions: dict[tuple[bytes, str], list[str]] = {}
     for change in changes:
-        if (
-            TEST_PATH_RE.search(change.path)
-            and change.before is None
-            and change.after is not None
-            and change.after_mode in {"100644", "100755"}
-        ):
-            additions.setdefault((change.after, change.after_mode), []).append(
-                change.path
-            )
+        if key := _regular_test_key(change, added=True):
+            additions.setdefault(key, []).append(change.path)
     moved: set[str] = set()
     for change in changes:
-        if (
-            TEST_PATH_RE.search(change.path)
-            and change.after is None
-            and change.before is not None
-            and change.before_mode in {"100644", "100755"}
+        if (key := _regular_test_key(change, added=False)) and (
+            destinations := additions.get(key)
         ):
-            destinations = additions.get((change.before, change.before_mode), [])
-            if destinations:
-                moved.update((change.path, destinations.pop()))
+            moved.update((change.path, destinations.pop()))
     return moved
 
 
@@ -6815,6 +7401,10 @@ def _changed_lines(change: FileChange) -> tuple[list[str], list[str]]:
     return removed, added
 
 
+def _count_matches(pattern: re.Pattern[str], lines: list[str]) -> int:
+    return sum(bool(pattern.search(line)) for line in lines)
+
+
 def _test_file_integrity(
     change: FileChange, removed: list[str], added: list[str]
 ) -> list[str]:
@@ -6823,14 +7413,12 @@ def _test_file_integrity(
     if change.before is not None and change.after is None:
         evidence_finding("test-file-deleted", path)
         found.append(f"{path}: test file deleted")
-    removed_tests = sum(bool(TEST_DECLARATION_RE.search(line)) for line in removed)
-    added_tests = sum(bool(TEST_DECLARATION_RE.search(line)) for line in added)
-    if removed_tests > added_tests:
+    if _count_matches(TEST_DECLARATION_RE, removed) > _count_matches(
+        TEST_DECLARATION_RE, added
+    ):
         evidence_finding("test-deleted", path)
         found.append(f"{path}: test deleted")
-    removed_assertions = sum(bool(ASSERTION_RE.search(line)) for line in removed)
-    added_assertions = sum(bool(ASSERTION_RE.search(line)) for line in added)
-    if removed_assertions > added_assertions:
+    if _count_matches(ASSERTION_RE, removed) > _count_matches(ASSERTION_RE, added):
         evidence_finding("assertion-removed", path)
         found.append(f"{path}: assertion removed")
     if any(SKIP_RE.search(line) for line in added):
@@ -6883,6 +7471,18 @@ def dependency_policy_violations(root: Path, config: dict[str, Any]) -> list[str
     return violations
 
 
+def _lockfile_violation(
+    lockfile: str, change: FileChange | None, remains: bool
+) -> str | None:
+    if change is None:
+        return None
+    if change.after_mode is not None and change.after_mode not in {"100644", "100755"}:
+        return f"loki: unsupported changed file type: {lockfile}"
+    if change.before is not None and change.after is None and remains:
+        return f"{lockfile}: tracked lockfile deleted"
+    return None
+
+
 def lockfile_violations(root: Path, changes: list[FileChange]) -> list[str]:
     violations: list[str] = []
     changed = {change.path: change for change in changes}
@@ -6893,16 +7493,8 @@ def lockfile_violations(root: Path, changes: list[FileChange]) -> list[str]:
         except FileNotFoundError:
             remains = False
         for lockfile in lockfiles:
-            change = changed.get(lockfile)
-            if change is None:
-                continue
-            if change.after_mode is not None and change.after_mode not in {
-                "100644",
-                "100755",
-            }:
-                violations.append(f"loki: unsupported changed file type: {lockfile}")
-            elif change.before is not None and change.after is None and remains:
-                violations.append(f"{lockfile}: tracked lockfile deleted")
+            if message := _lockfile_violation(lockfile, changed.get(lockfile), remains):
+                violations.append(message)
     return violations
 
 
@@ -7023,6 +7615,30 @@ def changed_content_violations(changes: list[FileChange]) -> list[str]:
     return content_rule_violations(pairs)
 
 
+def _load_write_changes(
+    root: Path,
+    touched: set[str],
+    deadline: float | None,
+    warnings: list[str] | None,
+) -> tuple[str | None, list[FileChange]]:
+    try:
+        return git_changes(root, None, deadline=deadline)
+    except SnapshotTooLarge as error:
+        # Too many or too large uncommitted changes to compare them all: check the written files only.
+        note = (
+            f"NOT CHECKED repository changes: {error}; protected-file, test and lockfile "
+            "checks covered only the files this write changed"
+        )
+        try:
+            result = git_changes(root, None, deadline=deadline, only=touched)
+        except SnapshotTooLarge as written:
+            result = (None, [])
+            note = f"NOT CHECKED repository changes: {written}"
+        if warnings is not None:
+            warnings.append(note)
+        return result
+
+
 def write_guardrail_violations(
     paths: list[Path],
     root: Path,
@@ -7040,26 +7656,11 @@ def write_guardrail_violations(
             Path(os.path.abspath(path)).relative_to(root.resolve()).as_posix()
             for path in paths
         }
-        try:
-            base, changes = git_changes(root, None, deadline=deadline)
-        except SnapshotTooLarge as error:
-            # Too many or too large uncommitted changes to compare them all: check the written files only.
-            note = (
-                f"NOT CHECKED repository changes: {error}; protected-file, test and lockfile "
-                "checks covered only the files this write changed"
-            )
-            try:
-                base, changes = git_changes(root, None, deadline=deadline, only=touched)
-            except SnapshotTooLarge as written:
-                base, changes = None, []
-                note = f"NOT CHECKED repository changes: {written}"
-            if warnings is not None:
-                warnings.append(note)
+        base, changes = _load_write_changes(root, touched, deadline, warnings)
         policy = base_policy(root, base, deadline=deadline)
-        protected = protected_change_violations(
+        if protected := protected_change_violations(
             changes, policy if policy is not None else {}
-        )
-        if protected:
+        ):
             return protected
         violations = test_integrity_violations(
             [change for change in changes if change.path in touched]
@@ -7103,6 +7704,20 @@ def _scan_repository(
         return None, 1
 
 
+def _record_elixir_project_check(
+    label: str,
+    check: dict[str, Any],
+    strict: bool,
+    violations: dict[str, list[str]],
+) -> None:
+    print(f"[{label}] {check['status']}")
+    failed = check["status"] == "FAIL" or (strict and check["status"] == "NOT CHECKED")
+    if failed:
+        violations.setdefault("elixir", []).append(f"{label}: {check['output']}")
+    elif check["output"]:
+        print(check["output"])
+
+
 def _scan_elixir_projects(
     root: Path, files: list[Path], strict: bool, violations: dict[str, list[str]]
 ) -> None:
@@ -7114,16 +7729,7 @@ def _scan_elixir_projects(
     for project in sorted(item for item in projects if item is not None):
         for check in elixir_analysis(project, "project", []):
             label = f"{project.relative_to(root)}:{check['tool']}"
-            print(f"[{label}] {check['status']}")
-            failed = check["status"] == "FAIL" or (
-                strict and check["status"] == "NOT CHECKED"
-            )
-            if failed:
-                violations.setdefault("elixir", []).append(
-                    f"{label}: {check['output']}"
-                )
-            elif check["output"]:
-                print(check["output"])
+            _record_elixir_project_check(label, check, strict, violations)
 
 
 def _scan_python_ast(
@@ -7154,6 +7760,43 @@ def _scan_python_ast(
         print(notice)
 
 
+def _scan_language_group(
+    language: str,
+    files: list[Path],
+    root: Path,
+    strict: bool,
+    dependencies: set[str],
+    python: str | None,
+    violations: dict[str, list[str]],
+) -> None:
+    if language == "elixir":
+        _scan_elixir_projects(root, files, strict, violations)
+        return
+    missing, commands = scan_command(language, files, root)
+    if missing:
+        print(f"SKIP {language} (no {missing})")
+        if strict:
+            violations.setdefault(language, []).append(f"loki: missing {missing}")
+    for command in commands:
+        violations.setdefault(language, []).extend(
+            run_command(command, root, command[0])
+        )
+    if language == "python":
+        _scan_python_ast(root, files, dependencies, python, strict, violations)
+
+
+def _print_scan_violations(violations: dict[str, list[str]]) -> int:
+    failed = False
+    for language, messages in violations.items():
+        if not messages:
+            continue
+        failed = True
+        print(f"[{language}]")
+        for message in messages[:MAX_VIOLATIONS]:
+            print(message)
+    return 1 if failed else 0
+
+
 def scan(
     root: Path,
     config: dict[str, Any],
@@ -7172,45 +7815,20 @@ def scan(
         language = LANGUAGE_EXTENSIONS[path.suffix.lower()]
         if language_enabled(config, language):
             grouped.setdefault(language, []).append(path)
-
     violations: dict[str, list[str]] = {}
     dependencies = declared_python_dependencies(root)
     for language in ("python", "typescript", "go", "rust", "elixir"):
-        files = grouped.get(language, [])
-        if not files:
-            continue
-        if language == "elixir":
-            _scan_elixir_projects(root, files, strict, violations)
-            continue
-        missing, commands = scan_command(language, files, root)
-        if missing:
-            print(f"SKIP {language} (no {missing})")
-            if strict:
-                violations.setdefault(language, []).append(f"loki: missing {missing}")
-        for command in commands:
-            violations.setdefault(language, []).extend(
-                run_command(command, root, command[0])
+        if files := grouped.get(language):
+            _scan_language_group(
+                language, files, root, strict, dependencies, python, violations
             )
-        if language == "python":
-            _scan_python_ast(root, files, dependencies, python, strict, violations)
     if grouped.get("typescript"):
         violations.setdefault("typescript", []).extend(
             typescript_findings(root, config)
         )
-    if online:
-        dependency_issues = slopsquatting_violations(root, config)
-        if dependency_issues:
-            violations["dependencies"] = dependency_issues
-
-    failed = False
-    for language, messages in violations.items():
-        if not messages:
-            continue
-        failed = True
-        print(f"[{language}]")
-        for message in messages[:MAX_VIOLATIONS]:
-            print(message)
-    return 1 if failed else 0
+    if online and (dependency_issues := slopsquatting_violations(root, config)):
+        violations["dependencies"] = dependency_issues
+    return _print_scan_violations(violations)
 
 
 def read_json_object(path: Path) -> dict[str, Any]:
@@ -7243,6 +7861,14 @@ def merge_hook_config(
     return existing
 
 
+def _is_loki_hook_handler(handler: Any) -> bool:
+    return (
+        isinstance(handler, dict)
+        and isinstance(handler.get("command"), str)
+        and ".loki/loki.py" in handler["command"]
+    )
+
+
 def merge_factory_hooks(
     existing: dict[str, Any], fragment: dict[str, Any]
 ) -> dict[str, Any]:
@@ -7256,11 +7882,7 @@ def merge_factory_hooks(
                 handlers = [
                     handler
                     for handler in entry["hooks"]
-                    if not (
-                        isinstance(handler, dict)
-                        and isinstance(handler.get("command"), str)
-                        and ".loki/loki.py" in handler["command"]
-                    )
+                    if not _is_loki_hook_handler(handler)
                 ]
                 if handlers:
                     retained.append({**entry, "hooks": handlers})
@@ -7311,6 +7933,17 @@ def template_path(name: str) -> Path:
     return path
 
 
+def _codex_hooks_candidates(text: str, document: dict[str, Any]) -> list[str]:
+    if "features" not in document:
+        return [text + "\n[features]\nhooks = true\n"]
+    return [
+        text[: match.end()] + "\nhooks = true\n" + text[match.end() :]
+        for match in re.finditer(
+            r"(?m)^\s*\[features\][ \t]*(?:#[^\n]*)?(?:\n|$)", text
+        )
+    ]
+
+
 def enable_codex_hooks(target: Path) -> None:
     path = target / ".codex/config.toml"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
@@ -7327,23 +7960,11 @@ def enable_codex_hooks(target: Path) -> None:
         )
         return
     expected = {**document, "features": {**features, "hooks": True}}
-    candidates = []
-    if "features" not in document:
-        candidates.append(text + "\n[features]\nhooks = true\n")
-    else:
-        for match in re.finditer(
-            r"(?m)^\s*\[features\][ \t]*(?:#[^\n]*)?(?:\n|$)", text
-        ):
-            candidates.append(
-                text[: match.end()] + "\nhooks = true\n" + text[match.end() :]
-            )
     valid = []
-    for candidate in candidates:
-        try:
+    for candidate in _codex_hooks_candidates(text, document):
+        with contextlib.suppress(tomllib.TOMLDecodeError):
             if tomllib.loads(candidate) == expected:
                 valid.append(candidate)
-        except tomllib.TOMLDecodeError:
-            continue
     if len(valid) != 1:
         print(
             "SKIP Codex hooks activation: preserve existing TOML layout; "
@@ -7371,58 +7992,7 @@ def install_minimal(target: Path, force: bool = False) -> None:
     )
 
 
-def install_target(target: Path, force: bool = False) -> None:
-    target = target.expanduser().resolve()
-    target.mkdir(parents=True, exist_ok=True)
-
-    copy_owned(Path(__file__).resolve(), target / ".loki" / "loki.py", force)
-    copy_owned(
-        SOURCE_ROOT / "vendor" / "anti-slop",
-        target / ".loki" / "oxlint" / "anti-slop",
-        force,
-    )
-    copy_owned(
-        SOURCE_ROOT / "vendor" / "codehygiene",
-        target / ".loki" / "vendor" / "codehygiene",
-        force,
-    )
-
-    config_path = target / ".loki" / "loki.json"
-    if not config_path.exists():
-        shutil.copy2(template_path("loki.json"), config_path)
-
-    for destination, template in (
-        (target / ".claude" / "settings.json", "claude-settings.fragment.json"),
-        (target / ".codex" / "hooks.json", "codex-hooks.json"),
-    ):
-        existing = read_json_object(destination)
-        fragment = read_json_object(template_path(template))
-        write_json(destination, merge_hook_config(existing, fragment))
-
-    enable_codex_hooks(target)
-
-    factory_hooks = target / ".factory" / "hooks.json"
-    write_json(
-        factory_hooks,
-        merge_factory_hooks(
-            read_json_object(factory_hooks),
-            read_json_object(template_path("factory-hooks.json")),
-        ),
-    )
-
-    shim = SOURCE_ROOT / "shim" / "loki.ts"
-    copy_owned(shim, target / ".pi" / "extensions" / "loki.ts", True)
-    copy_owned(shim, target / ".loki" / "loki-shim.ts", True)
-    omp_source = (SOURCE_ROOT / "shim" / "loki-omp.ts").read_text(encoding="utf-8")
-    marker = 'from "./loki.ts"'
-    if omp_source.count(marker) != 1:
-        raise ValueError("OMP shared import marker must occur exactly once")
-    omp_entry = target / ".omp" / "extensions" / "loki.ts"
-    omp_entry.parent.mkdir(parents=True, exist_ok=True)
-    omp_entry.write_text(
-        omp_source.replace(marker, 'from "../../.loki/loki-shim.ts"'), encoding="utf-8"
-    )
-
+def _install_linter_templates(target: Path) -> None:
     oxlint_json = target / ".oxlintrc.json"
     oxlint_ts = target / "oxlint.config.ts"
     if oxlint_json.is_file() or not oxlint_ts.is_file():
@@ -7435,7 +8005,6 @@ def install_target(target: Path, force: bool = False) -> None:
             "ignorePatterns, jsPlugins, plugins, categories, rules)"
         )
         print(f"  template: {template_path('.oxlintrc.json')}")
-
     for relative, template in (
         (Path(".ruff.toml"), ".ruff.toml"),
         (Path(".golangci.yml"), ".golangci.yml"),
@@ -7451,24 +8020,74 @@ def install_target(target: Path, force: bool = False) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(template_path(template), destination)
 
+
+def _install_js_and_elixir_hints(target: Path) -> None:
     if (target / "mix.exs").is_file():
         credo = target / ".credo.exs"
         if credo.exists():
             print("SKIP .credo.exs (exists; reconcile with templates/.credo.exs)")
         else:
             shutil.copy2(template_path(".credo.exs"), credo)
+    if not (target / "package.json").is_file():
+        return
+    if (target / "bun.lock").exists() or (target / "bun.lockb").exists():
+        command = "bun add -d oxlint @oxlint/plugins"
+    elif (target / "pnpm-lock.yaml").exists():
+        command = "pnpm add -D oxlint @oxlint/plugins"
+    elif (target / "yarn.lock").exists():
+        command = "yarn add -D oxlint @oxlint/plugins"
+    else:
+        command = "npm i -D oxlint @oxlint/plugins"
+    print(f"Install JavaScript guardrail dependencies: {command}")
 
-    if (target / "package.json").is_file():
-        if (target / "bun.lock").exists() or (target / "bun.lockb").exists():
-            command = "bun add -d oxlint @oxlint/plugins"
-        elif (target / "pnpm-lock.yaml").exists():
-            command = "pnpm add -D oxlint @oxlint/plugins"
-        elif (target / "yarn.lock").exists():
-            command = "yarn add -D oxlint @oxlint/plugins"
-        else:
-            command = "npm i -D oxlint @oxlint/plugins"
-        print(f"Install JavaScript guardrail dependencies: {command}")
 
+def install_target(target: Path, force: bool = False) -> None:
+    target = target.expanduser().resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    copy_owned(Path(__file__).resolve(), target / ".loki" / "loki.py", force)
+    copy_owned(
+        SOURCE_ROOT / "vendor" / "anti-slop",
+        target / ".loki" / "oxlint" / "anti-slop",
+        force,
+    )
+    copy_owned(
+        SOURCE_ROOT / "vendor" / "codehygiene",
+        target / ".loki" / "vendor" / "codehygiene",
+        force,
+    )
+    config_path = target / ".loki" / "loki.json"
+    if not config_path.exists():
+        shutil.copy2(template_path("loki.json"), config_path)
+    for destination, template in (
+        (target / ".claude" / "settings.json", "claude-settings.fragment.json"),
+        (target / ".codex" / "hooks.json", "codex-hooks.json"),
+    ):
+        existing = read_json_object(destination)
+        fragment = read_json_object(template_path(template))
+        write_json(destination, merge_hook_config(existing, fragment))
+    enable_codex_hooks(target)
+    factory_hooks = target / ".factory" / "hooks.json"
+    write_json(
+        factory_hooks,
+        merge_factory_hooks(
+            read_json_object(factory_hooks),
+            read_json_object(template_path("factory-hooks.json")),
+        ),
+    )
+    shim = SOURCE_ROOT / "shim" / "loki.ts"
+    copy_owned(shim, target / ".pi" / "extensions" / "loki.ts", True)
+    copy_owned(shim, target / ".loki" / "loki-shim.ts", True)
+    omp_source = (SOURCE_ROOT / "shim" / "loki-omp.ts").read_text(encoding="utf-8")
+    marker = 'from "./loki.ts"'
+    if omp_source.count(marker) != 1:
+        raise ValueError("OMP shared import marker must occur exactly once")
+    omp_entry = target / ".omp" / "extensions" / "loki.ts"
+    omp_entry.parent.mkdir(parents=True, exist_ok=True)
+    omp_entry.write_text(
+        omp_source.replace(marker, 'from "../../.loki/loki-shim.ts"'), encoding="utf-8"
+    )
+    _install_linter_templates(target)
+    _install_js_and_elixir_hints(target)
     print("Installed loki project guardrails.")
     print("Codex: run /hooks and approve the project hooks.")
     print("Factory: project hooks are installed in .factory/hooks.json.")
@@ -7480,6 +8099,38 @@ def install_target(target: Path, force: bool = False) -> None:
     )
     # The global command when installed; the pinned engine from a plain checkout.
     print(f"Verify: {'loki' if shutil.which('loki') else 'python3 .loki/loki.py'} scan")
+
+
+def _parse_preview_edit_fields(
+    edit: Any, fields: tuple[str, str, str]
+) -> tuple[str, str, bool] | None:
+    if not isinstance(edit, dict):
+        raise ValueError("invalid edit preview")
+    source, replacement = (edit.get(key) for key in fields[:2])
+    replace_all = edit.get(fields[2], False)
+    if not (isinstance(source, str) and source and isinstance(replacement, str)):
+        return None
+    if not isinstance(replace_all, bool):
+        raise ValueError("replacement mode must be boolean")
+    return source, replacement, replace_all
+
+
+def _apply_one_preview_edit(
+    content: str, edit: Any, fields: tuple[str, str, str]
+) -> str | None:
+    parsed = _parse_preview_edit_fields(edit, fields)
+    if parsed is None:
+        return None
+    source, replacement, replace_all = parsed
+    matches = content.count(source)
+    if not matches or (matches != 1 and not replace_all):
+        return None
+    size = len(content.encode("utf-8")) + matches * (
+        len(replacement.encode("utf-8")) - len(source.encode("utf-8"))
+    )
+    if size > 4 * 1024 * 1024:
+        raise ValueError("preview exceeds 4 MiB")
+    return content.replace(source, replacement, -1 if replace_all else 1)
 
 
 def _apply_preview_edits(
@@ -7497,28 +8148,46 @@ def _apply_preview_edits(
     content = old
     for edit in edits:
         command_timeout(deadline)
-        if not isinstance(edit, dict):
-            raise ValueError("invalid edit preview")
-        source, replacement = (edit.get(key) for key in fields[:2])
-        replace_all = edit.get(fields[2], False)
-        if (
-            not isinstance(source, str)
-            or not source
-            or not isinstance(replacement, str)
-        ):
+        updated = _apply_one_preview_edit(content, edit, fields)
+        if updated is None:
             return None
-        if not isinstance(replace_all, bool):
-            raise ValueError("replacement mode must be boolean")
-        matches = content.count(source)
-        if not matches or (matches != 1 and not replace_all):
-            return None
-        size = len(content.encode("utf-8")) + matches * (
-            len(replacement.encode("utf-8")) - len(source.encode("utf-8"))
-        )
-        if size > 4 * 1024 * 1024:
-            raise ValueError("preview exceeds 4 MiB")
-        content = content.replace(source, replacement, -1 if replace_all else 1)
+        content = updated
     return content
+
+
+PREVIEW_OPERATIONS = {
+    ("claude", "Write"),
+    ("claude", "Edit"),
+    ("claude", "MultiEdit"),
+    ("factory", "Create"),
+    ("factory", "Edit"),
+    ("pi", "write"),
+    ("pi", "edit"),
+    ("omp", "write"),
+    ("ultron", "write"),
+}
+
+
+def _reconstruct_preview_content(
+    name: Any,
+    data: dict[str, Any],
+    before: bytes | None,
+    old: str,
+    harness: str | None,
+    deadline: float | None,
+) -> str | None:
+    if name in {"Write", "Create", "write"}:
+        content = data.get("content")
+        # Older path-only hook envelopes remain usable, but are not content checks.
+        if content is None:
+            return None
+        if not isinstance(content, str):
+            raise ValueError("preview content must be text")
+        return content
+    if before is None:
+        raise ValueError("edit preview requires an existing file")
+    edits = data.get("edits") if name == "MultiEdit" else [data]
+    return _apply_preview_edits(old, edits, harness, deadline)
 
 
 def preview_changes(
@@ -7534,17 +8203,7 @@ def preview_changes(
         raise ValueError("invalid preview envelope")
     data = payload["tool_input"]
     name = payload.get("tool_name")
-    if (harness, name) not in {
-        ("claude", "Write"),
-        ("claude", "Edit"),
-        ("claude", "MultiEdit"),
-        ("factory", "Create"),
-        ("factory", "Edit"),
-        ("pi", "write"),
-        ("pi", "edit"),
-        ("omp", "write"),
-        ("ultron", "write"),
-    }:
+    if (harness, name) not in PREVIEW_OPERATIONS:
         return None
     if len(paths) != 1:
         raise ValueError("single-file preview requires one target")
@@ -7556,23 +8215,39 @@ def preview_changes(
     if mode not in (None, "100644", "100755"):
         raise ValueError("preview requires a regular file")
     old = (before or b"").decode("utf-8")
-    if name in {"Write", "Create", "write"}:
-        content = data.get("content")
-        # Older path-only hook envelopes remain usable, but are not content checks.
-        if content is None:
-            return None
-        if not isinstance(content, str):
-            raise ValueError("preview content must be text")
-    else:
-        if before is None:
-            raise ValueError("edit preview requires an existing file")
-        edits = data.get("edits") if name == "MultiEdit" else [data]
-        content = _apply_preview_edits(old, edits, harness, deadline)
-        if content is None:
-            return None
+    content = _reconstruct_preview_content(name, data, before, old, harness, deadline)
+    if content is None:
+        return None
     if len(content.encode("utf-8")) > 4 * 1024 * 1024:
         raise ValueError("preview exceeds 4 MiB")
     return [(relative, old, content)]
+
+
+def _validate_oxlint_span(
+    span: dict[str, Any], content: str, encoded: bytes
+) -> tuple[int, int, int]:
+    offset, length, line = (span.get(key) for key in ("offset", "length", "line"))
+    if (
+        type(offset) is not int
+        or type(length) is not int
+        or type(line) is not int
+        or offset < 0
+        or length < 0
+        or offset + length > len(encoded)
+        or line < 1
+        or line > len(content.splitlines())
+    ):
+        raise ValueError("invalid Oxlint preview diagnostic span")
+    return offset, length, line
+
+
+def _oxlint_first_span(item: dict[str, Any]) -> dict[str, Any] | None:
+    labels = item.get("labels")
+    if isinstance(labels, list) and labels and isinstance(labels[0], dict):
+        span = labels[0].get("span")
+        if isinstance(span, dict):
+            return span
+    return None
 
 
 def _oxlint_diagnostic_fingerprint(
@@ -7587,32 +8262,17 @@ def _oxlint_diagnostic_fingerprint(
     side, relative, content = files[item["filename"]]
     code = item.get("code")
     message = item.get("message")
-    labels = item.get("labels")
-    if (
-        not isinstance(code, str)
-        or not code
-        or not isinstance(message, str)
-        or not message
-        or not isinstance(labels, list)
-        or not labels
-        or not isinstance(labels[0], dict)
-        or not isinstance(labels[0].get("span"), dict)
+    span = _oxlint_first_span(item)
+    if not (
+        isinstance(code, str)
+        and code
+        and isinstance(message, str)
+        and message
+        and span is not None
     ):
         raise ValueError("unpositioned Oxlint preview diagnostic")
-    span = labels[0]["span"]
-    offset, length, line = (span.get(key) for key in ("offset", "length", "line"))
     encoded = content.encode("utf-8")
-    if (
-        type(offset) is not int
-        or type(length) is not int
-        or type(line) is not int
-        or offset < 0
-        or length < 0
-        or offset + length > len(encoded)
-        or line < 1
-        or line > len(content.splitlines())
-    ):
-        raise ValueError("invalid Oxlint preview diagnostic span")
+    offset, length, line = _validate_oxlint_span(span, content, encoded)
     fingerprint = (
         relative,
         code,
@@ -7621,6 +8281,67 @@ def _oxlint_diagnostic_fingerprint(
         encoded[offset : offset + length].decode("utf-8"),
     )
     return side, fingerprint, line
+
+
+def _write_oxlint_preview_files(
+    work: Path, changes: list[tuple[str, str, str]]
+) -> tuple[Path, dict[str, tuple[str, str, str]]]:
+    config = work / "config.json"
+    config.write_text(
+        json.dumps(
+            {
+                "plugins": ["jest", "vitest"],
+                "categories": {"correctness": "off"},
+                "rules": {rule: "error" for rule in JS_PREVIEW_RULES},
+            }
+        ),
+        encoding="utf-8",
+    )
+    files: dict[str, tuple[str, str, str]] = {}
+    for index, (relative, old, new) in enumerate(changes):
+        for side, content in (("before", old), ("after", new)):
+            # Neutralize directives in analysis copies, never in user files.
+            content = content.replace("eslint", "xslint").replace("oxlint", "xxlint")
+            path = work / side / str(index) / Path(relative).name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            files[path.relative_to(work).as_posix()] = (side, relative, content)
+    return config, files
+
+
+def _parse_oxlint_preview_report(
+    result: subprocess.CompletedProcess[str],
+    files: dict[str, tuple[str, str, str]],
+) -> list[str]:
+    if result.returncode not in (0, 1) or result.stderr.strip():
+        raise ValueError("Oxlint preview failed or reported incomplete coverage")
+    report = json.loads(result.stdout)
+    if (
+        not isinstance(report, dict)
+        or report.get("number_of_files") != len(files)
+        or report.get("number_of_rules") != len(JS_PREVIEW_RULES)
+        or not isinstance(report.get("diagnostics"), list)
+    ):
+        raise ValueError("invalid or incomplete Oxlint preview report")
+    if bool(report["diagnostics"]) != bool(result.returncode):
+        raise ValueError("Oxlint preview status disagrees with diagnostics")
+    counts: dict[str, Counter[tuple[str, str, str, str, str]]] = {
+        "before": Counter(),
+        "after": Counter(),
+    }
+    locations: dict[tuple[str, str, str, str, str], int] = {}
+    for item in report["diagnostics"]:
+        side, fingerprint, line = _oxlint_diagnostic_fingerprint(item, files)
+        counts[side][fingerprint] += 1
+        locations[fingerprint] = line
+    violations = []
+    for fingerprint, count in (counts["after"] - counts["before"]).items():
+        relative, code, message, _, _ = fingerprint
+        evidence_finding("preview-" + code, relative)
+        violations.extend(
+            [f"{relative}:{locations[fingerprint]}: {code}: {message}"] * count
+        )
+    return violations[:MAX_VIOLATIONS]
 
 
 def preview_oxlint(
@@ -7634,28 +8355,7 @@ def preview_oxlint(
         raise ValueError("missing oxlint for content preview")
     with tempfile.TemporaryDirectory(prefix="loki-preview-") as directory:
         work = Path(directory)
-        config = work / "config.json"
-        config.write_text(
-            json.dumps(
-                {
-                    "plugins": ["jest", "vitest"],
-                    "categories": {"correctness": "off"},
-                    "rules": {rule: "error" for rule in JS_PREVIEW_RULES},
-                }
-            ),
-            encoding="utf-8",
-        )
-        files = {}
-        for index, (relative, old, new) in enumerate(changes):
-            for side, content in (("before", old), ("after", new)):
-                # Neutralize directives in analysis copies, never in user files.
-                content = content.replace("eslint", "xslint").replace(
-                    "oxlint", "xxlint"
-                )
-                path = work / side / str(index) / Path(relative).name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
-                files[path.relative_to(work).as_posix()] = (side, relative, content)
+        config, files = _write_oxlint_preview_files(work, changes)
         result = subprocess.run(
             [
                 str(Path(binary).resolve()),
@@ -7675,32 +8375,23 @@ def preview_oxlint(
             check=False,
             timeout=command_timeout(deadline),
         )
-        if result.returncode not in (0, 1) or result.stderr.strip():
-            raise ValueError("Oxlint preview failed or reported incomplete coverage")
-        report = json.loads(result.stdout)
-        if (
-            not isinstance(report, dict)
-            or report.get("number_of_files") != len(files)
-            or report.get("number_of_rules") != len(JS_PREVIEW_RULES)
-            or not isinstance(report.get("diagnostics"), list)
-        ):
-            raise ValueError("invalid or incomplete Oxlint preview report")
-        counts = {"before": Counter(), "after": Counter()}
-        locations = {}
-        for item in report["diagnostics"]:
-            side, fingerprint, line = _oxlint_diagnostic_fingerprint(item, files)
-            counts[side][fingerprint] += 1
-            locations[fingerprint] = line
-        if bool(report["diagnostics"]) != bool(result.returncode):
-            raise ValueError("Oxlint preview status disagrees with diagnostics")
-        violations = []
-        for fingerprint, count in (counts["after"] - counts["before"]).items():
-            relative, code, message, _, _ = fingerprint
-            evidence_finding("preview-" + code, relative)
-            violations.extend(
-                [f"{relative}:{locations[fingerprint]}: {code}: {message}"] * count
-            )
-        return violations[:MAX_VIOLATIONS]
+        return _parse_oxlint_preview_report(result, files)
+
+
+def _preview_js_violations(
+    root: Path,
+    config: dict[str, Any] | None,
+    changes: list[tuple[str, str, str]],
+    violations: list[str],
+    deadline: float | None,
+) -> None:
+    if config is not None and not violations:
+        violations.extend(preview_typescript(root, config, changes, deadline=deadline))
+    try:
+        violations.extend(preview_oxlint(root, changes, deadline=deadline))
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        violations.extend(content_rule_violations(changes, fallback=True))
+        raise
 
 
 def preview_violations(
@@ -7726,15 +8417,7 @@ def preview_violations(
         violations.extend(content_rule_violations(changes))
         violations.extend(preview_ruff(root, changes, deadline=deadline))
         if javascript:
-            if config is not None and not violations:
-                violations.extend(
-                    preview_typescript(root, config, changes, deadline=deadline)
-                )
-            try:
-                violations.extend(preview_oxlint(root, changes, deadline=deadline))
-            except (OSError, ValueError, subprocess.TimeoutExpired):
-                violations.extend(content_rule_violations(changes, fallback=True))
-                raise
+            _preview_js_violations(root, config, changes, violations, deadline)
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         # Post-write checks still inspect languages without Oxlint preview rules.
         if not javascript:
@@ -7840,35 +8523,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    import contextlib
-    import io
-
-    if "--record" not in sys.argv[1:]:
-        return dispatch_main()
-    started = time.monotonic()
-    errors = io.StringIO()
-    evidence: dict[str, Any] = {"policies": [], "findings": [], "targets": []}
-    token = ACTIVE_EVIDENCE.set(evidence)
-    try:
-        with contextlib.redirect_stderr(errors):
-            try:
-                status = dispatch_main()
-            except SystemExit as error:
-                evidence_finding("invalid-cli")
-                status = error.code if isinstance(error.code, int) else 2
-    finally:
-        ACTIVE_EVIDENCE.reset(token)
-    diagnostic = errors.getvalue()
-    print(diagnostic, end="", file=sys.stderr)
+def _record_cli_evidence(
+    started: float, status: int, diagnostic: str, evidence: dict[str, Any]
+) -> int:
     operation = next(
         (arg for arg in sys.argv[1:] if arg in {"protect", "hook", "shell"}), "invalid"
     )
-    root = DEFAULT_ROOT.resolve()
-    if "--root" in sys.argv:
-        index = sys.argv.index("--root")
-        if index + 1 < len(sys.argv):
-            root = Path(sys.argv[index + 1]).resolve()
+    root = daemon_root(sys.argv[1:])
     if status and not evidence["findings"]:
         evidence["findings"].append({"rule": "unclassified-failure", "path": None})
     try:
@@ -7886,25 +8547,55 @@ def main() -> int:
     return status
 
 
-def hygiene_command(root: Path, config: dict[str, Any], args: Any) -> int:
-    configured = hygiene_level(config)
-    level = args.level or (configured if configured != "off" else "on")
-    deadline = time.monotonic() + COMMAND_TIMEOUT
-    if args.file:
-        files = [valid_path(path) for path in args.file]
-        notes = hygiene_against(
-            root, files, args.base, level, deadline=deadline, python=args.python
-        )
-    else:
-        notes = changed_hygiene(
-            root, args.base, level, deadline=deadline, python=args.python
-        )
-    if args.json:
+def main() -> int:
+    if "--record" not in sys.argv[1:]:
+        return dispatch_main()
+    started = time.monotonic()
+    errors = io.StringIO()
+    evidence: dict[str, Any] = {"policies": [], "findings": [], "targets": []}
+    token = ACTIVE_EVIDENCE.set(evidence)
+    try:
+        with contextlib.redirect_stderr(errors):
+            try:
+                status = dispatch_main()
+            except SystemExit as error:
+                evidence_finding("invalid-cli")
+                status = error.code if isinstance(error.code, int) else 2
+    finally:
+        ACTIVE_EVIDENCE.reset(token)
+    diagnostic = errors.getvalue()
+    print(diagnostic, end="", file=sys.stderr)
+    return _record_cli_evidence(started, status, diagnostic, evidence)
+
+
+def _print_hygiene_notes(notes: list[str], as_json: bool) -> None:
+    if as_json:
         not_checked = [note for note in notes if note.startswith("NOT CHECKED")]
         findings = [note for note in notes if not note.startswith("NOT CHECKED")]
         print(json.dumps({"findings": findings, "not_checked": not_checked}))
     elif notes:
         print("\n".join(notes))
+
+
+def hygiene_command(root: Path, config: dict[str, Any], args: Any) -> int:
+    configured = hygiene_level(config)
+    level = args.level or ("on" if configured == "off" else configured)
+    deadline = time.monotonic() + COMMAND_TIMEOUT
+    notes = (
+        hygiene_against(
+            root,
+            [valid_path(path) for path in args.file],
+            args.base,
+            level,
+            deadline=deadline,
+            python=args.python,
+        )
+        if args.file
+        else changed_hygiene(
+            root, args.base, level, deadline=deadline, python=args.python
+        )
+    )
+    _print_hygiene_notes(notes, args.json)
     return 0
 
 
@@ -8148,23 +8839,27 @@ def _run_hook_checks(
     return messages
 
 
+def _emit_guard_blocking(args: Any, messages: list[str], warnings: list[str]) -> int:
+    if args.command == "hook":
+        print(
+            "loki: post-write check failed; files are already changed.",
+            file=sys.stderr,
+        )
+    advisory = [item for item in warnings if not item.startswith("NOT CHECKED")]
+    unchecked = [item for item in warnings if item.startswith("NOT CHECKED")]
+    # Only the lines above the label failed the check.
+    label = ["loki: advisory (not blocking):"] if advisory else []
+    lines = [*messages, *label, *advisory, *unchecked]
+    print("\n".join(lines[:MAX_VIOLATIONS]), file=sys.stderr)
+    return 2
+
+
 def _emit_guard_result(args: Any, messages: list[str], warnings: list[str]) -> int:
     warnings = list(dict.fromkeys(warnings))
     if args.format == "json":
         print(json.dumps(hook_report(args.command, messages, warnings)))
     if messages:
-        if args.command == "hook":
-            print(
-                "loki: post-write check failed; files are already changed.",
-                file=sys.stderr,
-            )
-        advisory = [item for item in warnings if not item.startswith("NOT CHECKED")]
-        unchecked = [item for item in warnings if item.startswith("NOT CHECKED")]
-        # Only the lines above the label failed the check.
-        label = ["loki: advisory (not blocking):"] if advisory else []
-        lines = [*messages, *label, *advisory, *unchecked]
-        print("\n".join(lines[:MAX_VIOLATIONS]), file=sys.stderr)
-        return 2
+        return _emit_guard_blocking(args, messages, warnings)
     if warnings:
         text = "\n".join(warnings)
         print(text, file=sys.stderr)
@@ -8183,48 +8878,61 @@ def _emit_guard_result(args: Any, messages: list[str], warnings: list[str]) -> i
     return 0
 
 
+def _report_guard_error(args: Any, error: Exception, value_finding: str) -> None:
+    evidence_finding(value_finding if isinstance(error, ValueError) else "guard-error")
+    prefix = (
+        "invalid hook input"
+        if isinstance(error, ValueError)
+        else f"guard error: {type(error).__name__}"
+    )
+    print(f"loki: {prefix}: {error}", file=sys.stderr)
+    if getattr(args, "format", "text") == "json":
+        print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
+
+
+def _evaluate_guard_messages(
+    root: Path,
+    config: dict[str, Any],
+    args: Any,
+    parser: argparse.ArgumentParser,
+    deadline: float,
+    warnings: list[str],
+) -> list[str]:
+    if args.format == "json" and args.harness:
+        raise ValueError("--format json requires --file")
+    paths = selected_paths(args, parser)
+    if (evidence := ACTIVE_EVIDENCE.get()) is not None:
+        evidence["targets"] = paths
+    messages = [
+        message for path in paths if (message := protect_path(path, root, config))
+    ]
+    if messages:
+        return messages
+    if args.command == "protect":
+        return preview_violations(
+            root,
+            paths,
+            getattr(args, "hook_payload", None),
+            args.harness or args.preview,
+            deadline=deadline,
+            warnings=warnings,
+            config=config,
+        )
+    if args.command == "hook":
+        return _run_hook_checks(root, paths, config, args, deadline, warnings)
+    return messages
+
+
 def _run_guard_command(
     root: Path, config: dict[str, Any], args: Any, parser: argparse.ArgumentParser
 ) -> int:
+    warnings: list[str] = []
     try:
-        deadline = time.monotonic() + 20
-        warnings: list[str] = []
-        if args.format == "json" and args.harness:
-            raise ValueError("--format json requires --file")
-        paths = selected_paths(args, parser)
-        if (evidence := ACTIVE_EVIDENCE.get()) is not None:
-            evidence["targets"] = paths
-        messages = [
-            message for path in paths if (message := protect_path(path, root, config))
-        ]
-        if args.command == "protect" and not messages:
-            messages.extend(
-                preview_violations(
-                    root,
-                    paths,
-                    getattr(args, "hook_payload", None),
-                    args.harness or args.preview,
-                    deadline=deadline,
-                    warnings=warnings,
-                    config=config,
-                )
-            )
-        if args.command == "hook" and not messages:
-            messages.extend(
-                _run_hook_checks(root, paths, config, args, deadline, warnings)
-            )
+        messages = _evaluate_guard_messages(
+            root, config, args, parser, time.monotonic() + 20, warnings
+        )
     except Exception as error:
-        evidence_finding(
-            "invalid-input" if isinstance(error, ValueError) else "guard-error"
-        )
-        prefix = (
-            "invalid hook input"
-            if isinstance(error, ValueError)
-            else f"guard error: {type(error).__name__}"
-        )
-        print(f"loki: {prefix}: {error}", file=sys.stderr)
-        if args.format == "json":
-            print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
+        _report_guard_error(args, error, "invalid-input")
         return 2
     return _emit_guard_result(args, messages, warnings)
 
@@ -8241,29 +8949,9 @@ STANDALONE_COMMANDS = {
 }
 
 
-def dispatch_main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
-    if args.command == "daemon":
-        return daemon_command(args.action, (args.root or DEFAULT_ROOT).resolve())
-    if handler := STANDALONE_COMMANDS.get(args.command):
-        return handler(args)
-    root = (getattr(args, "root", None) or DEFAULT_ROOT).resolve()
-    try:
-        config = load_config(root)
-    except Exception as error:
-        evidence_finding(
-            "invalid-policy" if isinstance(error, ValueError) else "guard-error"
-        )
-        prefix = (
-            "invalid hook input"
-            if isinstance(error, ValueError)
-            else f"guard error: {type(error).__name__}"
-        )
-        print(f"loki: {prefix}: {error}", file=sys.stderr)
-        if getattr(args, "format", "text") == "json":
-            print(json.dumps(hook_report(args.command, [], [], f"{prefix}: {error}")))
-        return 2 if args.command in {"protect", "hook"} else 1
+def _dispatch_root_command(
+    root: Path, config: dict[str, Any], args: Any, parser: argparse.ArgumentParser
+) -> int:
     if args.command == "slop":
         try:
             return slop_command(root, config, args.base, args.json, args.top)
@@ -8279,6 +8967,22 @@ def dispatch_main() -> int:
     if args.command == "scan":
         return _run_scan_command(root, config, args)
     return _run_guard_command(root, config, args, parser)
+
+
+def dispatch_main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.command == "daemon":
+        return daemon_command(args.action, (args.root or DEFAULT_ROOT).resolve())
+    if handler := STANDALONE_COMMANDS.get(args.command):
+        return handler(args)
+    root = (getattr(args, "root", None) or DEFAULT_ROOT).resolve()
+    try:
+        config = load_config(root)
+    except Exception as error:
+        _report_guard_error(args, error, "invalid-policy")
+        return 2 if args.command in {"protect", "hook"} else 1
+    return _dispatch_root_command(root, config, args, parser)
 
 
 FINDING_RE = re.compile(
@@ -8372,6 +9076,28 @@ def _rewrite_managed_hook(
     )
 
 
+def _rewrite_managed_hooks_file(
+    path: Path, harness: str, engine: Path, root: Path, shlex: Any
+) -> None:
+    document = read_json_object(path)
+    groups = document.get("hooks", document)
+    for event, entries in groups.items():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            for handler in entry.get("hooks", []):
+                _rewrite_managed_hook(handler, event, harness, engine, root, shlex)
+    write_json(path, document)
+
+
+def _rewrite_managed_shim_file(path: Path, engine: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    marker = "`${root}/.loki/loki.py`"
+    if source.count(marker) != 1:
+        raise ValueError("shared adapter engine marker unavailable")
+    path.write_text(source.replace(marker, json.dumps(str(engine))), encoding="utf-8")
+
+
 def install_managed(root: Path, destination: Path) -> None:
     import hashlib
     import shlex
@@ -8392,26 +9118,9 @@ def install_managed(root: Path, destination: Path) -> None:
         (".codex/hooks.json", "codex"),
         (".factory/hooks.json", "factory"),
     ):
-        path = root / relative
-        document = read_json_object(path)
-        groups = document.get("hooks", document)
-        for event, entries in groups.items():
-            if not isinstance(entries, list):
-                continue
-            for entry in entries:
-                for handler in entry.get("hooks", []):
-                    _rewrite_managed_hook(handler, event, harness, engine, root, shlex)
-        write_json(path, document)
+        _rewrite_managed_hooks_file(root / relative, harness, engine, root, shlex)
     for relative in (".pi/extensions/loki.ts", ".loki/loki-shim.ts"):
-        path = root / relative
-        source = path.read_text(encoding="utf-8")
-        marker = "`${root}/.loki/loki.py`"
-        if source.count(marker) != 1:
-            raise ValueError("shared adapter engine marker unavailable")
-        path.write_text(
-            source.replace(marker, json.dumps(str(engine))),
-            encoding="utf-8",
-        )
+        _rewrite_managed_shim_file(root / relative, engine)
     print(f"Managed engine: {engine}")
     print("Owner-writable installation is not an OS security boundary.")
 
@@ -8491,46 +9200,82 @@ def install_shell_guard(root: Path) -> None:
         path.write_text(source.replace(marker, registration + marker), encoding="utf-8")
 
 
-def simple_shell_words(command: Any) -> list[str]:
-    import shlex
+SHELL_UNSUPPORTED_MARKERS = (
+    ">",
+    "<",
+    "`",
+    "$",
+    ";",
+    "|",
+    "&",
+    "(",
+    ")",
+    "*",
+    "?",
+    "[",
+    "]",
+    "{",
+    "}",
+    "~",
+    "#",
+    "!",
+)
 
+
+def _check_shell_command_text(command: Any) -> str:
     if not isinstance(command, str) or not command.strip() or "\0" in command:
         raise ValueError("shell command must be a nonempty string")
     if len(command) > 4096 or any(
         ord(char) < 32 or ord(char) == 127 for char in command
     ):
         raise ValueError("shell command is too long or contains control characters")
-    if any(
-        marker in command
-        for marker in (
-            ">",
-            "<",
-            "`",
-            "$",
-            ";",
-            "|",
-            "&",
-            "(",
-            ")",
-            "*",
-            "?",
-            "[",
-            "]",
-            "{",
-            "}",
-            "~",
-            "#",
-            "!",
-        )
-    ):
+    if any(marker in command for marker in SHELL_UNSUPPORTED_MARKERS):
         raise ValueError(
             "loki: shell syntax unsupported: redirects, substitutions "
             "and compound commands or expansions require review"
         )
-    words = shlex.split(command)
+    return command
+
+
+def simple_shell_words(command: Any) -> list[str]:
+    import shlex
+
+    words = shlex.split(_check_shell_command_text(command))
     if not words or "=" in words[0] or "/" in words[0]:
         raise ValueError("shell command requires a plain executable name")
     return words
+
+
+def _validate_shell_permission_path(name: Any) -> None:
+    if (
+        not isinstance(name, str)
+        or not name
+        or "\0" in name
+        or "\\" in name
+        or Path(name).is_absolute()
+        or ".." in Path(name).parts
+        or Path(name).as_posix() != name
+    ):
+        raise ValueError("shell permission paths must be canonical and relative")
+
+
+def _validate_shell_grant(grant: Any) -> tuple[str, str]:
+    if not isinstance(grant, dict) or set(grant) != {"command", "cwd", "inputs"}:
+        raise ValueError("shell permissions require command, cwd and inputs")
+    if simple_shell_words(grant["command"])[0] == "git":
+        raise ValueError("shell permissions cannot override Git restrictions")
+    inputs = grant["inputs"]
+    if (
+        not isinstance(inputs, list)
+        or not 1 <= len(inputs) <= 64
+        or any(not isinstance(name, str) for name in inputs)
+    ):
+        raise ValueError("shell permission inputs must list 1 to 64 files")
+    for name in [grant["cwd"], *inputs]:
+        _validate_shell_permission_path(name)
+    if "." in inputs:
+        raise ValueError("shell permission inputs must be files")
+    return grant["command"], grant["cwd"]
 
 
 def shell_permissions(config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -8539,38 +9284,25 @@ def shell_permissions(config: dict[str, Any]) -> list[dict[str, Any]]:
         raise ValueError("shell_commands must be a list of at most 64 permissions")
     seen = set()
     for grant in grants:
-        if not isinstance(grant, dict) or set(grant) != {"command", "cwd", "inputs"}:
-            raise ValueError("shell permissions require command, cwd and inputs")
-        words = simple_shell_words(grant["command"])
-        if words[0] == "git":
-            raise ValueError("shell permissions cannot override Git restrictions")
-        inputs = grant["inputs"]
-        if (
-            not isinstance(inputs, list)
-            or not 1 <= len(inputs) <= 64
-            or any(not isinstance(name, str) for name in inputs)
-        ):
-            raise ValueError("shell permission inputs must list 1 to 64 files")
-        for name in [grant["cwd"], *inputs]:
-            if (
-                not isinstance(name, str)
-                or not name
-                or "\0" in name
-                or "\\" in name
-                or Path(name).is_absolute()
-                or ".." in Path(name).parts
-                or Path(name).as_posix() != name
-            ):
-                raise ValueError(
-                    "shell permission paths must be canonical and relative"
-                )
-        if "." in inputs:
-            raise ValueError("shell permission inputs must be files")
-        key = (grant["command"], grant["cwd"])
+        key = _validate_shell_grant(grant)
         if key in seen:
             raise ValueError("duplicate shell permission")
         seen.add(key)
     return grants
+
+
+def _validate_shell_cwd_path(directory: Any, root: Path) -> Path:
+    if not isinstance(directory, str) or not directory or "\0" in directory:
+        raise ValueError("shell cwd must be an absolute directory")
+    cwd = Path(directory)
+    if (
+        not cwd.is_absolute()
+        or cwd != cwd.resolve()
+        or not cwd.is_relative_to(root)
+        or not cwd.is_dir()
+    ):
+        raise ValueError("shell cwd must be a non-symlinked directory inside the root")
+    return cwd
 
 
 def shell_cwd(payload: dict[str, Any], harness: str, root: Path) -> Path:
@@ -8596,18 +9328,48 @@ def shell_cwd(payload: dict[str, Any], harness: str, root: Path) -> Path:
     }
     if payload["tool_input"].keys() - fields:
         raise ValueError("unsupported shell input fields")
-    directory = payload.get("cwd")
-    if not isinstance(directory, str) or not directory or "\0" in directory:
-        raise ValueError("shell cwd must be an absolute directory")
-    cwd = Path(directory)
-    if (
-        not cwd.is_absolute()
-        or cwd != cwd.resolve()
-        or not cwd.is_relative_to(root)
-        or not cwd.is_dir()
+    return _validate_shell_cwd_path(payload.get("cwd"), root)
+
+
+def _load_shell_base_entries(
+    root: Path, base: str, paths: list[str], deadline: float
+) -> dict[str, list[str]]:
+    entries = {}
+    for row in git_output(
+        root, ["ls-tree", "-z", base, "--", *paths], deadline=deadline
+    ).split(b"\0"):
+        if row:
+            metadata, path = row.split(b"\t", 1)
+            entries[os.fsdecode(path)] = metadata.decode("ascii").split()
+    if any(
+        name not in entries
+        or entries[name][0] not in {"100644", "100755"}
+        or entries[name][1] != "blob"
+        for name in paths
     ):
-        raise ValueError("shell cwd must be a non-symlinked directory inside the root")
-    return cwd
+        raise ValueError("shell permission inputs must be committed regular files")
+    return entries
+
+
+def _verify_shell_permission_inputs(
+    root: Path,
+    paths: list[str],
+    entries: dict[str, list[str]],
+    blobs: dict[str, bytes],
+    deadline: float,
+) -> str | None:
+    remaining = 64 * 1024 * 1024 - sum(len(blob) for blob in blobs.values())
+    for name in paths:
+        command_timeout(deadline)
+        path = root / name
+        if path.resolve() != path:
+            raise ValueError(f"shell permission input is symlinked: {name}")
+        content, mode = candidate_content(root, name, remaining)
+        remaining -= len(content) if content is not None else 0
+        if content != blobs[entries[name][2]] or mode != entries[name][0]:
+            evidence_finding("shell-permission-input-changed", name)
+            return f"loki: shell permission input differs from base: {name}"
+    return None
 
 
 def reviewed_shell_violation(command: str, root: Path, cwd: Path) -> str | None:
@@ -8639,33 +9401,9 @@ def reviewed_shell_violation(command: str, root: Path, cwd: Path) -> str | None:
         evidence_finding("shell-command-review")
         return "loki: no committed permission for this exact shell command and cwd"
     paths = list(dict.fromkeys([".loki/loki.json", *grant["inputs"]]))
-    entries = {}
-    for row in git_output(
-        root, ["ls-tree", "-z", base, "--", *paths], deadline=deadline
-    ).split(b"\0"):
-        if row:
-            metadata, path = row.split(b"\t", 1)
-            entries[os.fsdecode(path)] = metadata.decode("ascii").split()
-    if any(
-        name not in entries
-        or entries[name][0] not in {"100644", "100755"}
-        or entries[name][1] != "blob"
-        for name in paths
-    ):
-        raise ValueError("shell permission inputs must be committed regular files")
+    entries = _load_shell_base_entries(root, base, paths, deadline)
     blobs = git_blobs(root, [entries[name][2] for name in paths], deadline=deadline)
-    remaining = 64 * 1024 * 1024 - sum(len(blob) for blob in blobs.values())
-    for name in paths:
-        command_timeout(deadline)
-        path = root / name
-        if path.resolve() != path:
-            raise ValueError(f"shell permission input is symlinked: {name}")
-        content, mode = candidate_content(root, name, remaining)
-        remaining -= len(content) if content is not None else 0
-        if content != blobs[entries[name][2]] or mode != entries[name][0]:
-            evidence_finding("shell-permission-input-changed", name)
-            return f"loki: shell permission input differs from base: {name}"
-    return None
+    return _verify_shell_permission_inputs(root, paths, entries, blobs, deadline)
 
 
 TEXT_REDIRECT_SUFFIXES = {".txt", ".md", ".log", ".rst", ".csv", ".tsv", ".adoc"}
@@ -8711,29 +9449,98 @@ def redirect_violation(target: str, root: Path, cwd: Path) -> str | None:
     return None
 
 
+def _destructive_git_clean(options: set[str]) -> bool:
+    return "--force" in options or any(
+        option.startswith("-") and not option.startswith("--") and "f" in option
+        for option in options
+    )
+
+
+def _destructive_git_push(options: set[str]) -> bool:
+    return bool(
+        options & {"-f", "--force", "--force-with-lease", "--delete", "--mirror"}
+    ) or any(option.startswith((":", "+")) for option in options)
+
+
 def destructive_git(words: list[str]) -> bool:
     command, options = (words[1] if len(words) > 1 else ""), set(words[2:])
-    if command == "reset":
-        return bool(options & {"--hard", "--merge", "--keep"})
-    if command == "clean":
-        return (
-            any(
-                option.startswith("-") and not option.startswith("--") and "f" in option
-                for option in options
-            )
-            or "--force" in options
-        )
-    if command == "push":
-        return bool(
-            options & {"-f", "--force", "--force-with-lease", "--delete", "--mirror"}
-        ) or any(option.startswith((":", "+")) for option in options)
-    if command == "branch":
-        return "-D" in options or {"--delete", "--force"} <= options
-    if command == "stash":
-        return bool(options & {"drop", "clear"})
-    if command == "checkout":
-        return bool(options & {"--", ".", "-f", "--force"})
+    checks = {
+        "reset": lambda: bool(options & {"--hard", "--merge", "--keep"}),
+        "clean": lambda: _destructive_git_clean(options),
+        "push": lambda: _destructive_git_push(options),
+        "branch": lambda: "-D" in options or {"--delete", "--force"} <= options,
+        "stash": lambda: bool(options & {"drop", "clear"}),
+        "checkout": lambda: bool(options & {"--", ".", "-f", "--force"}),
+    }
+    if check := checks.get(command):
+        return check()
     return command in {"restore", "rebase", "filter-branch", "update-ref"}
+
+
+def _shell_redirect_violation(
+    command: str, root: Path, cwd: Path
+) -> tuple[bool, str | None]:
+    redirect = shell_redirect(command)
+    if redirect is None:
+        return False, None
+    printer, target = redirect
+    with contextlib.suppress(ValueError):
+        if simple_shell_words(printer)[0] in PRINT_COMMANDS:
+            return True, redirect_violation(target, root, cwd)
+    evidence_finding("shell-redirect-write")
+    return (
+        True,
+        "loki: shell redirect from a command other than echo/printf "
+        "requires review; use file edit tools for writes",
+    )
+
+
+def _git_shell_violation(words: list[str]) -> tuple[bool, str | None]:
+    if len(words) >= 2 and words[1] in {"status", "diff", "log", "show", "rev-parse"}:
+        if any(
+            word.startswith(("--output", "--ext-diff", "--textconv", "--exec"))
+            for word in words[2:]
+        ):
+            evidence_finding("shell-option-review")
+            return True, "loki: shell Git option requires review"
+        return True, None
+    if destructive_git(words):
+        evidence_finding("shell-destructive-git")
+        return (
+            True,
+            f"loki: blocked destructive Git command `{' '.join(words[:4])}`: it can "
+            "discard uncommitted work or rewrite history; ask the user to run it",
+        )
+    return False, None
+
+
+def _is_safe_builtin_shell(words: list[str]) -> bool:
+    return (words[0] in {"pwd", "whoami"} and len(words) == 1) or (
+        words[0] in PRINT_COMMANDS
+    )
+
+
+def _parse_shell_words_or_error(command: Any) -> tuple[list[str] | None, str | None]:
+    try:
+        return simple_shell_words(command), None
+    except ValueError as error:
+        evidence_finding("shell-syntax-review")
+        return None, str(error)
+
+
+def _shell_words_violation(
+    command: Any, words: list[str], root: Path | None, cwd: Path | None
+) -> str | None:
+    if words[0] == "git":
+        handled, message = _git_shell_violation(words)
+        if handled:
+            return message
+    if _is_safe_builtin_shell(words):
+        return None
+    if root is not None and cwd is not None and words[0] != "git":
+        return reviewed_shell_violation(command, root, cwd)
+    evidence_finding("shell-command-review")
+    return "loki: shell command requires review; use verified file tools for writes"
 
 
 def shell_violation(
@@ -8741,47 +9548,13 @@ def shell_violation(
 ) -> str | None:
     # Exact permissions authorize execution, not its transitive filesystem effects.
     if isinstance(command, str) and root is not None and cwd is not None:
-        if (redirect := shell_redirect(command)) is not None:
-            printer, target = redirect
-            with contextlib.suppress(ValueError):
-                if simple_shell_words(printer)[0] in PRINT_COMMANDS:
-                    return redirect_violation(target, root, cwd)
-            evidence_finding("shell-redirect-write")
-            return (
-                "loki: shell redirect from a command other than echo/printf "
-                "requires review; use file edit tools for writes"
-            )
-    try:
-        words = simple_shell_words(command)
-    except ValueError as error:
-        evidence_finding("shell-syntax-review")
-        return str(error)
-    if (
-        words[0] == "git"
-        and len(words) >= 2
-        and words[1] in {"status", "diff", "log", "show", "rev-parse"}
-    ):
-        if any(
-            word.startswith(("--output", "--ext-diff", "--textconv", "--exec"))
-            for word in words[2:]
-        ):
-            evidence_finding("shell-option-review")
-            return "loki: shell Git option requires review"
-        return None
-    if words[0] in {"pwd", "whoami"} and len(words) == 1:
-        return None
-    if words[0] == "git" and destructive_git(words):
-        evidence_finding("shell-destructive-git")
-        return (
-            f"loki: blocked destructive Git command `{' '.join(words[:4])}`: it can "
-            "discard uncommitted work or rewrite history; ask the user to run it"
-        )
-    if words[0] in PRINT_COMMANDS:
-        return None
-    if root is not None and cwd is not None and words[0] != "git":
-        return reviewed_shell_violation(command, root, cwd)
-    evidence_finding("shell-command-review")
-    return "loki: shell command requires review; use verified file tools for writes"
+        handled, message = _shell_redirect_violation(command, root, cwd)
+        if handled:
+            return message
+    words, syntax_error = _parse_shell_words_or_error(command)
+    if words is None:
+        return syntax_error
+    return _shell_words_violation(command, words, root, cwd)
 
 
 SHELL_WRITE_SINKS = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty"}
@@ -8828,13 +9601,21 @@ def _perl_inplace_targets(args: list[str]) -> list[tuple[str, str]]:
     return [(arg, "perl -i") for arg in files]
 
 
-def _copy_write_targets(
+def _copy_flag_targets(
     name: str, args: list[str], plain: list[str]
-) -> list[tuple[str, str]]:
+) -> list[tuple[str, str]] | None:
     if "-t" in args and args.index("-t") + 1 < len(args):
         directory = args[args.index("-t") + 1]
         sources = [arg for arg in plain if arg != directory]
         return [(str(Path(directory) / Path(src).name), name) for src in sources]
+    return None
+
+
+def _copy_write_targets(
+    name: str, args: list[str], plain: list[str]
+) -> list[tuple[str, str]]:
+    if (flagged := _copy_flag_targets(name, args, plain)) is not None:
+        return flagged
     if len(plain) < 2:
         return []
     destination = plain[-1]
@@ -8843,29 +9624,40 @@ def _copy_write_targets(
     return [(destination, name)]
 
 
+def _is_sed_inplace(args: list[str]) -> bool:
+    return any(arg == "-i" or arg.startswith(("-i", "--in-place")) for arg in args)
+
+
+def _is_perl_inplace(args: list[str]) -> bool:
+    return any(re.fullmatch(r"-[a-zA-Z]*i\S*", arg) for arg in args)
+
+
+def _dd_write_targets(args: list[str]) -> list[tuple[str, str]]:
+    return [(arg[3:], "dd") for arg in args if arg.startswith("of=")]
+
+
+def _inplace_write_targets(name: str, args: list[str]) -> list[tuple[str, str]]:
+    if name == "sed" and _is_sed_inplace(args):
+        return _sed_inplace_targets(args)
+    if name == "perl" and _is_perl_inplace(args):
+        return _perl_inplace_targets(args)
+    return []
+
+
 def _shell_command_write_targets(name: str, args: list[str]) -> list[tuple[str, str]]:
     plain = [arg for arg in args if not arg.startswith("-")]
     if name == "tee":
         return [(arg, "tee") for arg in plain]
-    if name == "sed" and any(
-        arg == "-i" or arg.startswith(("-i", "--in-place")) for arg in args
-    ):
-        return _sed_inplace_targets(args)
-    if name == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i\S*", arg) for arg in args):
-        return _perl_inplace_targets(args)
+    if name in {"sed", "perl"}:
+        return _inplace_write_targets(name, args)
     if name in {"cp", "mv", "install"}:
         return _copy_write_targets(name, args, plain)
     if name == "dd":
-        return [(arg[3:], "dd") for arg in args if arg.startswith("of=")]
+        return _dd_write_targets(args)
     return []
 
 
-def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
-    """The files a shell command writes, as (target, how); None when it cannot be parsed.
-
-    Covers redirects (`>`, `>>`, `>|`, `&>`), here-documents written to a file, `tee`, in-place `sed -i` and
-    `perl -i`, `cp`/`mv`/`install` destinations and `dd of=`. Writes a program makes itself are not visible here.
-    """
+def _shell_write_tokens(command: str) -> list[str] | None:
     import shlex
 
     lexer = shlex.shlex(strip_heredocs(command), posix=True, punctuation_chars=True)
@@ -8874,89 +9666,130 @@ def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
     tokens = None
     with contextlib.suppress(ValueError):
         tokens = list(lexer)
+    return tokens
+
+
+def _strip_shell_prefixes(words: list[str]) -> None:
+    while words and (
+        ("=" in words[0] and not words[0].startswith("-"))
+        or words[0] in SHELL_COMMAND_PREFIXES
+    ):
+        words.pop(0)
+
+
+def _update_shell_cd(name: str, args: list[str], moved: str) -> str:
+    moves = [arg for arg in args if arg not in {"-L", "-P", "-e", "-@", "--"}]
+    if name != "popd" and len(moves) == 1 and moves[0] != "-":
+        return os.path.join(moved, moves[0])
+    return "$CD"
+
+
+def _place_shell_targets(
+    targets: list[tuple[str, str]], placed: int, moved: str
+) -> int:
+    if moved:
+        targets[placed:] = [
+            (os.path.join(moved, target), how) for target, how in targets[placed:]
+        ]
+    return len(targets)
+
+
+def _flush_shell_words(
+    words: list[str], targets: list[tuple[str, str]], placed: int, moved: str
+) -> tuple[int, str]:
+    _strip_shell_prefixes(words)
+    if not words:
+        return placed, moved
+    name, args = Path(words[0]).name, words[1:]
+    words.clear()
+    if name in {"cd", "pushd", "popd"}:
+        return placed, _update_shell_cd(name, args, moved)
+    targets.extend(_shell_command_write_targets(name, args))
+    return _place_shell_targets(targets, placed, moved), moved
+
+
+def _is_redirect_operator(token: str) -> bool:
+    return token in {">", ">>", ">|", "&>", "&>>"} or (
+        token.endswith((">", ">>")) and set(token) <= set("<>&|;()")
+    )
+
+
+def _apply_shell_scopes(token: str, moved: str, scopes: list[str]) -> str:
+    for char in token:
+        if char == "(":
+            scopes.append(moved)
+        elif char == ")" and scopes:
+            moved = scopes.pop()
+    return moved
+
+
+def _is_fd_redirect(tokens: list[str], index: int) -> bool:
+    return (
+        tokens[index].isdigit()
+        and index + 1 < len(tokens)
+        and tokens[index + 1] in {">", ">>"}
+    )
+
+
+def shell_write_targets(command: str) -> list[tuple[str, str]] | None:
+    """The files a shell command writes, as (target, how); None when it cannot be parsed.
+
+    Covers redirects (`>`, `>>`, `>|`, `&>`), here-documents written to a file, `tee`, in-place `sed -i` and
+    `perl -i`, `cp`/`mv`/`install` destinations and `dd of=`. Writes a program makes itself are not visible here.
+    """
+    tokens = _shell_write_tokens(command)
     if tokens is None:
         return None
     targets: list[tuple[str, str]] = []
     words: list[str] = []
-    # The directory a `cd` moved to, relative to the command's cwd; "$CD" when the shell decides it.
-    moved = ""
-    scopes: list[str] = []
-
-    placed = 0
-
-    def place() -> None:
-        nonlocal placed
-        if moved:
-            targets[placed:] = [
-                (os.path.join(moved, target), how) for target, how in targets[placed:]
-            ]
-        placed = len(targets)
-
-    def flush() -> None:
-        nonlocal moved
-        while words and (
-            "=" in words[0]
-            and not words[0].startswith("-")
-            or words[0] in SHELL_COMMAND_PREFIXES
-        ):
-            words.pop(0)
-        if not words:
-            return
-        name, args = Path(words[0]).name, words[1:]
-        if name in {"cd", "pushd", "popd"}:
-            moves = [arg for arg in args if arg not in {"-L", "-P", "-e", "-@", "--"}]
-            moved = (
-                os.path.join(moved, moves[0])
-                if name != "popd" and len(moves) == 1 and moves[0] != "-"
-                else "$CD"
-            )
-            words.clear()
-            return
-        targets.extend(_shell_command_write_targets(name, args))
-        place()
-        words.clear()
-
-    index = 0
+    moved, placed, scopes, index = "", 0, [], 0
     while index < len(tokens):
         token = tokens[index]
-        if token in {">", ">>", ">|", "&>", "&>>"}:
+        if _is_redirect_operator(token):
             if index + 1 < len(tokens):
                 targets.append((tokens[index + 1], "redirect"))
-                place()
-            index += 2
-            continue
-        if token.endswith((">", ">>")) and set(token) <= set("<>&|;()"):
-            # Operators run together with a redirect (`;>`), rare: treat the next word as its target.
-            if index + 1 < len(tokens):
-                targets.append((tokens[index + 1], "redirect"))
-                place()
+                placed = _place_shell_targets(targets, placed, moved)
             index += 2
             continue
         if set(token) <= set("();<>|&"):
-            flush()
-            for char in token:
-                if char == "(":
-                    scopes.append(moved)
-                elif char == ")" and scopes:
-                    moved = scopes.pop()
+            placed, moved = _flush_shell_words(words, targets, placed, moved)
+            moved = _apply_shell_scopes(token, moved, scopes)
             index += 1
             continue
-        if (
-            token.isdigit()
-            and index + 1 < len(tokens)
-            and tokens[index + 1] in {">", ">>"}
-        ):
-            index += 1
-            continue
-        words.append(token)
+        if not _is_fd_redirect(tokens, index):
+            words.append(token)
         index += 1
-    flush()
+    _flush_shell_words(words, targets, placed, moved)
     return [
         (target, how)
         for target, how in targets
         if target not in SHELL_WRITE_SINKS
         and not target.startswith(("/dev/fd/", "/proc/self/fd/"))
     ]
+
+
+def _shell_write_target_violation(
+    target: str, how: str, root: Path, cwd: Path, config: dict[str, Any]
+) -> str | None:
+    if any(marker in target for marker in ("$", "`", "*", "?", "~")):
+        return None
+    path = Path(os.path.abspath(cwd / target))
+    if not path.is_relative_to(root):
+        return None
+    relative = path.relative_to(root)
+    if message := protect_path(str(path), root, config):
+        return message
+    if path.suffix.lower() in SHELL_WRITE_DATA_SUFFIXES and not any(
+        part.startswith(".") for part in relative.parts
+    ):
+        return None
+    if git_ignored(root, relative.as_posix()):
+        return None
+    evidence_finding("shell-write", relative.as_posix())
+    return (
+        f"loki: `{how}` into {relative.as_posix()} would skip Loki's write check; "
+        "write source and configuration files with the file edit tools (Ultron: edit()/write())"
+    )
 
 
 def shell_writes_violation(command: Any, root: Path, cwd: Path) -> str | None:
@@ -8971,25 +9804,8 @@ def shell_writes_violation(command: Any, root: Path, cwd: Path) -> str | None:
     root = root.resolve()
     config = load_config(root)
     for target, how in targets:
-        if any(marker in target for marker in ("$", "`", "*", "?", "~")):
-            continue  # expanded by the shell: unknown here, left to the post-write check
-        path = Path(os.path.abspath(cwd / target))
-        if not path.is_relative_to(root):
-            continue
-        relative = path.relative_to(root)
-        if message := protect_path(str(path), root, config):
+        if message := _shell_write_target_violation(target, how, root, cwd, config):
             return message
-        if path.suffix.lower() in SHELL_WRITE_DATA_SUFFIXES and not any(
-            part.startswith(".") for part in relative.parts
-        ):
-            continue
-        if git_ignored(root, relative.as_posix()):
-            continue
-        evidence_finding("shell-write", relative.as_posix())
-        return (
-            f"loki: `{how}` into {relative.as_posix()} would skip Loki's write check; "
-            "write source and configuration files with the file edit tools (Ultron: edit()/write())"
-        )
     return None
 
 
@@ -9008,6 +9824,54 @@ def git_ignored(root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
+def _parse_transaction_op_names(operation: Any) -> tuple[str, list[str]]:
+    if not isinstance(operation, dict) or operation.get("op") not in {
+        "write",
+        "delete",
+        "move",
+    }:
+        raise ValueError("operation must be write, delete or move")
+    path = valid_path(operation.get("path"))
+    if Path(path).as_posix() != path:
+        raise ValueError("transaction paths must use canonical POSIX spelling")
+    names = [path]
+    if operation["op"] == "move":
+        names.append(valid_path(operation.get("to")))
+        if names[1] == path or Path(names[1]).as_posix() != names[1]:
+            raise ValueError("move requires a distinct canonical destination")
+    return operation["op"], names
+
+
+def _plan_one_transaction_op(
+    root: Path,
+    operation: Any,
+    config: dict[str, Any],
+    desired: dict[str, bytes | None],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    desired_modes: dict[str, str],
+) -> None:
+    op, names = _parse_transaction_op_names(operation)
+    path = names[0]
+    for name in names:
+        _validate_transaction_target(
+            root, name, config, desired, originals, desired_modes
+        )
+    if op == "write":
+        if not isinstance(operation.get("content"), str):
+            raise ValueError("write content must be a string")
+        desired[path] = operation["content"].encode("utf-8")
+        return
+    if originals[path][0] is None:
+        raise ValueError(f"transaction source is missing: {path}")
+    desired[path] = None
+    if op == "move":
+        destination = names[1]
+        if originals[destination][0] is not None:
+            raise ValueError("move destination already exists")
+        desired[destination] = originals[path][0]
+        desired_modes[destination] = originals[path][1] or "100644"
+
+
 def _plan_transaction_operations(
     root: Path, operations: list[Any], config: dict[str, Any]
 ) -> tuple[
@@ -9019,38 +9883,9 @@ def _plan_transaction_operations(
     originals: dict[str, tuple[bytes | None, str | None]] = {}
     desired_modes: dict[str, str] = {}
     for operation in operations:
-        if not isinstance(operation, dict) or operation.get("op") not in {
-            "write",
-            "delete",
-            "move",
-        }:
-            raise ValueError("operation must be write, delete or move")
-        path = valid_path(operation.get("path"))
-        if Path(path).as_posix() != path:
-            raise ValueError("transaction paths must use canonical POSIX spelling")
-        names = [path]
-        if operation["op"] == "move":
-            names.append(valid_path(operation.get("to")))
-            if names[1] == path or Path(names[1]).as_posix() != names[1]:
-                raise ValueError("move requires a distinct canonical destination")
-        for name in names:
-            _validate_transaction_target(
-                root, name, config, desired, originals, desired_modes
-            )
-        if operation["op"] == "write":
-            if not isinstance(operation.get("content"), str):
-                raise ValueError("write content must be a string")
-            desired[path] = operation["content"].encode("utf-8")
-            continue
-        if originals[path][0] is None:
-            raise ValueError(f"transaction source is missing: {path}")
-        desired[path] = None
-        if operation["op"] == "move":
-            destination = names[1]
-            if originals[destination][0] is not None:
-                raise ValueError("move destination already exists")
-            desired[destination] = originals[path][0]
-            desired_modes[destination] = originals[path][1] or "100644"
+        _plan_one_transaction_op(
+            root, operation, config, desired, originals, desired_modes
+        )
     return desired, originals, desired_modes
 
 
@@ -9079,7 +9914,7 @@ def _validate_transaction_target(
     desired_modes[name] = originals[name][1] or "100644"
 
 
-def _check_transaction_candidate(
+def _build_transaction_workspace(
     root: Path,
     directory: str,
     base: str,
@@ -9087,9 +9922,8 @@ def _check_transaction_candidate(
     desired: dict[str, bytes | None],
     originals: dict[str, tuple[bytes | None, str | None]],
     desired_modes: dict[str, str],
-    config: dict[str, Any],
     deadline: float,
-) -> None:
+) -> Path:
     workspace = Path(directory) / "candidate"
     materialize_base(root, base, workspace, deadline=deadline)
     for change in existing:
@@ -9131,6 +9965,23 @@ def _check_transaction_candidate(
         (workspace / "node_modules").symlink_to(
             (root / "node_modules").resolve(), target_is_directory=True
         )
+    return workspace
+
+
+def _check_transaction_candidate(
+    root: Path,
+    directory: str,
+    base: str,
+    existing: list[FileChange],
+    desired: dict[str, bytes | None],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    desired_modes: dict[str, str],
+    config: dict[str, Any],
+    deadline: float,
+) -> None:
+    workspace = _build_transaction_workspace(
+        root, directory, base, existing, desired, originals, desired_modes, deadline
+    )
     findings = write_guardrail_violations(
         [workspace / name for name in desired],
         workspace,
@@ -9228,6 +10079,22 @@ def _commit_transaction_files(
         raise
 
 
+def _verify_transaction_unchanged(
+    root: Path,
+    base: str,
+    existing: list[FileChange],
+    originals: dict[str, tuple[bytes | None, str | None]],
+    deadline: float,
+) -> None:
+    current_base, current_changes = git_changes(root, None, deadline=deadline)
+    if current_base != base or current_changes != existing:
+        raise ValueError("concurrent repository modification; retry transaction")
+    # Recheck targets before mutation; the lock serializes Loki writers.
+    for name, original in originals.items():
+        if candidate_content(root, name, 64 * 1024 * 1024) != original:
+            raise ValueError(f"concurrent target modification: {name}")
+
+
 def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> None:
     import fcntl
 
@@ -9263,15 +10130,7 @@ def apply_transaction(root: Path, manifest: Path, check_only: bool = False) -> N
                 config,
                 deadline,
             )
-            current_base, current_changes = git_changes(root, None, deadline=deadline)
-            if current_base != base or current_changes != existing:
-                raise ValueError(
-                    "concurrent repository modification; retry transaction"
-                )
-            # Recheck targets before mutation; the lock serializes Loki writers.
-            for name, original in originals.items():
-                if candidate_content(root, name, 64 * 1024 * 1024) != original:
-                    raise ValueError(f"concurrent target modification: {name}")
+            _verify_transaction_unchanged(root, base, existing, originals, deadline)
             if check_only:
                 print("Transaction checks passed; no files written")
                 return
@@ -9592,52 +10451,47 @@ def _ts_base_diagnostics(
     return previous
 
 
-def typescript_violations(
-    root: Path,
-    *,
-    deadline: float | None = None,
-    notices: list[str] | None = None,
-    overrides: dict[str, str] | None = None,
-) -> list[str]:
-    """Net-new project type errors, using the committed tsconfig.json.
+def _ts_setup_result(message: str, notices: list[str] | None) -> list[str]:
+    if notices is None:
+        return [message]
+    notices.append(message)
+    return []
 
-    Setup problems are findings when the check is explicitly enabled, and
-    notices when it runs by default. Overrides check proposed contents before
-    a write; a clean result marks that exact tree, so the post-write hook for
-    the same bytes does not compile it again.
-    """
 
-    def setup(message: str) -> list[str]:
-        if notices is None:
-            return [message]
-        notices.append(message)
-        return []
-
-    compiler = typescript_compiler(root)
-    if compiler is None:
-        return setup("typescript: required TypeScript compiler is missing")
-    base, changes = git_changes(root, None, deadline=deadline)
-    if base is None:
-        return setup("typescript: committed base required")
-    policy = base_policy(root, base, deadline=deadline) or {}
-    if findings := protected_change_violations(changes, policy):
-        return findings
-    try:
-        raw = git_output(root, ["show", f"{base}:tsconfig.json"], deadline=deadline)
-    except ValueError:
-        raw = None
-    extends = typescript_extends(raw)
+def _ts_config_change_message(
+    changes: list[FileChange],
+    overrides: dict[str, str] | None,
+    extends: set[str] | None,
+) -> str | None:
     for name in [*(change.path for change in changes), *(overrides or {})]:
         if typescript_config_json(name, extends):
-            return setup(f"{name}: JSON/config change requires separate review")
+            return f"{name}: JSON/config change requires separate review"
         if name.startswith("node_modules/"):
-            return setup("typescript: dependency changes require separate review")
-    if raw is None:
-        return setup("typescript: committed tsconfig.json required")
-    evidence_policy("base", "tsconfig.json", raw, base=base)
-    marker = typescript_state(root, base, raw, changes, overrides)
-    if overrides is None and marker.is_file():
-        return []
+            return "typescript: dependency changes require separate review"
+    return None
+
+
+def _format_ts_delta(
+    after: Counter[tuple], previous: Counter[tuple], lines: dict[tuple, int]
+) -> list[str]:
+    findings = []
+    for key, count in (after - previous).items():
+        path, code, message, _ = key
+        evidence_finding(f"typescript:{code}", path)
+        label = code if isinstance(code, str) else f"TS{code}"
+        findings.extend([f"{path}:{lines[key]}: {label}: {message}"] * count)
+    return findings
+
+
+def _run_ts_comparison(
+    root: Path,
+    base: str,
+    compiler: Path,
+    raw: bytes,
+    marker: Path,
+    overrides: dict[str, str] | None,
+    deadline: float | None,
+) -> list[str]:
     with tempfile.TemporaryDirectory(prefix="loki-typescript-") as directory:
         trusted = Path(directory) / "tsconfig.json"
         trusted.write_bytes(raw)
@@ -9655,13 +10509,48 @@ def typescript_violations(
         previous = _ts_base_diagnostics(
             root, base, directory, compiler, after, deadline
         )
-        findings = []
-        for key, count in (after - previous).items():
-            path, code, message, _ = key
-            evidence_finding(f"typescript:{code}", path)
-            label = code if isinstance(code, str) else f"TS{code}"
-            findings.extend([f"{path}:{lines[key]}: {label}: {message}"] * count)
+        return _format_ts_delta(after, previous, lines)
+
+
+def typescript_violations(
+    root: Path,
+    *,
+    deadline: float | None = None,
+    notices: list[str] | None = None,
+    overrides: dict[str, str] | None = None,
+) -> list[str]:
+    """Net-new project type errors, using the committed tsconfig.json.
+
+    Setup problems are findings when the check is explicitly enabled, and
+    notices when it runs by default. Overrides check proposed contents before
+    a write; a clean result marks that exact tree, so the post-write hook for
+    the same bytes does not compile it again.
+    """
+    compiler = typescript_compiler(root)
+    if compiler is None:
+        return _ts_setup_result(
+            "typescript: required TypeScript compiler is missing", notices
+        )
+    base, changes = git_changes(root, None, deadline=deadline)
+    if base is None:
+        return _ts_setup_result("typescript: committed base required", notices)
+    policy = base_policy(root, base, deadline=deadline) or {}
+    if findings := protected_change_violations(changes, policy):
         return findings
+    raw = None
+    with contextlib.suppress(ValueError):
+        raw = git_output(root, ["show", f"{base}:tsconfig.json"], deadline=deadline)
+    if message := _ts_config_change_message(
+        changes, overrides, typescript_extends(raw)
+    ):
+        return _ts_setup_result(message, notices)
+    if raw is None:
+        return _ts_setup_result("typescript: committed tsconfig.json required", notices)
+    evidence_policy("base", "tsconfig.json", raw, base=base)
+    marker = typescript_state(root, base, raw, changes, overrides)
+    if overrides is None and marker.is_file():
+        return []
+    return _run_ts_comparison(root, base, compiler, raw, marker, overrides, deadline)
 
 
 def preview_typescript(
@@ -9720,10 +10609,9 @@ def typescript_findings(
     return findings
 
 
-def materialize_base(
-    root: Path, base: str, destination: Path, *, deadline: float | None = None
-) -> None:
-    destination.mkdir(parents=True)
+def _parse_base_tree_entries(
+    root: Path, base: str, deadline: float | None
+) -> list[tuple[str, str, str]]:
     entries = []
     for row in git_output(root, ["ls-tree", "-r", "-z", base], deadline=deadline).split(
         b"\0"
@@ -9742,6 +10630,14 @@ def materialize_base(
         ):
             raise ValueError(f"isolated checks: unsupported base path: {name}")
         entries.append((name, mode, oid))
+    return entries
+
+
+def materialize_base(
+    root: Path, base: str, destination: Path, *, deadline: float | None = None
+) -> None:
+    destination.mkdir(parents=True)
+    entries = _parse_base_tree_entries(root, base, deadline)
     blobs = git_blobs(root, [oid for _, _, oid in entries], deadline=deadline)
     for name, mode, oid in entries:
         if Path(name).name.startswith("tsconfig") and name.endswith(".json"):
@@ -9833,6 +10729,18 @@ class MissingRuffConfig(ValueError):
     """No committed base or base .ruff.toml, so net-new Ruff has no trusted config."""
 
 
+def _ruff_change_pairs(
+    changes: list[FileChange], paths: set[str] | None
+) -> list[tuple[str, bytes, bytes]]:
+    return [
+        (change.path, change.before or b"", change.after)
+        for change in changes
+        if (paths is None or change.path in paths)
+        and change.path.endswith(".py")
+        and change.after is not None
+    ]
+
+
 def ruff_new_violations(
     root: Path,
     reference: str | None,
@@ -9857,15 +10765,10 @@ def ruff_new_violations(
         raise MissingRuffConfig("no committed .ruff.toml")
     raw = git_output(root, ["show", f"{base}:.ruff.toml"], deadline=deadline)
     evidence_policy("base", ".ruff.toml", raw, base=base)
-    pairs = [
-        (change.path, change.before or b"", change.after)
-        for change in changes
-        if (paths is None or change.path in paths)
-        and change.path.endswith(".py")
-        and change.after is not None
-    ]
     ruff = ruff_command(root) or ["ruff"]
-    return ruff_delta(raw, pairs, deadline=deadline, ruff=ruff)
+    return ruff_delta(
+        raw, _ruff_change_pairs(changes, paths), deadline=deadline, ruff=ruff
+    )
 
 
 def preview_ruff(
@@ -10166,48 +11069,50 @@ def prewarm_hygiene_workers(deadline: float | None) -> None:
     )
 
 
-def prewarm(root: Path) -> None:
-    """Load analyzers and fill build caches before the daemon accepts hooks."""
-    global MYPY_DAEMON
-    deadline = time.monotonic() + 120
+def _prewarm_typescript(root: Path, deadline: float) -> None:
     compiler = typescript_compiler(root)
-    if compiler is not None and (root / "tsconfig.json").is_file():
-        worker = CheckerWorker(
-            ["node", "-e", TYPESCRIPT_CHECKER, "--", "--serve"], root
-        )
-        TYPESCRIPT_WORKERS[str(compiler.resolve())] = worker
-        try:
-            worker.request([str(compiler.resolve()), str(root), "", "", ""], deadline)
-        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-            print(
-                f"loki daemon: TypeScript worker unavailable: {error}", file=sys.stderr
-            )
-            worker.close()
-            TYPESCRIPT_WORKERS.clear()
+    if compiler is None or not (root / "tsconfig.json").is_file():
+        return
+    worker = CheckerWorker(["node", "-e", TYPESCRIPT_CHECKER, "--", "--serve"], root)
+    TYPESCRIPT_WORKERS[str(compiler.resolve())] = worker
+    try:
+        worker.request([str(compiler.resolve()), str(root), "", "", ""], deadline)
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        print(f"loki daemon: TypeScript worker unavailable: {error}", file=sys.stderr)
+        worker.close()
+        TYPESCRIPT_WORKERS.clear()
+
+
+def _prewarm_dmypy(root: Path, deadline: float) -> None:
+    global MYPY_DAEMON
     mypy = mypy_binary(root)
     dmypy = Path(mypy).with_name("dmypy") if mypy else None
-    if dmypy is not None and dmypy.is_file():
-        state = mypy_state(root)
-        status = state / "dmypy.json"
-        start = [str(dmypy), "--status-file", str(status), "start", "--"]
-        result = subprocess.run(
-            [*start, *mypy_flags(state, daemon=True)],
-            cwd=root,
-            capture_output=True,
-            timeout=command_timeout(deadline),
-            check=False,
-        )
-        if result.returncode:
-            print(f"loki daemon: dmypy unavailable: {result.stderr!r}", file=sys.stderr)
-        else:
-            MYPY_DAEMON = (str(dmypy), status)
-            sources = [
-                path.relative_to(root).as_posix()
-                for path in iter_source_files(root)
-                if path.suffix == ".py"
-            ][:200]
-            if sources:
-                mypy_run(root, sources, deadline=deadline)
+    if dmypy is None or not dmypy.is_file():
+        return
+    state = mypy_state(root)
+    status = state / "dmypy.json"
+    start = [str(dmypy), "--status-file", str(status), "start", "--"]
+    result = subprocess.run(
+        [*start, *mypy_flags(state, daemon=True)],
+        cwd=root,
+        capture_output=True,
+        timeout=command_timeout(deadline),
+        check=False,
+    )
+    if result.returncode:
+        print(f"loki daemon: dmypy unavailable: {result.stderr!r}", file=sys.stderr)
+        return
+    MYPY_DAEMON = (str(dmypy), status)
+    sources = [
+        path.relative_to(root).as_posix()
+        for path in iter_source_files(root)
+        if path.suffix == ".py"
+    ][:200]
+    if sources:
+        mypy_run(root, sources, deadline=deadline)
+
+
+def _prewarm_source_caches(root: Path) -> None:
     try:
         for path, text in repository_sources(root, limit=64 * 1024 * 1024).items():
             token_windows(path, text)
@@ -10218,6 +11123,9 @@ def prewarm(root: Path) -> None:
     except ValueError:
         WINDOW_CACHE.clear()
         CONTENT_MEMO.clear()
+
+
+def _prewarm_build_caches(root: Path, deadline: float) -> None:
     warmers = []
     if (root / "go.mod").is_file() and shutil.which("go"):
         warmers.append(["go", "vet", "./..."])
@@ -10237,6 +11145,14 @@ def prewarm(root: Path) -> None:
         except (OSError, subprocess.TimeoutExpired, ValueError):
             break
 
+
+def prewarm(root: Path) -> None:
+    """Load analyzers and fill build caches before the daemon accepts hooks."""
+    deadline = time.monotonic() + 120
+    _prewarm_typescript(root, deadline)
+    _prewarm_dmypy(root, deadline)
+    _prewarm_source_caches(root)
+    _prewarm_build_caches(root, deadline)
     prewarm_hygiene_workers(deadline)
 
 
@@ -10317,8 +11233,27 @@ def daemon_command(action: str, root: Path) -> int:
     return 0
 
 
+def _handle_daemon_connection(connection: Any, engine: str) -> bool:
+    """Handle one client connection; return True when the daemon should exit."""
+    with connection:
+        connection.settimeout(DAEMON_REQUEST_SECONDS)
+        uid = peer_uid(connection)
+        if uid is not None and uid != os.getuid():
+            return False
+        request = None
+        with contextlib.suppress(OSError, ValueError):
+            request = json.loads(receive_all(connection))
+        if request is None:
+            return False
+        if request.get("engine") != engine:
+            with contextlib.suppress(OSError):
+                connection.sendall(b'{"stale": true}')
+            return True
+        daemon_dispatch(connection, request)
+        return False
+
+
 def daemon_serve(root: Path) -> int:
-    import contextlib
     import socket
 
     paths = daemon_paths(root)
@@ -10357,20 +11292,8 @@ def daemon_serve(root: Path) -> int:
                     break
                 continue
             idle_since = time.monotonic()
-            with connection:
-                connection.settimeout(DAEMON_REQUEST_SECONDS)
-                uid = peer_uid(connection)
-                if uid is not None and uid != os.getuid():
-                    continue
-                try:
-                    request = json.loads(receive_all(connection))
-                except (OSError, ValueError):
-                    continue
-                if request.get("engine") != engine:
-                    with contextlib.suppress(OSError):
-                        connection.sendall(b'{"stale": true}')
-                    break
-                daemon_dispatch(connection, request)
+            if _handle_daemon_connection(connection, engine):
+                break
     finally:
         daemon_stop_workers()
         socket_path.unlink(missing_ok=True)
