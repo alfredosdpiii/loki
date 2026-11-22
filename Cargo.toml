@@ -10,14 +10,14 @@ readme = "README.md"
 keywords = ["ai-agents", "guardrails", "hooks", "linter", "static-analysis"]
 categories = ["command-line-utilities", "development-tools"]
 include = [
-  "Cargo.toml",
-  "LICENSE",
-  "README.md",
-  "src/**",
-  "tests/**",
-  "templates/**",
-  "shim/**",
-  "vendor/**",
+  "/Cargo.toml",
+  "/LICENSE",
+  "/README.md",
+  "/src/**",
+  "/tests/**",
+  "/templates/**",
+  "/shim/**",
+  "/vendor/**",
 ]
 
 [lib]
