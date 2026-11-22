@@ -19,6 +19,7 @@ pub mod evidence;
 pub mod git;
 pub mod hook;
 pub mod hygiene;
+pub mod hygiene_model;
 pub mod init;
 pub mod installation;
 pub mod jsrules;

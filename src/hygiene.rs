@@ -2,12 +2,8 @@
 //! wrote. It reports as advisories the lines the change added, never the debt a file already had: upstream gates on
 //! the whole file, which flags most reviewed code (long lines and four indent levels count as squiggles).
 //!
-//! The model is NumPy code, so it runs in a Python that has NumPy: Loki's interpreter, else `uv run --offline` when
-//! NumPy is in uv's cache. Nothing is downloaded; without NumPy the check says once that it did not run.
-//!
-//! [`crate::nits`] reads the same files with a parser, and its findings are reported beside the model's.
-// ponytail: a Python + NumPy subprocess per check (~0.3 s plus ~0.4 s per 100 lines); port the forward pass to Rust
-// if the NumPy requirement or the latency matters.
+//! The 1.58-bit ternary model runs in-process in pure Rust ([`crate::hygiene_model`]) with no Python or NumPy
+//! dependency. [`crate::nits`] reads the same files with a parser, and its findings are reported beside the model's.
 
 use crate::git::{git_output, text_at};
 use crate::proc::{self, Deadline, RunError};
@@ -17,10 +13,6 @@ use std::collections::{BTreeSet, HashSet};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::{Mutex, OnceLock};
-
-const SOURCE: &str = include_str!("../vendor/codehygiene/__init__.py");
-const WEIGHTS: &[u8] = include_bytes!("../vendor/codehygiene/weights.npz");
 
 /// `off`, `on` (the default kinds) or `all` (every kind); over the `hygiene` setting.
 pub const HYGIENE_ENV: &str = "LOKI_HYGIENE";
@@ -37,32 +29,8 @@ const SUFFIXES: [&str; 19] = [
 const SECONDS: f64 = 20.0;
 const MAX_NOTES: usize = 10;
 const SNIPPET_CHARS: usize = 80;
-/// The driver's exit when the model itself failed (3: no NumPy in that Python).
+/// The driver's exit when a Python check itself failed (3: missing import in that Python).
 const FAILED: i32 = 4;
-
-/// Reads `{source, weights, texts}` on stdin and prints, per text, `[[line, kind, message], ...]`.
-const DRIVER: &str = r#"
-import io, json, sys, types
-try:
-    import numpy
-except ImportError:
-    raise SystemExit(3)
-try:
-    request = json.load(sys.stdin)
-    module = types.ModuleType("codehygiene")
-    sys.modules["codehygiene"] = module
-    exec(compile(request["source"], "codehygiene/__init__.py", "exec"), module.__dict__)
-    with numpy.load(io.BytesIO(bytes.fromhex(request["weights"]))) as archive:
-        weights = module.unpack_ternary_archive(archive["trits"], archive["vecs"], str(archive["meta"].item()))
-    found = [
-        [[s.line, s.kind, s.message] for s in module.score(text, weights=weights).squiggles]
-        for text in request["texts"]
-    ]
-except Exception as error:
-    sys.stderr.write(f"{type(error).__name__}: {error}\n")
-    raise SystemExit(4)
-json.dump(found, sys.stdout)
-"#;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Level {
@@ -71,7 +39,7 @@ pub enum Level {
     All,
 }
 
-/// `ULTRON_LOKI_HYGIENE`, else the saved `loki.hygiene` setting, else on.
+/// `LOKI_HYGIENE`, else the saved `loki.hygiene` setting, else on.
 pub fn level(env: Option<&str>, settings: &Map<String, Value>) -> Level {
     let named = env
         .map(|v| v.trim().to_lowercase())
@@ -90,16 +58,6 @@ pub struct Squiggle {
     pub line: usize,
     pub kind: String,
     pub message: String,
-}
-
-/// The Pythons to try, in order: Loki's own, then uv's with NumPy from its cache.
-fn launchers() -> Vec<Vec<String>> {
-    let mut found = vec![vec![crate::pyast::interpreter()]];
-    if let Some(uv) = proc::which("uv") {
-        let args = ["run", "-q", "--offline", "--no-project", "--with", "numpy", "python"];
-        found.push(std::iter::once(uv).chain(args.map(String::from)).collect());
-    }
-    found
 }
 
 fn squiggles_from_reply(reply: Vec<Vec<(usize, String, String)>>) -> Vec<Vec<Squiggle>> {
@@ -151,37 +109,6 @@ pub(crate) fn drive(
     }
     Err(missing.into())
 }
-
-/// Line-oriented JSON server that unpacks `weights.npz` once and serves repeated score requests.
-const SERVER_DRIVER: &str = r#"
-import io, json, sys, types
-try:
-    import numpy
-except ImportError:
-    raise SystemExit(3)
-init = json.loads(sys.stdin.readline())
-module = types.ModuleType("codehygiene")
-sys.modules["codehygiene"] = module
-exec(compile(init["args"]["source"], "codehygiene/__init__.py", "exec"), module.__dict__)
-with numpy.load(io.BytesIO(bytes.fromhex(init["args"]["weights"]))) as archive:
-    weights = module.unpack_ternary_archive(archive["trits"], archive["vecs"], str(archive["meta"].item()))
-sys.stdout.write(json.dumps({"id": init["id"], "result": True}) + "\n")
-sys.stdout.flush()
-for raw in sys.stdin:
-    if not raw.strip():
-        continue
-    request = json.loads(raw)
-    try:
-        found = [
-            [[s.line, s.kind, s.message] for s in module.score(text, weights=weights).squiggles]
-            for text in request["args"]
-        ]
-        reply = {"id": request["id"], "result": found}
-    except Exception as error:
-        reply = {"id": request["id"], "error": f"{type(error).__name__}: {error}"}
-    sys.stdout.write(json.dumps(reply) + "\n")
-    sys.stdout.flush()
-"#;
 
 pub(crate) struct WarmWorker {
     child: Child,
@@ -269,38 +196,9 @@ pub(crate) fn parse_value(value: Value) -> Option<Vec<Vec<Squiggle>>> {
     Some(squiggles_from_reply(reply))
 }
 
-fn warm_hygiene_worker() -> &'static Mutex<Option<WarmWorker>> {
-    static WORKER: OnceLock<Mutex<Option<WarmWorker>>> = OnceLock::new();
-    WORKER.get_or_init(|| Mutex::new(None))
-}
-
-/// The model's squiggles for each text, or why it could not run.
-pub fn score(texts: &[&str], deadline: Deadline) -> Result<Vec<Vec<Squiggle>>, String> {
-    let weights: String = WEIGHTS.iter().map(|byte| format!("{byte:02x}")).collect();
-    if std::env::var_os("ULTRON_LOKI_PYTHON").is_none()
-        && let Ok(mut slot) = warm_hygiene_worker().lock()
-    {
-        if slot.is_none() {
-            *slot = WarmWorker::start(
-                &launchers(),
-                SERVER_DRIVER,
-                json!({"source": SOURCE, "weights": weights}),
-            );
-        }
-        if let Some(worker) = slot.as_mut() {
-            match worker.request(json!(texts)).and_then(|val| {
-                parse_value(val).ok_or_else(|| "unreadable reply".to_string())
-            }) {
-                Ok(found) => return Ok(found),
-                Err(_) => {
-                    *slot = None;
-                }
-            }
-        }
-    }
-    let request = json!({"source": SOURCE, "weights": weights, "texts": texts}).to_string();
-    let missing = "needs NumPy, which neither Loki's Python nor uv's cache has (`uv run --with numpy python -c pass` fetches it once)";
-    drive(&launchers(), DRIVER, &request, deadline, missing)
+/// The model's squiggles for each text, evaluated in-process in pure Rust.
+pub fn score(texts: &[&str], _deadline: Deadline) -> Result<Vec<Vec<Squiggle>>, String> {
+    texts.iter().map(|text| crate::hygiene_model::score_code(text)).collect()
 }
 
 /// The 1-based lines of `after` that are not in `before`.
