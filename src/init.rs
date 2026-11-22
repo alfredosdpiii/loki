@@ -324,10 +324,7 @@ pub fn expand_target(target: &str) -> PathBuf {
     crate::resolve(Path::new(&expanded))
 }
 
-/// `install_target`: everything `init` installs without `--minimal`.
-pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
-    let target = expand_target(target);
-    mkdir(&target)?;
+fn install_vendored_assets(target: &Path, force: bool) -> Result<(), InitError> {
     copy_owned_tree(
         &ANTI_SLOP,
         "vendor/anti-slop/",
@@ -350,20 +347,10 @@ pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
     if !config_path.exists() {
         write(&config_path, TEMPLATE)?;
     }
-    for (destination, fragment) in [
-        (".claude/settings.json", CLAUDE_SETTINGS),
-        (".codex/hooks.json", CODEX_HOOKS),
-    ] {
-        let destination = target.join(destination);
-        let existing = read_json_object(&destination)?;
-        write_json(&destination, merge_hook_config(existing, &template(fragment))?)?;
-    }
-    enable_codex_hooks(&target)?;
-    let factory = target.join(".factory/hooks.json");
-    let mut hooks = read_json_object(&factory)?;
-    merge_factory_hooks(&mut hooks, &template(FACTORY_HOOKS))?;
-    write_json(&factory, hooks)?;
+    Ok(())
+}
 
+fn install_shims(target: &Path) -> Result<(), InitError> {
     copy_owned(SHIM, &target.join(".pi/extensions/loki.ts"), true)?;
     copy_owned(SHIM, &target.join(".loki/loki-shim.ts"), true)?;
     let marker = "from \"./loki.ts\"";
@@ -373,8 +360,40 @@ pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
     write_in(
         &target.join(".omp/extensions/loki.ts"),
         OMP_SHIM.replace(marker, "from \"../../.loki/loki-shim.ts\"").as_bytes(),
-    )?;
+    )
+}
 
+fn install_agent_hooks(target: &Path) -> Result<(), InitError> {
+    for (destination, fragment) in [
+        (".claude/settings.json", CLAUDE_SETTINGS),
+        (".codex/hooks.json", CODEX_HOOKS),
+    ] {
+        let destination = target.join(destination);
+        let existing = read_json_object(&destination)?;
+        write_json(&destination, merge_hook_config(existing, &template(fragment))?)?;
+    }
+    enable_codex_hooks(target)?;
+    let factory = target.join(".factory/hooks.json");
+    let mut hooks = read_json_object(&factory)?;
+    merge_factory_hooks(&mut hooks, &template(FACTORY_HOOKS))?;
+    write_json(&factory, hooks)?;
+    install_shims(target)
+}
+
+fn js_install_command(target: &Path) -> &'static str {
+    let has = |name: &str| target.join(name).exists();
+    if has("bun.lock") || has("bun.lockb") {
+        "bun add -d oxlint @oxlint/plugins"
+    } else if has("pnpm-lock.yaml") {
+        "pnpm add -D oxlint @oxlint/plugins"
+    } else if has("yarn.lock") {
+        "yarn add -D oxlint @oxlint/plugins"
+    } else {
+        "npm i -D oxlint @oxlint/plugins"
+    }
+}
+
+fn install_oxlint_config(target: &Path) -> Result<(), InitError> {
     let oxlint_json = target.join(".oxlintrc.json");
     if oxlint_json.is_file() || !target.join("oxlint.config.ts").is_file() {
         let existing = read_json_object(&oxlint_json)?;
@@ -385,7 +404,24 @@ pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
         );
         println!("  template: templates/.oxlintrc.json");
     }
+    Ok(())
+}
 
+fn install_credo_config(target: &Path) -> Result<(), InitError> {
+    if !target.join("mix.exs").is_file() {
+        return Ok(());
+    }
+    let credo = target.join(".credo.exs");
+    if credo.exists() {
+        println!("SKIP .credo.exs (exists; reconcile with templates/.credo.exs)");
+    } else {
+        write(&credo, CREDO)?;
+    }
+    Ok(())
+}
+
+fn install_linter_configs(target: &Path) -> Result<(), InitError> {
+    install_oxlint_config(target)?;
     for (relative, name, bytes) in OWNED_TEMPLATES {
         let destination = target.join(relative);
         if destination.exists() {
@@ -394,30 +430,20 @@ pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
         }
         write_in(&destination, bytes)?;
     }
-
-    if target.join("mix.exs").is_file() {
-        let credo = target.join(".credo.exs");
-        if credo.exists() {
-            println!("SKIP .credo.exs (exists; reconcile with templates/.credo.exs)");
-        } else {
-            write(&credo, CREDO)?;
-        }
-    }
-
+    install_credo_config(target)?;
     if target.join("package.json").is_file() {
-        let has = |name: &str| target.join(name).exists();
-        let command = if has("bun.lock") || has("bun.lockb") {
-            "bun add -d oxlint @oxlint/plugins"
-        } else if has("pnpm-lock.yaml") {
-            "pnpm add -D oxlint @oxlint/plugins"
-        } else if has("yarn.lock") {
-            "yarn add -D oxlint @oxlint/plugins"
-        } else {
-            "npm i -D oxlint @oxlint/plugins"
-        };
-        println!("Install JavaScript guardrail dependencies: {command}");
+        println!("Install JavaScript guardrail dependencies: {}", js_install_command(target));
     }
+    Ok(())
+}
 
+/// `install_target`: everything `init` installs without `--minimal`.
+pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
+    let target = expand_target(target);
+    mkdir(&target)?;
+    install_vendored_assets(&target, force)?;
+    install_agent_hooks(&target)?;
+    install_linter_configs(&target)?;
     println!("Installed loki project guardrails.");
     println!("Codex: run /hooks and approve the project hooks.");
     println!("Factory: project hooks are installed in .factory/hooks.json.");
@@ -471,55 +497,58 @@ pub fn missing_engine_guard(root: &str) -> String {
     )
 }
 
+fn install_harness_shell_guard(root: &Path, relative: &str, harness: &str) -> Result<(), InitError> {
+    use crate::shell::shlex_quote as quote;
+    let path = root.join(relative);
+    let mut document = read_json_object(&path)?;
+    let command = format!(
+        "{}loki --root {} shell --harness {harness} || {{ printf '%s\\n' 'loki: shell guard failed' >&2; exit 2; }}",
+        missing_engine_guard(&quote(&root.to_string_lossy())),
+        quote(&root.to_string_lossy()),
+    );
+    let groups = if harness == "claude" {
+        match document.get_mut("hooks") {
+            Some(Value::Object(groups)) => groups,
+            _ => return Err("hooks must be a JSON object".into()),
+        }
+    } else {
+        &mut document
+    };
+    let Value::Array(entries) = groups.entry("PreToolUse").or_insert_with(|| json!([])) else {
+        return Err("PreToolUse must be a JSON array".into());
+    };
+    entries.retain(|entry| !is_shell_guard_entry(entry));
+    entries.push(json!({
+        "matcher": if harness == "factory" { "Execute" } else { "Bash" },
+        "hooks": [{"type": "command", "command": command, "timeout": 30}],
+    }));
+    write_json(&path, document)
+}
+
+fn install_shim_shell_guard(root: &Path, relative: &str) -> Result<(), InitError> {
+    let path = root.join(relative);
+    let source = read_text(&path)?;
+    if source.matches(SHELL_MARKER).count() != 1 {
+        return Err("shell adapter registration marker unavailable".into());
+    }
+    let updated = source.replace(SHELL_MARKER, &format!("{SHELL_REGISTRATION}{SHELL_MARKER}"));
+    write(&path, updated.as_bytes())
+}
+
 /// `install_shell_guard`: a `shell` pre-tool hook for Claude Code (Bash) and Factory (Execute), replacing an earlier
 /// one, and the shell registration in the Pi/OMP shims.
 pub fn install_shell_guard(root: &Path) -> Result<(), InitError> {
-    use crate::shell::shlex_quote as quote;
     for (relative, harness) in [(".claude/settings.json", "claude"), (".factory/hooks.json", "factory")] {
-        let path = root.join(relative);
-        let mut document = read_json_object(&path)?;
-        let command = format!(
-            "{}loki --root {} shell --harness {harness} || {{ printf '%s\\n' 'loki: shell guard failed' >&2; exit 2; }}",
-            missing_engine_guard(&quote(&root.to_string_lossy())),
-            quote(&root.to_string_lossy()),
-        );
-        let groups = if harness == "claude" {
-            match document.get_mut("hooks") {
-                Some(Value::Object(groups)) => groups,
-                _ => return Err("hooks must be a JSON object".into()),
-            }
-        } else {
-            &mut document
-        };
-        let Value::Array(entries) = groups.entry("PreToolUse").or_insert_with(|| json!([])) else {
-            return Err("PreToolUse must be a JSON array".into());
-        };
-        entries.retain(|entry| !is_shell_guard_entry(entry));
-        entries.push(json!({
-            "matcher": if harness == "factory" { "Execute" } else { "Bash" },
-            "hooks": [{"type": "command", "command": command, "timeout": 30}],
-        }));
-        write_json(&path, document)?;
+        install_harness_shell_guard(root, relative, harness)?;
     }
     for relative in [".pi/extensions/loki.ts", ".loki/loki-shim.ts"] {
-        let path = root.join(relative);
-        let source = read_text(&path)?;
-        if source.matches(SHELL_MARKER).count() != 1 {
-            return Err("shell adapter registration marker unavailable".into());
-        }
-        let updated = source.replace(SHELL_MARKER, &format!("{SHELL_REGISTRATION}{SHELL_MARKER}"));
-        write(&path, updated.as_bytes())?;
+        install_shim_shell_guard(root, relative)?;
     }
     Ok(())
 }
 
-/// `install_managed`: the `loki` binary as a read-only release outside the repository (named by its sha256), and
-/// every owned hook command and shim pointed at it.
-pub fn install_managed(root: &Path, destination: &Path) -> Result<(), InitError> {
-    use crate::shell::shlex_quote as quote;
-    if destination.starts_with(root) {
-        return Err("managed engine must be outside the repository".into());
-    }
+fn write_managed_release(destination: &Path) -> Result<PathBuf, InitError> {
+    use std::os::unix::fs::PermissionsExt;
     let current = std::env::current_exe().map_err(|e| os(e, Path::new("loki")))?;
     let binary = std::fs::read(&current).map_err(|e| os(e, &current))?;
     let digest = crate::compat::sha256_hex(&binary);
@@ -533,10 +562,92 @@ pub fn install_managed(root: &Path, destination: &Path) -> Result<(), InitError>
     } else {
         write(&engine, &binary)?;
     }
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&engine, std::fs::Permissions::from_mode(0o555)).map_err(|e| os(e, &engine))?;
+    std::fs::set_permissions(&engine, std::fs::Permissions::from_mode(0o555)).map_err(|e| os(e, &engine))?;
+    Ok(engine)
+}
+
+fn rewrite_hook_handler(
+    handler: &mut Value,
+    event: &str,
+    harness: &str,
+    engine_text: &str,
+    root_text: &str,
+) -> Result<(), InitError> {
+    use crate::shell::shlex_quote as quote;
+    let command = handler.get("command").and_then(Value::as_str).unwrap_or("");
+    if !command.contains(".loki/loki.json") {
+        return Ok(());
     }
+    let operations: Vec<&str> = ["context", "protect", "hook", "shell"]
+        .into_iter()
+        .filter(|name| command.contains(&format!(" {name} --")))
+        .collect();
+    let [operation] = operations[..] else {
+        return Err("unrecognized owned hook command".into());
+    };
+    let arguments = if operation == "context" {
+        format!("--event {}", quote(event))
+    } else {
+        format!("--harness {harness}")
+    };
+    handler["command"] = json!(format!(
+        "{} --root {} {operation} {arguments} || {{ printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }} # .loki/loki.json managed engine",
+        quote(engine_text),
+        quote(root_text),
+    ));
+    Ok(())
+}
+
+fn rewrite_harness_hooks(
+    root: &Path,
+    relative: &str,
+    harness: &str,
+    engine_text: &str,
+    root_text: &str,
+) -> Result<(), InitError> {
+    let path = root.join(relative);
+    let mut document = read_json_object(&path)?;
+    let groups = if matches!(document.get("hooks"), Some(Value::Object(_))) {
+        document.get_mut("hooks").and_then(Value::as_object_mut)
+    } else if document.contains_key("hooks") {
+        None
+    } else {
+        Some(&mut document)
+    };
+    for (event, entries) in groups.into_iter().flatten() {
+        let Value::Array(entries) = entries else { continue };
+        for entry in entries.iter_mut() {
+            let Some(Value::Array(handlers)) = entry.get_mut("hooks") else {
+                continue;
+            };
+            for handler in handlers.iter_mut() {
+                rewrite_hook_handler(handler, event, harness, engine_text, root_text)?;
+            }
+        }
+    }
+    write_json(&path, document)
+}
+
+fn rewrite_shim_engine(root: &Path, relative: &str, engine_text: &str) -> Result<(), InitError> {
+    let path = root.join(relative);
+    let source = read_text(&path)?;
+    let marker = "process.env.LOKI_BIN || \"loki\"";
+    if source.matches(marker).count() != 1 {
+        return Err("shared adapter engine marker unavailable".into());
+    }
+    write(
+        &path,
+        source.replace(marker, &py::dumps(&json!(engine_text))).as_bytes(),
+    )
+}
+
+/// `install_managed`: the `loki` binary as a read-only release outside the repository (named by its sha256), and
+/// every owned hook command and shim pointed at it.
+pub fn install_managed(root: &Path, destination: &Path) -> Result<(), InitError> {
+    if destination.starts_with(root) {
+        return Err("managed engine must be outside the repository".into());
+    }
+    let engine = write_managed_release(destination)?;
     let engine_text = engine.to_string_lossy().into_owned();
     let root_text = root.to_string_lossy().into_owned();
     for (relative, harness) in [
@@ -544,59 +655,10 @@ pub fn install_managed(root: &Path, destination: &Path) -> Result<(), InitError>
         (".codex/hooks.json", "codex"),
         (".factory/hooks.json", "factory"),
     ] {
-        let path = root.join(relative);
-        let mut document = read_json_object(&path)?;
-        let groups = if matches!(document.get("hooks"), Some(Value::Object(_))) {
-            document.get_mut("hooks").and_then(Value::as_object_mut)
-        } else if document.contains_key("hooks") {
-            None
-        } else {
-            Some(&mut document)
-        };
-        for (event, entries) in groups.into_iter().flatten() {
-            let Value::Array(entries) = entries else { continue };
-            for entry in entries.iter_mut() {
-                let Some(Value::Array(handlers)) = entry.get_mut("hooks") else {
-                    continue;
-                };
-                for handler in handlers.iter_mut() {
-                    let command = handler.get("command").and_then(Value::as_str).unwrap_or("");
-                    if !command.contains(".loki/loki.json") {
-                        continue;
-                    }
-                    let operations: Vec<&str> = ["context", "protect", "hook", "shell"]
-                        .into_iter()
-                        .filter(|name| command.contains(&format!(" {name} --")))
-                        .collect();
-                    let [operation] = operations[..] else {
-                        return Err("unrecognized owned hook command".into());
-                    };
-                    let arguments = if operation == "context" {
-                        format!("--event {}", quote(event))
-                    } else {
-                        format!("--harness {harness}")
-                    };
-                    handler["command"] = json!(format!(
-                        "{} --root {} {operation} {arguments} || {{ printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }} # .loki/loki.json managed engine",
-                        quote(&engine_text),
-                        quote(&root_text),
-                    ));
-                }
-            }
-        }
-        write_json(&path, document)?;
+        rewrite_harness_hooks(root, relative, harness, &engine_text, &root_text)?;
     }
     for relative in [".pi/extensions/loki.ts", ".loki/loki-shim.ts"] {
-        let path = root.join(relative);
-        let source = read_text(&path)?;
-        let marker = "process.env.LOKI_BIN || \"loki\"";
-        if source.matches(marker).count() != 1 {
-            return Err("shared adapter engine marker unavailable".into());
-        }
-        write(
-            &path,
-            source.replace(marker, &py::dumps(&json!(engine_text))).as_bytes(),
-        )?;
+        rewrite_shim_engine(root, relative, &engine_text)?;
     }
     println!("Managed engine: {engine_text}");
     println!("Owner-writable installation is not an OS security boundary.");

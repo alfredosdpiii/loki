@@ -3,6 +3,7 @@
 
 use crate::git::{self, git_output, head_text};
 use crate::hook::is_test_path;
+use crate::jsrules::re;
 use crate::proc::{self, Deadline};
 use crate::py;
 use crate::pyast::{self, FunctionMetric};
@@ -69,23 +70,34 @@ fn keywords(family: &str) -> &'static str {
     }
 }
 
+const EXTRA_LANGUAGES: [(&str, &str); 15] = [
+    (".java", "java"),
+    (".kt", "kotlin"),
+    (".kts", "kotlin"),
+    (".cs", "csharp"),
+    (".c", "c"),
+    (".h", "c"),
+    (".cc", "cpp"),
+    (".cpp", "cpp"),
+    (".cxx", "cpp"),
+    (".hpp", "cpp"),
+    (".hh", "cpp"),
+    (".swift", "swift"),
+    (".scala", "scala"),
+    (".php", "php"),
+    (".rb", "ruby"),
+];
+
 /// `slop_language`: Loki languages plus the structurally measured extras.
 pub fn slop_language(path: &str) -> Option<&'static str> {
     if let Some(language) = crate::rules::language(path) {
         return Some(language);
     }
-    Some(match crate::rules::suffix(path)?.as_str() {
-        ".java" => "java",
-        ".kt" | ".kts" => "kotlin",
-        ".cs" => "csharp",
-        ".c" | ".h" => "c",
-        ".cc" | ".cpp" | ".cxx" | ".hpp" | ".hh" => "cpp",
-        ".swift" => "swift",
-        ".scala" => "scala",
-        ".php" => "php",
-        ".rb" => "ruby",
-        _ => return None,
-    })
+    let suffix = crate::rules::suffix(path)?;
+    EXTRA_LANGUAGES
+        .iter()
+        .find(|&&(ext, _)| ext == suffix)
+        .map(|&(_, lang)| lang)
 }
 
 fn slop_mask(language: &str, text: &Text) -> Result<Text, CheckError> {
@@ -115,14 +127,39 @@ fn source_lines(masked: &str, start: i64, end: i64) -> i64 {
         .count() as i64
 }
 
-macro_rules! re {
-    ($name:ident, $pattern:expr) => {
-        static $name: LazyLock<Re> = LazyLock::new(|| Re::new($pattern));
-    };
-}
-
 re!(ELIXIR_HEAD, r"^(\s*)defp?\s+(?:self\.)?([\w?!=]+)");
 re!(ELIXIR_ONE_LINE, r",\s*do:");
+
+fn elixir_ruby_spans(masked: &Text) -> Vec<(String, usize, usize)> {
+    let mut spans = Vec::new();
+    let lines = py::splitlines(&masked.s, true);
+    let mut offsets = vec![0usize];
+    for line in &lines {
+        offsets.push(offsets[offsets.len() - 1] + line.chars().count());
+    }
+    for (index, line) in lines.iter().enumerate() {
+        let line_text = Text::new(line);
+        let Some(head) = ELIXIR_HEAD.search(&line_text, 0) else {
+            continue;
+        };
+        let name = head.group(&line_text, 2).unwrap_or("").to_string();
+        if ELIXIR_ONE_LINE.is_match(line) {
+            spans.push((name, offsets[index], offsets[index + 1]));
+            continue;
+        }
+        let indent = head.group(&line_text, 1).unwrap_or("").chars().count();
+        for other in index + 1..lines.len() {
+            let candidate = lines[other];
+            let leading = candidate.chars().count() - candidate.trim_start_matches(py::is_space).chars().count();
+            if py::strip(candidate) == "end" && leading <= indent {
+                spans.push((name, offsets[index], offsets[other + 1]));
+                break;
+            }
+        }
+    }
+    spans
+}
+
 re!(GO_FUNCTION, r"(?m)\bfunc\s*(?:\([^)]*\)\s*)?([\w]*)\s*\(");
 re!(RUST_FUNCTION, r"(?m)\bfn\s+(\w+)");
 re!(
@@ -133,6 +170,35 @@ re!(
     BRACE_FUNCTION,
     r"(?m)\b(?:fun|func|function|def)\s+(?:[\w.<>]+\.)?([\w$]+)|^[ \t]*(?:[\w<>\[\],.*&:~?]+[ \t]+)+([A-Za-z_]\w*)\s*\([^;{}]*\)[^;{}=]*\{"
 );
+
+fn brace_spans(masked: &Text, language: &str) -> Vec<(String, usize, usize)> {
+    let pattern: &Re = match language {
+        "go" => &GO_FUNCTION,
+        "rust" => &RUST_FUNCTION,
+        "typescript" => &TS_FUNCTION,
+        _ => &BRACE_FUNCTION,
+    };
+    let mut spans = Vec::new();
+    for found in pattern.iter(masked) {
+        let Some(opening) = masked.find("{", found.end().saturating_sub(1)) else {
+            continue;
+        };
+        if masked.sl(found.end(), opening).contains(';') {
+            continue;
+        }
+        let name = (1..found.spans.len())
+            .filter_map(|g| found.group(masked, g))
+            .find(|g| !g.is_empty())
+            .unwrap_or("<anonymous>")
+            .to_string();
+        if ["if", "for", "while", "switch", "catch", "function", "foreach"].contains(&name.as_str()) {
+            continue;
+        }
+        spans.push((name, found.start(), matching_close(&masked.c, opening)));
+    }
+    spans
+}
+
 re!(GO_DECISION, r"\bif\b|\bfor\b|\bcase\b|&&|\|\|");
 re!(RUST_DECISION, r"\bif\b|\bwhile\b|\bfor\b|=>|&&|\|\||\?(?![\w?])");
 re!(
@@ -148,109 +214,82 @@ re!(
     BRACE_DECISION,
     r"\b(?:if|for|foreach|while|case|catch|when)\b|&&|\|\||\?\?|\?(?![.:?])"
 );
-re!(MATCH_WORD, r"\bmatch\b");
-re!(FN_WORD, r"\bfn\b");
 
-/// Approximate complexity for Go, Rust, Elixir, Ruby, brace languages and JS/TS
-/// without a compiler: functions found structurally on masked source.
-fn masked_functions(path: &str, text: &str, language: &str) -> Result<Vec<FunctionMetric>, CheckError> {
-    let masked = slop_mask(language, &Text::new(text))?;
-    let mut spans: Vec<(String, usize, usize)> = Vec::new();
-    if language == "elixir" || language == "ruby" {
-        let lines = py::splitlines(&masked.s, true);
-        let mut offsets = vec![0usize];
-        for line in &lines {
-            offsets.push(offsets[offsets.len() - 1] + line.chars().count());
-        }
-        for (index, line) in lines.iter().enumerate() {
-            let line_text = Text::new(line);
-            let Some(head) = ELIXIR_HEAD.search(&line_text, 0) else {
-                continue;
-            };
-            let name = head.group(&line_text, 2).unwrap_or("").to_string();
-            if ELIXIR_ONE_LINE.is_match(line) {
-                spans.push((name, offsets[index], offsets[index + 1]));
-                continue;
-            }
-            let indent = head.group(&line_text, 1).unwrap_or("").chars().count();
-            for other in index + 1..lines.len() {
-                let candidate = lines[other];
-                let leading = candidate.chars().count() - candidate.trim_start_matches(py::is_space).chars().count();
-                if py::strip(candidate) == "end" && leading <= indent {
-                    spans.push((name, offsets[index], offsets[other + 1]));
-                    break;
-                }
-            }
-        }
-    } else {
-        let pattern: &Re = match language {
-            "go" => &GO_FUNCTION,
-            "rust" => &RUST_FUNCTION,
-            "typescript" => &TS_FUNCTION,
-            _ => &BRACE_FUNCTION,
-        };
-        for found in pattern.iter(&masked) {
-            let Some(opening) = masked.find("{", found.end().saturating_sub(1)) else {
-                continue;
-            };
-            if masked.sl(found.end(), opening).contains(';') {
-                continue;
-            }
-            let name = (1..found.spans.len())
-                .filter_map(|g| found.group(&masked, g))
-                .find(|g| !g.is_empty())
-                .unwrap_or("<anonymous>")
-                .to_string();
-            if ["if", "for", "while", "switch", "catch", "function", "foreach"].contains(&name.as_str()) {
-                continue;
-            }
-            spans.push((name, found.start(), matching_close(&masked.c, opening)));
-        }
-    }
-    let decision: &Re = match language {
+fn decision_regex(language: &str) -> &'static Re {
+    match language {
         "go" => &GO_DECISION,
         "rust" => &RUST_DECISION,
         "typescript" => &TS_DECISION,
         "elixir" => &ELIXIR_DECISION,
         "ruby" => &RUBY_DECISION,
         _ => &BRACE_DECISION,
-    };
-    let mut results = Vec::new();
-    for (name, start, end) in &spans {
-        let mut body = masked.sl(*start, *end).to_string();
-        for (_, inner_start, inner_end) in &spans {
-            if start < inner_start && inner_end <= end {
-                body = body.replacen(masked.sl(*inner_start, *inner_end), "", 1);
-            }
-        }
-        let mut count = decision.find_strs(&body).len() as i64;
-        if language == "rust" {
-            count -= MATCH_WORD.find_strs(&body).len() as i64;
-        }
-        if language == "elixir" {
-            count -= FN_WORD.find_strs(&body).len() as i64;
-        }
-        let first = masked.newlines_before(*start) as i64 + 1;
-        let last = masked.newlines_before((*start).max(end.saturating_sub(1))) as i64 + 1;
-        let (mut depth, mut deepest) = (0i64, 0i64);
-        for c in body.chars() {
-            if c == '{' || c == '(' {
-                depth += 1;
-                deepest = deepest.max(depth);
-            } else if c == '}' || c == ')' {
-                depth -= 1;
-            }
-        }
-        results.push(FunctionMetric {
-            path: path.to_string(),
-            name: name.clone(),
-            start: first,
-            end: last,
-            complexity: 1 + count.max(0),
-            sloc: source_lines(&masked.s, first, last),
-            nesting: (deepest - 1).max(0),
-        });
     }
+}
+
+fn max_brace_depth(body: &str) -> i64 {
+    let (mut depth, mut deepest) = (0i64, 0i64);
+    for c in body.chars() {
+        if c == '{' || c == '(' {
+            depth += 1;
+            deepest = deepest.max(depth);
+        } else if c == '}' || c == ')' {
+            depth -= 1;
+        }
+    }
+    deepest
+}
+
+re!(MATCH_WORD, r"\bmatch\b");
+re!(FN_WORD, r"\bfn\b");
+
+fn span_metric(
+    path: &str,
+    masked: &Text,
+    language: &str,
+    decision: &Re,
+    spans: &[(String, usize, usize)],
+    (name, start, end): &(String, usize, usize),
+) -> FunctionMetric {
+    let mut body = masked.sl(*start, *end).to_string();
+    for (_, inner_start, inner_end) in spans {
+        if start < inner_start && inner_end <= end {
+            body = body.replacen(masked.sl(*inner_start, *inner_end), "", 1);
+        }
+    }
+    let mut count = decision.find_strs(&body).len() as i64;
+    if language == "rust" {
+        count -= MATCH_WORD.find_strs(&body).len() as i64;
+    }
+    if language == "elixir" {
+        count -= FN_WORD.find_strs(&body).len() as i64;
+    }
+    let first = masked.newlines_before(*start) as i64 + 1;
+    let last = masked.newlines_before((*start).max(end.saturating_sub(1))) as i64 + 1;
+    FunctionMetric {
+        path: path.to_string(),
+        name: name.clone(),
+        start: first,
+        end: last,
+        complexity: 1 + count.max(0),
+        sloc: source_lines(&masked.s, first, last),
+        nesting: (max_brace_depth(&body) - 1).max(0),
+    }
+}
+
+/// Approximate complexity for Go, Rust, Elixir, Ruby, brace languages and JS/TS
+/// without a compiler: functions found structurally on masked source.
+fn masked_functions(path: &str, text: &str, language: &str) -> Result<Vec<FunctionMetric>, CheckError> {
+    let masked = slop_mask(language, &Text::new(text))?;
+    let spans = if language == "elixir" || language == "ruby" {
+        elixir_ruby_spans(&masked)
+    } else {
+        brace_spans(&masked, language)
+    };
+    let decision = decision_regex(language);
+    let results = spans
+        .iter()
+        .map(|span| span_metric(path, &masked, language, decision, &spans, span))
+        .collect();
     Ok(results)
 }
 
@@ -551,6 +590,56 @@ fn json_object(texts: &[(String, String)]) -> Value {
     )
 }
 
+type MetricExtractor = fn(&Value) -> Option<(String, i64, i64, i64, i64)>;
+
+fn parse_json_metrics(
+    report: &Value,
+    texts: &[(String, String)],
+    mask: fn(&Text) -> Text,
+    extract: MetricExtractor,
+) -> Option<Metrics> {
+    let lookup: HashMap<&str, &str> = texts.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let mut metrics = HashMap::new();
+    for (name, functions) in report.as_object()? {
+        let masked = mask(&Text::new(lookup.get(name.as_str())?));
+        let mut list = Vec::new();
+        for item in functions.as_array()? {
+            let (fn_name, start, end, complexity, nesting) = extract(item)?;
+            list.push(FunctionMetric {
+                path: name.clone(),
+                name: fn_name,
+                start,
+                end,
+                complexity,
+                sloc: source_lines(&masked.s, start, end),
+                nesting,
+            });
+        }
+        metrics.insert(name.clone(), list);
+    }
+    Some(metrics)
+}
+
+fn extract_ts_metric(item: &Value) -> Option<(String, i64, i64, i64, i64)> {
+    Some((
+        item[0].as_str()?.to_string(),
+        item[1].as_i64()?,
+        item[2].as_i64()?,
+        item[3].as_i64()?,
+        item[4].as_i64()?,
+    ))
+}
+
+fn extract_go_metric(item: &Value) -> Option<(String, i64, i64, i64, i64)> {
+    Some((
+        item["name"].as_str()?.to_string(),
+        item["start"].as_i64()?,
+        item["end"].as_i64()?,
+        item["complexity"].as_i64()?,
+        item["nesting"].as_i64()?,
+    ))
+}
+
 fn typescript_function_metrics(root: &Path, texts: &[(String, String)], deadline: Deadline) -> Option<Metrics> {
     let compiler = crate::typescript::typescript_compiler(root)?;
     if texts.is_empty() {
@@ -569,36 +658,14 @@ fn typescript_function_metrics(root: &Path, texts: &[(String, String)], deadline
         return None;
     }
     let report: Value = serde_json::from_str(&proc::text(&result.stdout)).ok()?;
-    let lookup: HashMap<&str, &str> = texts.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    let mut metrics = HashMap::new();
-    for (name, functions) in report.as_object()? {
-        let masked = mask_javascript(&Text::new(lookup.get(name.as_str())?));
-        let mut list = Vec::new();
-        for item in functions.as_array()? {
-            let (start, end) = (item[1].as_i64()?, item[2].as_i64()?);
-            list.push(FunctionMetric {
-                path: name.clone(),
-                name: item[0].as_str()?.to_string(),
-                start,
-                end,
-                complexity: item[3].as_i64()?,
-                sloc: source_lines(&masked.s, start, end),
-                nesting: item[4].as_i64()?,
-            });
-        }
-        metrics.insert(name.clone(), list);
-    }
-    Some(metrics)
+    parse_json_metrics(&report, texts, mask_javascript, extract_ts_metric)
 }
 
 fn home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".into()))
 }
 
-fn go_function_metrics(texts: &[(String, String)], deadline: Deadline) -> Option<Metrics> {
-    if texts.is_empty() || proc::which("go").is_none() {
-        return None;
-    }
+fn ensure_go_metrics_tool(deadline: Deadline) -> Option<PathBuf> {
     let digest = crate::compat::sha256_hex(SLOP_GO.as_bytes());
     let tool = home()
         .join(".cache/loki/tools")
@@ -627,6 +694,14 @@ fn go_function_metrics(texts: &[(String, String)], deadline: Deadline) -> Option
             return None;
         }
     }
+    Some(tool)
+}
+
+fn go_function_metrics(texts: &[(String, String)], deadline: Deadline) -> Option<Metrics> {
+    if texts.is_empty() || proc::which("go").is_none() {
+        return None;
+    }
+    let tool = ensure_go_metrics_tool(deadline)?;
     let input = py::dumps(&json_object(texts));
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
     let result = proc::run(
@@ -641,24 +716,35 @@ fn go_function_metrics(texts: &[(String, String)], deadline: Deadline) -> Option
         return None;
     }
     let report: Value = serde_json::from_str(&String::from_utf8(result.stdout).ok()?).ok()?;
+    parse_json_metrics(&report, texts, mask_rust, extract_go_metric)
+}
+
+fn parse_elixir_metrics(stdout: &[u8], texts: &[(String, String)]) -> Option<Metrics> {
     let lookup: HashMap<&str, &str> = texts.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    let mut metrics = HashMap::new();
-    for (name, functions) in report.as_object()? {
-        let masked = mask_rust(&Text::new(lookup.get(name.as_str())?));
-        let mut list = Vec::new();
-        for item in functions.as_array()? {
-            let (start, end) = (item["start"].as_i64()?, item["end"].as_i64()?);
-            list.push(FunctionMetric {
-                path: name.clone(),
-                name: item["name"].as_str()?.to_string(),
-                start,
-                end,
-                complexity: item["complexity"].as_i64()?,
-                sloc: source_lines(&masked.s, start, end),
-                nesting: item["nesting"].as_i64()?,
-            });
+    let mut metrics: Metrics = texts.iter().map(|(name, _)| (name.clone(), vec![])).collect();
+    let mut masks: HashMap<String, Text> = HashMap::new();
+    for line in py::splitlines(&String::from_utf8_lossy(stdout), false) {
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.len() != 6 || !lookup.contains_key(fields[0]) {
+            continue;
         }
-        metrics.insert(name.clone(), list);
+        let numbers: Vec<i64> = fields[2..]
+            .iter()
+            .map(|f| py::strip(f).parse().ok())
+            .collect::<Option<_>>()?;
+        let masked = masks
+            .entry(fields[0].to_string())
+            .or_insert_with(|| mask_elixir(&Text::new(lookup[fields[0]])));
+        let sloc = source_lines(&masked.s, numbers[0], numbers[1]);
+        metrics.get_mut(fields[0])?.push(FunctionMetric {
+            path: fields[0].to_string(),
+            name: fields[1].to_string(),
+            start: numbers[0],
+            end: numbers[1],
+            complexity: numbers[2],
+            sloc,
+            nesting: numbers[3],
+        });
     }
     Some(metrics)
 }
@@ -684,31 +770,7 @@ fn elixir_function_metrics(texts: &[(String, String)], deadline: Deadline) -> Op
     if result.code != 0 {
         return None;
     }
-    let lookup: HashMap<&str, &str> = texts.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    let mut metrics: Metrics = texts.iter().map(|(name, _)| (name.clone(), vec![])).collect();
-    let mut masks: HashMap<String, Text> = HashMap::new();
-    for line in py::splitlines(&String::from_utf8_lossy(&result.stdout), false) {
-        let fields: Vec<&str> = line.split('\t').collect();
-        if fields.len() != 6 || !lookup.contains_key(fields[0]) {
-            continue;
-        }
-        let numbers: Option<Vec<i64>> = fields[2..].iter().map(|f| py::strip(f).parse().ok()).collect();
-        let numbers = numbers?;
-        let masked = masks
-            .entry(fields[0].to_string())
-            .or_insert_with(|| mask_elixir(&Text::new(lookup[fields[0]])));
-        let sloc = source_lines(&masked.s, numbers[0], numbers[1]);
-        metrics.get_mut(fields[0])?.push(FunctionMetric {
-            path: fields[0].to_string(),
-            name: fields[1].to_string(),
-            start: numbers[0],
-            end: numbers[1],
-            complexity: numbers[2],
-            sloc,
-            nesting: numbers[3],
-        });
-    }
-    Some(metrics)
+    parse_elixir_metrics(&result.stdout, texts)
 }
 
 /// Parser-backed metrics for TS/JS, Go and Elixir, plus languages left approximate.
@@ -750,6 +812,45 @@ fn is_word(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
 
+fn scan_token(c: &[char], start: usize) -> Option<(usize, bool)> {
+    let ch = c[start];
+    if ch.is_ascii_alphabetic() || ch == '_' {
+        let end = (start + 1..c.len()).find(|&i| !is_word(c[i])).unwrap_or(c.len());
+        return Some((end, false));
+    }
+    if ch.is_numeric() {
+        let end = (start + 1..c.len())
+            .find(|&i| !is_word(c[i]) && c[i] != '.')
+            .unwrap_or(c.len());
+        return Some((end, false));
+    }
+    if matches!(ch, '"' | '\'' | '`')
+        && let Some(close) = (start + 1..c.len()).find(|&j| !py::is_space(c[j]))
+        && c[close] == ch
+    {
+        return Some((close + 1, true));
+    }
+    (!py::is_space(ch)).then_some((start + 1, false))
+}
+
+fn classify_token(c: &[char], start: usize, end: usize, quoted: bool, keywords: &HashSet<&str>) -> String {
+    let first = c[start];
+    if first.is_alphabetic() || first == '_' {
+        let symbol: String = c[start..end].iter().collect();
+        if keywords.contains(symbol.as_str()) {
+            return symbol;
+        }
+        return "I".into();
+    }
+    if first.is_numeric() {
+        return "N".into();
+    }
+    if quoted {
+        return "S".into();
+    }
+    c[start..end].iter().collect()
+}
+
 /// Tokens with identifiers and literals replaced by placeholders, per line.
 fn normalized_tokens(path: &str, text: &str) -> Result<Vec<(String, i64)>, CheckError> {
     let Some(language) = slop_language(path) else {
@@ -766,53 +867,19 @@ fn normalized_tokens(path: &str, text: &str) -> Result<Vec<(String, i64)>, Check
     let mut tokens = Vec::new();
     let (mut line, mut i) = (1i64, 0usize);
     while i < c.len() {
-        let ch = c[i];
-        if ch == '\n' {
+        if c[i] == '\n' {
             line += 1;
             i += 1;
             continue;
         }
         let start = i;
-        let mut quoted = false;
-        if ch.is_ascii_alphabetic() || ch == '_' {
-            i += 1;
-            while i < c.len() && is_word(c[i]) {
-                i += 1;
-            }
-        } else if ch.is_numeric() {
-            i += 1;
-            while i < c.len() && (is_word(c[i]) || c[i] == '.') {
-                i += 1;
-            }
-        } else if matches!(ch, '"' | '\'' | '`')
-            && let Some(close) = (i + 1..c.len()).find(|&j| !py::is_space(c[j]))
-            && c[close] == ch
-        {
-            i = close + 1;
-            quoted = true;
-        } else if !py::is_space(ch) {
-            i += 1;
+        if let Some((end, quoted)) = scan_token(c, start) {
+            i = end;
+            // Only a bare newline token advances the line, as in loki.py.
+            tokens.push((classify_token(c, start, end, quoted, &keywords), line));
         } else {
             i += 1;
-            continue;
         }
-        let symbol: String = c[start..i].iter().collect();
-        let first = c[start];
-        let symbol = if first.is_alphabetic() || first == '_' {
-            if keywords.contains(symbol.as_str()) {
-                symbol
-            } else {
-                "I".into()
-            }
-        } else if first.is_numeric() {
-            "N".into()
-        } else if quoted {
-            "S".into()
-        } else {
-            symbol
-        };
-        // Only a bare newline token advances the line, as in loki.py.
-        tokens.push((symbol, line));
     }
     Ok(tokens)
 }
@@ -861,36 +928,15 @@ type Span = (String, i64, i64);
 /// Cloned lines per file, and each clone group's member spans.
 type Clones = (BTreeMap<String, BTreeSet<i64>>, Vec<Vec<Span>>);
 
-/// Normalized-token clones of at least 100 tokens and 3 lines.
-fn clone_lines(files: &[(String, String)], focus: Option<&HashSet<String>>) -> Result<Clones, CheckError> {
-    let python: Vec<&str> = files
-        .iter()
-        .filter(|(p, _)| slop_language(p) == Some("python"))
-        .map(|(_, t)| t.as_str())
-        .collect();
-    if !python.is_empty() {
-        pyast::prefetch_tokens(&python)?;
-    }
-    let mut indexed: Vec<(String, Windows)> = Vec::new();
-    for (path, text) in files {
-        indexed.push((path.clone(), token_windows(path, text)?));
-    }
-    let wanted: Option<HashSet<u64>> = focus.map(|focus| {
-        indexed
-            .iter()
-            .filter(|(p, _)| focus.contains(p))
-            .flat_map(|(_, w)| w.1.iter().copied())
-            .collect()
-    });
-    if let (Some(focus), Some(wanted)) = (focus, &wanted) {
-        indexed.retain(|(path, (_, hashes))| focus.contains(path) || hashes.iter().any(|h| wanted.contains(h)));
-    }
-    let streams: HashMap<&str, &Vec<(String, i64)>> = indexed.iter().map(|(p, (t, _))| (p.as_str(), t)).collect();
+fn collect_duplicate_windows(
+    indexed: &[(String, Windows)],
+    wanted: Option<&HashSet<u64>>,
+) -> Vec<Vec<(String, usize)>> {
     let mut windows: Vec<(u64, Vec<(String, usize)>)> = Vec::new();
     let mut slot: HashMap<u64, usize> = HashMap::new();
-    for (path, (_, hashes)) in &indexed {
+    for (path, (_, hashes)) in indexed {
         for (index, value) in hashes.iter().enumerate() {
-            if wanted.as_ref().is_none_or(|w| w.contains(value)) {
+            if wanted.is_none_or(|w| w.contains(value)) {
                 let at = *slot.entry(*value).or_insert_with(|| {
                     windows.push((*value, Vec::new()));
                     windows.len() - 1
@@ -899,10 +945,19 @@ fn clone_lines(files: &[(String, String)], focus: Option<&HashSet<String>>) -> R
             }
         }
     }
-    let duplicates: Vec<&Vec<(String, usize)>> = windows.iter().map(|(_, p)| p).filter(|p| p.len() > 1).collect();
+    windows
+        .into_iter()
+        .map(|(_, positions)| positions)
+        .filter(|positions| positions.len() > 1)
+        .collect()
+}
+
+type TokenRuns = (Vec<(String, usize, usize)>, HashMap<(String, usize), usize>);
+
+fn build_token_runs(duplicates: &[Vec<(String, usize)>]) -> TokenRuns {
     let mut covered_tokens: Vec<(String, BTreeSet<usize>)> = Vec::new();
-    for positions in &duplicates {
-        for (path, index) in positions.iter() {
+    for positions in duplicates {
+        for (path, index) in positions {
             let entry = match covered_tokens.iter().position(|(p, _)| p == path) {
                 Some(i) => i,
                 None => {
@@ -933,29 +988,47 @@ fn clone_lines(files: &[(String, String)], focus: Option<&HashSet<String>>) -> R
             run_of.insert((path.clone(), index), run);
         }
     }
-    let mut parent: Vec<usize> = (0..runs.len()).collect();
-    fn find(parent: &mut [usize], mut item: usize) -> usize {
-        while parent[item] != item {
-            parent[item] = parent[parent[item]];
-            item = parent[item];
-        }
-        item
+    (runs, run_of)
+}
+
+fn dsu_find(parent: &mut [usize], mut item: usize) -> usize {
+    while parent[item] != item {
+        parent[item] = parent[parent[item]];
+        item = parent[item];
     }
-    for positions in &duplicates {
-        let first = find(&mut parent, run_of[&positions[0]]);
+    item
+}
+
+fn group_run_components(
+    runs_len: usize,
+    duplicates: &[Vec<(String, usize)>],
+    run_of: &HashMap<(String, usize), usize>,
+) -> Vec<(usize, Vec<usize>)> {
+    let mut parent: Vec<usize> = (0..runs_len).collect();
+    for positions in duplicates {
+        let first = dsu_find(&mut parent, run_of[&positions[0]]);
         for position in &positions[1..] {
-            let root = find(&mut parent, run_of[position]);
+            let root = dsu_find(&mut parent, run_of[position]);
             parent[root] = first;
         }
     }
     let mut components: Vec<(usize, Vec<usize>)> = Vec::new();
-    for run in 0..runs.len() {
-        let root = find(&mut parent, run);
+    for run in 0..runs_len {
+        let root = dsu_find(&mut parent, run);
         match components.iter_mut().find(|(r, _)| *r == root) {
             Some((_, members)) => members.push(run),
             None => components.push((root, vec![run])),
         }
     }
+    components
+}
+
+fn collect_clone_spans(
+    components: Vec<(usize, Vec<usize>)>,
+    runs: &[(String, usize, usize)],
+    streams: &HashMap<&str, &Vec<(String, i64)>>,
+    focus: Option<&HashSet<String>>,
+) -> Clones {
     let mut covered: BTreeMap<String, BTreeSet<i64>> = BTreeMap::new();
     let mut spans: Vec<Vec<Span>> = Vec::new();
     for (_, members) in components {
@@ -983,7 +1056,38 @@ fn clone_lines(files: &[(String, String)], focus: Option<&HashSet<String>>) -> R
         spans.push(lines);
     }
     spans.sort();
-    Ok((covered, spans))
+    (covered, spans)
+}
+
+/// Normalized-token clones of at least 100 tokens and 3 lines.
+fn clone_lines(files: &[(String, String)], focus: Option<&HashSet<String>>) -> Result<Clones, CheckError> {
+    let python: Vec<&str> = files
+        .iter()
+        .filter(|(p, _)| slop_language(p) == Some("python"))
+        .map(|(_, t)| t.as_str())
+        .collect();
+    if !python.is_empty() {
+        pyast::prefetch_tokens(&python)?;
+    }
+    let mut indexed: Vec<(String, Windows)> = Vec::new();
+    for (path, text) in files {
+        indexed.push((path.clone(), token_windows(path, text)?));
+    }
+    let wanted: Option<HashSet<u64>> = focus.map(|focus| {
+        indexed
+            .iter()
+            .filter(|(p, _)| focus.contains(p))
+            .flat_map(|(_, w)| w.1.iter().copied())
+            .collect()
+    });
+    if let (Some(focus), Some(wanted)) = (focus, &wanted) {
+        indexed.retain(|(path, (_, hashes))| focus.contains(path) || hashes.iter().any(|h| wanted.contains(h)));
+    }
+    let streams: HashMap<&str, &Vec<(String, i64)>> = indexed.iter().map(|(p, (t, _))| (p.as_str(), t)).collect();
+    let duplicates = collect_duplicate_windows(&indexed, wanted.as_ref());
+    let (runs, run_of) = build_token_runs(&duplicates);
+    let components = group_run_components(runs.len(), &duplicates, &run_of);
+    Ok(collect_clone_spans(components, &runs, &streams, focus))
 }
 
 /// `os.path.normpath` for relative POSIX paths.
@@ -1008,7 +1112,7 @@ pub(crate) fn normpath(path: &str) -> String {
     }
 }
 
-fn python_import_graph(files: &[(String, String)]) -> Result<BTreeMap<String, BTreeSet<String>>, CheckError> {
+fn python_module_map(files: &[(String, String)]) -> Vec<(String, String)> {
     let mut modules: Vec<(String, String)> = Vec::new();
     for (path, _) in files.iter().filter(|(p, _)| p.ends_with(".py")) {
         let filename = path.rsplit('/').next().unwrap_or(path);
@@ -1026,6 +1130,30 @@ fn python_import_graph(files: &[(String, String)]) -> Result<BTreeMap<String, BT
             None => modules.push((module, path.clone())),
         }
     }
+    modules
+}
+
+fn resolve_python_import(package: &str, level: Option<i64>, base: String, aliases: Vec<String>) -> Vec<String> {
+    let Some(level) = level else {
+        return aliases;
+    };
+    let mut base = base;
+    if level != 0 {
+        let parts: Vec<&str> = package.split('.').collect();
+        let mut keep: Vec<&str> = parts[py_range(parts.len(), 0, parts.len() as i64 - level + 1)].to_vec();
+        let tail = base.clone();
+        if !tail.is_empty() {
+            keep.push(&tail);
+        }
+        base = keep.join(".");
+    }
+    std::iter::once(base.clone())
+        .chain(aliases.iter().map(|a| format!("{base}.{a}")))
+        .collect()
+}
+
+fn python_import_graph(files: &[(String, String)]) -> Result<BTreeMap<String, BTreeSet<String>>, CheckError> {
+    let modules = python_module_map(files);
     let lookup: HashMap<&str, &str> = modules.iter().map(|(m, p)| (m.as_str(), p.as_str())).collect();
     let texts: HashMap<&str, &str> = files.iter().map(|(p, t)| (p.as_str(), t.as_str())).collect();
     pyast::prefetch(&modules.iter().map(|(_, p)| texts[p.as_str()]).collect::<Vec<_>>())?;
@@ -1040,26 +1168,7 @@ fn python_import_graph(files: &[(String, String)]) -> Result<BTreeMap<String, BT
         };
         let mut edges = BTreeSet::new();
         for (level, base, aliases) in pyast::python_imports(path, texts[path.as_str()])? {
-            let names: Vec<String> = match level {
-                None => aliases,
-                Some(level) => {
-                    let mut base = base;
-                    if level != 0 {
-                        let parts: Vec<&str> = package.split('.').collect();
-                        let mut keep: Vec<&str> =
-                            parts[py_range(parts.len(), 0, parts.len() as i64 - level + 1)].to_vec();
-                        let tail = base.clone();
-                        if !tail.is_empty() {
-                            keep.push(&tail);
-                        }
-                        base = keep.join(".");
-                    }
-                    std::iter::once(base.clone())
-                        .chain(aliases.iter().map(|a| format!("{base}.{a}")))
-                        .collect()
-                }
-            };
-            for name in names {
+            for name in resolve_python_import(&package, level, base, aliases) {
                 if let Some(target) = lookup.get(name.as_str())
                     && target != path
                 {
@@ -1162,52 +1271,65 @@ fn elixir_import_graph(files: &[(String, String)]) -> BTreeMap<String, BTreeSet<
     graph
 }
 
-/// Strongly connected components with more than one module, sorted.
-fn import_cycles(graph: &BTreeMap<String, BTreeSet<String>>) -> Vec<Vec<String>> {
-    let mut index: HashMap<&str, usize> = HashMap::new();
-    let mut low: HashMap<&str, usize> = HashMap::new();
-    let mut stack: Vec<&str> = Vec::new();
-    let mut on_stack: HashSet<&str> = HashSet::new();
-    let mut cycles: Vec<Vec<String>> = Vec::new();
-    let mut counter = 0usize;
-    let empty = BTreeSet::new();
-    let edges_of = |node: &str| {
-        graph
-            .get(node)
-            .unwrap_or(&empty)
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>()
-    };
-    for start in graph.keys().map(String::as_str) {
-        if index.contains_key(start) {
-            continue;
+#[derive(Default)]
+struct Tarjan<'a> {
+    index: HashMap<&'a str, usize>,
+    low: HashMap<&'a str, usize>,
+    stack: Vec<&'a str>,
+    on_stack: HashSet<&'a str>,
+    cycles: Vec<Vec<String>>,
+    counter: usize,
+}
+
+impl<'a> Tarjan<'a> {
+    fn push_node(&mut self, node: &'a str) {
+        self.index.insert(node, self.counter);
+        self.low.insert(node, self.counter);
+        self.counter += 1;
+        self.stack.push(node);
+        self.on_stack.insert(node);
+    }
+
+    fn pop_component(&mut self, node: &'a str) {
+        let mut component = Vec::new();
+        while let Some(item) = self.stack.pop() {
+            self.on_stack.remove(item);
+            component.push(item.to_string());
+            if item == node {
+                break;
+            }
         }
-        let mut work: Vec<(&str, Vec<&str>, usize)> = vec![(start, edges_of(start), 0)];
-        index.insert(start, counter);
-        low.insert(start, counter);
-        counter += 1;
-        stack.push(start);
-        on_stack.insert(start);
+        if component.len() > 1 {
+            component.sort();
+            self.cycles.push(component);
+        }
+    }
+
+    fn visit_from(&mut self, graph: &'a BTreeMap<String, BTreeSet<String>>, start: &'a str) {
+        let edges_of = |node: &str| {
+            graph
+                .get(node)
+                .into_iter()
+                .flat_map(|s| s.iter().map(String::as_str))
+                .collect::<Vec<_>>()
+        };
+        let mut work: Vec<(&'a str, Vec<&'a str>, usize)> = vec![(start, edges_of(start), 0)];
+        self.push_node(start);
         while let Some(top) = work.len().checked_sub(1) {
             let node = work[top].0;
             let mut advanced = false;
             while work[top].2 < work[top].1.len() {
                 let target = work[top].1[work[top].2];
                 work[top].2 += 1;
-                if !index.contains_key(target) {
-                    index.insert(target, counter);
-                    low.insert(target, counter);
-                    counter += 1;
-                    stack.push(target);
-                    on_stack.insert(target);
+                if !self.index.contains_key(target) {
+                    self.push_node(target);
                     work.push((target, edges_of(target), 0));
                     advanced = true;
                     break;
                 }
-                if on_stack.contains(target) {
-                    let value = low[node].min(index[target]);
-                    low.insert(node, value);
+                if self.on_stack.contains(target) {
+                    let value = self.low[node].min(self.index[target]);
+                    self.low.insert(node, value);
                 }
             }
             if advanced {
@@ -1215,27 +1337,26 @@ fn import_cycles(graph: &BTreeMap<String, BTreeSet<String>>) -> Vec<Vec<String>>
             }
             work.pop();
             if let Some(parent) = work.last() {
-                let value = low[parent.0].min(low[node]);
-                low.insert(parent.0, value);
+                let value = self.low[parent.0].min(self.low[node]);
+                self.low.insert(parent.0, value);
             }
-            if low[node] == index[node] {
-                let mut component = Vec::new();
-                while let Some(item) = stack.pop() {
-                    on_stack.remove(item);
-                    component.push(item.to_string());
-                    if item == node {
-                        break;
-                    }
-                }
-                if component.len() > 1 {
-                    component.sort();
-                    cycles.push(component);
-                }
+            if self.low[node] == self.index[node] {
+                self.pop_component(node);
             }
         }
     }
-    cycles.sort();
-    cycles
+}
+
+/// Strongly connected components with more than one module, sorted.
+fn import_cycles(graph: &BTreeMap<String, BTreeSet<String>>) -> Vec<Vec<String>> {
+    let mut state = Tarjan::default();
+    for start in graph.keys().map(String::as_str) {
+        if !state.index.contains_key(start) {
+            state.visit_from(graph, start);
+        }
+    }
+    state.cycles.sort();
+    state.cycles
 }
 
 re!(
@@ -1320,11 +1441,85 @@ fn ratio(numerator: f64, denominator: usize) -> Num {
     }
 }
 
+fn is_production_source(path: &str) -> bool {
+    slop_language(path).is_some() && slop_included(path) && !is_test_path(path)
+}
+
+fn count_verbose_lines(
+    production: &[(String, String)],
+    covered: &BTreeMap<String, BTreeSet<i64>>,
+) -> Result<usize, CheckError> {
+    let mut verbose = 0usize;
+    for (path, text) in production {
+        let mut flagged = verbose_lines(path, text)?;
+        flagged.extend(covered.get(path).into_iter().flatten().copied());
+        verbose += flagged.len();
+    }
+    Ok(verbose)
+}
+
+fn slop_contributions(
+    eroded_share: Num,
+    eroded_count: usize,
+    duplication: Num,
+    clone_count: usize,
+    cycle_density: Num,
+    cycle_count: usize,
+) -> (Map<String, Value>, i64) {
+    let dimensions = [
+        ("complexity-erosion", 0.5, eroded_share, 0.25, eroded_count, 20.0),
+        ("duplication", 0.3, duplication, 0.15, clone_count, 15.0),
+        ("import-cycle", 0.2, cycle_density, 0.10, cycle_count, 5.0),
+    ];
+    let mut contributions = Map::new();
+    let mut total = 0.0;
+    for (name, weight, density, saturation, count, scale) in dimensions {
+        let points = (saturate(density.value(), saturation) + count_points(count as f64, scale)) / 2.0;
+        let value = py::round(weight * points, 2);
+        total += value;
+        contributions.insert(name.into(), json!(value));
+    }
+    (contributions, ((total + 0.5) as i64).clamp(0, 100))
+}
+
+fn format_hotspots(eroded: &[&FunctionMetric]) -> Vec<Value> {
+    let mut hotspots: Vec<&&FunctionMetric> = eroded.iter().collect();
+    hotspots.sort_by(|a, b| b.mass().partial_cmp(&a.mass()).unwrap_or(std::cmp::Ordering::Equal));
+    hotspots
+        .iter()
+        .map(|item| {
+            json!({
+                "path": item.path,
+                "function": item.name,
+                "lines": [item.start, item.end],
+                "complexity": item.complexity,
+                "sloc": item.sloc,
+                "nesting": item.nesting,
+                "mass": py::round(item.mass(), 1),
+            })
+        })
+        .collect()
+}
+
+fn format_clone_groups(groups: &[Vec<Span>]) -> Vec<Value> {
+    groups
+        .iter()
+        .map(|group| {
+            Value::Array(
+                group
+                    .iter()
+                    .map(|(p, s, e)| json!({"path": p, "lines": [s, e]}))
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
 /// Raw structural metrics and the 0-100 sloppiness index (lower is better).
 pub fn slop_measure(root: &Path, files: &[(String, String)], deadline: Deadline) -> Result<Value, CheckError> {
     let production: Vec<(String, String)> = files
         .iter()
-        .filter(|(path, _)| slop_language(path).is_some() && slop_included(path) && !is_test_path(path))
+        .filter(|(path, _)| is_production_source(path))
         .cloned()
         .collect();
     let python: Vec<&str> = production
@@ -1356,12 +1551,7 @@ pub fn slop_measure(root: &Path, files: &[(String, String)], deadline: Deadline)
     graph.extend(javascript_import_graph(&production));
     graph.extend(elixir_import_graph(&production));
     let cycles = import_cycles(&graph);
-    let mut verbose = 0usize;
-    for (path, text) in &production {
-        let mut flagged = verbose_lines(path, text)?;
-        flagged.extend(covered.get(path).into_iter().flatten().copied());
-        verbose += flagged.len();
-    }
+    let verbose = count_verbose_lines(&production, &covered)?;
     let eroded_mass: f64 = eroded.iter().map(|f| f.mass()).fold(0.0, |a, b| a + b);
     let eroded_share = if total_mass != 0.0 {
         Num::Float(eroded_mass / total_mass)
@@ -1387,53 +1577,20 @@ pub fn slop_measure(root: &Path, files: &[(String, String)], deadline: Deadline)
         json!(approximate.iter().collect::<Vec<_>>()),
     );
     raw.insert("languages".into(), json!(languages.iter().collect::<Vec<_>>()));
-    let dimensions = [
-        ("complexity-erosion", 0.5, eroded_share, 0.25, eroded.len(), 20.0),
-        ("duplication", 0.3, duplication, 0.15, groups.len(), 15.0),
-        ("import-cycle", 0.2, cycle_density, 0.10, cycles.len(), 5.0),
-    ];
-    let mut contributions = Map::new();
-    let mut total = 0.0;
-    for (name, weight, density, saturation, count, scale) in dimensions {
-        let points = (saturate(density.value(), saturation) + count_points(count as f64, scale)) / 2.0;
-        let value = py::round(weight * points, 2);
-        total += value;
-        contributions.insert(name.into(), json!(value));
-    }
-    let index = ((total + 0.5) as i64).clamp(0, 100);
-    let mut hotspots: Vec<&&FunctionMetric> = eroded.iter().collect();
-    hotspots.sort_by(|a, b| b.mass().partial_cmp(&a.mass()).unwrap_or(std::cmp::Ordering::Equal));
-    let hotspots: Vec<Value> = hotspots
-        .iter()
-        .map(|item| {
-            json!({
-                "path": item.path,
-                "function": item.name,
-                "lines": [item.start, item.end],
-                "complexity": item.complexity,
-                "sloc": item.sloc,
-                "nesting": item.nesting,
-                "mass": py::round(item.mass(), 1),
-            })
-        })
-        .collect();
-    let clone_groups: Vec<Value> = groups
-        .iter()
-        .map(|group| {
-            Value::Array(
-                group
-                    .iter()
-                    .map(|(p, s, e)| json!({"path": p, "lines": [s, e]}))
-                    .collect(),
-            )
-        })
-        .collect();
+    let (contributions, index) = slop_contributions(
+        eroded_share,
+        eroded.len(),
+        duplication,
+        groups.len(),
+        cycle_density,
+        cycles.len(),
+    );
     Ok(json!({
         "index": index,
         "contributions": contributions,
         "metrics": raw,
-        "hotspots": hotspots,
-        "clone_groups": clone_groups,
+        "hotspots": format_hotspots(&eroded),
+        "clone_groups": format_clone_groups(&groups),
         "import_cycles": cycles,
     }))
 }
@@ -1627,6 +1784,48 @@ fn report_text(report: &Value, top: usize) -> String {
     lines.join("\n")
 }
 
+fn slop_policy_failures(policy: &Map<String, Value>, index: i64, previous: Option<&Value>) -> Vec<String> {
+    let mut failures = Vec::new();
+    if let Some(max) = policy.get("max_index").and_then(Value::as_i64)
+        && index > max
+    {
+        failures.push(format!("index {index} exceeds max_index {max}"));
+    }
+    if let (Some(previous), Some(max)) = (previous, policy.get("max_index_increase").and_then(Value::as_i64)) {
+        let increase = index - previous["index"].as_i64().unwrap_or(0);
+        if increase > max {
+            failures.push(format!("index rose by {increase}, above max_index_increase {max}"));
+        }
+    }
+    failures
+}
+
+fn print_base_diff(base: &str, current: &Value, previous: &Value) {
+    let index = current["index"].as_i64().unwrap_or(0);
+    let before = previous["index"].as_i64().unwrap_or(0);
+    println!("Base {base}: index {before} -> {index} ({:+})", index - before);
+    let known: HashSet<(String, String)> = previous["hotspots"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|h| {
+            (
+                h["path"].as_str().unwrap_or("").to_string(),
+                h["function"].as_str().unwrap_or("").to_string(),
+            )
+        })
+        .collect();
+    for item in current["hotspots"].as_array().into_iter().flatten() {
+        let key = (
+            item["path"].as_str().unwrap_or("").to_string(),
+            item["function"].as_str().unwrap_or("").to_string(),
+        );
+        if !known.contains(&key) {
+            println!("new hotspot {}:{} {}", key.0, item["lines"][0], key.1);
+        }
+    }
+}
+
 /// `loki slop`: print the report; exit 1 when the policy fails.
 pub fn slop_command(
     root: &Path,
@@ -1647,18 +1846,7 @@ pub fn slop_command(
         None => None,
     };
     let index = current["index"].as_i64().unwrap_or(0);
-    let mut failures = Vec::new();
-    if let Some(max) = policy.get("max_index").and_then(Value::as_i64)
-        && index > max
-    {
-        failures.push(format!("index {index} exceeds max_index {max}"));
-    }
-    if let (Some(previous), Some(max)) = (&previous, policy.get("max_index_increase").and_then(Value::as_i64)) {
-        let increase = index - previous["index"].as_i64().unwrap_or(0);
-        if increase > max {
-            failures.push(format!("index rose by {increase}, above max_index_increase {max}"));
-        }
-    }
+    let failures = slop_policy_failures(&policy, index, previous.as_ref());
     if as_json {
         let document = json!({"current": current, "base": previous, "policy_failures": failures});
         println!("{}", py::dumps_indent(&document));
@@ -1666,34 +1854,39 @@ pub fn slop_command(
         let top = usize::try_from(top).unwrap_or(0);
         println!("{}", report_text(&current, top));
         if let (Some(previous), Some(base)) = (&previous, base) {
-            let before = previous["index"].as_i64().unwrap_or(0);
-            println!("Base {base}: index {before} -> {index} ({:+})", index - before);
-            let known: HashSet<(String, String)> = previous["hotspots"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|h| {
-                    (
-                        h["path"].as_str().unwrap_or("").to_string(),
-                        h["function"].as_str().unwrap_or("").to_string(),
-                    )
-                })
-                .collect();
-            for item in current["hotspots"].as_array().into_iter().flatten() {
-                let key = (
-                    item["path"].as_str().unwrap_or("").to_string(),
-                    item["function"].as_str().unwrap_or("").to_string(),
-                );
-                if !known.contains(&key) {
-                    println!("new hotspot {}:{} {}", key.0, item["lines"][0], key.1);
-                }
-            }
+            print_base_diff(base, &current, previous);
         }
         for failure in &failures {
             println!("loki slop: {failure}");
         }
     }
     Ok(i32::from(!failures.is_empty()))
+}
+
+fn match_changed_group(
+    items: Vec<FunctionMetric>,
+    rest: &[FunctionMetric],
+) -> Vec<(FunctionMetric, Option<FunctionMetric>)> {
+    let mut fallback: Option<&FunctionMetric> = None;
+    for item in rest {
+        if fallback.is_none_or(|f| item.complexity > f.complexity) {
+            fallback = Some(item);
+        }
+    }
+    let fallback = fallback.cloned();
+    let count = items.len();
+    items
+        .into_iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let prior = if rest.len() == count {
+                Some(rest[index].clone())
+            } else {
+                fallback.clone()
+            };
+            (item, prior)
+        })
+        .collect()
 }
 
 /// Functions an edit added or changed, each with its committed counterpart.
@@ -1743,49 +1936,36 @@ fn changed_functions(
             .find(|(n, _)| *n == name)
             .map(|(_, l)| l.iter().map(|(_, i)| i.clone()).collect())
             .unwrap_or_default();
-        let mut fallback: Option<&FunctionMetric> = None;
-        for item in &rest {
-            if fallback.is_none_or(|f| item.complexity > f.complexity) {
-                fallback = Some(item);
-            }
-        }
-        let fallback = fallback.cloned();
-        let count = items.len();
-        for (index, item) in items.into_iter().enumerate() {
-            let prior = if rest.len() == count {
-                Some(rest[index].clone())
-            } else {
-                fallback.clone()
-            };
-            pairs.push((item, prior));
-        }
+        pairs.extend(match_changed_group(items, &rest));
     }
     pairs.sort_by_key(|(item, _)| item.start);
     pairs
 }
 
-/// Hotspots, clones and cycles an edit introduces, against committed text.
-pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Result<Vec<String>, CheckError> {
-    let root = resolve(root);
-    let names: Vec<String> = targets
-        .iter()
-        .filter(|p| p.is_file() && slop_language(&p.to_string_lossy()).is_some())
-        .filter_map(|p| p.strip_prefix(&root).ok().map(|r| r.to_string_lossy().into_owned()))
-        .collect();
-    if names.is_empty() {
-        return Ok(vec![]);
-    }
+type TextPairMap = (HashMap<String, String>, HashMap<String, String>);
+
+fn load_written_texts(root: &Path, names: &[String], deadline: Deadline) -> Result<TextPairMap, CheckError> {
     let mut after = HashMap::new();
     let mut before = HashMap::new();
-    for name in &names {
+    for name in names {
         after.insert(
             name.clone(),
             proc::read_text(&root.join(name)).map_err(CheckError::Value)?,
         );
     }
-    for name in &names {
-        before.insert(name.clone(), head_text(&root, name, deadline)?);
+    for name in names {
+        before.insert(name.clone(), head_text(root, name, deadline)?);
     }
+    Ok((before, after))
+}
+
+fn written_complexity_notes(
+    root: &Path,
+    names: &[String],
+    before: &HashMap<String, String>,
+    after: &HashMap<String, String>,
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
     let cheap: Vec<(String, String)> = names
         .iter()
         .filter(|n| matches!(slop_language(n), Some("typescript" | "go")))
@@ -1797,7 +1977,7 @@ pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Res
         })
         .filter(|(_, text)| !text.is_empty())
         .collect();
-    let (exact, _) = exact_function_metrics(&root, &cheap, deadline);
+    let (exact, _) = exact_function_metrics(root, &cheap, deadline);
     let side = |prefix: &str, name: &str| exact.get(&format!("{prefix}{name}"));
     let python: Vec<&str> = names
         .iter()
@@ -1806,7 +1986,7 @@ pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Res
         .collect();
     pyast::prefetch(&python)?;
     let mut notes = Vec::new();
-    for name in &names {
+    for name in names {
         let old = function_metrics(name, &before[name], side("before/", name))?;
         let new = function_metrics(name, &after[name], side("after/", name))?;
         for (item, prior) in changed_functions(old, new, &before[name], &after[name]) {
@@ -1821,62 +2001,80 @@ pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Res
             }
         }
     }
-    let repository = match repository_sources(&root, Some(SLOP_WRITE_BUDGET)) {
-        Ok(files) => files,
-        Err(CheckError::Value(_)) => return Ok(notes),
-        Err(other) => return Err(other),
-    };
-    let focus: HashSet<String> = names.iter().cloned().collect();
-    let merged: Vec<(String, String)> = {
-        let mut merged = repository.clone();
-        for name in &names {
-            match merged.iter_mut().find(|(p, _)| p == name) {
-                Some(entry) => entry.1 = before[name].clone(),
-                None => merged.push((name.clone(), before[name].clone())),
-            }
-        }
-        merged
-    };
-    let (_, groups_after) = clone_lines(&repository, Some(&focus))?;
-    let (_, groups_before) = clone_lines(&merged, Some(&focus))?;
-    if groups_after.len() > groups_before.len() {
-        let seen: HashSet<Vec<String>> = groups_before
-            .iter()
-            .map(|g| {
-                let mut paths: Vec<String> = g.iter().map(|(p, _, _)| p.clone()).collect();
-                paths.sort();
-                paths
-            })
-            .collect();
-        for group in &groups_after {
-            let mut paths: Vec<String> = group.iter().map(|(p, _, _)| p.clone()).collect();
-            paths.sort();
-            if seen.contains(&paths) {
-                continue;
-            }
-            let here = group.iter().find(|m| focus.contains(&m.0)).unwrap_or(&group[0]);
-            let others: Vec<String> = group
-                .iter()
-                .filter(|m| *m != here)
-                .map(|(p, s, e)| format!("{p}:{s}-{e}"))
-                .collect();
-            notes.push(format!(
-                "{}:{}: loki/slop-duplication: lines {}-{} duplicate {}; reuse or extract the shared code",
-                here.0,
-                here.1,
-                here.1,
-                here.2,
-                others.join(", ")
-            ));
+    Ok(notes)
+}
+
+fn merge_before_sources(
+    repository: &[(String, String)],
+    names: &[String],
+    before: &HashMap<String, String>,
+) -> Vec<(String, String)> {
+    let mut merged = repository.to_vec();
+    for name in names {
+        match merged.iter_mut().find(|(p, _)| p == name) {
+            Some(entry) => entry.1 = before[name].clone(),
+            None => merged.push((name.clone(), before[name].clone())),
         }
     }
+    merged
+}
+
+fn written_clone_notes(
+    repository: &[(String, String)],
+    merged: &[(String, String)],
+    focus: &HashSet<String>,
+) -> Result<Vec<String>, CheckError> {
+    let (_, groups_after) = clone_lines(repository, Some(focus))?;
+    let (_, groups_before) = clone_lines(merged, Some(focus))?;
+    let mut notes = Vec::new();
+    if groups_after.len() <= groups_before.len() {
+        return Ok(notes);
+    }
+    let seen: HashSet<Vec<String>> = groups_before
+        .iter()
+        .map(|g| {
+            let mut paths: Vec<String> = g.iter().map(|(p, _, _)| p.clone()).collect();
+            paths.sort();
+            paths
+        })
+        .collect();
+    for group in &groups_after {
+        let mut paths: Vec<String> = group.iter().map(|(p, _, _)| p.clone()).collect();
+        paths.sort();
+        if seen.contains(&paths) {
+            continue;
+        }
+        let here = group.iter().find(|m| focus.contains(&m.0)).unwrap_or(&group[0]);
+        let others: Vec<String> = group
+            .iter()
+            .filter(|m| *m != here)
+            .map(|(p, s, e)| format!("{p}:{s}-{e}"))
+            .collect();
+        notes.push(format!(
+            "{}:{}: loki/slop-duplication: lines {}-{} duplicate {}; reuse or extract the shared code",
+            here.0,
+            here.1,
+            here.1,
+            here.2,
+            others.join(", ")
+        ));
+    }
+    Ok(notes)
+}
+
+fn written_cycle_notes(
+    repository: &[(String, String)],
+    merged: &[(String, String)],
+    focus: &HashSet<String>,
+) -> Result<Vec<String>, CheckError> {
     let mut graphs = Vec::new();
-    for sources in [&merged, &repository] {
+    for sources in [merged, repository] {
         let mut graph = python_import_graph(sources)?;
         graph.extend(javascript_import_graph(sources));
         graphs.push(graph);
     }
     let old_cycles: HashSet<Vec<String>> = import_cycles(&graphs[0]).into_iter().collect();
+    let mut notes = Vec::new();
     for cycle in import_cycles(&graphs[1]) {
         if old_cycles.contains(&cycle) {
             continue;
@@ -1888,6 +2086,31 @@ pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Res
             ));
         }
     }
+    Ok(notes)
+}
+
+/// Hotspots, clones and cycles an edit introduces, against committed text.
+pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Result<Vec<String>, CheckError> {
+    let root = resolve(root);
+    let names: Vec<String> = targets
+        .iter()
+        .filter(|p| p.is_file() && slop_language(&p.to_string_lossy()).is_some())
+        .filter_map(|p| p.strip_prefix(&root).ok().map(|r| r.to_string_lossy().into_owned()))
+        .collect();
+    if names.is_empty() {
+        return Ok(vec![]);
+    }
+    let (before, after) = load_written_texts(&root, &names, deadline)?;
+    let mut notes = written_complexity_notes(&root, &names, &before, &after, deadline)?;
+    let repository = match repository_sources(&root, Some(SLOP_WRITE_BUDGET)) {
+        Ok(files) => files,
+        Err(CheckError::Value(_)) => return Ok(notes),
+        Err(other) => return Err(other),
+    };
+    let focus: HashSet<String> = names.iter().cloned().collect();
+    let merged = merge_before_sources(&repository, &names, &before);
+    notes.extend(written_clone_notes(&repository, &merged, &focus)?);
+    notes.extend(written_cycle_notes(&repository, &merged, &focus)?);
     notes.truncate(MAX_VIOLATIONS);
     Ok(notes)
 }

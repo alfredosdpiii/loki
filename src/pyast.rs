@@ -349,9 +349,7 @@ fn unavailable(message: impl Into<String>) -> CheckError {
     CheckError::Guard("PythonUnavailable".into(), message.into())
 }
 
-/// One helper run over every request not answered yet.
-fn ask(requests: Vec<(Key, bool)>) -> Result<(), CheckError> {
-    let mut state = STATE.lock().map_err(|_| unavailable("parser state poisoned"))?;
+fn missing_requests(state: &State, requests: Vec<(Key, bool)>) -> Vec<(Key, bool)> {
     let mut wanted: Vec<(Key, bool)> = Vec::new();
     for (key, tokens) in requests {
         let known = if tokens {
@@ -363,9 +361,10 @@ fn ask(requests: Vec<(Key, bool)>) -> Result<(), CheckError> {
             wanted.push((key, tokens));
         }
     }
-    if wanted.is_empty() && state.stdlib.is_some() {
-        return Ok(());
-    }
+    wanted
+}
+
+fn run_helper(wanted: &[(Key, bool)]) -> Result<Value, CheckError> {
     let payload: Vec<Value> = wanted
         .iter()
         .map(|((_, filename, text), tokens)| {
@@ -388,7 +387,49 @@ fn ask(requests: Vec<(Key, bool)>) -> Result<(), CheckError> {
     if !output.status.success() {
         return Err(unavailable(String::from_utf8_lossy(&output.stderr).trim().to_string()));
     }
-    let reply: Value = serde_json::from_slice(&output.stdout).map_err(|e| unavailable(e.to_string()))?;
+    serde_json::from_slice(&output.stdout).map_err(|e| unavailable(e.to_string()))
+}
+
+fn apply_helper_reply(state: &mut State, key: Key, tokens: bool, answer: Value) -> Result<(), CheckError> {
+    if let Some(fatal) = answer.get("fatal") {
+        return Err(CheckError::Guard(
+            fatal[0].as_str().unwrap_or("Error").to_string(),
+            fatal[1].as_str().unwrap_or("").to_string(),
+        ));
+    }
+    let shown: String = answer["warnings"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    if !tokens && !shown.is_empty() {
+        state.warned.insert(key.clone(), shown);
+    }
+    if tokens {
+        let found = answer["tokens"].as_array().cloned().unwrap_or_default();
+        state.tokens.insert(key.2, Arc::new(found));
+    } else if let Some(error) = answer.get("error") {
+        state
+            .parsed
+            .insert(key, Parsed::Error(error.as_str().unwrap_or("").to_string()));
+    } else {
+        let nodes = answer["nodes"].as_array().cloned().unwrap_or_default();
+        state
+            .parsed
+            .insert(key, Parsed::Tree(Arc::new(Tree::from_wire(&nodes))));
+    }
+    Ok(())
+}
+
+/// One helper run over every request not answered yet.
+fn ask(requests: Vec<(Key, bool)>) -> Result<(), CheckError> {
+    let mut state = STATE.lock().map_err(|_| unavailable("parser state poisoned"))?;
+    let wanted = missing_requests(&state, requests);
+    if wanted.is_empty() && state.stdlib.is_some() {
+        return Ok(());
+    }
+    let reply = run_helper(&wanted)?;
     let names = |key: &str| -> HashSet<String> {
         reply[key]
             .as_array()
@@ -401,34 +442,7 @@ fn ask(requests: Vec<(Key, bool)>) -> Result<(), CheckError> {
     state.stdlib = Some(Arc::new((names("stdlib"), names("builtin"))));
     let replies = reply["replies"].as_array().cloned().unwrap_or_default();
     for ((key, tokens), answer) in wanted.into_iter().zip(replies) {
-        if let Some(fatal) = answer.get("fatal") {
-            return Err(CheckError::Guard(
-                fatal[0].as_str().unwrap_or("Error").to_string(),
-                fatal[1].as_str().unwrap_or("").to_string(),
-            ));
-        }
-        let shown: String = answer["warnings"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .collect();
-        if !tokens && !shown.is_empty() {
-            state.warned.insert(key.clone(), shown);
-        }
-        if tokens {
-            let found = answer["tokens"].as_array().cloned().unwrap_or_default();
-            state.tokens.insert(key.2, Arc::new(found));
-        } else if let Some(error) = answer.get("error") {
-            state
-                .parsed
-                .insert(key, Parsed::Error(error.as_str().unwrap_or("").to_string()));
-        } else {
-            let nodes = answer["nodes"].as_array().cloned().unwrap_or_default();
-            state
-                .parsed
-                .insert(key, Parsed::Tree(Arc::new(Tree::from_wire(&nodes))));
-        }
+        apply_helper_reply(&mut state, key, tokens, answer)?;
     }
     Ok(())
 }
@@ -553,31 +567,41 @@ fn http_call(name: &str) -> bool {
         })
 }
 
-fn request_field(tree: &Tree, node: usize) -> Option<String> {
-    let (key, mut owner) = match tree.kind(node) {
-        "Subscript" => (tree.node(node, "slice")?, tree.node(node, "value")?),
+fn is_request_owner(tree: &Tree, mut owner: usize) -> bool {
+    while tree.kind(owner) == "Attribute" {
+        if SERVER_ATTRIBUTES.contains(&tree.str(owner, "attr").unwrap_or("")) {
+            return false;
+        }
+        let Some(next) = tree.node(owner, "value") else {
+            return false;
+        };
+        owner = next;
+    }
+    tree.kind(owner) == "Name" && REQUEST_NAMES.contains(&tree.str(owner, "id").unwrap_or(""))
+}
+
+fn request_key_and_owner(tree: &Tree, node: usize) -> Option<(usize, usize)> {
+    match tree.kind(node) {
+        "Subscript" => Some((tree.node(node, "slice")?, tree.node(node, "value")?)),
         "Call" => {
             let func = tree.node(node, "func")?;
             let args = tree.list(node, "args");
             if tree.kind(func) != "Attribute" || tree.str(func, "attr") != Some("get") || args.is_empty() {
                 return None;
             }
-            (args[0], tree.node(func, "value")?)
+            Some((args[0], tree.node(func, "value")?))
         }
-        _ => return None,
-    };
+        _ => None,
+    }
+}
+
+fn request_field(tree: &Tree, node: usize) -> Option<String> {
+    let (key, owner) = request_key_and_owner(tree, node)?;
     let value = tree.constant_str(key)?;
     if !langrules::AUTHORIZATION_KEY.is_match(value) {
         return None;
     }
-    while tree.kind(owner) == "Attribute" {
-        if SERVER_ATTRIBUTES.contains(&tree.str(owner, "attr").unwrap_or("")) {
-            return None;
-        }
-        owner = tree.node(owner, "value")?;
-    }
-    (tree.kind(owner) == "Name" && REQUEST_NAMES.contains(&tree.str(owner, "id").unwrap_or("")))
-        .then(|| value.to_string())
+    is_request_owner(tree, owner).then(|| value.to_string())
 }
 
 fn request_source(tree: &Tree, node: usize) -> bool {
@@ -590,21 +614,69 @@ fn request_source(tree: &Tree, node: usize) -> bool {
         "Attribute" => Some(node),
         _ => None,
     };
-    let Some(mut owner) = owner else { return false };
-    while tree.kind(owner) == "Attribute" {
-        if SERVER_ATTRIBUTES.contains(&tree.str(owner, "attr").unwrap_or("")) {
-            return false;
-        }
-        match tree.node(owner, "value") {
-            Some(next) => owner = next,
-            None => return false,
-        }
-    }
-    tree.kind(owner) == "Name" && REQUEST_NAMES.contains(&tree.str(owner, "id").unwrap_or(""))
+    owner.is_some_and(|o| is_request_owner(tree, o))
 }
 
 fn last_name(name: &str) -> &str {
     name.rsplit('.').next().unwrap_or(name)
+}
+
+fn is_tainted_item(tree: &Tree, item: usize, tainted: &HashSet<String>) -> bool {
+    request_source(tree, item) || (tree.kind(item) == "Name" && tainted.contains(tree.str(item, "id").unwrap_or("")))
+}
+
+fn record_tainted_targets(tree: &Tree, node: usize, tainted: &mut HashSet<String>) {
+    let targets = if tree.kind(node) == "Assign" {
+        tree.list(node, "targets")
+    } else {
+        tree.node(node, "target").into_iter().collect()
+    };
+    for target in targets {
+        for item in tree.walk(target) {
+            if tree.kind(item) == "Name" {
+                tainted.insert(tree.str(item, "id").unwrap_or("").to_string());
+            }
+        }
+    }
+}
+
+fn collect_tainted_names(tree: &Tree, walked: &[usize]) -> HashSet<String> {
+    let mut tainted: HashSet<String> = HashSet::new();
+    for _ in 0..2 {
+        for &node in walked {
+            if !tree.is(node, &["Assign", "AnnAssign"]) {
+                continue;
+            }
+            let Some(value) = tree.node(node, "value") else {
+                continue;
+            };
+            if tree.walk(value).iter().any(|&item| is_tainted_item(tree, item, &tainted)) {
+                record_tainted_targets(tree, node, &mut tainted);
+            }
+        }
+    }
+    tainted
+}
+
+fn find_tainted_sink(
+    tree: &Tree,
+    walked: &[usize],
+    tainted: &HashSet<String>,
+    sink: &impl Fn(&str) -> bool,
+    arguments: &impl Fn(usize) -> Vec<usize>,
+) -> Option<usize> {
+    for &node in walked {
+        if tree.kind(node) != "Call" || !sink(tree.func_text(node)) {
+            continue;
+        }
+        if arguments(node)
+            .iter()
+            .any(|&a| tree.walk(a).iter().any(|&item| is_tainted_item(tree, item, tainted)))
+        {
+            return Some(node);
+        }
+    }
+    None
 }
 
 fn request_tainted_calls(
@@ -619,10 +691,6 @@ fn request_tainted_calls(
             .into_iter()
             .filter(|&n| tree.is(n, &["FunctionDef", "AsyncFunctionDef"])),
     );
-    let tainted_item = |item: usize, tainted: &HashSet<String>| {
-        request_source(tree, item)
-            || (tree.kind(item) == "Name" && tainted.contains(tree.str(item, "id").unwrap_or("")))
-    };
     let mut calls: Vec<usize> = Vec::new();
     for scope in scopes {
         let walked = tree.walk(scope);
@@ -634,42 +702,9 @@ fn request_tainted_calls(
         {
             continue;
         }
-        let mut tainted: HashSet<String> = HashSet::new();
-        for _ in 0..2 {
-            for &node in &walked {
-                if !tree.is(node, &["Assign", "AnnAssign"]) {
-                    continue;
-                }
-                let Some(value) = tree.node(node, "value") else {
-                    continue;
-                };
-                if tree.walk(value).iter().any(|&item| tainted_item(item, &tainted)) {
-                    let targets = if tree.kind(node) == "Assign" {
-                        tree.list(node, "targets")
-                    } else {
-                        tree.node(node, "target").into_iter().collect()
-                    };
-                    for target in targets {
-                        for item in tree.walk(target) {
-                            if tree.kind(item) == "Name" {
-                                tainted.insert(tree.str(item, "id").unwrap_or("").to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        for &node in &walked {
-            if tree.kind(node) != "Call" || !sink(tree.func_text(node)) {
-                continue;
-            }
-            if arguments(node)
-                .iter()
-                .any(|&a| tree.walk(a).iter().any(|&item| tainted_item(item, &tainted)))
-            {
-                calls.push(node);
-                break;
-            }
+        let tainted = collect_tainted_names(tree, &walked);
+        if let Some(node) = find_tainted_sink(tree, &walked, &tainted, &sink, &arguments) {
+            calls.push(node);
         }
     }
     let mut seen = HashSet::new();
@@ -700,6 +735,48 @@ fn computed_call(tree: &Tree, node: usize, values: &HashMap<String, String>) -> 
     }
 }
 
+fn assigned_call_dumps(tree: &Tree, walked: &[usize]) -> HashMap<String, String> {
+    let mut values: HashMap<String, String> = HashMap::new();
+    for &node in walked {
+        if tree.kind(node) != "Assign" {
+            continue;
+        }
+        let Some(value) = tree.node(node, "value").filter(|&v| tree.kind(v) == "Call") else {
+            continue;
+        };
+        for target in tree.list(node, "targets") {
+            if tree.kind(target) == "Name" {
+                values.insert(tree.str(target, "id").unwrap_or("").to_string(), tree.dump(value));
+            }
+        }
+    }
+    values
+}
+
+fn equality_assertion_pair(tree: &Tree, node: usize) -> Option<(usize, usize)> {
+    let pair: Vec<usize> = if tree.kind(node) == "Call"
+        && let Some(func) = tree.node(node, "func")
+        && tree.kind(func) == "Attribute"
+        && matches!(
+            tree.str(func, "attr"),
+            Some("assertEqual" | "assertEquals" | "assertAlmostEqual")
+        ) {
+        tree.list(node, "args").into_iter().take(2).collect()
+    } else if tree.kind(node) == "Assert"
+        && let Some(test) = tree.node(node, "test")
+        && tree.kind(test) == "Compare"
+        && tree.list(test, "ops").first().is_some_and(|&op| tree.kind(op) == "Eq")
+    {
+        tree.node(test, "left")
+            .into_iter()
+            .chain(tree.list(test, "comparators").into_iter().take(1))
+            .collect()
+    } else {
+        return None;
+    };
+    (pair.len() == 2).then(|| (pair[0], pair[1]))
+}
+
 fn tautological_assertions(tree: &Tree) -> Vec<usize> {
     let mut found = Vec::new();
     for function in tree.walk(0) {
@@ -709,44 +786,11 @@ fn tautological_assertions(tree: &Tree) -> Vec<usize> {
             continue;
         }
         let walked = tree.walk(function);
-        let mut values: HashMap<String, String> = HashMap::new();
+        let values = assigned_call_dumps(tree, &walked);
         for &node in &walked {
-            if tree.kind(node) == "Assign"
-                && let Some(value) = tree.node(node, "value")
-                && tree.kind(value) == "Call"
-            {
-                for target in tree.list(node, "targets") {
-                    if tree.kind(target) == "Name" {
-                        values.insert(tree.str(target, "id").unwrap_or("").to_string(), tree.dump(value));
-                    }
-                }
-            }
-        }
-        for &node in &walked {
-            let mut pair: Vec<usize> = Vec::new();
-            if tree.kind(node) == "Call"
-                && let Some(func) = tree.node(node, "func")
-                && tree.kind(func) == "Attribute"
-                && matches!(
-                    tree.str(func, "attr"),
-                    Some("assertEqual" | "assertEquals" | "assertAlmostEqual")
-                )
-            {
-                pair = tree.list(node, "args").into_iter().take(2).collect();
-            } else if tree.kind(node) == "Assert"
-                && let Some(test) = tree.node(node, "test")
-                && tree.kind(test) == "Compare"
-                && tree.list(test, "ops").first().is_some_and(|&op| tree.kind(op) == "Eq")
-            {
-                pair = tree
-                    .node(test, "left")
-                    .into_iter()
-                    .chain(tree.list(test, "comparators").into_iter().take(1))
-                    .collect();
-            }
-            if pair.len() == 2
-                && let Some(first) = computed_call(tree, pair[0], &values)
-                && Some(first) == computed_call(tree, pair[1], &values)
+            if let Some((left, right)) = equality_assertion_pair(tree, node)
+                && let Some(first) = computed_call(tree, left, &values)
+                && Some(first) == computed_call(tree, right, &values)
             {
                 found.push(node);
             }
@@ -759,26 +803,30 @@ fn index_error() -> CheckError {
     CheckError::Guard("IndexError".into(), "list index out of range".into())
 }
 
-/// `python_rules`: findings at loki.py's offsets (line start in characters plus
-/// the node's UTF-8 column).
-pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckError> {
-    let Some(tree) = parse(&text.s)? else { return Ok(vec![]) };
-    let tree = tree.as_ref();
+fn line_offsets(text: &str) -> Vec<usize> {
     let mut offsets = vec![0usize];
-    for line in py::splitlines(&text.s, true) {
+    for line in py::splitlines(text, true) {
         offsets.push(offsets[offsets.len() - 1] + line.chars().count());
     }
-    let at = |node: usize| -> Result<usize, CheckError> {
-        let line = tree.line(node);
-        let start = usize::try_from(line - 1)
-            .ok()
-            .and_then(|l| offsets.get(l))
-            .ok_or_else(index_error)?;
-        Ok((*start as i64 + tree.col(node)).max(0) as usize)
-    };
-    let mut findings: Vec<crate::rules::Finding> = Vec::new();
-    let walked = tree.walk(0);
-    for &node in &walked {
+    offsets
+}
+
+fn node_offset(tree: &Tree, offsets: &[usize], node: usize) -> Result<usize, CheckError> {
+    let line = tree.line(node);
+    let start = usize::try_from(line - 1)
+        .ok()
+        .and_then(|l| offsets.get(l))
+        .ok_or_else(index_error)?;
+    Ok((*start as i64 + tree.col(node)).max(0) as usize)
+}
+
+fn check_request_auth(
+    tree: &Tree,
+    walked: &[usize],
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
+    for &node in walked {
         let operands: Vec<usize> = match tree.kind(node) {
             "Compare" => tree
                 .node(node, "left")
@@ -799,13 +847,17 @@ pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckErro
                     format!(
                         "authorization decision trusts client-controlled request field \"{key}\"; derive privilege from the authenticated server-side identity"
                     ),
-                    at(operand)?,
+                    node_offset(tree, offsets, operand)?,
                 ));
             }
         }
     }
+    Ok(())
+}
+
+fn collect_derived_secrets(tree: &Tree, walked: &[usize]) -> HashSet<String> {
     let mut derived: HashSet<String> = HashSet::new();
-    for &node in &walked {
+    for &node in walked {
         if tree.kind(node) == "Assign"
             && let Some(value) = tree.node(node, "value")
             && tree
@@ -820,79 +872,142 @@ pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckErro
             }
         }
     }
-    for &node in &walked {
-        if tree.kind(node) == "Call"
-            && ["run", "call", "Popen", "check_call", "check_output"].contains(&last_name(tree.func_text(node)))
-            && let Some(&first) = tree.list(node, "args").first()
-            && tree.kind(first) == "List"
-        {
-            // None for a non-constant item (or a None constant), else the constant.
-            let constant: Vec<Option<&Const>> = tree
-                .list(first, "elts")
-                .into_iter()
-                .map(|item| tree.constant(item).filter(|c| c.kind != "NoneType"))
-                .collect();
-            fn text_of<'a>(c: &Option<&'a Const>) -> Option<&'a str> {
-                c.and_then(|c| if c.kind == "str" { c.text.as_deref() } else { None })
-            }
-            let dash_c = constant.iter().position(|c| text_of(c) == Some("-c"));
-            if let (Some(head), Some(dash)) = (constant.first(), dash_c)
-                && text_of(head).is_some_and(|program| langrules::SHELLS.contains(&program))
-                && constant[dash..].iter().any(Option::is_none)
-            {
-                findings.push(("loki/command-injection", langrules::SHELL_COMMAND.into(), at(node)?));
-            }
+    derived
+}
+
+fn is_shell_command_injection(tree: &Tree, node: usize) -> bool {
+    if tree.kind(node) != "Call"
+        || !["run", "call", "Popen", "check_call", "check_output"].contains(&last_name(tree.func_text(node)))
+    {
+        return false;
+    }
+    let Some(&first) = tree.list(node, "args").first() else {
+        return false;
+    };
+    if tree.kind(first) != "List" {
+        return false;
+    }
+    let constant: Vec<Option<&Const>> = tree
+        .list(first, "elts")
+        .into_iter()
+        .map(|item| tree.constant(item).filter(|c| c.kind != "NoneType"))
+        .collect();
+    fn text_of<'a>(c: &Option<&'a Const>) -> Option<&'a str> {
+        c.and_then(|c| if c.kind == "str" { c.text.as_deref() } else { None })
+    }
+    let dash_c = constant.iter().position(|c| text_of(c) == Some("-c"));
+    let Some((head, dash)) = constant.first().zip(dash_c) else {
+        return false;
+    };
+    text_of(head).is_some_and(|program| langrules::SHELLS.contains(&program))
+        && constant[dash..].iter().any(Option::is_none)
+}
+
+fn is_timing_compare(tree: &Tree, node: usize, derived: &HashSet<String>) -> bool {
+    if tree.kind(node) != "Compare" || !tree.list(node, "ops").iter().all(|&op| tree.is(op, &["Eq", "NotEq"])) {
+        return false;
+    }
+    let operands: Vec<usize> = tree
+        .node(node, "left")
+        .into_iter()
+        .chain(tree.list(node, "comparators"))
+        .collect();
+    operands.iter().any(|&item| secret_value(tree, item, derived))
+        && !operands.iter().any(|&item| tree.kind(item) == "Constant")
+}
+
+fn check_shell_and_timing(
+    tree: &Tree,
+    walked: &[usize],
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
+    let derived = collect_derived_secrets(tree, walked);
+    for &node in walked {
+        if is_shell_command_injection(tree, node) {
+            findings.push((
+                "loki/command-injection",
+                langrules::SHELL_COMMAND.into(),
+                node_offset(tree, offsets, node)?,
+            ));
         }
-        if tree.kind(node) == "Compare" && tree.list(node, "ops").iter().all(|&op| tree.is(op, &["Eq", "NotEq"])) {
-            let operands: Vec<usize> = tree
-                .node(node, "left")
-                .into_iter()
-                .chain(tree.list(node, "comparators"))
-                .collect();
-            if operands.iter().any(|&item| secret_value(tree, item, &derived))
-                && !operands.iter().any(|&item| tree.kind(item) == "Constant")
-            {
-                findings.push((
-                    "loki/timing-compare",
-                    "timing attack: signature or digest compared with ==; use hmac.compare_digest".into(),
-                    at(node)?,
-                ));
-            }
+        if is_timing_compare(tree, node, &derived) {
+            findings.push((
+                "loki/timing-compare",
+                "timing attack: signature or digest compared with ==; use hmac.compare_digest".into(),
+                node_offset(tree, offsets, node)?,
+            ));
         }
     }
-    const REGEX_CALLS: [&str; 8] = [
-        "re.compile",
-        "re.match",
-        "re.search",
-        "re.fullmatch",
-        "re.findall",
-        "re.finditer",
-        "re.sub",
-        "re.split",
-    ];
-    for &node in &walked {
+    Ok(())
+}
+
+const REGEX_CALLS: [&str; 8] = [
+    "re.compile",
+    "re.match",
+    "re.search",
+    "re.fullmatch",
+    "re.findall",
+    "re.finditer",
+    "re.sub",
+    "re.split",
+];
+
+fn check_regex_redos(
+    tree: &Tree,
+    walked: &[usize],
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
+    for &node in walked {
         if tree.kind(node) == "Call"
             && REGEX_CALLS.contains(&tree.func_text(node))
             && let Some(&first) = tree.list(node, "args").first()
             && let Some(pattern) = tree.constant_str(first)
             && jsrules::nested_quantifier(pattern)
         {
-            findings.push((jsrules::REDOS_RULE, jsrules::REDOS_MESSAGE.into(), at(node)?));
+            findings.push((
+                jsrules::REDOS_RULE,
+                jsrules::REDOS_MESSAGE.into(),
+                node_offset(tree, offsets, node)?,
+            ));
         }
     }
-    let keyword_values = |call: usize| -> Vec<(Option<String>, usize)> {
-        tree.list(call, "keywords")
-            .into_iter()
-            .filter_map(|k| tree.node(k, "value").map(|v| (tree.str(k, "arg").map(String::from), v)))
-            .collect()
-    };
+    Ok(())
+}
+
+fn keyword_values(tree: &Tree, call: usize) -> Vec<(Option<String>, usize)> {
+    tree.list(call, "keywords")
+        .into_iter()
+        .filter_map(|k| tree.node(k, "value").map(|v| (tree.str(k, "arg").map(String::from), v)))
+        .collect()
+}
+
+fn url_arguments(tree: &Tree, call: usize) -> Vec<usize> {
+    tree.list(call, "args")
+        .into_iter()
+        .take(1)
+        .chain(
+            keyword_values(tree, call)
+                .into_iter()
+                .filter(|(k, _)| k.as_deref() == Some("url"))
+                .map(|(_, v)| v),
+        )
+        .collect()
+}
+
+fn check_traversal_tautology_ssrf(
+    tree: &Tree,
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
     let traversal = request_tainted_calls(
         tree,
         |name| PATH_CALLS.contains(&name) || name.ends_with(".joinpath"),
         |call| {
             tree.list(call, "args")
                 .into_iter()
-                .chain(keyword_values(call).into_iter().map(|(_, v)| v))
+                .chain(keyword_values(tree, call).into_iter().map(|(_, v)| v))
                 .collect()
         },
         |name| PATH_SANITIZERS.contains(&name),
@@ -901,78 +1016,99 @@ pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckErro
         findings.push((
             "loki/path-traversal",
             "path traversal: file path built from request data; take the base name or resolve it and check it stays under the intended directory".into(),
-            at(call)?,
+            node_offset(tree, offsets, call)?,
         ));
     }
     for call in tautological_assertions(tree) {
         findings.push((
             "loki/tautological-test",
             "tautological assertion: the expected value is computed by the same call as the result, so the test always passes".into(),
-            at(call)?,
+            node_offset(tree, offsets, call)?,
         ));
     }
-    let ssrf = request_tainted_calls(
-        tree,
-        http_call,
-        |call| {
-            tree.list(call, "args")
-                .into_iter()
-                .take(1)
-                .chain(
-                    keyword_values(call)
-                        .into_iter()
-                        .filter(|(k, _)| k.as_deref() == Some("url"))
-                        .map(|(_, v)| v),
-                )
-                .collect()
-        },
-        |_| false,
-    );
-    for call in ssrf {
+    for call in request_tainted_calls(tree, http_call, |call| url_arguments(tree, call), |_| false) {
         findings.push((
             "loki/ssrf",
             "server-side request forgery (SSRF): outbound request URL comes from request data; validate the host against an allowlist".into(),
-            at(call)?,
+            node_offset(tree, offsets, call)?,
         ));
     }
-    for &node in &walked {
+    Ok(())
+}
+
+fn is_unverified_hostname_assign(tree: &Tree, node: usize) -> bool {
+    tree.node(node, "value")
+        .and_then(|v| tree.constant(v))
+        .is_some_and(|c| c.repr == "False")
+        && tree
+            .list(node, "targets")
+            .iter()
+            .any(|&t| tree.kind(t) == "Attribute" && tree.str(t, "attr") == Some("check_hostname"))
+}
+
+fn check_call_sql_yaml_tls(
+    tree: &Tree,
+    node: usize,
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
+    let name = tree.func_text(node);
+    if SQL_CALLS.contains(&last_name(name))
+        && let Some(&first) = tree.list(node, "args").first()
+        && built_sql(tree, first)
+    {
+        findings.push((
+            "loki/sql-injection",
+            jsrules::SQL_QUERY.into(),
+            node_offset(tree, offsets, node)?,
+        ));
+    }
+    if unsafe_yaml(tree, node) {
+        findings.push((
+            "loki/unsafe-deserialization",
+            format!(
+                "unsafe deserialization: {name} without SafeLoader can build arbitrary Python objects; use yaml.safe_load"
+            ),
+            node_offset(tree, offsets, node)?,
+        ));
+    }
+    if tls_unverified(tree, node) {
+        findings.push((
+            "loki/tls-verification",
+            jsrules::TLS_VERIFICATION.into(),
+            node_offset(tree, offsets, node)?,
+        ));
+    }
+    Ok(())
+}
+
+fn check_sql_yaml_tls(
+    tree: &Tree,
+    walked: &[usize],
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
+    for &node in walked {
         if tree.kind(node) == "Assign" {
-            if tree
-                .node(node, "value")
-                .and_then(|v| tree.constant(v))
-                .is_some_and(|c| c.repr == "False")
-                && tree
-                    .list(node, "targets")
-                    .iter()
-                    .any(|&t| tree.kind(t) == "Attribute" && tree.str(t, "attr") == Some("check_hostname"))
-            {
-                findings.push(("loki/tls-verification", jsrules::TLS_VERIFICATION.into(), at(node)?));
+            if is_unverified_hostname_assign(tree, node) {
+                findings.push((
+                    "loki/tls-verification",
+                    jsrules::TLS_VERIFICATION.into(),
+                    node_offset(tree, offsets, node)?,
+                ));
             }
-            continue;
-        }
-        if tree.kind(node) != "Call" {
-            continue;
-        }
-        let name = tree.func_text(node);
-        if SQL_CALLS.contains(&last_name(name))
-            && let Some(&first) = tree.list(node, "args").first()
-            && built_sql(tree, first)
-        {
-            findings.push(("loki/sql-injection", jsrules::SQL_QUERY.into(), at(node)?));
-        }
-        if unsafe_yaml(tree, node) {
-            findings.push((
-                "loki/unsafe-deserialization",
-                format!(
-                    "unsafe deserialization: {name} without SafeLoader can build arbitrary Python objects; use yaml.safe_load"
-                ),
-                at(node)?,
-            ));
-        }
-        if tls_unverified(tree, node) {
-            findings.push(("loki/tls-verification", jsrules::TLS_VERIFICATION.into(), at(node)?));
+        } else if tree.kind(node) == "Call" {
+            check_call_sql_yaml_tls(tree, node, offsets, findings)?;
         }
     }
+    Ok(())
+}
+
+fn check_eval_deserialize_redirect(
+    tree: &Tree,
+    offsets: &[usize],
+    findings: &mut Vec<crate::rules::Finding>,
+) -> Result<(), CheckError> {
     let first = |call: usize| tree.list(call, "args").into_iter().take(1).collect::<Vec<_>>();
     for call in request_tainted_calls(
         tree,
@@ -986,7 +1122,7 @@ pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckErro
                 "dynamic code execution: non-literal source passed to {}",
                 tree.func_text(call)
             ),
-            at(call)?,
+            node_offset(tree, offsets, call)?,
         ));
     }
     for call in request_tainted_calls(tree, deserialize_call, first, |_| false) {
@@ -996,7 +1132,7 @@ pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckErro
                 "unsafe deserialization: request data passed to {} can run arbitrary code; use JSON or verify a signature first",
                 tree.func_text(call)
             ),
-            at(call)?,
+            node_offset(tree, offsets, call)?,
         ));
     }
     let redirects = request_tainted_calls(
@@ -1004,23 +1140,33 @@ pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckErro
         |name| {
             REDIRECT_CALLS.contains(&name) || (REDIRECT_CALLS.contains(&last_name(name)) && !name.starts_with("self."))
         },
-        |call| {
-            tree.list(call, "args")
-                .into_iter()
-                .take(1)
-                .chain(
-                    keyword_values(call)
-                        .into_iter()
-                        .filter(|(k, _)| k.as_deref() == Some("url"))
-                        .map(|(_, v)| v),
-                )
-                .collect()
-        },
+        |call| url_arguments(tree, call),
         |name| REDIRECT_SANITIZER.is_match(name),
     );
     for call in redirects {
-        findings.push(("loki/open-redirect", jsrules::OPEN_REDIRECT.into(), at(call)?));
+        findings.push((
+            "loki/open-redirect",
+            jsrules::OPEN_REDIRECT.into(),
+            node_offset(tree, offsets, call)?,
+        ));
     }
+    Ok(())
+}
+
+/// `python_rules`: findings at loki.py's offsets (line start in characters plus
+/// the node's UTF-8 column).
+pub fn python_rules(text: &Text) -> Result<Vec<crate::rules::Finding>, CheckError> {
+    let Some(tree) = parse(&text.s)? else { return Ok(vec![]) };
+    let tree = tree.as_ref();
+    let offsets = line_offsets(&text.s);
+    let walked = tree.walk(0);
+    let mut findings: Vec<crate::rules::Finding> = Vec::new();
+    check_request_auth(tree, &walked, &offsets, &mut findings)?;
+    check_shell_and_timing(tree, &walked, &offsets, &mut findings)?;
+    check_regex_redos(tree, &walked, &offsets, &mut findings)?;
+    check_traversal_tautology_ssrf(tree, &offsets, &mut findings)?;
+    check_sql_yaml_tls(tree, &walked, &offsets, &mut findings)?;
+    check_eval_deserialize_redirect(tree, &offsets, &mut findings)?;
     Ok(findings)
 }
 
@@ -1083,45 +1229,72 @@ fn addends(tree: &Tree, node: usize) -> Vec<usize> {
     vec![node]
 }
 
+fn sql_holes(text: &str, re: &Regex) -> Vec<String> {
+    re.find_iter(text).map(|m| text[..m.start()].to_string()).collect()
+}
+
+fn joined_str_parts(tree: &Tree, node: usize) -> (String, Vec<String>) {
+    let mut text = String::new();
+    let mut befores = Vec::new();
+    for value in tree.list(node, "values") {
+        if tree.kind(value) == "FormattedValue" {
+            befores.push(text.clone());
+        } else if let Some(part) = constant_text(tree, value) {
+            text += &part;
+        }
+    }
+    (text, befores)
+}
+
+fn add_expr_parts(tree: &Tree, node: usize) -> (String, Vec<String>) {
+    let mut text = String::new();
+    let mut befores = Vec::new();
+    for item in addends(tree, node) {
+        match constant_text(tree, item) {
+            Some(part) => text += &part,
+            None => befores.push(text.clone()),
+        }
+    }
+    (text, befores)
+}
+
+fn mod_expr_parts(tree: &Tree, node: usize) -> Option<(String, Vec<String>)> {
+    let left = tree.node(node, "left").and_then(|l| constant_text(tree, l))?;
+    tree.node(node, "right")
+        .is_some_and(|r| tree.kind(r) != "Constant")
+        .then(|| {
+            let befores = sql_holes(&left, &PERCENT_HOLE);
+            (left, befores)
+        })
+}
+
+fn format_call_parts(tree: &Tree, node: usize) -> Option<(String, Vec<String>)> {
+    let func = tree.node(node, "func")?;
+    if tree.kind(func) != "Attribute" || tree.str(func, "attr") != Some("format") {
+        return None;
+    }
+    if tree.list(node, "args").is_empty() && tree.list(node, "keywords").is_empty() {
+        return None;
+    }
+    let format = tree.node(func, "value").and_then(|v| constant_text(tree, v))?;
+    let befores = sql_holes(&format, &FORMAT_HOLE);
+    Some((format, befores))
+}
+
 /// SQL text with a non-constant spliced in where the query expects a value.
 /// Holes in clause or name positions (`WHERE 1=1 {filters}`, `FROM {table}`) pass.
 fn built_sql(tree: &Tree, node: usize) -> bool {
-    let mut befores: Vec<String> = Vec::new();
-    let mut text = String::new();
-    let holes =
-        |text: &str, re: &Regex| -> Vec<String> { re.find_iter(text).map(|m| text[..m.start()].to_string()).collect() };
-    if tree.kind(node) == "JoinedStr" {
-        for value in tree.list(node, "values") {
-            if tree.kind(value) == "FormattedValue" {
-                befores.push(text.clone());
-            } else if let Some(part) = constant_text(tree, value) {
-                text += &part;
-            }
-        }
+    let (text, befores) = if tree.kind(node) == "JoinedStr" {
+        joined_str_parts(tree, node)
     } else if is_add(tree, node) {
-        for item in addends(tree, node) {
-            match constant_text(tree, item) {
-                Some(part) => text += &part,
-                None => befores.push(text.clone()),
-            }
-        }
+        add_expr_parts(tree, node)
     } else if tree.kind(node) == "BinOp" && tree.node(node, "op").is_some_and(|op| tree.kind(op) == "Mod") {
-        if let Some(left) = tree.node(node, "left").and_then(|l| constant_text(tree, l))
-            && tree.node(node, "right").is_some_and(|r| tree.kind(r) != "Constant")
-        {
-            befores = holes(&left, &PERCENT_HOLE);
-            text = left;
-        }
-    } else if tree.kind(node) == "Call"
-        && let Some(func) = tree.node(node, "func")
-        && tree.kind(func) == "Attribute"
-        && tree.str(func, "attr") == Some("format")
-        && let Some(format) = tree.node(func, "value").and_then(|v| constant_text(tree, v))
-        && !(tree.list(node, "args").is_empty() && tree.list(node, "keywords").is_empty())
-    {
-        befores = holes(&format, &FORMAT_HOLE);
-        text = format;
-    }
+        mod_expr_parts(tree, node).unwrap_or_default()
+    } else if tree.kind(node) == "Call" {
+        format_call_parts(tree, node).unwrap_or_default()
+    } else {
+        (String::new(), Vec::new())
+    };
     SQL_VERB.is_match(&text)
         && befores
             .iter()
@@ -1199,47 +1372,42 @@ fn interface_class(tree: &Tree, node: usize) -> bool {
         })
 }
 
+fn is_expr_constant_kind(tree: &Tree, node: usize, kind: &str) -> bool {
+    tree.kind(node) == "Expr"
+        && tree
+            .node(node, "value")
+            .and_then(|v| tree.constant(v))
+            .is_some_and(|c| c.kind == kind)
+}
+
+fn is_not_implemented_raise(tree: &Tree, statement: usize) -> bool {
+    if tree.kind(statement) != "Raise" {
+        return false;
+    }
+    let Some(exception) = tree.node(statement, "exc") else {
+        return false;
+    };
+    let name = match tree.kind(exception) {
+        "Name" => Some(exception),
+        "Call" => tree.node(exception, "func"),
+        _ => None,
+    };
+    name.is_some_and(|n| tree.kind(n) == "Name" && tree.str(n, "id") == Some("NotImplementedError"))
+}
+
 fn stub_statement(tree: &Tree, node: usize) -> Option<usize> {
     let mut body = tree.list(node, "body");
-    if let Some(&first) = body.first()
-        && tree.kind(first) == "Expr"
-        && tree
-            .node(first, "value")
-            .and_then(|v| tree.constant(v))
-            .is_some_and(|c| c.kind == "str")
-    {
+    if body.first().is_some_and(|&first| is_expr_constant_kind(tree, first, "str")) {
         body.remove(0);
     }
     if body.len() != 1 {
         return None;
     }
     let statement = body[0];
-    if tree.kind(statement) == "Pass"
-        || (tree.kind(statement) == "Expr"
-            && tree
-                .node(statement, "value")
-                .and_then(|v| tree.constant(v))
-                .is_some_and(|c| c.kind == "ellipsis"))
-    {
-        return Some(statement);
-    }
-    if tree.kind(statement) == "Raise"
-        && let Some(exception) = tree.node(statement, "exc")
-        && tree.is(exception, &["Name", "Call"])
-    {
-        let name = if tree.kind(exception) == "Name" {
-            Some(exception)
-        } else {
-            tree.node(exception, "func")
-        };
-        if let Some(name) = name
-            && tree.kind(name) == "Name"
-            && tree.str(name, "id") == Some("NotImplementedError")
-        {
-            return Some(statement);
-        }
-    }
-    None
+    let is_stub = tree.kind(statement) == "Pass"
+        || is_expr_constant_kind(tree, statement, "ellipsis")
+        || is_not_implemented_raise(tree, statement);
+    is_stub.then_some(statement)
 }
 
 /// `(line, name)` of placeholder function bodies.
@@ -1279,6 +1447,53 @@ pub fn local_python_module(root: &Path, module: &str, directory: Option<&Path>) 
         .any(|base| base.join(format!("{module}.py")).is_file() || base.join(module).is_dir())
 }
 
+fn is_import_guarded_try(tree: &Tree, node: usize) -> bool {
+    tree.list(node, "handlers")
+        .iter()
+        .any(|&handler| match tree.node(handler, "type") {
+            None => true,
+            Some(kind) => {
+                let items = if tree.kind(kind) == "Tuple" {
+                    tree.list(kind, "elts")
+                } else {
+                    vec![kind]
+                };
+                items.iter().any(|&item| {
+                    matches!(
+                        reference_name(tree, item).as_deref(),
+                        Some("ImportError" | "ModuleNotFoundError" | "Exception")
+                    )
+                })
+            }
+        })
+}
+
+fn optional_import_nodes(tree: &Tree, walked: &[usize]) -> HashSet<usize> {
+    let mut optional: HashSet<usize> = HashSet::new();
+    for &node in walked {
+        if tree.kind(node) == "Try" && is_import_guarded_try(tree, node) {
+            for statement in tree.list(node, "body") {
+                optional.extend(tree.walk(statement));
+            }
+        }
+    }
+    optional
+}
+
+fn extract_node_imports(tree: &Tree, node: usize, imported: &mut Vec<(i64, String)>) {
+    if tree.kind(node) == "Import" {
+        for alias in tree.list(node, "names") {
+            let name = tree.str(alias, "name").unwrap_or("");
+            imported.push((tree.line(node), name.split('.').next().unwrap_or("").to_string()));
+        }
+    } else if tree.kind(node) == "ImportFrom"
+        && matches!(tree.get(node, "level"), F::Int(0))
+        && let Some(module) = tree.str(node, "module").filter(|m| !m.is_empty())
+    {
+        imported.push((tree.line(node), module.split('.').next().unwrap_or("").to_string()));
+    }
+}
+
 /// `(line, module)` of absolute imports nothing in the repository explains.
 pub fn python_unknown_imports(
     tree: &Tree,
@@ -1287,52 +1502,12 @@ pub fn python_unknown_imports(
     declared: &BTreeSet<String>,
 ) -> Result<Vec<(i64, String)>, CheckError> {
     let names = stdlib()?;
-    let mut optional: HashSet<usize> = HashSet::new();
     let walked = tree.walk(0);
-    for &node in &walked {
-        if tree.kind(node) != "Try" {
-            continue;
-        }
-        let guarded = tree
-            .list(node, "handlers")
-            .iter()
-            .any(|&handler| match tree.node(handler, "type") {
-                None => true,
-                Some(kind) => {
-                    let items = if tree.kind(kind) == "Tuple" {
-                        tree.list(kind, "elts")
-                    } else {
-                        vec![kind]
-                    };
-                    items.iter().any(|&item| {
-                        matches!(
-                            reference_name(tree, item).as_deref(),
-                            Some("ImportError" | "ModuleNotFoundError" | "Exception")
-                        )
-                    })
-                }
-            });
-        if guarded {
-            for statement in tree.list(node, "body") {
-                optional.extend(tree.walk(statement));
-            }
-        }
-    }
+    let optional = optional_import_nodes(tree, &walked);
     let mut imported: Vec<(i64, String)> = Vec::new();
     for &node in &walked {
-        if optional.contains(&node) {
-            continue;
-        }
-        if tree.kind(node) == "Import" {
-            for alias in tree.list(node, "names") {
-                let name = tree.str(alias, "name").unwrap_or("");
-                imported.push((tree.line(node), name.split('.').next().unwrap_or("").to_string()));
-            }
-        } else if tree.kind(node) == "ImportFrom"
-            && matches!(tree.get(node, "level"), F::Int(0))
-            && let Some(module) = tree.str(node, "module").filter(|m| !m.is_empty())
-        {
-            imported.push((tree.line(node), module.split('.').next().unwrap_or("").to_string()));
+        if !optional.contains(&node) {
+            extract_node_imports(tree, node, &mut imported);
         }
     }
     Ok(imported
@@ -1459,67 +1634,64 @@ pub fn python_imports(path: &str, text: &str) -> Result<Vec<PyImport>, CheckErro
     Ok(found)
 }
 
-/// Lines of Python code matching loki.py's verbosity heuristics.
-pub fn python_verbose_lines(text: &str) -> Result<BTreeSet<i64>, CheckError> {
-    let mut flagged = BTreeSet::new();
-    let Some(tree) = parse(text)? else { return Ok(flagged) };
-    let tree = tree.as_ref();
-    let span = |node: usize| tree.line(node)..=tree.end_line(node).filter(|&e| e != 0).unwrap_or(tree.line(node));
-    let bool_return = |node: usize| {
-        tree.kind(node) == "Return"
-            && tree
-                .node(node, "value")
-                .and_then(|v| tree.constant(v))
-                .is_some_and(|c| c.kind == "bool")
-    };
-    for node in tree.walk(0) {
-        if tree.kind(node) == "If" {
-            let (body, orelse) = (tree.list(node, "body"), tree.list(node, "orelse"));
-            if body.len() == 1 && orelse.len() == 1 && bool_return(body[0]) && bool_return(orelse[0]) {
-                flagged.extend(span(node));
-            }
-        }
-        if tree.kind(node) == "Compare"
-            && tree
-                .list(node, "comparators")
-                .iter()
-                .any(|&c| tree.constant(c).is_some_and(|c| c.kind == "bool"))
+fn node_line_span(tree: &Tree, node: usize) -> std::ops::RangeInclusive<i64> {
+    let start = tree.line(node);
+    start..=tree.end_line(node).filter(|&e| e != 0).unwrap_or(start)
+}
+
+fn is_bool_return(tree: &Tree, node: usize) -> bool {
+    tree.kind(node) == "Return"
+        && tree
+            .node(node, "value")
+            .and_then(|v| tree.constant(v))
+            .is_some_and(|c| c.kind == "bool")
+}
+
+fn is_redundant_bool_if(tree: &Tree, node: usize) -> bool {
+    if tree.kind(node) != "If" {
+        return false;
+    }
+    let (body, orelse) = (tree.list(node, "body"), tree.list(node, "orelse"));
+    body.len() == 1 && orelse.len() == 1 && is_bool_return(tree, body[0]) && is_bool_return(tree, orelse[0])
+}
+
+fn is_redundant_reraise_try(tree: &Tree, node: usize) -> bool {
+    if tree.kind(node) != "Try" {
+        return false;
+    }
+    let handlers = tree.list(node, "handlers");
+    if handlers.is_empty() || !tree.list(node, "finalbody").is_empty() || !tree.list(node, "orelse").is_empty() {
+        return false;
+    }
+    handlers.iter().all(|&h| {
+        let body = tree.list(h, "body");
+        body.len() == 1 && tree.kind(body[0]) == "Raise" && tree.node(body[0], "exc").is_none()
+    })
+}
+
+fn flag_assign_then_return(tree: &Tree, node: usize, flagged: &mut BTreeSet<i64>) {
+    if !matches!(tree.get(node, "body"), F::List(_)) {
+        return;
+    }
+    let body = tree.list(node, "body");
+    for pair in body.windows(2) {
+        let (first, second) = (pair[0], pair[1]);
+        let targets = tree.list(first, "targets");
+        if tree.kind(first) == "Assign"
+            && targets.len() == 1
+            && tree.kind(targets[0]) == "Name"
+            && tree.kind(second) == "Return"
+            && let Some(value) = tree.node(second, "value")
+            && tree.kind(value) == "Name"
+            && tree.str(value, "id") == tree.str(targets[0], "id")
         {
-            flagged.insert(tree.line(node));
-        }
-        if tree.kind(node) == "Try" {
-            let handlers = tree.list(node, "handlers");
-            let reraise = handlers.iter().all(|&h| {
-                let body = tree.list(h, "body");
-                body.len() == 1 && tree.kind(body[0]) == "Raise" && tree.node(body[0], "exc").is_none()
-            });
-            if reraise
-                && !handlers.is_empty()
-                && tree.list(node, "finalbody").is_empty()
-                && tree.list(node, "orelse").is_empty()
-            {
-                flagged.extend(span(node));
-            }
-        }
-        if let F::List(_) = tree.get(node, "body") {
-            let body = tree.list(node, "body");
-            for pair in body.windows(2) {
-                let (first, second) = (pair[0], pair[1]);
-                let targets = tree.list(first, "targets");
-                if tree.kind(first) == "Assign"
-                    && targets.len() == 1
-                    && tree.kind(targets[0]) == "Name"
-                    && tree.kind(second) == "Return"
-                    && let Some(value) = tree.node(second, "value")
-                    && tree.kind(value) == "Name"
-                    && tree.str(value, "id") == tree.str(targets[0], "id")
-                {
-                    flagged.insert(tree.line(first));
-                    flagged.insert(tree.line(second));
-                }
-            }
+            flagged.insert(tree.line(first));
+            flagged.insert(tree.line(second));
         }
     }
+}
+
+fn flag_commented_code(text: &str, flagged: &mut BTreeSet<i64>) -> Result<(), CheckError> {
     let comments: Vec<(i64, String)> = py::splitlines(text, false)
         .iter()
         .enumerate()
@@ -1540,6 +1712,29 @@ pub fn python_verbose_lines(text: &str) -> Result<BTreeSet<i64>, CheckError> {
             }
         }
     }
+    Ok(())
+}
+
+/// Lines of Python code matching loki.py's verbosity heuristics.
+pub fn python_verbose_lines(text: &str) -> Result<BTreeSet<i64>, CheckError> {
+    let mut flagged = BTreeSet::new();
+    let Some(tree) = parse(text)? else { return Ok(flagged) };
+    let tree = tree.as_ref();
+    for node in tree.walk(0) {
+        if is_redundant_bool_if(tree, node) || is_redundant_reraise_try(tree, node) {
+            flagged.extend(node_line_span(tree, node));
+        }
+        if tree.kind(node) == "Compare"
+            && tree
+                .list(node, "comparators")
+                .iter()
+                .any(|&c| tree.constant(c).is_some_and(|c| c.kind == "bool"))
+        {
+            flagged.insert(tree.line(node));
+        }
+        flag_assign_then_return(tree, node, &mut flagged);
+    }
+    flag_commented_code(text, &mut flagged)?;
     Ok(flagged)
 }
 

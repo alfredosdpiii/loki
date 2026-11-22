@@ -80,6 +80,64 @@ fn split_fields(row: &[u8]) -> Vec<&[u8]> {
         .collect()
 }
 
+fn parse_blob_header(fields: &[&[u8]], oid: &str, err_msg: &str) -> Result<usize, CheckError> {
+    let digits = |f: &[u8]| !f.is_empty() && f.iter().all(u8::is_ascii_digit);
+    if fields.len() != 3 || fields[0] != oid.as_bytes() || fields[1] != b"blob" || !digits(fields[2]) {
+        return Err(invalid(err_msg));
+    }
+    Ok(String::from_utf8_lossy(fields[2])
+        .parse::<usize>()
+        .unwrap_or(usize::MAX))
+}
+
+fn check_blob_metadata(root: &Path, unique: &[&String], request: &[u8], deadline: Deadline) -> Result<(), CheckError> {
+    let metadata = git_output(root, &["cat-file", "--batch-check"], deadline, Some(request))?;
+    let rows: Vec<&[u8]> = py_splitlines_bytes(&metadata);
+    if rows.len() != unique.len() {
+        return Err(invalid("git: invalid batch metadata response"));
+    }
+    let mut total = 0usize;
+    for (oid, row) in unique.iter().zip(rows) {
+        let fields = split_fields(row);
+        total += parse_blob_header(&fields, oid, "git: invalid batch metadata response")?;
+        if total > SNAPSHOT_LIMIT {
+            return Err(invalid(BASE_TOO_LARGE));
+        }
+    }
+    Ok(())
+}
+
+fn read_batch_blobs(
+    root: &Path,
+    unique: &[&String],
+    request: &[u8],
+    deadline: Deadline,
+) -> Result<HashMap<String, Vec<u8>>, CheckError> {
+    let data = git_output(root, &["cat-file", "--batch"], deadline, Some(request))?;
+    let mut blobs = HashMap::new();
+    let mut offset = 0usize;
+    for oid in unique {
+        let end = data[offset.min(data.len())..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|p| p + offset)
+            .ok_or_else(|| invalid("git: invalid batch blob response"))?;
+        let header = split_fields(&data[offset..end]);
+        let size = parse_blob_header(&header, oid, "git: invalid batch blob response")?;
+        let start = end + 1;
+        let stop = start.saturating_add(size);
+        if stop >= data.len() || data[stop] != b'\n' {
+            return Err(invalid("git: truncated batch blob response"));
+        }
+        blobs.insert((*oid).clone(), data[start..stop].to_vec());
+        offset = stop + 1;
+    }
+    if offset != data.len() {
+        return Err(invalid("git: unexpected batch blob response"));
+    }
+    Ok(blobs)
+}
+
 /// Blob contents by object id, read in two batches with size limits.
 pub fn git_blobs(root: &Path, oids: &[String], deadline: Deadline) -> Result<HashMap<String, Vec<u8>>, CheckError> {
     let mut unique: Vec<&String> = Vec::new();
@@ -95,54 +153,8 @@ pub fn git_blobs(root: &Path, oids: &[String], deadline: Deadline) -> Result<Has
         return Err(invalid(TOO_MANY_OBJECTS));
     }
     let request: Vec<u8> = unique.iter().flat_map(|o| format!("{o}\n").into_bytes()).collect();
-    let metadata = git_output(root, &["cat-file", "--batch-check"], deadline, Some(&request))?;
-    let rows: Vec<&[u8]> = py_splitlines_bytes(&metadata);
-    if rows.len() != unique.len() {
-        return Err(invalid("git: invalid batch metadata response"));
-    }
-    let mut total = 0usize;
-    for (oid, row) in unique.iter().zip(rows) {
-        let fields = split_fields(row);
-        let digits = |f: &[u8]| !f.is_empty() && f.iter().all(u8::is_ascii_digit);
-        if fields.len() != 3 || fields[0] != oid.as_bytes() || fields[1] != b"blob" || !digits(fields[2]) {
-            return Err(invalid("git: invalid batch metadata response"));
-        }
-        total += String::from_utf8_lossy(fields[2])
-            .parse::<usize>()
-            .unwrap_or(usize::MAX);
-        if total > SNAPSHOT_LIMIT {
-            return Err(invalid(BASE_TOO_LARGE));
-        }
-    }
-    let data = git_output(root, &["cat-file", "--batch"], deadline, Some(&request))?;
-    let mut blobs = HashMap::new();
-    let mut offset = 0usize;
-    for oid in &unique {
-        let end = data[offset.min(data.len())..]
-            .iter()
-            .position(|&b| b == b'\n')
-            .map(|p| p + offset);
-        let Some(end) = end else {
-            return Err(invalid("git: invalid batch blob response"));
-        };
-        let header = split_fields(&data[offset..end]);
-        let digits = |f: &[u8]| !f.is_empty() && f.iter().all(u8::is_ascii_digit);
-        if header.len() != 3 || header[0] != oid.as_bytes() || header[1] != b"blob" || !digits(header[2]) {
-            return Err(invalid("git: invalid batch blob response"));
-        }
-        let start = end + 1;
-        let size: usize = String::from_utf8_lossy(header[2]).parse().unwrap_or(usize::MAX);
-        let stop = start.saturating_add(size);
-        if stop >= data.len() || data[stop] != b'\n' {
-            return Err(invalid("git: truncated batch blob response"));
-        }
-        blobs.insert((*oid).clone(), data[start..stop].to_vec());
-        offset = stop + 1;
-    }
-    if offset != data.len() {
-        return Err(invalid("git: unexpected batch blob response"));
-    }
-    Ok(blobs)
+    check_blob_metadata(root, &unique, &request, deadline)?;
+    read_batch_blobs(root, &unique, &request, deadline)
 }
 
 /// `bytes.splitlines()`: \n, \r and \r\n.
@@ -172,13 +184,46 @@ fn py_splitlines_bytes(data: &[u8]) -> Vec<&[u8]> {
     lines
 }
 
+fn read_symlink_candidate(path: &Path, remaining: usize) -> Result<(Option<Vec<u8>>, Option<String>), CheckError> {
+    let link = std::fs::read_link(path).map_err(|e| invalid(py::os_error(&e, None)))?;
+    let content = link.as_os_str().as_encoded_bytes().to_vec();
+    if content.len() > remaining {
+        return Err(invalid(CONTENT_TOO_LARGE));
+    }
+    Ok((Some(content), Some("120000".into())))
+}
+
+fn read_regular_candidate(
+    path: &Path,
+    meta: &std::fs::Metadata,
+    remaining: usize,
+) -> Result<(Option<Vec<u8>>, Option<String>), CheckError> {
+    use std::os::unix::fs::PermissionsExt;
+    if meta.len() as usize > remaining {
+        return Err(invalid(CONTENT_TOO_LARGE));
+    }
+    let content = match std::fs::read(path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((None, None)),
+        Err(e) => return Err(invalid(py::os_error(&e, None))),
+    };
+    if content.len() > remaining {
+        return Err(invalid(CONTENT_TOO_LARGE));
+    }
+    let mode = if meta.permissions().mode() & 0o100 != 0 {
+        "100755"
+    } else {
+        "100644"
+    };
+    Ok((Some(content), Some(mode.into())))
+}
+
 /// The candidate's bytes and Git mode, without following a final symlink.
 pub fn candidate_content(
     root: &Path,
     name: &str,
     remaining: usize,
 ) -> Result<(Option<Vec<u8>>, Option<String>), CheckError> {
-    use std::os::unix::fs::PermissionsExt;
     let target = root.join(name);
     let parent = resolve(target.parent().unwrap_or(root));
     if parent.strip_prefix(root).is_err() {
@@ -198,33 +243,12 @@ pub fn candidate_content(
         Err(e) => return Err(invalid(py::os_error(&e, Some(&filename.to_string_lossy())))),
     };
     if meta.file_type().is_symlink() {
-        let link = std::fs::read_link(&path).map_err(|e| invalid(py::os_error(&e, None)))?;
-        let content = link.as_os_str().as_encoded_bytes().to_vec();
-        if content.len() > remaining {
-            return Err(invalid(CONTENT_TOO_LARGE));
-        }
-        return Ok((Some(content), Some("120000".into())));
+        return read_symlink_candidate(&path, remaining);
     }
     if !meta.is_file() {
         return Err(invalid(format!("loki: unsupported changed file type: {name}")));
     }
-    if meta.len() as usize > remaining {
-        return Err(invalid(CONTENT_TOO_LARGE));
-    }
-    let content = match std::fs::read(&path) {
-        Ok(content) => content,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((None, None)),
-        Err(e) => return Err(invalid(py::os_error(&e, None))),
-    };
-    if content.len() > remaining {
-        return Err(invalid(CONTENT_TOO_LARGE));
-    }
-    let mode = if meta.permissions().mode() & 0o100 != 0 {
-        "100755"
-    } else {
-        "100644"
-    };
-    Ok((Some(content), Some(mode.into())))
+    read_regular_candidate(&path, &meta, remaining)
 }
 
 fn lines_z(data: &[u8]) -> Vec<String> {
@@ -280,6 +304,195 @@ pub fn repository_gap(root: &Path, deadline: Deadline) -> Result<Option<String>,
     Ok(None)
 }
 
+fn verify_unborn_head(root: &Path, deadline: Deadline) -> Result<(), CheckError> {
+    let symbolic = raw_git(root, &["symbolic-ref", "-q", "HEAD"], deadline)?;
+    if symbolic.code != 0 || !symbolic.stdout.starts_with(b"refs/heads/") {
+        return Err(invalid("git: cannot resolve HEAD"));
+    }
+    let name = String::from_utf8_lossy(&symbolic.stdout)
+        .trim_end_matches('\n')
+        .to_string();
+    let exists = raw_git(root, &["show-ref", "--verify", "--quiet", &name], deadline)?;
+    if exists.code != 1 {
+        return Err(invalid("git: cannot resolve HEAD commit"));
+    }
+    Ok(())
+}
+
+fn resolve_base_commit(root: &Path, base: Option<&str>, deadline: Deadline) -> Result<Option<String>, CheckError> {
+    if base == Some("") {
+        return Err(invalid("git: empty base reference"));
+    }
+    let zero = base.is_some_and(|b| (b.len() == 40 || b.len() == 64) && b.chars().all(|c| c == '0'));
+    if zero {
+        return Ok(None);
+    }
+    let reference = format!("{}^{{commit}}", base.unwrap_or("HEAD"));
+    let commit = raw_git(
+        root,
+        &["rev-parse", "--verify", "--end-of-options", &reference],
+        deadline,
+    )?;
+    if commit.code == 0 {
+        return Ok(Some(String::from_utf8_lossy(&commit.stdout).trim().to_string()));
+    }
+    if base.is_none() {
+        verify_unborn_head(root, deadline)?;
+        return Ok(None);
+    }
+    Err(invalid("git: invalid base reference"))
+}
+
+fn check_dir_entries(root: &Path, parent: &str, filenames: &BTreeSet<String>) -> Result<(), CheckError> {
+    let directory = resolve(&root.join(parent));
+    if directory.strip_prefix(root).is_err() {
+        return Err(invalid(format!("loki: outside project root: {parent}")));
+    }
+    let Ok(children) = std::fs::read_dir(&directory) else {
+        return Ok(());
+    };
+    for child in children.flatten() {
+        let name = child.file_name().to_string_lossy().into_owned();
+        if !filenames.contains(&name) {
+            continue;
+        }
+        let Ok(kind) = child.file_type() else { continue };
+        if !kind.is_file() && !kind.is_symlink() {
+            let shown = if parent.is_empty() {
+                name
+            } else {
+                format!("{parent}/{name}")
+            };
+            return Err(invalid(format!("loki: unsupported changed file type: {shown}")));
+        }
+    }
+    Ok(())
+}
+
+fn group_parent_filenames(listed: &[(String, String, String, String)]) -> Vec<(String, BTreeSet<String>)> {
+    let mut parents: Vec<(String, BTreeSet<String>)> = Vec::new();
+    for (path, mode, _, _) in listed {
+        if mode == "160000" {
+            continue;
+        }
+        let (parent, filename) = match path.rfind('/') {
+            Some(i) => (path[..i].to_string(), path[i + 1..].to_string()),
+            None => (String::new(), path.clone()),
+        };
+        match parents.iter_mut().find(|(p, _)| *p == parent) {
+            Some((_, names)) => {
+                names.insert(filename);
+            }
+            None => parents.push((parent, BTreeSet::from([filename]))),
+        }
+    }
+    parents
+}
+
+type TreeEntryMap = HashMap<String, (String, String, String)>;
+
+fn collect_changed_names(
+    root: &Path,
+    resolved: Option<&str>,
+    deadline: Deadline,
+) -> Result<(TreeEntryMap, Vec<u8>), CheckError> {
+    let Some(commit) = resolved else {
+        let names = git_output(
+            root,
+            &["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            deadline,
+            None,
+        )?;
+        return Ok((HashMap::new(), names));
+    };
+    let listed = tree_entries(root, commit, deadline)?;
+    let entries: TreeEntryMap = listed
+        .iter()
+        .map(|(path, mode, kind, oid)| (path.clone(), (mode.clone(), kind.clone(), oid.clone())))
+        .collect();
+    for (parent, filenames) in &group_parent_filenames(&listed) {
+        deadline.timeout()?;
+        check_dir_entries(root, parent, filenames)?;
+    }
+    let mut names = git_output(
+        root,
+        &[
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-renames",
+            "--name-only",
+            "-z",
+            commit,
+            "--",
+        ],
+        deadline,
+        None,
+    )?;
+    names.extend(git_output(
+        root,
+        &["ls-files", "--others", "--exclude-standard", "-z"],
+        deadline,
+        None,
+    )?);
+    Ok((entries, names))
+}
+
+fn build_file_change(
+    root: &Path,
+    name: String,
+    entries: &TreeEntryMap,
+    blobs: &HashMap<String, Vec<u8>>,
+    remaining: &mut usize,
+) -> Result<Option<FileChange>, CheckError> {
+    let path = root.join(&name);
+    let lexical = crate::lexical_path(root, &name);
+    if lexical.strip_prefix(root).is_err() || resolve(path.parent().unwrap_or(root)).strip_prefix(root).is_err() {
+        return Err(invalid(format!("loki: outside project root: {name}")));
+    }
+    let (mut before, mut before_mode) = (None, None);
+    if let Some((mode, kind, oid)) = entries.get(&name) {
+        if kind != "blob" || !["100644", "100755", "120000"].contains(&mode.as_str()) {
+            return Err(invalid(format!("loki: unsupported changed file type: {name}")));
+        }
+        before = blobs.get(oid).cloned();
+        before_mode = Some(mode.clone());
+    }
+    let (after, after_mode) = candidate_content(root, &name, *remaining)?;
+    *remaining = remaining.saturating_sub(after.as_ref().map_or(0, Vec::len));
+    if before == after && before_mode == after_mode {
+        return Ok(None);
+    }
+    Ok(Some(FileChange {
+        path: name,
+        before,
+        after,
+        before_mode,
+        after_mode,
+    }))
+}
+
+fn collect_file_changes(
+    root: &Path,
+    changed: BTreeSet<String>,
+    entries: &TreeEntryMap,
+    deadline: Deadline,
+) -> Result<Vec<FileChange>, CheckError> {
+    let oids: Vec<String> = changed
+        .iter()
+        .filter_map(|name| entries.get(name).filter(|e| e.1 == "blob").map(|e| e.2.clone()))
+        .collect();
+    let blobs = git_blobs(root, &oids, deadline)?;
+    let mut remaining = SNAPSHOT_LIMIT.saturating_sub(blobs.values().map(Vec::len).sum());
+    let mut changes = Vec::new();
+    for name in changed {
+        if let Some(change) = build_file_change(root, name, entries, &blobs, &mut remaining)? {
+            changes.push(change);
+        }
+    }
+    Ok(changes)
+}
+
 /// `git_changes(..., only=...)`: the changes against base, limited to `only` (repository-relative paths) when given.
 pub fn git_changes_only(
     root: &Path,
@@ -294,148 +507,13 @@ pub fn git_changes_only(
     if !git_output(&root, &["ls-files", "--unmerged", "-z"], deadline, None)?.is_empty() {
         return Err(invalid("loki: unresolved index conflict"));
     }
-    if base == Some("") {
-        return Err(invalid("git: empty base reference"));
-    }
-    let zero = base.is_some_and(|b| (b.len() == 40 || b.len() == 64) && b.chars().all(|c| c == '0'));
-    let mut resolved: Option<String> = None;
-    if !zero {
-        let reference = format!("{}^{{commit}}", base.unwrap_or("HEAD"));
-        let commit = raw_git(
-            &root,
-            &["rev-parse", "--verify", "--end-of-options", &reference],
-            deadline,
-        )?;
-        if commit.code == 0 {
-            resolved = Some(String::from_utf8_lossy(&commit.stdout).trim().to_string());
-        } else if base.is_none() {
-            let symbolic = raw_git(&root, &["symbolic-ref", "-q", "HEAD"], deadline)?;
-            if symbolic.code != 0 || !symbolic.stdout.starts_with(b"refs/heads/") {
-                return Err(invalid("git: cannot resolve HEAD"));
-            }
-            let name = String::from_utf8_lossy(&symbolic.stdout)
-                .trim_end_matches('\n')
-                .to_string();
-            let exists = raw_git(&root, &["show-ref", "--verify", "--quiet", &name], deadline)?;
-            if exists.code != 1 {
-                return Err(invalid("git: cannot resolve HEAD commit"));
-            }
-        } else {
-            return Err(invalid("git: invalid base reference"));
-        }
-    }
-    let mut entries: HashMap<String, (String, String, String)> = HashMap::new();
-    let names_raw = if let Some(commit) = &resolved {
-        let listed = tree_entries(&root, commit, deadline)?;
-        let mut parents: Vec<(String, BTreeSet<String>)> = Vec::new();
-        for (path, mode, kind, oid) in &listed {
-            entries.insert(path.clone(), (mode.clone(), kind.clone(), oid.clone()));
-            if mode != "160000" {
-                let (parent, filename) = match path.rfind('/') {
-                    Some(i) => (path[..i].to_string(), path[i + 1..].to_string()),
-                    None => (String::new(), path.clone()),
-                };
-                match parents.iter_mut().find(|(p, _)| *p == parent) {
-                    Some((_, names)) => {
-                        names.insert(filename);
-                    }
-                    None => parents.push((parent, BTreeSet::from([filename]))),
-                }
-            }
-        }
-        for (parent, filenames) in &parents {
-            deadline.timeout()?;
-            let directory = resolve(&root.join(parent));
-            if directory.strip_prefix(&root).is_err() {
-                return Err(invalid(format!("loki: outside project root: {parent}")));
-            }
-            let Ok(children) = std::fs::read_dir(&directory) else {
-                continue;
-            };
-            for child in children.flatten() {
-                let name = child.file_name().to_string_lossy().into_owned();
-                if !filenames.contains(&name) {
-                    continue;
-                }
-                let Ok(kind) = child.file_type() else { continue };
-                if !kind.is_file() && !kind.is_symlink() {
-                    let shown = if parent.is_empty() {
-                        name
-                    } else {
-                        format!("{parent}/{name}")
-                    };
-                    return Err(invalid(format!("loki: unsupported changed file type: {shown}")));
-                }
-            }
-        }
-        let mut names = git_output(
-            &root,
-            &[
-                "diff",
-                "--no-ext-diff",
-                "--no-textconv",
-                "--no-renames",
-                "--name-only",
-                "-z",
-                commit,
-                "--",
-            ],
-            deadline,
-            None,
-        )?;
-        names.extend(git_output(
-            &root,
-            &["ls-files", "--others", "--exclude-standard", "-z"],
-            deadline,
-            None,
-        )?);
-        names
-    } else {
-        git_output(
-            &root,
-            &["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-            deadline,
-            None,
-        )?
-    };
+    let resolved = resolve_base_commit(&root, base, deadline)?;
+    let (entries, names_raw) = collect_changed_names(&root, resolved.as_deref(), deadline)?;
     let changed: BTreeSet<String> = lines_z(&names_raw)
         .into_iter()
         .filter(|name| only.is_none_or(|only| only.contains(name)))
         .collect();
-    let oids: Vec<String> = changed
-        .iter()
-        .filter_map(|name| entries.get(name).filter(|e| e.1 == "blob").map(|e| e.2.clone()))
-        .collect();
-    let blobs = git_blobs(&root, &oids, deadline)?;
-    let mut remaining = SNAPSHOT_LIMIT.saturating_sub(blobs.values().map(Vec::len).sum());
-    let mut changes = Vec::new();
-    for name in changed {
-        let path = root.join(&name);
-        let lexical = crate::lexical_path(&root, &name);
-        if lexical.strip_prefix(&root).is_err() || resolve(path.parent().unwrap_or(&root)).strip_prefix(&root).is_err()
-        {
-            return Err(invalid(format!("loki: outside project root: {name}")));
-        }
-        let (mut before, mut before_mode) = (None, None);
-        if let Some((mode, kind, oid)) = entries.get(&name) {
-            if kind != "blob" || !["100644", "100755", "120000"].contains(&mode.as_str()) {
-                return Err(invalid(format!("loki: unsupported changed file type: {name}")));
-            }
-            before = blobs.get(oid).cloned();
-            before_mode = Some(mode.clone());
-        }
-        let (after, after_mode) = candidate_content(&root, &name, remaining)?;
-        remaining = remaining.saturating_sub(after.as_ref().map_or(0, Vec::len));
-        if before != after || before_mode != after_mode {
-            changes.push(FileChange {
-                path: name,
-                before,
-                after,
-                before_mode,
-                after_mode,
-            });
-        }
-    }
+    let changes = collect_file_changes(&root, changed, &entries, deadline)?;
     Ok((resolved, changes))
 }
 
@@ -517,35 +595,44 @@ pub fn text_at(root: &Path, revision: &str, relative: &str, deadline: Deadline) 
     Ok(String::from_utf8_lossy(&blobs[parts[2]]).into_owned())
 }
 
-/// Write the base commit's regular files into `destination`.
-pub fn materialize_base(root: &Path, base: &str, destination: &Path, deadline: Deadline) -> Result<(), CheckError> {
+fn validate_base_entry(name: &str, mode: &str, kind: &str) -> Result<(), CheckError> {
+    if kind != "blob" || !["100644", "100755"].contains(&mode) {
+        return Err(invalid(format!("isolated checks: unsupported base entry: {name}")));
+    }
+    if name.starts_with('/') || name.split('/').any(|p| p == "..") || name.starts_with("node_modules/") {
+        return Err(invalid(format!("isolated checks: unsupported base path: {name}")));
+    }
+    Ok(())
+}
+
+fn write_base_file(destination: &Path, base: &str, name: &str, mode: &str, content: &[u8]) -> Result<(), CheckError> {
     use std::os::unix::fs::PermissionsExt;
     let os = |e: std::io::Error| invalid(py::os_error(&e, None));
-    std::fs::create_dir(destination).map_err(os)?;
+    let file_name = name.rsplit('/').next().unwrap_or(name);
+    if file_name.starts_with("tsconfig") && name.ends_with(".json") {
+        crate::evidence::policy("base", name, Some(content), Some(base));
+    }
+    let path: PathBuf = destination.join(name);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(os)?;
+    }
+    std::fs::write(&path, content).map_err(os)?;
+    let bits = if mode == "100755" { 0o755 } else { 0o644 };
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(bits)).map_err(os)
+}
+
+/// Write the base commit's regular files into `destination`.
+pub fn materialize_base(root: &Path, base: &str, destination: &Path, deadline: Deadline) -> Result<(), CheckError> {
+    std::fs::create_dir(destination).map_err(|e| invalid(py::os_error(&e, None)))?;
     let mut entries = Vec::new();
     for (name, mode, kind, oid) in tree_entries(root, base, deadline)? {
-        if kind != "blob" || !["100644", "100755"].contains(&mode.as_str()) {
-            return Err(invalid(format!("isolated checks: unsupported base entry: {name}")));
-        }
-        if name.starts_with('/') || name.split('/').any(|p| p == "..") || name.starts_with("node_modules/") {
-            return Err(invalid(format!("isolated checks: unsupported base path: {name}")));
-        }
+        validate_base_entry(&name, &mode, &kind)?;
         entries.push((name, mode, oid));
     }
     let oids: Vec<String> = entries.iter().map(|e| e.2.clone()).collect();
     let blobs = git_blobs(root, &oids, deadline)?;
     for (name, mode, oid) in entries {
-        let file_name = name.rsplit('/').next().unwrap_or(&name);
-        if file_name.starts_with("tsconfig") && name.ends_with(".json") {
-            crate::evidence::policy("base", &name, Some(&blobs[&oid]), Some(base));
-        }
-        let path: PathBuf = destination.join(&name);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(os)?;
-        }
-        std::fs::write(&path, &blobs[&oid]).map_err(os)?;
-        let bits = if mode == "100755" { 0o755 } else { 0o644 };
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(bits)).map_err(os)?;
+        write_base_file(destination, base, &name, &mode, &blobs[&oid])?;
     }
     Ok(())
 }

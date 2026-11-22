@@ -169,12 +169,64 @@ pub fn content_rule_findings(relative: &str, text: &Text, fallback: bool) -> Res
     Ok(findings)
 }
 
+type FindingKey = (&'static str, String, String);
+
+fn collect_side_findings(
+    relative: &str,
+    content: &str,
+    fallback: bool,
+) -> Result<Vec<(FindingKey, usize)>, CheckError> {
+    let text = Text::new(content);
+    let lines = py::splitlines(content, false);
+    let mut found = Vec::new();
+    for (rule, message, offset) in content_rule_findings(relative, &text, fallback)? {
+        let number = text.newlines_before(offset) + 1;
+        let line = lines
+            .get(number - 1)
+            .ok_or_else(|| CheckError::Guard("IndexError".into(), "list index out of range".into()))?;
+        found.push(((rule, message, py::strip(line).to_string()), number));
+    }
+    Ok(found)
+}
+
+fn file_rule_violations(
+    relative: &str,
+    old: &str,
+    new: &str,
+    fallback: bool,
+    violations: &mut Vec<String>,
+) -> Result<(), CheckError> {
+    let mut old_counts: HashMap<FindingKey, usize> = HashMap::new();
+    for (key, _) in collect_side_findings(relative, old, fallback)? {
+        *old_counts.entry(key).or_default() += 1;
+    }
+    let mut new_order: Vec<FindingKey> = Vec::new();
+    let mut new_counts: HashMap<FindingKey, (usize, usize)> = HashMap::new();
+    for (key, number) in collect_side_findings(relative, new, fallback)? {
+        let entry = new_counts.entry(key.clone()).or_insert_with(|| {
+            new_order.push(key);
+            (0, number)
+        });
+        entry.0 += 1;
+    }
+    for key in new_order {
+        let (count, line) = new_counts[&key];
+        let extra = count.saturating_sub(old_counts.get(&key).copied().unwrap_or(0));
+        if extra > 0 {
+            crate::evidence::finding(key.0, Some(relative));
+        }
+        for _ in 0..extra {
+            violations.push(format!("{relative}:{line}: {}: {}", key.0, key.1));
+        }
+    }
+    Ok(())
+}
+
 /// `content_rule_violations`: net-new findings, matched by rule, message and line text.
 pub fn content_rule_violations(
     changes: &[(String, String, String)],
     fallback: bool,
 ) -> Result<Vec<String>, CheckError> {
-    type Key = (&'static str, String, String);
     let python: Vec<&str> = changes
         .iter()
         .filter(|(relative, _, _)| !fallback && language(relative) == Some("python"))
@@ -185,39 +237,7 @@ pub fn content_rule_violations(
     }
     let mut violations = Vec::new();
     for (relative, old, new) in changes {
-        let mut old_counts: HashMap<Key, usize> = HashMap::new();
-        let mut new_order: Vec<Key> = Vec::new();
-        let mut new_counts: HashMap<Key, (usize, usize)> = HashMap::new();
-        for (side, content) in [old, new].into_iter().enumerate() {
-            let text = Text::new(content);
-            let lines = py::splitlines(content, false);
-            for (rule, message, offset) in content_rule_findings(relative, &text, fallback)? {
-                let number = text.newlines_before(offset) + 1;
-                let line = lines
-                    .get(number - 1)
-                    .ok_or_else(|| CheckError::Guard("IndexError".into(), "list index out of range".into()))?;
-                let key = (rule, message, py::strip(line).to_string());
-                if side == 0 {
-                    *old_counts.entry(key).or_default() += 1;
-                } else {
-                    let entry = new_counts.entry(key.clone()).or_insert_with(|| {
-                        new_order.push(key);
-                        (0, number)
-                    });
-                    entry.0 += 1;
-                }
-            }
-        }
-        for key in new_order {
-            let (count, line) = new_counts[&key];
-            let extra = count.saturating_sub(old_counts.get(&key).copied().unwrap_or(0));
-            if extra > 0 {
-                crate::evidence::finding(key.0, Some(relative));
-            }
-            for _ in 0..extra {
-                violations.push(format!("{relative}:{line}: {}: {}", key.0, key.1));
-            }
-        }
+        file_rule_violations(relative, old, new, fallback, &mut violations)?;
     }
     violations.truncate(crate::MAX_VIOLATIONS);
     Ok(violations)

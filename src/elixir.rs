@@ -58,27 +58,22 @@ impl Check {
     }
 }
 
-/// `elixir_analysis`: the checks of `tier` (`fast`: format and Credo; `project`: also compile and Sobelow;
-/// `deep`: also Dialyzer) on the Mix project, limited to `files` where a check takes files.
-pub fn elixir_analysis(project: &Path, tier: &str, files: &[String]) -> Result<Vec<Check>, CheckError> {
-    let project = resolve(project);
-    if !["fast", "project", "deep"].contains(&tier) {
-        return Err(invalid("unknown Elixir analysis tier"));
-    }
-    if !project.join("mix.exs").is_file() {
-        return Err(invalid("Mix project required; use --project api for nested projects"));
-    }
+fn resolve_elixir_files(project: &Path, files: &[String]) -> Result<Vec<String>, CheckError> {
     let mut selected = Vec::new();
     for path in files {
         let candidate = resolve(&project.join(path));
         if !candidate.is_file() {
             return Err(invalid(format!("Elixir target is not a file: {path}")));
         }
-        match candidate.strip_prefix(&project) {
+        match candidate.strip_prefix(project) {
             Ok(relative) => selected.push(relative.to_string_lossy().into_owned()),
             Err(_) => return Err(invalid("Elixir target outside Mix project")),
         }
     }
+    Ok(selected)
+}
+
+fn tier_checks(tier: &str, selected: &[String]) -> Vec<(&'static str, Vec<String>, Option<&'static str>)> {
     let with = |base: &[&str]| -> Vec<String> {
         base.iter()
             .map(|s| s.to_string())
@@ -109,34 +104,52 @@ pub fn elixir_analysis(project: &Path, tier: &str, files: &[String]) -> Result<V
             Some("dialyxir"),
         ));
     }
-    let mut report = Vec::new();
-    for (tool, command, dependency) in checks {
-        let start = Instant::now();
-        let (status, output) = if proc::which("mix").is_none() {
-            ("NOT CHECKED".to_string(), "mix is missing".to_string())
-        } else if let Some(dependency) = dependency.filter(|d| !project.join("deps").join(d).join("mix.exs").is_file())
-        {
-            (
-                "NOT CHECKED".to_string(),
-                format!("required analyzer dependency missing: {dependency}"),
-            )
-        } else {
-            run_check(tool, &command, &project)
-        };
-        let duration_ms = (start.elapsed().as_secs_f64() * 1000.0 * 100.0).round() / 100.0;
-        if status != "PASS" {
-            evidence::finding(
-                &format!("elixir:{tool}:{}", status.to_lowercase().replace(' ', "-")),
-                None,
-            );
-        }
-        report.push(Check {
-            tool: tool.to_string(),
-            status,
-            output,
-            duration_ms,
-        });
+    checks
+}
+
+fn execute_elixir_check(project: &Path, tool: &str, command: &[String], dependency: Option<&str>) -> Check {
+    let start = Instant::now();
+    let (status, output) = if proc::which("mix").is_none() {
+        ("NOT CHECKED".to_string(), "mix is missing".to_string())
+    } else if let Some(dependency) = dependency.filter(|d| !project.join("deps").join(d).join("mix.exs").is_file()) {
+        (
+            "NOT CHECKED".to_string(),
+            format!("required analyzer dependency missing: {dependency}"),
+        )
+    } else {
+        run_check(tool, command, project)
+    };
+    let duration_ms = (start.elapsed().as_secs_f64() * 1000.0 * 100.0).round() / 100.0;
+    if status != "PASS" {
+        evidence::finding(
+            &format!("elixir:{tool}:{}", status.to_lowercase().replace(' ', "-")),
+            None,
+        );
     }
+    Check {
+        tool: tool.to_string(),
+        status,
+        output,
+        duration_ms,
+    }
+}
+
+/// `elixir_analysis`: the checks of `tier` (`fast`: format and Credo; `project`: also compile and Sobelow;
+/// `deep`: also Dialyzer) on the Mix project, limited to `files` where a check takes files.
+pub fn elixir_analysis(project: &Path, tier: &str, files: &[String]) -> Result<Vec<Check>, CheckError> {
+    let project = resolve(project);
+    if !["fast", "project", "deep"].contains(&tier) {
+        return Err(invalid("unknown Elixir analysis tier"));
+    }
+    if !project.join("mix.exs").is_file() {
+        return Err(invalid("Mix project required; use --project api for nested projects"));
+    }
+    let selected = resolve_elixir_files(&project, files)?;
+    let checks = tier_checks(tier, &selected);
+    let report = checks
+        .into_iter()
+        .map(|(tool, command, dependency)| execute_elixir_check(&project, tool, &command, dependency))
+        .collect();
     Ok(report)
 }
 
@@ -279,16 +292,8 @@ fn source_line(workspace: &Path, filename: &str, number: i64) -> Result<(String,
     Ok((name, line, lines.len()))
 }
 
-/// `credo_new_violations`: the Credo issues the work tree's changes add, from the compiled dev Credo with the
-/// committed `.credo.exs`.
-pub fn credo_new_violations(project: &Path, deadline: Deadline) -> Result<Vec<String>, CheckError> {
-    let project = resolve(project);
-    let root = repository_root(&project, deadline)?;
-    let (base, changes) = git::git_changes(&root, None, deadline)?;
-    let Some(base) = base else {
-        return Err(invalid("Credo comparison requires committed base"));
-    };
-    for change in &changes {
+fn reject_credo_config_changes(changes: &[FileChange]) -> Result<(), CheckError> {
+    for change in changes {
         let name = change.path.rsplit('/').next().unwrap_or(&change.path);
         if [".credo.exs", "mix.exs", "mix.lock"].contains(&name) {
             return Err(invalid(format!(
@@ -297,21 +302,10 @@ pub fn credo_new_violations(project: &Path, deadline: Deadline) -> Result<Vec<St
             )));
         }
     }
-    let policy = git::base_policy(&root, Some(&base), deadline)?.unwrap_or_default();
-    let protected = git::protected_change_violations(&changes, &policy)?;
-    if !protected.is_empty() {
-        return Ok(protected);
-    }
-    let relative = project.strip_prefix(&root).unwrap_or(Path::new("")).to_path_buf();
-    let config_path = join_posix(&relative, ".credo.exs");
-    let raw = git_output(&root, &["show", &format!("{base}:{config_path}")], deadline, None)?;
-    evidence::policy("base", &config_path, Some(&raw), Some(&base));
-    let directory = tempfile::Builder::new()
-        .prefix("loki-credo-")
-        .tempdir()
-        .map_err(|e| os(&e))?;
-    let (before, after) = isolated(&root, &base, &changes, directory.path(), deadline)?;
-    // Run the same trusted compiled analyzer without evaluating candidate mix.exs.
+    Ok(())
+}
+
+fn credo_ebin_paths(project: &Path) -> Result<Vec<PathBuf>, CheckError> {
     let mut ebin: Vec<PathBuf> = std::fs::read_dir(project.join("_build/dev/lib"))
         .map(|entries| {
             entries
@@ -328,47 +322,123 @@ pub fn credo_new_violations(project: &Path, deadline: Deadline) -> Result<Vec<St
     {
         return Err(invalid("compiled dev Credo required; prepare dependencies first"));
     }
+    Ok(ebin)
+}
+
+type CredoKey = (String, String, String, String);
+
+fn credo_issue_key(workspace: &Path, issue: &Value) -> Result<CredoKey, CheckError> {
+    let filename = issue
+        .get("filename")
+        .and_then(Value::as_str)
+        .ok_or_else(|| CheckError::Guard("KeyError".into(), "'filename'".into()))?;
+    let line = issue.get("line_no").and_then(Value::as_i64).unwrap_or(0);
+    let (name, text, _) = source_line(workspace, filename, line)?;
+    let check = issue.get("check").map(py_str).unwrap_or_default();
+    let message = issue.get("message").map(py_str).unwrap_or_default();
+    Ok((name, check, message, text))
+}
+
+fn run_credo_workspace(
+    workspace: &Path,
+    ebin: &[PathBuf],
+    config_file: &Path,
+    deadline: Deadline,
+) -> Result<Counter<CredoKey>, CheckError> {
     let runner = "Application.ensure_all_started(:credo); Credo.CLI.main(System.argv())";
-    let mut counts = Vec::new();
-    for workspace in [before.join(&relative), after.join(&relative)] {
-        let mut command = vec!["elixir".to_string()];
-        for path in &ebin {
-            command.extend(["-pa".to_string(), path.to_string_lossy().into_owned()]);
-        }
-        command.extend(["-e", runner, "--", "--strict", "--format", "json", "--config-file"].map(String::from));
-        command.push(before.join(&relative).join(".credo.exs").to_string_lossy().into_owned());
-        let result = proc::run(&command, &workspace, None, &[], deadline.timeout()?).map_err(CheckError::from)?;
-        let (stdout, stderr) = (proc::text(&result.stdout), proc::text(&result.stderr));
-        let issues = serde_json::from_str::<Value>(&stdout)
-            .ok()
-            .and_then(|payload| payload.get("issues").cloned())
-            .and_then(|issues| issues.as_array().cloned())
-            .ok_or_else(|| invalid(format!("Credo unavailable: {stderr}{stdout}")))?;
-        if result.code != 0 && issues.is_empty() {
-            return Err(invalid("Credo failed without diagnostics"));
-        }
-        let mut counter = Counter::new();
-        for issue in &issues {
-            let filename = issue
-                .get("filename")
-                .and_then(Value::as_str)
-                .ok_or_else(|| CheckError::Guard("KeyError".into(), "'filename'".into()))?;
-            let line = issue.get("line_no").and_then(Value::as_i64).unwrap_or(0);
-            let (name, text, _) = source_line(&workspace, filename, line)?;
-            let check = issue.get("check").map(py_str).unwrap_or_default();
-            let message = issue.get("message").map(py_str).unwrap_or_default();
-            counter.add((name, check, message, text));
-        }
-        counts.push(counter);
+    let mut command = vec!["elixir".to_string()];
+    for path in ebin {
+        command.extend(["-pa".to_string(), path.to_string_lossy().into_owned()]);
     }
+    command.extend(["-e", runner, "--", "--strict", "--format", "json", "--config-file"].map(String::from));
+    command.push(config_file.to_string_lossy().into_owned());
+    let result = proc::run(&command, workspace, None, &[], deadline.timeout()?).map_err(CheckError::from)?;
+    let (stdout, stderr) = (proc::text(&result.stdout), proc::text(&result.stderr));
+    let issues = serde_json::from_str::<Value>(&stdout)
+        .ok()
+        .and_then(|payload| payload.get("issues").cloned())
+        .and_then(|issues| issues.as_array().cloned())
+        .ok_or_else(|| invalid(format!("Credo unavailable: {stderr}{stdout}")))?;
+    if result.code != 0 && issues.is_empty() {
+        return Err(invalid("Credo failed without diagnostics"));
+    }
+    let mut counter = Counter::new();
+    for issue in &issues {
+        counter.add(credo_issue_key(workspace, issue)?);
+    }
+    Ok(counter)
+}
+
+fn format_credo_findings(after_counts: &Counter<CredoKey>, before_counts: &Counter<CredoKey>) -> Vec<String> {
     let mut findings = Vec::new();
-    for ((path, check, message, _), count) in counts[1].minus(&counts[0]) {
+    for ((path, check, message, _), count) in after_counts.minus(before_counts) {
         evidence::finding(&check, Some(&path));
         for _ in 0..count {
             findings.push(format!("{path}: {check}: {message}"));
         }
     }
-    Ok(findings)
+    findings
+}
+
+fn credo_diff_workspaces(
+    project: &Path,
+    root: &Path,
+    base: &str,
+    changes: &[FileChange],
+    relative: &Path,
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
+    let config_path = join_posix(relative, ".credo.exs");
+    let raw = git_output(root, &["show", &format!("{base}:{config_path}")], deadline, None)?;
+    evidence::policy("base", &config_path, Some(&raw), Some(base));
+    let directory = tempfile::Builder::new()
+        .prefix("loki-credo-")
+        .tempdir()
+        .map_err(|e| os(&e))?;
+    let (before, after) = isolated(root, base, changes, directory.path(), deadline)?;
+    // Run the same trusted compiled analyzer without evaluating candidate mix.exs.
+    let ebin = credo_ebin_paths(project)?;
+    let config_file = before.join(relative).join(".credo.exs");
+    let before_counts = run_credo_workspace(&before.join(relative), &ebin, &config_file, deadline)?;
+    let after_counts = run_credo_workspace(&after.join(relative), &ebin, &config_file, deadline)?;
+    Ok(format_credo_findings(&after_counts, &before_counts))
+}
+
+fn committed_elixir_changes(
+    project: &Path,
+    tool: &str,
+    deadline: Deadline,
+) -> Result<(PathBuf, PathBuf, String, Vec<FileChange>, PathBuf), CheckError> {
+    let project = resolve(project);
+    let root = repository_root(&project, deadline)?;
+    let (base, changes) = git::git_changes(&root, None, deadline)?;
+    let Some(base) = base else {
+        return Err(invalid(format!("{tool} comparison requires committed base")));
+    };
+    let relative = project.strip_prefix(&root).unwrap_or(Path::new("")).to_path_buf();
+    Ok((project, root, base, changes, relative))
+}
+
+fn protected_elixir_violations(
+    root: &Path,
+    base: &str,
+    changes: &[FileChange],
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
+    let policy = git::base_policy(root, Some(base), deadline)?.unwrap_or_default();
+    git::protected_change_violations(changes, &policy)
+}
+
+/// `credo_new_violations`: the Credo issues the work tree's changes add, from the compiled dev Credo with the
+/// committed `.credo.exs`.
+pub fn credo_new_violations(project: &Path, deadline: Deadline) -> Result<Vec<String>, CheckError> {
+    let (project, root, base, changes, relative) = committed_elixir_changes(project, "Credo", deadline)?;
+    reject_credo_config_changes(&changes)?;
+    let protected = protected_elixir_violations(&root, &base, &changes, deadline)?;
+    if !protected.is_empty() {
+        return Ok(protected);
+    }
+    credo_diff_workspaces(&project, &root, &base, &changes, &relative, deadline)
 }
 
 /// `severity_matches`: `confidence` at or above `threshold` (never for `none`).
@@ -379,89 +449,85 @@ pub fn severity_matches(confidence: &str, threshold: &str) -> bool {
 
 type SobelowKey = (String, String, String, String, String);
 
+fn sobelow_unavailable(error: impl std::fmt::Display) -> CheckError {
+    invalid(format!("Sobelow unavailable: invalid report ({error})"))
+}
+
+fn validate_sobelow_fields(item: &Map<String, Value>) -> Result<(&str, &str, i64), CheckError> {
+    for key in ["file", "type", "line"] {
+        if !item.contains_key(key) {
+            return Err(sobelow_unavailable(format!("'{key}'")));
+        }
+    }
+    let filename = item["file"].as_str().filter(|f| !f.is_empty());
+    let rule = item["type"].as_str().filter(|r| !r.is_empty());
+    let (Some(filename), Some(rule)) = (filename, rule) else {
+        return Err(sobelow_unavailable("invalid finding path or rule"));
+    };
+    let line = item["line"]
+        .as_i64()
+        .filter(|l| *l >= 0 && item["line"].is_i64())
+        .ok_or_else(|| sobelow_unavailable("invalid finding line"))?;
+    Ok((filename, rule, line))
+}
+
+fn parse_sobelow_item(item: &Value, confidence: &str, workspace: &Path) -> Result<(SobelowKey, i64), CheckError> {
+    let item = item
+        .as_object()
+        .ok_or_else(|| sobelow_unavailable("finding must be an object"))?;
+    let (filename, rule, line) = validate_sobelow_fields(item)?;
+    let (name, text, count) = source_line(workspace, filename, line).map_err(|e| sobelow_unavailable(e.message()))?;
+    if line as usize > count {
+        return Err(sobelow_unavailable("finding line outside source"));
+    }
+    let details: Map<String, Value> = item
+        .iter()
+        .filter(|(k, _)| !["file", "line", "column", "type", "fingerprint"].contains(&k.as_str()))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    let details = py::dumps_sorted(&Value::Object(details));
+    let text = if line == 0 { String::new() } else { text };
+    Ok(((confidence.to_string(), name, rule.to_string(), text, details), line))
+}
+
+fn sobelow_confidence_groups(output: &str) -> Result<Map<String, Value>, CheckError> {
+    let payload: Value =
+        serde_json::from_str(output).map_err(|e| sobelow_unavailable(crate::pyjson::error_text(output, &e)))?;
+    let groups = payload
+        .get("findings")
+        .ok_or_else(|| sobelow_unavailable("'findings'"))?;
+    let expected = ["low_confidence", "medium_confidence", "high_confidence"];
+    groups
+        .as_object()
+        .filter(|g| g.len() == 3 && expected.iter().all(|k| g.contains_key(*k)))
+        .cloned()
+        .ok_or_else(|| sobelow_unavailable("invalid confidence groups"))
+}
+
 /// `sobelow_findings`: a Sobelow JSON report's findings, each keyed by its confidence, file, rule, line text and
 /// other details (never the line number, which moves as the file is edited).
 pub fn sobelow_findings(output: &str, workspace: &Path) -> Result<Vec<(SobelowKey, i64)>, CheckError> {
-    let unavailable = |error: String| invalid(format!("Sobelow unavailable: invalid report ({error})"));
-    let payload: Value =
-        serde_json::from_str(output).map_err(|e| unavailable(crate::pyjson::error_text(output, &e)))?;
-    let groups = payload
-        .get("findings")
-        .ok_or_else(|| unavailable("'findings'".into()))?;
-    let expected = ["low_confidence", "medium_confidence", "high_confidence"];
-    let groups = groups
-        .as_object()
-        .filter(|g| g.len() == 3 && expected.iter().all(|k| g.contains_key(*k)))
-        .ok_or_else(|| unavailable("invalid confidence groups".into()))?;
+    let groups = sobelow_confidence_groups(output)?;
     let mut findings = Vec::new();
     for confidence in ["high", "medium", "low"] {
         let items = groups[&format!("{confidence}_confidence")]
             .as_array()
-            .ok_or_else(|| unavailable("findings must be arrays".into()))?;
+            .ok_or_else(|| sobelow_unavailable("findings must be arrays"))?;
         for item in items {
-            let item = item
-                .as_object()
-                .ok_or_else(|| unavailable("finding must be an object".into()))?;
-            for key in ["file", "type", "line"] {
-                if !item.contains_key(key) {
-                    return Err(unavailable(format!("'{key}'")));
-                }
-            }
-            let filename = item["file"].as_str().filter(|f| !f.is_empty());
-            let rule = item["type"].as_str().filter(|r| !r.is_empty());
-            let (Some(filename), Some(rule)) = (filename, rule) else {
-                return Err(unavailable("invalid finding path or rule".into()));
-            };
-            let line = item["line"]
-                .as_i64()
-                .filter(|l| *l >= 0 && item["line"].is_i64())
-                .ok_or_else(|| unavailable("invalid finding line".into()))?;
-            let (name, text, count) =
-                source_line(workspace, filename, line).map_err(|e| unavailable(e.message().to_string()))?;
-            if line as usize > count {
-                return Err(unavailable("finding line outside source".into()));
-            }
-            let details: Map<String, Value> = item
-                .iter()
-                .filter(|(k, _)| !["file", "line", "column", "type", "fingerprint"].contains(&k.as_str()))
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            let details = py::dumps_sorted(&Value::Object(details));
-            let text = if line == 0 { String::new() } else { text };
-            findings.push(((confidence.to_string(), name, rule.to_string(), text, details), line));
+            findings.push(parse_sobelow_item(item, confidence, workspace)?);
         }
     }
     Ok(findings)
 }
 
-/// `sobelow_new_violations`: the Sobelow findings the work tree's changes add; at the policy's block level they
-/// block, below it they are notes (`NOT BLOCKED WARN|INFO ...`) in `warnings`.
-pub fn sobelow_new_violations(
-    project: &Path,
-    config: &Config,
-    deadline: Deadline,
-    warnings: &mut Vec<String>,
-) -> Result<Vec<String>, CheckError> {
-    let (block, warn) = config::security_policy(config).map_err(invalid)?;
-    let project = resolve(project);
-    let root = repository_root(&project, deadline)?;
-    let (base, changes) = git::git_changes(&root, None, deadline)?;
-    let Some(base) = base else {
-        return Err(invalid("Sobelow comparison requires committed base"));
-    };
-    let policy = git::base_policy(&root, Some(&base), deadline)?.unwrap_or_default();
-    let protected = git::protected_change_violations(&changes, &policy)?;
-    if !protected.is_empty() {
-        return Ok(protected);
-    }
-    let relative = project.strip_prefix(&root).unwrap_or(Path::new("")).to_path_buf();
-    for change in &changes {
+fn reject_sobelow_config_changes(changes: &[FileChange], relative: &Path) -> Result<(), CheckError> {
+    let config_dir = relative.join("config");
+    for change in changes {
         let path = Path::new(&change.path);
         let name = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let config_dir = relative.join("config");
         if ["mix.exs", "mix.lock", ".sobelow-conf", ".sobelow-skips"].contains(&name.as_str())
             || path.starts_with(&config_dir)
         {
@@ -471,12 +537,16 @@ pub fn sobelow_new_violations(
             )));
         }
     }
+    Ok(())
+}
+
+fn sobelow_command(project: &Path) -> Result<Vec<String>, CheckError> {
     let ebin = project.join("_build/dev/lib/sobelow/ebin");
     if !ebin.is_dir() {
         return Err(invalid("compiled dev Sobelow required; prepare dependencies first"));
     }
     // Execute only the prepared analyzer, never candidate Mix aliases or configs.
-    let command: Vec<String> = [
+    Ok([
         "elixir".to_string(),
         "-pa".into(),
         ebin.to_string_lossy().into_owned(),
@@ -501,49 +571,56 @@ pub fn sobelow_new_violations(
         ]
         .map(String::from),
     )
-    .collect();
-    let directory = tempfile::Builder::new()
-        .prefix("loki-sobelow-")
-        .tempdir()
-        .map_err(|e| os(&e))?;
-    let (before, after) = isolated(&root, &base, &changes, directory.path(), deadline)?;
-    let mut reports = Vec::new();
-    let mut notices: Vec<String> = Vec::new();
-    for workspace in [before.join(&relative), after.join(&relative)] {
-        let result = proc::run(&command, &workspace, None, &[], deadline.timeout()?).map_err(CheckError::from)?;
-        if result.code != 0 {
-            return Err(invalid(format!("Sobelow failed (exit {})", result.code)));
-        }
-        let stderr = proc::text(&result.stderr);
-        if !py::strip(&stderr).is_empty() {
-            let notice = format!("NOT CHECKED Sobelow coverage: {}", py::strip(&stderr));
-            if !notices.contains(&notice) {
-                notices.push(notice);
-            }
-        }
-        reports.push(sobelow_findings(&proc::text(&result.stdout), &workspace)?);
+    .collect())
+}
+
+fn run_sobelow_workspace(
+    command: &[String],
+    workspace: &Path,
+    deadline: Deadline,
+    notices: &mut Vec<String>,
+) -> Result<Vec<(SobelowKey, i64)>, CheckError> {
+    let result = proc::run(command, workspace, None, &[], deadline.timeout()?).map_err(CheckError::from)?;
+    if result.code != 0 {
+        return Err(invalid(format!("Sobelow failed (exit {})", result.code)));
     }
-    notices.sort();
-    warnings.extend(notices);
+    let stderr = proc::text(&result.stderr);
+    if !py::strip(&stderr).is_empty() {
+        let notice = format!("NOT CHECKED Sobelow coverage: {}", py::strip(&stderr));
+        if !notices.contains(&notice) {
+            notices.push(notice);
+        }
+    }
+    sobelow_findings(&proc::text(&result.stdout), workspace)
+}
+
+fn collect_new_sobelow_findings(
+    before: &[(SobelowKey, i64)],
+    after: &[(SobelowKey, i64)],
+    relative: &Path,
+    block: &str,
+    warn: &str,
+    warnings: &mut Vec<String>,
+) -> Vec<String> {
     let mut old: Counter<SobelowKey> = Counter::new();
-    for (key, _) in &reports[0] {
+    for (key, _) in before {
         old.add(key.clone());
     }
     let mut findings = Vec::new();
-    for (key, location) in &reports[1] {
+    for (key, location) in after {
         if old.get(key) > 0 {
             old.decrement(key);
             continue;
         }
         let (confidence, path, rule, _, _) = key;
-        let shown = join_posix(&relative, path);
+        let shown = join_posix(relative, path);
         let family = rule.split_once(':').map_or(rule.as_str(), |(head, _)| head);
         evidence::finding(&format!("sobelow:{confidence}:{family}"), Some(&shown));
         let message = format!("{shown}:{location}: Sobelow {confidence}: {rule}");
-        if severity_matches(confidence, &block) {
+        if severity_matches(confidence, block) {
             findings.push(message);
         } else {
-            let label = if severity_matches(confidence, &warn) {
+            let label = if severity_matches(confidence, warn) {
                 "WARN"
             } else {
                 "INFO"
@@ -551,7 +628,107 @@ pub fn sobelow_new_violations(
             warnings.push(format!("NOT BLOCKED {label} {message}"));
         }
     }
-    Ok(findings)
+    findings
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sobelow_diff_workspaces(
+    project: &Path,
+    root: &Path,
+    base: &str,
+    changes: &[FileChange],
+    relative: &Path,
+    block: &str,
+    warn: &str,
+    deadline: Deadline,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<String>, CheckError> {
+    reject_sobelow_config_changes(changes, relative)?;
+    let command = sobelow_command(project)?;
+    let directory = tempfile::Builder::new()
+        .prefix("loki-sobelow-")
+        .tempdir()
+        .map_err(|e| os(&e))?;
+    let (before, after) = isolated(root, base, changes, directory.path(), deadline)?;
+    let mut notices: Vec<String> = Vec::new();
+    let before_report = run_sobelow_workspace(&command, &before.join(relative), deadline, &mut notices)?;
+    let after_report = run_sobelow_workspace(&command, &after.join(relative), deadline, &mut notices)?;
+    notices.sort();
+    warnings.extend(notices);
+    Ok(collect_new_sobelow_findings(
+        &before_report,
+        &after_report,
+        relative,
+        block,
+        warn,
+        warnings,
+    ))
+}
+
+/// `sobelow_new_violations`: the Sobelow findings the work tree's changes add; at the policy's block level they
+/// block, below it they are notes (`NOT BLOCKED WARN|INFO ...`) in `warnings`.
+pub fn sobelow_new_violations(
+    project: &Path,
+    config: &Config,
+    deadline: Deadline,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<String>, CheckError> {
+    let (block, warn) = config::security_policy(config).map_err(invalid)?;
+    let (project, root, base, changes, relative) = committed_elixir_changes(project, "Sobelow", deadline)?;
+    let protected = protected_elixir_violations(&root, &base, &changes, deadline)?;
+    if !protected.is_empty() {
+        return Ok(protected);
+    }
+    sobelow_diff_workspaces(
+        &project, &root, &base, &changes, &relative, &block, &warn, deadline, warnings,
+    )
+}
+
+fn elixir_analyzers(config: &Config, reused: bool) -> Result<Vec<&'static str>, CheckError> {
+    if reused {
+        return Ok(Vec::new());
+    }
+    let mut analyzers = vec!["Credo"];
+    if config::rule_packs(config)
+        .map_err(invalid)?
+        .iter()
+        .any(|p| p == "phoenix")
+    {
+        analyzers.push("Sobelow");
+    }
+    Ok(analyzers)
+}
+
+fn record_elixir_job(
+    analyzer: &str,
+    result: Result<Vec<String>, CheckError>,
+    notes: Vec<String>,
+    strict: bool,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Result<(), CheckError> {
+    match result {
+        Ok(found) => {
+            violations.extend(found);
+            for note in notes {
+                if strict && note.starts_with("NOT CHECKED") {
+                    violations.push(note);
+                } else {
+                    warnings.push(note);
+                }
+            }
+        }
+        Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() || error.is_timeout() => {
+            let message = format!("NOT CHECKED {analyzer}: {}", error.message());
+            if strict {
+                violations.push(message);
+            } else {
+                warnings.push(message);
+            }
+        }
+        Err(other) => return Err(other),
+    }
+    Ok(())
 }
 
 /// The post-write check of a changed Elixir file in `project` (`check_file`'s Elixir branch): `mix format` on it,
@@ -566,17 +743,7 @@ pub fn check_elixir_file(
     warnings: &mut Vec<String>,
     reused: bool,
 ) -> Result<Vec<String>, CheckError> {
-    let mut analyzers: Vec<&str> = Vec::new();
-    if !reused {
-        analyzers.push("Credo");
-        if config::rule_packs(config)
-            .map_err(invalid)?
-            .iter()
-            .any(|p| p == "phoenix")
-        {
-            analyzers.push("Sobelow");
-        }
-    }
+    let analyzers = elixir_analyzers(config, reused)?;
     // Format, Credo and Sobelow each start a BEAM; run them side by side (on threads of their own, so what they
     // find is not recorded as evidence, as in loki.py's thread pool).
     let format_command = vec![
@@ -589,8 +756,7 @@ pub fn check_elixir_file(
         let formatting = scope.spawn(|| crate::hook::run_command(&format_command, project, "mix format", deadline));
         let jobs: Vec<_> = analyzers
             .iter()
-            .map(|name| {
-                let name = *name;
+            .map(|&name| {
                 scope.spawn(move || {
                     let mut notes = Vec::new();
                     let result = if name == "Credo" {
@@ -613,27 +779,7 @@ pub fn check_elixir_file(
         return Ok(violations);
     }
     for (analyzer, result, notes) in jobs {
-        match result {
-            Ok(found) => {
-                violations.extend(found);
-                for note in notes {
-                    if strict && note.starts_with("NOT CHECKED") {
-                        violations.push(note);
-                    } else {
-                        warnings.push(note);
-                    }
-                }
-            }
-            Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() || error.is_timeout() => {
-                let message = format!("NOT CHECKED {analyzer}: {}", error.message());
-                if strict {
-                    violations.push(message);
-                } else {
-                    warnings.push(message);
-                }
-            }
-            Err(other) => return Err(other),
-        }
+        record_elixir_job(analyzer, result, notes, strict, &mut violations, warnings)?;
     }
     Ok(violations)
 }

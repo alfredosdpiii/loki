@@ -91,9 +91,7 @@ impl Plan {
     }
 }
 
-/// `apply_transaction`: check (and unless `check_only`, write) the operations of `manifest`; what it prints on
-/// success is returned.
-pub fn apply_transaction(root: &Path, manifest: &Path, check_only: bool) -> Result<String, CheckError> {
+fn read_manifest(manifest: &Path) -> Result<Vec<Value>, CheckError> {
     let shown = manifest.to_string_lossy().into_owned();
     let size = std::fs::metadata(manifest).map_err(|e| os(&e, Some(&shown)))?.len();
     if size > MAX_MANIFEST {
@@ -102,102 +100,114 @@ pub fn apply_transaction(root: &Path, manifest: &Path, check_only: bool) -> Resu
     let raw = std::fs::read(manifest).map_err(|e| os(&e, Some(&shown)))?;
     let text = crate::proc::decode(&raw).map_err(invalid)?;
     let operations: Value = serde_json::from_str(&text).map_err(|e| invalid(crate::pyjson::error_text(&text, &e)))?;
-    let operations = match operations.as_array() {
-        Some(list) if !list.is_empty() => list.clone(),
-        _ => return Err(invalid("transaction requires a nonempty operation list")),
-    };
-    let deadline = Deadline::after(20.0);
-    let (base, existing) = git_changes(root, None, deadline)?;
-    let Some(base) = base else {
-        return Err(invalid("transaction requires committed base"));
-    };
-    let config: Config = match crate::git::base_policy(root, Some(&base), deadline)? {
-        Some(policy) if !policy.is_empty() => policy,
-        _ => crate::run::load(root)?,
-    };
-    let blocked = crate::git::protected_change_violations(&existing, &config)?;
-    if !blocked.is_empty() {
-        return Err(invalid(blocked.join("; ")));
+    match operations.as_array() {
+        Some(list) if !list.is_empty() => Ok(list.clone()),
+        _ => Err(invalid("transaction requires a nonempty operation list")),
     }
-    let root = resolve(root);
+}
+
+fn check_relative_path(root: &Path, name: &str) -> Result<(), CheckError> {
+    let pieces = parts(name);
+    if name.starts_with('/') || pieces.contains(&"..") {
+        return Err(invalid("transaction paths must be repository-relative"));
+    }
+    if pieces
+        .first()
+        .is_some_and(|first| [".git", "node_modules"].contains(first))
+    {
+        return Err(invalid("transaction cannot mutate Git metadata or dependencies"));
+    }
+    let target = root.join(name);
+    let parent = target.parent().unwrap_or(root).to_path_buf();
+    if resolve(&parent) != parent {
+        return Err(invalid("transaction symlinked parents are unsupported"));
+    }
+    Ok(())
+}
+
+fn validate_target_path(root: &Path, config: &Config, plan: &mut Plan, name: &str) -> Result<(), CheckError> {
+    check_relative_path(root, name)?;
+    if plan.desired(name).is_some() {
+        return Err(invalid(format!("duplicate transaction target: {name}")));
+    }
+    if let Some(reason) = crate::protect_path_with(name, root, config, false)? {
+        return Err(invalid(reason));
+    }
+    let original = candidate_content(root, name, MAX_CONTENT)?;
+    if original.1.as_deref() == Some("120000") {
+        return Err(invalid("transaction symlink targets are unsupported"));
+    }
+    let mode = original.1.clone().unwrap_or_else(|| "100644".into());
+    plan.originals.retain(|(n, _)| n != name);
+    plan.originals.push((name.to_string(), original));
+    plan.set_mode(name, mode);
+    Ok(())
+}
+
+fn operation_names(op: &str, operation: &Value) -> Result<(String, Vec<String>), CheckError> {
+    let path = valid_path(operation.get("path"))?;
+    if as_posix(&path) != path {
+        return Err(invalid("transaction paths must use canonical POSIX spelling"));
+    }
+    let mut names = vec![path.clone()];
+    if op == "move" {
+        let to = valid_path(operation.get("to"))?;
+        if to == path || as_posix(&to) != to {
+            return Err(invalid("move requires a distinct canonical destination"));
+        }
+        names.push(to);
+    }
+    Ok((path, names))
+}
+
+fn apply_operation_to_plan(plan: &mut Plan, op: &str, operation: &Value, path: &str, names: &[String]) -> Result<(), CheckError> {
+    if op == "write" {
+        let Some(content) = operation.get("content").and_then(Value::as_str) else {
+            return Err(invalid("write content must be a string"));
+        };
+        plan.set_desired(path, Some(content.as_bytes().to_vec()));
+        return Ok(());
+    }
+    let source = plan.original(path).clone();
+    if source.0.is_none() {
+        return Err(invalid(format!("transaction source is missing: {path}")));
+    }
+    plan.set_desired(path, None);
+    if op == "move" {
+        let destination = &names[1];
+        if plan.original(destination).0.is_some() {
+            return Err(invalid("move destination already exists"));
+        }
+        plan.set_desired(destination, source.0.clone());
+        plan.set_mode(destination, source.1.unwrap_or_else(|| "100644".into()));
+    }
+    Ok(())
+}
+
+fn build_plan(root: &Path, config: &Config, operations: &[Value]) -> Result<Plan, CheckError> {
     let mut plan = Plan {
         desired: Vec::new(),
         modes: Vec::new(),
         originals: Vec::new(),
     };
-    for operation in &operations {
-        let op = operation.get("op").and_then(Value::as_str);
-        let Some(op) = op
+    for operation in operations {
+        let op = operation
+            .get("op")
+            .and_then(Value::as_str)
             .filter(|op| ["write", "delete", "move"].contains(op))
             .filter(|_| operation.is_object())
-        else {
-            return Err(invalid("operation must be write, delete or move"));
-        };
-        let path = valid_path(operation.get("path"))?;
-        if as_posix(&path) != path {
-            return Err(invalid("transaction paths must use canonical POSIX spelling"));
-        }
-        let mut names = vec![path.clone()];
-        if op == "move" {
-            let to = valid_path(operation.get("to"))?;
-            if to == path || as_posix(&to) != to {
-                return Err(invalid("move requires a distinct canonical destination"));
-            }
-            names.push(to);
-        }
+            .ok_or_else(|| invalid("operation must be write, delete or move"))?;
+        let (path, names) = operation_names(op, operation)?;
         for name in &names {
-            let pieces = parts(name);
-            if name.starts_with('/') || pieces.contains(&"..") {
-                return Err(invalid("transaction paths must be repository-relative"));
-            }
-            if pieces
-                .first()
-                .is_some_and(|first| [".git", "node_modules"].contains(first))
-            {
-                return Err(invalid("transaction cannot mutate Git metadata or dependencies"));
-            }
-            let target = root.join(name);
-            let parent = target.parent().unwrap_or(&root).to_path_buf();
-            if resolve(&parent) != parent {
-                return Err(invalid("transaction symlinked parents are unsupported"));
-            }
-            if plan.desired(name).is_some() {
-                return Err(invalid(format!("duplicate transaction target: {name}")));
-            }
-            if let Some(reason) = crate::protect_path_with(name, &root, &config, false)? {
-                return Err(invalid(reason));
-            }
-            let original = candidate_content(&root, name, MAX_CONTENT)?;
-            if original.1.as_deref() == Some("120000") {
-                return Err(invalid("transaction symlink targets are unsupported"));
-            }
-            let mode = original.1.clone().unwrap_or_else(|| "100644".into());
-            plan.originals.retain(|(n, _)| n != name);
-            plan.originals.push((name.clone(), original));
-            plan.set_mode(name, mode);
+            validate_target_path(root, config, &mut plan, name)?;
         }
-        if op == "write" {
-            let Some(content) = operation.get("content").and_then(Value::as_str) else {
-                return Err(invalid("write content must be a string"));
-            };
-            plan.set_desired(&path, Some(content.as_bytes().to_vec()));
-        } else {
-            let source = plan.original(&path).clone();
-            if source.0.is_none() {
-                return Err(invalid(format!("transaction source is missing: {path}")));
-            }
-            plan.set_desired(&path, None);
-            if op == "move" {
-                let destination = names[1].clone();
-                if plan.original(&destination).0.is_some() {
-                    return Err(invalid("move destination already exists"));
-                }
-                plan.set_desired(&destination, source.0.clone());
-                plan.set_mode(&destination, source.1.unwrap_or_else(|| "100644".into()));
-            }
-        }
+        apply_operation_to_plan(&mut plan, op, operation, &path, &names)?;
     }
-    let git_dir = git_output(&root, &["rev-parse", "--absolute-git-dir"], deadline, None)?;
+    Ok(plan)
+}
+
+fn acquire_transaction_lock(root: &Path, deadline: Deadline) -> Result<std::fs::File, CheckError> {
+    let git_dir = git_output(root, &["rev-parse", "--absolute-git-dir"], deadline, None)?;
     let git_dir = PathBuf::from(String::from_utf8_lossy(&git_dir).trim());
     let lock_path = git_dir.join("loki-transaction.lock");
     let lock = std::fs::OpenOptions::new()
@@ -210,21 +220,71 @@ pub fn apply_transaction(root: &Path, manifest: &Path, check_only: bool) -> Resu
         std::fs::TryLockError::WouldBlock => os(&std::io::Error::from_raw_os_error(11), None),
         std::fs::TryLockError::Error(e) => os(&e, None),
     })?;
-    let directory = tempfile::Builder::new()
-        .prefix("loki-transaction-")
-        .tempdir()
-        .map_err(|e| os(&e, None))?;
-    check_candidate(&root, &base, &existing, &plan, &config, directory.path(), deadline)?;
-    let (current_base, current_changes) = git_changes(&root, None, deadline)?;
-    if current_base.as_deref() != Some(base.as_str()) || current_changes != existing {
+    Ok(lock)
+}
+
+fn verify_no_concurrent_changes(
+    root: &Path,
+    base: &str,
+    existing: &[FileChange],
+    plan: &Plan,
+    deadline: Deadline,
+) -> Result<(), CheckError> {
+    let (current_base, current_changes) = git_changes(root, None, deadline)?;
+    if current_base.as_deref() != Some(base) || current_changes != existing {
         return Err(invalid("concurrent repository modification; retry transaction"));
     }
     // Recheck targets before mutation; the lock serializes Loki writers.
     for (name, original) in &plan.originals {
-        if candidate_content(&root, name, MAX_CONTENT)? != *original {
+        if candidate_content(root, name, MAX_CONTENT)? != *original {
             return Err(invalid(format!("concurrent target modification: {name}")));
         }
     }
+    Ok(())
+}
+
+fn load_transaction_context(root: &Path, deadline: Deadline) -> Result<(String, Vec<FileChange>, Config), CheckError> {
+    let (base, existing) = git_changes(root, None, deadline)?;
+    let Some(base) = base else {
+        return Err(invalid("transaction requires committed base"));
+    };
+    let config: Config = match crate::git::base_policy(root, Some(&base), deadline)? {
+        Some(policy) if !policy.is_empty() => policy,
+        _ => crate::run::load(root)?,
+    };
+    let blocked = crate::git::protected_change_violations(&existing, &config)?;
+    if !blocked.is_empty() {
+        return Err(invalid(blocked.join("; ")));
+    }
+    Ok((base, existing, config))
+}
+
+fn check_and_verify_candidate(
+    root: &Path,
+    base: &str,
+    existing: &[FileChange],
+    plan: &Plan,
+    config: &Config,
+    deadline: Deadline,
+) -> Result<(), CheckError> {
+    let directory = tempfile::Builder::new()
+        .prefix("loki-transaction-")
+        .tempdir()
+        .map_err(|e| os(&e, None))?;
+    check_candidate(root, base, existing, plan, config, directory.path(), deadline)?;
+    verify_no_concurrent_changes(root, base, existing, plan, deadline)
+}
+
+/// `apply_transaction`: check (and unless `check_only`, write) the operations of `manifest`; what it prints on
+/// success is returned.
+pub fn apply_transaction(root: &Path, manifest: &Path, check_only: bool) -> Result<String, CheckError> {
+    let operations = read_manifest(manifest)?;
+    let deadline = Deadline::after(20.0);
+    let (base, existing, config) = load_transaction_context(root, deadline)?;
+    let root = resolve(root);
+    let plan = build_plan(&root, &config, &operations)?;
+    let _lock = acquire_transaction_lock(&root, deadline)?;
+    check_and_verify_candidate(&root, &base, &existing, &plan, &config, deadline)?;
     if check_only {
         return Ok("Transaction checks passed; no files written\n".into());
     }
@@ -233,6 +293,109 @@ pub fn apply_transaction(root: &Path, manifest: &Path, check_only: bool) -> Resu
         "Applied {} targets; not an OS-atomic multi-file commit\n",
         plan.desired.len()
     ))
+}
+
+fn init_baseline_git(root: &Path, base: &str, baseline: &Path, deadline: Deadline) -> Result<(), CheckError> {
+    materialize_base(root, base, baseline, deadline)?;
+    git_output(baseline, &["init"], deadline, None)?;
+    git_output(baseline, &["add", "."], deadline, None)?;
+    git_output(
+        baseline,
+        &[
+            "-c",
+            "user.name=Loki",
+            "-c",
+            "user.email=loki@example.invalid",
+            "commit",
+            "-m",
+            "isolated base",
+        ],
+        deadline,
+        None,
+    )?;
+    Ok(())
+}
+
+fn apply_plan_changes(workspace: &Path, existing: &[FileChange], plan: &Plan) -> Result<(), CheckError> {
+    for change in existing {
+        apply_snapshot_change(workspace, change)?;
+    }
+    for (name, content) in &plan.desired {
+        let original = plan.original(name);
+        let change = FileChange {
+            path: name.clone(),
+            before: original.0.clone(),
+            after: content.clone(),
+            before_mode: original.1.clone(),
+            after_mode: content.as_ref().map(|_| plan.mode(name).to_string()),
+        };
+        apply_snapshot_change(workspace, &change)?;
+    }
+    Ok(())
+}
+
+fn prepare_candidate_workspace(
+    root: &Path,
+    base: &str,
+    existing: &[FileChange],
+    plan: &Plan,
+    directory: &Path,
+    deadline: Deadline,
+) -> Result<PathBuf, CheckError> {
+    let workspace = directory.join("candidate");
+    materialize_base(root, base, &workspace, deadline)?;
+    apply_plan_changes(&workspace, existing, plan)?;
+    git_output(&workspace, &["init"], deadline, None)?;
+    let baseline = directory.join("baseline");
+    init_baseline_git(root, base, &baseline, deadline)?;
+    std::fs::remove_dir_all(workspace.join(".git")).map_err(|e| os(&e, None))?;
+    copy_tree(&baseline.join(".git"), &workspace.join(".git"))?;
+    if root.join("node_modules").is_dir() {
+        std::os::unix::fs::symlink(resolve(&root.join("node_modules")), workspace.join("node_modules"))
+            .map_err(|e| os(&e, None))?;
+    }
+    Ok(workspace)
+}
+
+fn has_typescript_plan(plan: &Plan) -> bool {
+    plan.desired.iter().any(|(name, _)| {
+        let file = name.rsplit('/').next().unwrap_or(name);
+        file.rfind('.')
+            .filter(|&i| i > 0)
+            .is_some_and(|i| typescript::TYPESCRIPT_SUFFIXES.contains(&&file[i..]))
+    })
+}
+
+fn check_candidate_python(
+    workspace: &Path,
+    plan: &Plan,
+    config: &Config,
+    deadline: Deadline,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<String>, CheckError> {
+    let python: Vec<PathBuf> = plan
+        .desired
+        .iter()
+        .filter(|(name, content)| content.is_some() && name.ends_with(".py"))
+        .map(|(name, _)| workspace.join(name))
+        .collect();
+    let mut batch = hook::Batch::default();
+    let mut findings = Vec::new();
+    for target in &python {
+        findings.extend(hook::check_file(
+            target,
+            workspace,
+            config,
+            true,
+            deadline,
+            warnings,
+            &python,
+            &mut batch,
+            None,
+        )?);
+        flush(warnings);
+    }
+    Ok(findings)
 }
 
 /// The candidate tree in `directory`: the base, the existing changes and the desired targets over it, with the
@@ -246,57 +409,11 @@ fn check_candidate(
     directory: &Path,
     deadline: Deadline,
 ) -> Result<(), CheckError> {
-    let workspace = directory.join("candidate");
-    materialize_base(root, base, &workspace, deadline)?;
-    for change in existing {
-        apply_snapshot_change(&workspace, change)?;
-    }
-    for (name, content) in &plan.desired {
-        let original = plan.original(name);
-        let change = FileChange {
-            path: name.clone(),
-            before: original.0.clone(),
-            after: content.clone(),
-            before_mode: original.1.clone(),
-            after_mode: content.as_ref().map(|_| plan.mode(name).to_string()),
-        };
-        apply_snapshot_change(&workspace, &change)?;
-    }
-    git_output(&workspace, &["init"], deadline, None)?;
-    let baseline = directory.join("baseline");
-    materialize_base(root, base, &baseline, deadline)?;
-    git_output(&baseline, &["init"], deadline, None)?;
-    git_output(&baseline, &["add", "."], deadline, None)?;
-    git_output(
-        &baseline,
-        &[
-            "-c",
-            "user.name=Loki",
-            "-c",
-            "user.email=loki@example.invalid",
-            "commit",
-            "-m",
-            "isolated base",
-        ],
-        deadline,
-        None,
-    )?;
-    std::fs::remove_dir_all(workspace.join(".git")).map_err(|e| os(&e, None))?;
-    copy_tree(&baseline.join(".git"), &workspace.join(".git"))?;
-    if root.join("node_modules").is_dir() {
-        std::os::unix::fs::symlink(resolve(&root.join("node_modules")), workspace.join("node_modules"))
-            .map_err(|e| os(&e, None))?;
-    }
+    let workspace = prepare_candidate_workspace(root, base, existing, plan, directory, deadline)?;
     let targets: Vec<PathBuf> = plan.desired.iter().map(|(name, _)| workspace.join(name)).collect();
     let mut findings = hook::write_guardrail_violations(&targets, &workspace, config, deadline, None)?;
     let mut warnings = Vec::new();
-    let typescript = plan.desired.iter().any(|(name, _)| {
-        let file = name.rsplit('/').next().unwrap_or(name);
-        file.rfind('.')
-            .filter(|&i| i > 0)
-            .is_some_and(|i| typescript::TYPESCRIPT_SUFFIXES.contains(&&file[i..]))
-    });
-    if typescript {
+    if has_typescript_plan(plan) {
         findings.extend(typescript::typescript_findings(
             &workspace,
             config,
@@ -305,27 +422,13 @@ fn check_candidate(
         )?);
         flush(&mut warnings);
     }
-    let python: Vec<PathBuf> = plan
-        .desired
-        .iter()
-        .filter(|(name, content)| content.is_some() && name.ends_with(".py"))
-        .map(|(name, _)| workspace.join(name))
-        .collect();
-    let mut batch = hook::Batch::default();
-    for target in &python {
-        findings.extend(hook::check_file(
-            target,
-            &workspace,
-            config,
-            true,
-            deadline,
-            &mut warnings,
-            &python,
-            &mut batch,
-            None,
-        )?);
-        flush(&mut warnings);
-    }
+    findings.extend(check_candidate_python(
+        &workspace,
+        plan,
+        config,
+        deadline,
+        &mut warnings,
+    )?);
     if !findings.is_empty() {
         return Err(invalid(findings.join("; ")));
     }
@@ -339,21 +442,26 @@ fn flush(warnings: &mut Vec<String>) {
     }
 }
 
+fn copy_entry(entry: &std::fs::DirEntry, to: &Path) -> Result<(), CheckError> {
+    let source = entry.path();
+    let target = to.join(entry.file_name());
+    let kind = entry.file_type().map_err(|e| os(&e, None))?;
+    if kind.is_dir() {
+        copy_tree(&source, &target)
+    } else if kind.is_symlink() {
+        let link = std::fs::read_link(&source).map_err(|e| os(&e, None))?;
+        std::os::unix::fs::symlink(link, &target).map_err(|e| os(&e, None))
+    } else {
+        std::fs::copy(&source, &target).map_err(|e| os(&e, None))?;
+        Ok(())
+    }
+}
+
 /// `shutil.copytree` of a `.git` directory (no symlinks in one written by `git init` and a commit).
 fn copy_tree(from: &Path, to: &Path) -> Result<(), CheckError> {
     std::fs::create_dir_all(to).map_err(|e| os(&e, None))?;
     for entry in std::fs::read_dir(from).map_err(|e| os(&e, None))?.flatten() {
-        let source = entry.path();
-        let target = to.join(entry.file_name());
-        let kind = entry.file_type().map_err(|e| os(&e, None))?;
-        if kind.is_dir() {
-            copy_tree(&source, &target)?;
-        } else if kind.is_symlink() {
-            let link = std::fs::read_link(&source).map_err(|e| os(&e, None))?;
-            std::os::unix::fs::symlink(link, &target).map_err(|e| os(&e, None))?;
-        } else {
-            std::fs::copy(&source, &target).map_err(|e| os(&e, None))?;
-        }
+        copy_entry(&entry, to)?;
     }
     Ok(())
 }
@@ -381,6 +489,50 @@ pub fn apply_snapshot_change(root: &Path, change: &FileChange) -> Result<(), Che
     }
 }
 
+fn restore_original(root: &Path, done: &str, original: &Original) -> std::io::Result<()> {
+    let (bytes, mode) = original;
+    match bytes {
+        None => match std::fs::remove_file(root.join(done)) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        },
+        Some(bytes) => {
+            let bits = if mode.as_deref() == Some("100755") {
+                0o755
+            } else {
+                0o644
+            };
+            std::fs::write(root.join(done), bytes)?;
+            std::fs::set_permissions(root.join(done), std::fs::Permissions::from_mode(bits))
+        }
+    }
+}
+
+fn rollback_applied(root: &Path, plan: &Plan, applied: &[&str]) -> Vec<String> {
+    let mut unrecovered = Vec::new();
+    for done in applied.iter().rev() {
+        let expected: Original = match plan.desired(done).and_then(Option::as_ref) {
+            Some(content) => (Some(content.clone()), Some(plan.mode(done).to_string())),
+            None => (None, None),
+        };
+        match candidate_content(root, done, MAX_CONTENT) {
+            Ok(current) if current != expected => {
+                unrecovered.push(format!("{done}: changed after application"));
+                continue;
+            }
+            Ok(_) => {}
+            Err(error) => {
+                unrecovered.push(format!("{done}: {}", error.message()));
+                continue;
+            }
+        }
+        if let Err(error) = restore_original(root, done, plan.original(done)) {
+            unrecovered.push(format!("{done}: {}", py::os_error(&error, None)));
+        }
+    }
+    unrecovered
+}
+
 /// Write each target (atomically: a private temporary file renamed over it); a failure restores the targets
 /// already written unless they changed again since.
 fn write_targets(root: &Path, plan: &Plan) -> Result<(), CheckError> {
@@ -392,42 +544,7 @@ fn write_targets(root: &Path, plan: &Plan) -> Result<(), CheckError> {
             Some(content) => write_atomically(&target, content, plan.mode(name)),
         };
         if let Err(failure) = written {
-            let mut unrecovered = Vec::new();
-            for done in applied.iter().rev() {
-                let expected: Original = match plan.desired(done).and_then(Option::as_ref) {
-                    Some(content) => (Some(content.clone()), Some(plan.mode(done).to_string())),
-                    None => (None, None),
-                };
-                match candidate_content(root, done, MAX_CONTENT) {
-                    Ok(current) if current != expected => {
-                        unrecovered.push(format!("{done}: changed after application"));
-                        continue;
-                    }
-                    Ok(_) => {}
-                    Err(error) => {
-                        unrecovered.push(format!("{done}: {}", error.message()));
-                        continue;
-                    }
-                }
-                let (original, mode) = plan.original(done);
-                let restored = match original {
-                    None => match std::fs::remove_file(root.join(done)) {
-                        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
-                        _ => Ok(()),
-                    },
-                    Some(bytes) => std::fs::write(root.join(done), bytes).and_then(|()| {
-                        let bits = if mode.as_deref() == Some("100755") {
-                            0o755
-                        } else {
-                            0o644
-                        };
-                        std::fs::set_permissions(root.join(done), std::fs::Permissions::from_mode(bits))
-                    }),
-                };
-                if let Err(error) = restored {
-                    unrecovered.push(format!("{done}: {}", py::os_error(&error, None)));
-                }
-            }
+            let unrecovered = rollback_applied(root, plan, &applied);
             let failure = py::os_error(&failure, None);
             if !unrecovered.is_empty() {
                 return Err(invalid(format!(

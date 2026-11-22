@@ -49,55 +49,67 @@ pub fn dumps(value: &Value) -> String {
     out
 }
 
+fn write_array(items: &[Value], out: &mut String) {
+    out.push('[');
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        write_value(item, out);
+    }
+    out.push(']');
+}
+
+fn write_object(map: &serde_json::Map<String, Value>, out: &mut String) {
+    out.push('{');
+    for (i, (key, item)) in map.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        write_string(key, out);
+        out.push_str(": ");
+        write_value(item, out);
+    }
+    out.push('}');
+}
+
 fn write_value(value: &Value, out: &mut String) {
     match value {
         Value::Null => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
         Value::Number(n) => out.push_str(&number(n)),
         Value::String(s) => write_string(s, out),
-        Value::Array(items) => {
-            out.push('[');
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                write_value(item, out);
-            }
-            out.push(']');
-        }
-        Value::Object(map) => {
-            out.push('{');
-            for (i, (key, item)) in map.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                write_string(key, out);
-                out.push_str(": ");
-                write_value(item, out);
-            }
-            out.push('}');
-        }
+        Value::Array(items) => write_array(items, out),
+        Value::Object(map) => write_object(map, out),
+    }
+}
+
+const JSON_ESCAPES: [(char, &str); 7] = [
+    ('"', "\\\""),
+    ('\\', "\\\\"),
+    ('\n', "\\n"),
+    ('\r', "\\r"),
+    ('\t', "\\t"),
+    ('\x08', "\\b"),
+    ('\x0c', "\\f"),
+];
+
+fn write_utf16_escape(c: char, out: &mut String) {
+    let mut units = [0u16; 2];
+    for unit in c.encode_utf16(&mut units) {
+        out.push_str(&format!("\\u{unit:04x}"));
     }
 }
 
 fn write_string(s: &str, out: &mut String) {
     out.push('"');
     for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\x08' => out.push_str("\\b"),
-            '\x0c' => out.push_str("\\f"),
-            ' '..='~' => out.push(c),
-            _ => {
-                let mut units = [0u16; 2];
-                for unit in c.encode_utf16(&mut units) {
-                    out.push_str(&format!("\\u{unit:04x}"));
-                }
-            }
+        if let Some((_, esc)) = JSON_ESCAPES.iter().find(|&&(ch, _)| ch == c) {
+            out.push_str(esc);
+        } else if (' '..='~').contains(&c) {
+            out.push(c);
+        } else {
+            write_utf16_escape(c, out);
         }
     }
     out.push('"');
@@ -108,6 +120,27 @@ fn number(n: &serde_json::Number) -> String {
         Some(f) if n.is_f64() => float_repr(f),
         _ => n.to_string(),
     }
+}
+
+fn format_fixed_float(digits: &str, point: i64) -> String {
+    let length = digits.len() as i64;
+    if point <= 0 {
+        format!("0.{}{digits}", "0".repeat((-point) as usize))
+    } else if point >= length {
+        format!("{digits}{}.0", "0".repeat((point - length) as usize))
+    } else {
+        format!("{}.{}", &digits[..point as usize], &digits[point as usize..])
+    }
+}
+
+fn format_sci_float(digits: &str, point: i64) -> String {
+    let rest = if digits.len() > 1 {
+        format!(".{}", &digits[1..])
+    } else {
+        String::new()
+    };
+    let e = point - 1;
+    format!("{}{rest}e{}{:02}", &digits[..1], if e < 0 { '-' } else { '+' }, e.abs())
 }
 
 /// `repr(float)`: shortest round-trip digits in Python's layout.
@@ -124,22 +157,9 @@ pub fn float_repr(x: f64) -> String {
     let point = exponent.parse::<i64>().expect("exponent") + 1;
     let sign = if x.is_sign_negative() { "-" } else { "" };
     let body = if -4 < point && point <= 16 {
-        let length = digits.len() as i64;
-        if point <= 0 {
-            format!("0.{}{digits}", "0".repeat((-point) as usize))
-        } else if point >= length {
-            format!("{digits}{}.0", "0".repeat((point - length) as usize))
-        } else {
-            format!("{}.{}", &digits[..point as usize], &digits[point as usize..])
-        }
+        format_fixed_float(&digits, point)
     } else {
-        let rest = if digits.len() > 1 {
-            format!(".{}", &digits[1..])
-        } else {
-            String::new()
-        };
-        let e = point - 1;
-        format!("{}{rest}e{}{:02}", &digits[..1], if e < 0 { '-' } else { '+' }, e.abs())
+        format_sci_float(&digits, point)
     };
     format!("{sign}{body}")
 }
@@ -216,6 +236,21 @@ pub fn os_error(error: &std::io::Error, filename: Option<&str>) -> String {
     }
 }
 
+const REPR_ESCAPES: [(char, &str); 4] = [('\\', "\\\\"), ('\n', "\\n"), ('\r', "\\r"), ('\t', "\\t")];
+
+fn write_repr_char(c: char, quote: char, out: &mut String) {
+    if let Some((_, esc)) = REPR_ESCAPES.iter().find(|&&(ch, _)| ch == c) {
+        out.push_str(esc);
+    } else if c == quote {
+        out.push('\\');
+        out.push(c);
+    } else if (c as u32) < 32 || c as u32 == 127 {
+        out.push_str(&format!("\\x{:02x}", c as u32));
+    } else {
+        out.push(c);
+    }
+}
+
 /// `repr(str)` for printable text.
 pub fn repr_str(s: &str) -> String {
     let quote = if s.contains('\'') && !s.contains('"') {
@@ -225,76 +260,71 @@ pub fn repr_str(s: &str) -> String {
     };
     let mut out = String::from(quote);
     for c in s.chars() {
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if c == quote => {
-                out.push('\\');
-                out.push(c);
-            }
-            c if (c as u32) < 32 || c as u32 == 127 => out.push_str(&format!("\\x{:02x}", c as u32)),
-            c => out.push(c),
-        }
+        write_repr_char(c, quote, &mut out);
     }
     out.push(quote);
     out
 }
 
-/// `difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes()`.
-pub fn opcodes<T: Eq + std::hash::Hash>(a: &[T], b: &[T]) -> Vec<(&'static str, usize, usize, usize, usize)> {
+fn build_b2j<T: Eq + std::hash::Hash>(b: &[T]) -> std::collections::HashMap<&T, Vec<usize>> {
     let mut b2j: std::collections::HashMap<&T, Vec<usize>> = std::collections::HashMap::new();
     for (j, item) in b.iter().enumerate() {
         b2j.entry(item).or_default().push(j);
     }
-    let longest = |alo: usize, ahi: usize, blo: usize, bhi: usize| -> (usize, usize, usize) {
-        let (mut besti, mut bestj, mut bestsize) = (alo, blo, 0usize);
-        let mut j2len: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
-        for (i, item) in a.iter().enumerate().take(ahi).skip(alo) {
-            let mut next: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
-            for &j in b2j.get(item).map(Vec::as_slice).unwrap_or(&[]) {
-                if j < blo {
-                    continue;
-                }
-                if j >= bhi {
-                    break;
-                }
-                let k = j.checked_sub(1).and_then(|p| j2len.get(&p)).copied().unwrap_or(0) + 1;
-                next.insert(j, k);
-                if k > bestsize {
-                    besti = i + 1 - k;
-                    bestj = j + 1 - k;
-                    bestsize = k;
-                }
-            }
-            j2len = next;
-        }
-        while besti > alo && bestj > blo && a[besti - 1] == b[bestj - 1] {
-            besti -= 1;
-            bestj -= 1;
-            bestsize += 1;
-        }
-        while besti + bestsize < ahi && bestj + bestsize < bhi && a[besti + bestsize] == b[bestj + bestsize] {
-            bestsize += 1;
-        }
-        (besti, bestj, bestsize)
-    };
-    let mut queue = vec![(0, a.len(), 0, b.len())];
-    let mut blocks = Vec::new();
-    while let Some((alo, ahi, blo, bhi)) = queue.pop() {
-        let (i, j, k) = longest(alo, ahi, blo, bhi);
-        if k > 0 {
-            blocks.push((i, j, k));
-            if alo < i && blo < j {
-                queue.push((alo, i, blo, j));
-            }
-            if i + k < ahi && j + k < bhi {
-                queue.push((i + k, ahi, j + k, bhi));
-            }
-        }
+    b2j
+}
+
+fn extend_match<T: Eq>(
+    a: &[T],
+    b: &[T],
+    bounds: (usize, usize, usize, usize),
+    best: (usize, usize, usize),
+) -> (usize, usize, usize) {
+    let (alo, ahi, blo, bhi) = bounds;
+    let (mut besti, mut bestj, mut bestsize) = best;
+    while besti > alo && bestj > blo && a[besti - 1] == b[bestj - 1] {
+        besti -= 1;
+        bestj -= 1;
+        bestsize += 1;
     }
-    blocks.sort_unstable();
+    while besti + bestsize < ahi && bestj + bestsize < bhi && a[besti + bestsize] == b[bestj + bestsize] {
+        bestsize += 1;
+    }
+    (besti, bestj, bestsize)
+}
+
+fn longest_match<T: Eq + std::hash::Hash>(
+    a: &[T],
+    b: &[T],
+    b2j: &std::collections::HashMap<&T, Vec<usize>>,
+    bounds: (usize, usize, usize, usize),
+) -> (usize, usize, usize) {
+    let (alo, ahi, blo, bhi) = bounds;
+    let (mut besti, mut bestj, mut bestsize) = (alo, blo, 0usize);
+    let mut j2len: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    for (i, item) in a.iter().enumerate().take(ahi).skip(alo) {
+        let mut next: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+        for &j in b2j.get(item).map(Vec::as_slice).unwrap_or(&[]) {
+            if j < blo {
+                continue;
+            }
+            if j >= bhi {
+                break;
+            }
+            let k = j.checked_sub(1).and_then(|p| j2len.get(&p)).copied().unwrap_or(0) + 1;
+            next.insert(j, k);
+            if k > bestsize {
+                besti = i + 1 - k;
+                bestj = j + 1 - k;
+                bestsize = k;
+            }
+        }
+        j2len = next;
+    }
+    extend_match(a, b, bounds, (besti, bestj, bestsize))
+}
+
+fn merge_blocks(blocks: Vec<(usize, usize, usize)>, a_len: usize, b_len: usize) -> Vec<(usize, usize, usize)> {
     let (mut i1, mut j1, mut k1) = (0, 0, 0);
     let mut merged = Vec::new();
     for (i2, j2, k2) in blocks {
@@ -310,19 +340,48 @@ pub fn opcodes<T: Eq + std::hash::Hash>(a: &[T], b: &[T]) -> Vec<(&'static str, 
     if k1 > 0 {
         merged.push((i1, j1, k1));
     }
-    merged.push((a.len(), b.len(), 0));
+    merged.push((a_len, b_len, 0));
+    merged
+}
+
+fn matching_blocks<T: Eq + std::hash::Hash>(a: &[T], b: &[T]) -> Vec<(usize, usize, usize)> {
+    let b2j = build_b2j(b);
+    let mut queue = vec![(0, a.len(), 0, b.len())];
+    let mut blocks = Vec::new();
+    while let Some((alo, ahi, blo, bhi)) = queue.pop() {
+        let (i, j, k) = longest_match(a, b, &b2j, (alo, ahi, blo, bhi));
+        if k > 0 {
+            blocks.push((i, j, k));
+            if alo < i && blo < j {
+                queue.push((alo, i, blo, j));
+            }
+            if i + k < ahi && j + k < bhi {
+                queue.push((i + k, ahi, j + k, bhi));
+            }
+        }
+    }
+    blocks.sort_unstable();
+    merge_blocks(blocks, a.len(), b.len())
+}
+
+fn opcode_tag(i: usize, ai: usize, j: usize, bj: usize) -> &'static str {
+    if i < ai && j < bj {
+        "replace"
+    } else if i < ai {
+        "delete"
+    } else if j < bj {
+        "insert"
+    } else {
+        ""
+    }
+}
+
+/// `difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes()`.
+pub fn opcodes<T: Eq + std::hash::Hash>(a: &[T], b: &[T]) -> Vec<(&'static str, usize, usize, usize, usize)> {
     let (mut i, mut j) = (0, 0);
     let mut answer = Vec::new();
-    for (ai, bj, size) in merged {
-        let tag = if i < ai && j < bj {
-            "replace"
-        } else if i < ai {
-            "delete"
-        } else if j < bj {
-            "insert"
-        } else {
-            ""
-        };
+    for (ai, bj, size) in matching_blocks(a, b) {
+        let tag = opcode_tag(i, ai, j, bj);
         if !tag.is_empty() {
             answer.push((tag, i, ai, j, bj));
         }
@@ -398,6 +457,48 @@ impl<K: Eq + std::hash::Hash + Clone> Counter<K> {
     }
 }
 
+fn find_bracket_end(p: &[char], start: usize) -> Option<usize> {
+    let mut j = start;
+    if j < p.len() && p[j] == '!' {
+        j += 1;
+    }
+    if j < p.len() && p[j] == ']' {
+        j += 1;
+    }
+    while j < p.len() && p[j] != ']' {
+        j += 1;
+    }
+    (j < p.len()).then_some(j)
+}
+
+fn translate_bracket(p: &[char], i: usize, re: &mut String) -> usize {
+    let Some(j) = find_bracket_end(p, i) else {
+        re.push_str("\\[");
+        return i;
+    };
+    let raw: String = p[i..j].iter().collect();
+    let (negate, body) = match raw.strip_prefix('!') {
+        Some(rest) => (true, rest),
+        None => (false, raw.as_str()),
+    };
+    if body.is_empty() {
+        re.push_str(if negate { "." } else { "[^\\s\\S]" });
+        return j + 1;
+    }
+    re.push('[');
+    if negate {
+        re.push('^');
+    }
+    for ch in body.chars() {
+        if matches!(ch, '\\' | '[' | ']' | '^' | '&' | '~') {
+            re.push('\\');
+        }
+        re.push(ch);
+    }
+    re.push(']');
+    j + 1
+}
+
 /// `fnmatch.fnmatch` on POSIX (case-sensitive; `*` crosses `/`).
 pub fn fnmatch(name: &str, pattern: &str) -> bool {
     let mut re = String::from("(?s)^");
@@ -414,48 +515,40 @@ pub fn fnmatch(name: &str, pattern: &str) -> bool {
                 re.push_str(".*");
             }
             '?' => re.push('.'),
-            '[' => {
-                let mut j = i;
-                if j < p.len() && p[j] == '!' {
-                    j += 1;
-                }
-                if j < p.len() && p[j] == ']' {
-                    j += 1;
-                }
-                while j < p.len() && p[j] != ']' {
-                    j += 1;
-                }
-                if j >= p.len() {
-                    re.push_str("\\[");
-                } else {
-                    let body: String = p[i..j].iter().collect();
-                    i = j + 1;
-                    let (negate, body) = match body.strip_prefix('!') {
-                        Some(rest) => (true, rest.to_string()),
-                        None => (false, body),
-                    };
-                    if body.is_empty() {
-                        re.push_str(if negate { "." } else { "[^\\s\\S]" });
-                        continue;
-                    }
-                    re.push('[');
-                    if negate {
-                        re.push('^');
-                    }
-                    for ch in body.chars() {
-                        if matches!(ch, '\\' | '[' | ']' | '^' | '&' | '~') {
-                            re.push('\\');
-                        }
-                        re.push(ch);
-                    }
-                    re.push(']');
-                }
-            }
+            '[' => i = translate_bracket(&p, i, &mut re),
             _ => re.push_str(&regex::escape(&c.to_string())),
         }
     }
     re.push('$');
     regex::Regex::new(&re).is_ok_and(|r| r.is_match(name))
+}
+
+fn read_single_quoted(chars: &mut std::str::Chars<'_>, word: &mut String) -> Result<(), String> {
+    loop {
+        match chars.next() {
+            Some('\'') => return Ok(()),
+            Some(q) => word.push(q),
+            None => return Err("No closing quotation".into()),
+        }
+    }
+}
+
+fn read_double_quoted(chars: &mut std::str::Chars<'_>, word: &mut String) -> Result<(), String> {
+    loop {
+        match chars.next() {
+            Some('"') => return Ok(()),
+            Some('\\') => match chars.next() {
+                Some(n @ ('"' | '\\')) => word.push(n),
+                Some(n) => {
+                    word.push('\\');
+                    word.push(n);
+                }
+                None => return Err("No escaped character".into()),
+            },
+            Some(q) => word.push(q),
+            None => return Err("No closing quotation".into()),
+        }
+    }
 }
 
 /// `shlex.split` (POSIX mode, no comments).
@@ -474,38 +567,18 @@ pub fn shlex_split(s: &str) -> Result<Vec<String>, String> {
             }
             '\'' => {
                 in_word = true;
-                loop {
-                    match chars.next() {
-                        Some('\'') => break,
-                        Some(q) => word.push(q),
-                        None => return Err("No closing quotation".into()),
-                    }
-                }
+                read_single_quoted(&mut chars, &mut word)?;
             }
             '"' => {
                 in_word = true;
-                loop {
-                    match chars.next() {
-                        Some('"') => break,
-                        Some('\\') => match chars.next() {
-                            Some(n @ ('"' | '\\')) => word.push(n),
-                            Some(n) => {
-                                word.push('\\');
-                                word.push(n);
-                            }
-                            None => return Err("No escaped character".into()),
-                        },
-                        Some(q) => word.push(q),
-                        None => return Err("No closing quotation".into()),
-                    }
-                }
+                read_double_quoted(&mut chars, &mut word)?;
             }
             '\\' => {
                 in_word = true;
-                match chars.next() {
-                    Some(n) => word.push(n),
-                    None => return Err("No escaped character".into()),
-                }
+                let Some(n) = chars.next() else {
+                    return Err("No escaped character".into());
+                };
+                word.push(n);
             }
             _ => {
                 in_word = true;

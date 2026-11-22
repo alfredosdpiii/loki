@@ -16,114 +16,187 @@ const COMMAND_PREFIXES: [&str; 7] = ["sudo", "env", "command", "time", "nice", "
 
 use crate::invalid;
 
+fn is_shlex_space(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\r' | '\n')
+}
+
+fn is_shlex_punct(c: char) -> bool {
+    PUNCTUATION.contains(c)
+}
+
+struct TokenState {
+    token: String,
+    quoted: bool,
+    state: char,
+    escaped: char,
+}
+
+impl TokenState {
+    fn new() -> Self {
+        Self {
+            token: String::new(),
+            quoted: false,
+            state: ' ',
+            escaped: 'a',
+        }
+    }
+
+    fn has_token(&self) -> bool {
+        !self.token.is_empty() || self.quoted
+    }
+}
+
+struct PunctuatedLexer<'a> {
+    chars: &'a [char],
+    i: usize,
+    comments: bool,
+}
+
+impl PunctuatedLexer<'_> {
+    fn skip_comment(&mut self) {
+        while self.i <= self.chars.len() && self.chars.get(self.i - 1) != Some(&'\n') {
+            self.i += 1;
+        }
+    }
+
+    fn step_space(&mut self, st: &mut TokenState, next: Option<char>) -> bool {
+        match next {
+            None => return true,
+            Some(c) if is_shlex_space(c) => return st.has_token(),
+            Some('#') if self.comments => self.skip_comment(),
+            Some('\\') => {
+                st.escaped = 'a';
+                st.state = '\\';
+            }
+            Some(c) if is_shlex_punct(c) => {
+                st.token.push(c);
+                st.state = 'c';
+            }
+            Some(c @ ('\'' | '"')) => st.state = c,
+            Some(c) => {
+                st.token.push(c);
+                st.state = 'a';
+            }
+        }
+        false
+    }
+
+    fn step_punct(&mut self, st: &mut TokenState, next: Option<char>) -> bool {
+        match next {
+            None => true,
+            Some(c) if is_shlex_space(c) => {
+                st.state = ' ';
+                st.has_token()
+            }
+            Some('#') if self.comments => {
+                self.skip_comment();
+                st.state = ' ';
+                st.has_token()
+            }
+            Some(c) if is_shlex_punct(c) => {
+                st.token.push(c);
+                false
+            }
+            Some(_) => {
+                self.i -= 1;
+                true
+            }
+        }
+    }
+
+    fn step_word(&mut self, st: &mut TokenState, next: Option<char>) -> bool {
+        match next {
+            None => return true,
+            Some(c) if is_shlex_space(c) => {
+                st.state = ' ';
+                return st.has_token();
+            }
+            Some('#') if self.comments => {
+                self.skip_comment();
+                st.state = ' ';
+                return st.has_token();
+            }
+            Some(c @ ('\'' | '"')) => st.state = c,
+            Some('\\') => {
+                st.escaped = 'a';
+                st.state = '\\';
+            }
+            Some(c) if !is_shlex_punct(c) => st.token.push(c),
+            Some(_) => {
+                self.i -= 1;
+                st.state = ' ';
+                return st.has_token();
+            }
+        }
+        false
+    }
+
+    fn step_escape(&mut self, st: &mut TokenState, next: Option<char>) -> Result<(), String> {
+        let Some(c) = next else {
+            return Err("No escaped character".into());
+        };
+        if st.escaped == '"' && c != '\\' && c != '"' {
+            st.token.push('\\');
+        }
+        st.token.push(c);
+        st.state = st.escaped;
+        Ok(())
+    }
+
+    fn step_quote(&mut self, st: &mut TokenState, quote: char, next: Option<char>) -> Result<(), String> {
+        st.quoted = true;
+        match next {
+            None => return Err("No closing quotation".into()),
+            Some(c) if c == quote => st.state = 'a',
+            Some('\\') if quote == '"' => {
+                st.escaped = '"';
+                st.state = '\\';
+            }
+            Some(c) => st.token.push(c),
+        }
+        Ok(())
+    }
+
+    fn next_token(&mut self) -> Result<Option<String>, String> {
+        let mut st = TokenState::new();
+        loop {
+            let next = self.chars.get(self.i).copied();
+            self.i += 1;
+            let done = match st.state {
+                ' ' => self.step_space(&mut st, next),
+                'c' => self.step_punct(&mut st, next),
+                'a' => self.step_word(&mut st, next),
+                '\\' => {
+                    self.step_escape(&mut st, next)?;
+                    false
+                }
+                quote => {
+                    self.step_quote(&mut st, quote, next)?;
+                    false
+                }
+            };
+            if done {
+                break;
+            }
+        }
+        Ok(st.has_token().then_some(st.token))
+    }
+}
+
 /// `shlex.shlex(s, posix=True, punctuation_chars=True)` with `whitespace_split`;
 /// `comments` keeps the default `#` commenter.
 pub fn shlex_punctuated(s: &str, comments: bool) -> Result<Vec<String>, String> {
     let chars: Vec<char> = s.chars().collect();
-    let (mut i, mut tokens) = (0usize, Vec::new());
-    let is_space = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n');
-    let is_punct = |c: char| PUNCTUATION.contains(c);
-    loop {
-        let (mut token, mut quoted, mut state) = (String::new(), false, ' ');
-        let mut escaped = 'a';
-        loop {
-            let next = chars.get(i).copied();
-            i += 1;
-            match state {
-                ' ' => match next {
-                    None => break,
-                    Some(c) if is_space(c) => {
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    }
-                    Some('#') if comments => {
-                        while i <= chars.len() && chars.get(i - 1) != Some(&'\n') {
-                            i += 1;
-                        }
-                    }
-                    Some('\\') => {
-                        escaped = 'a';
-                        state = '\\';
-                    }
-                    Some(c) if is_punct(c) => {
-                        token.push(c);
-                        state = 'c';
-                    }
-                    Some(c @ ('\'' | '"')) => state = c,
-                    Some(c) => {
-                        token.push(c);
-                        state = 'a';
-                    }
-                },
-                'a' | 'c' => match next {
-                    None => break,
-                    Some(c) if is_space(c) => {
-                        state = ' ';
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    }
-                    Some('#') if comments => {
-                        while i <= chars.len() && chars.get(i - 1) != Some(&'\n') {
-                            i += 1;
-                        }
-                        state = ' ';
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    }
-                    Some(c) if state == 'c' => {
-                        if is_punct(c) {
-                            token.push(c);
-                        } else {
-                            i -= 1;
-                            break;
-                        }
-                    }
-                    Some(c @ ('\'' | '"')) => state = c,
-                    Some('\\') => {
-                        escaped = 'a';
-                        state = '\\';
-                    }
-                    Some(c) if !is_punct(c) => token.push(c),
-                    Some(_) => {
-                        i -= 1;
-                        state = ' ';
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    }
-                },
-                '\\' => {
-                    let Some(c) = next else {
-                        return Err("No escaped character".into());
-                    };
-                    if escaped == '"' && c != '\\' && c != '"' {
-                        token.push('\\');
-                    }
-                    token.push(c);
-                    state = escaped;
-                }
-                quote => {
-                    quoted = true;
-                    match next {
-                        None => return Err("No closing quotation".into()),
-                        Some(c) if c == quote => state = 'a',
-                        Some('\\') if quote == '"' => {
-                            escaped = '"';
-                            state = '\\';
-                        }
-                        Some(c) => token.push(c),
-                    }
-                }
-            }
-        }
-        if token.is_empty() && !quoted {
-            return Ok(tokens);
-        }
+    let mut lexer = PunctuatedLexer {
+        chars: &chars,
+        i: 0,
+        comments,
+    };
+    let mut tokens = Vec::new();
+    while let Some(token) = lexer.next_token()? {
         tokens.push(token);
     }
+    Ok(tokens)
 }
 
 fn punctuation_only(token: &str) -> bool {
@@ -218,6 +291,23 @@ fn redirect_violation(target: &str, root: &Path, cwd: &Path) -> Result<Option<St
     Ok(None)
 }
 
+fn is_destructive_clean(options: &[&str]) -> bool {
+    options
+        .iter()
+        .any(|o| o.starts_with('-') && !o.starts_with("--") && o.contains('f'))
+        || options.contains(&"--force")
+}
+
+fn is_destructive_push(options: &[&str]) -> bool {
+    options
+        .iter()
+        .any(|o| ["-f", "--force", "--force-with-lease", "--delete", "--mirror"].contains(o) || o.starts_with([':', '+']))
+}
+
+fn is_destructive_branch(options: &[&str]) -> bool {
+    options.contains(&"-D") || (options.contains(&"--delete") && options.contains(&"--force"))
+}
+
 /// `destructive_git`: Git commands that discard work or rewrite history.
 pub fn destructive_git(words: &[String]) -> bool {
     let command = words.get(1).map_or("", String::as_str);
@@ -225,42 +315,60 @@ pub fn destructive_git(words: &[String]) -> bool {
     let any = |set: &[&str]| options.iter().any(|o| set.contains(o));
     match command {
         "reset" => any(&["--hard", "--merge", "--keep"]),
-        "clean" => {
-            options
-                .iter()
-                .any(|o| o.starts_with('-') && !o.starts_with("--") && o.contains('f'))
-                || options.contains(&"--force")
-        }
-        "push" => {
-            any(&["-f", "--force", "--force-with-lease", "--delete", "--mirror"])
-                || options.iter().any(|o| o.starts_with([':', '+']))
-        }
-        "branch" => options.contains(&"-D") || (options.contains(&"--delete") && options.contains(&"--force")),
+        "clean" => is_destructive_clean(&options),
+        "push" => is_destructive_push(&options),
+        "branch" => is_destructive_branch(&options),
         "stash" => any(&["drop", "clear"]),
         "checkout" => any(&["--", ".", "-f", "--force"]),
         _ => matches!(command, "restore" | "rebase" | "filter-branch" | "update-ref"),
     }
 }
 
+fn redirect_shell_violation(text: &str, root: &Path, cwd: &Path) -> Option<Result<Option<String>, CheckError>> {
+    let (printer, target) = shell_redirect(text)?;
+    // loki.py's `try` also covers the redirect check: its `ValueError`s fall through.
+    if config::simple_shell_words(&Value::String(printer))
+        .is_ok_and(|words| matches!(words[0].as_str(), "echo" | "printf"))
+    {
+        match redirect_violation(&target, root, cwd) {
+            Err(CheckError::Value(_)) => {}
+            other => return Some(other),
+        }
+    }
+    crate::evidence::finding("shell-redirect-write", None);
+    Some(Ok(Some(
+        "loki: shell redirect from a command other than echo/printf requires review; use file edit tools for writes"
+            .into(),
+    )))
+}
+
+fn readonly_git_violation(words: &[String]) -> Option<Option<String>> {
+    if words.len() < 2 || !matches!(words[1].as_str(), "status" | "diff" | "log" | "show" | "rev-parse") {
+        return None;
+    }
+    let unsafe_opt = words[2..].iter().any(|w| {
+        ["--output", "--ext-diff", "--textconv", "--exec"]
+            .iter()
+            .any(|p| w.starts_with(p))
+    });
+    if unsafe_opt {
+        crate::evidence::finding("shell-option-review", None);
+        return Some(Some("loki: shell Git option requires review".into()));
+    }
+    Some(None)
+}
+
+fn is_safe_builtin(words: &[String]) -> bool {
+    let first = words[0].as_str();
+    (matches!(first, "pwd" | "whoami") && words.len() == 1) || matches!(first, "echo" | "printf")
+}
+
 /// `shell_violation`: the default-deny shell guard.
 pub fn shell_violation(command: &Value, root: &Path, cwd: &Path) -> Result<Option<String>, CheckError> {
     if let Some(text) = command.as_str()
-        && let Some((printer, target)) = shell_redirect(text)
+        && let Some(result) = redirect_shell_violation(text, root, cwd)
     {
-        // loki.py's `try` also covers the redirect check: its `ValueError`s fall through.
-        if config::simple_shell_words(&Value::String(printer))
-            .is_ok_and(|words| matches!(words[0].as_str(), "echo" | "printf"))
-        {
-            match redirect_violation(&target, root, cwd) {
-                Err(CheckError::Value(_)) => {}
-                other => return other,
-            }
-        }
-        crate::evidence::finding("shell-redirect-write", None);
-        return Ok(Some(
-            "loki: shell redirect from a command other than echo/printf requires review; use file edit tools for writes"
-                .into(),
-        ));
+        return result;
     }
     let words = match config::simple_shell_words(command) {
         Ok(words) => words,
@@ -271,20 +379,11 @@ pub fn shell_violation(command: &Value, root: &Path, cwd: &Path) -> Result<Optio
     };
     let first = words[0].as_str();
     if first == "git"
-        && words.len() >= 2
-        && matches!(words[1].as_str(), "status" | "diff" | "log" | "show" | "rev-parse")
+        && let Some(result) = readonly_git_violation(&words)
     {
-        if words[2..].iter().any(|w| {
-            ["--output", "--ext-diff", "--textconv", "--exec"]
-                .iter()
-                .any(|p| w.starts_with(p))
-        }) {
-            crate::evidence::finding("shell-option-review", None);
-            return Ok(Some("loki: shell Git option requires review".into()));
-        }
-        return Ok(None);
+        return Ok(result);
     }
-    if matches!(first, "pwd" | "whoami") && words.len() == 1 {
+    if is_safe_builtin(&words) {
         return Ok(None);
     }
     if first == "git" && destructive_git(&words) {
@@ -293,9 +392,6 @@ pub fn shell_violation(command: &Value, root: &Path, cwd: &Path) -> Result<Optio
         return Ok(Some(format!(
             "loki: blocked destructive Git command `{shown}`: it can discard uncommitted work or rewrite history; ask the user to run it"
         )));
-    }
-    if matches!(first, "echo" | "printf") {
-        return Ok(None);
     }
     if first != "git" {
         return reviewed_shell_violation(command.as_str().unwrap_or(""), root, cwd);
@@ -383,6 +479,55 @@ fn worktree_entry(path: &Path, name: &str) -> Result<Option<(Vec<u8>, &'static s
     Ok(Some((content, mode)))
 }
 
+fn grant_input_paths(grant: &Value) -> Vec<String> {
+    let mut paths = vec![".loki/loki.json".to_string()];
+    for input in grant["inputs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+    {
+        if !paths.iter().any(|p| p == input) {
+            paths.push(input.to_string());
+        }
+    }
+    paths
+}
+
+fn check_grant_input(root: &Path, name: &str, entry: &[String; 3]) -> Result<Option<String>, CheckError> {
+    let path = root.join(name);
+    if resolve(&path) != path {
+        return Err(invalid(format!("shell permission input is symlinked: {name}")));
+    }
+    let [mode, _, oid] = entry;
+    let blob = git(root, &["cat-file", "blob", oid])?;
+    let current = worktree_entry(&path, name)?;
+    if current
+        .as_ref()
+        .is_none_or(|(content, m)| *content != blob || m != mode)
+    {
+        crate::evidence::finding("shell-permission-input-changed", Some(name));
+        return Ok(Some(format!("loki: shell permission input differs from base: {name}")));
+    }
+    Ok(None)
+}
+
+fn verify_grant_inputs(root: &Path, base: &str, paths: &[String]) -> Result<Option<String>, CheckError> {
+    let entries = tree_entries(root, base, paths)?;
+    let entry = |name: &str| entries.iter().find(|(p, _)| p == name).map(|(_, e)| e);
+    if paths.iter().any(|name| {
+        entry(name).is_none_or(|[mode, kind, _]| !matches!(mode.as_str(), "100644" | "100755") || kind != "blob")
+    }) {
+        return Err(invalid("shell permission inputs must be committed regular files"));
+    }
+    for name in paths {
+        if let Some(violation) = check_grant_input(root, name, entry(name).expect("checked above"))? {
+            return Ok(Some(violation));
+        }
+    }
+    Ok(None)
+}
+
 /// `reviewed_shell_violation`: an exact committed grant whose inputs are unchanged.
 fn reviewed_shell_violation(command: &str, root: &Path, cwd: &Path) -> Result<Option<String>, CheckError> {
     let top = String::from_utf8_lossy(&git(root, &["rev-parse", "--show-toplevel"])?)
@@ -413,45 +558,11 @@ fn reviewed_shell_violation(command: &str, root: &Path, cwd: &Path) -> Result<Op
             "loki: no committed permission for this exact shell command and cwd".into(),
         ));
     };
-    let mut paths = vec![".loki/loki.json".to_string()];
-    for input in grant["inputs"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-    {
-        if !paths.iter().any(|p| p == input) {
-            paths.push(input.to_string());
-        }
-    }
-    let entries = tree_entries(root, &base, &paths)?;
-    let entry = |name: &str| entries.iter().find(|(p, _)| p == name).map(|(_, e)| e);
-    if paths.iter().any(|name| {
-        entry(name).is_none_or(|[mode, kind, _]| !matches!(mode.as_str(), "100644" | "100755") || kind != "blob")
-    }) {
-        return Err(invalid("shell permission inputs must be committed regular files"));
-    }
-    for name in &paths {
-        let path = root.join(name);
-        if resolve(&path) != path {
-            return Err(invalid(format!("shell permission input is symlinked: {name}")));
-        }
-        let [mode, _, oid] = entry(name).expect("checked above");
-        let blob = git(root, &["cat-file", "blob", oid])?;
-        let current = worktree_entry(&path, name)?;
-        if current
-            .as_ref()
-            .is_none_or(|(content, m)| *content != blob || m != mode)
-        {
-            crate::evidence::finding("shell-permission-input-changed", Some(name));
-            return Ok(Some(format!("loki: shell permission input differs from base: {name}")));
-        }
-    }
-    Ok(None)
+    let paths = grant_input_paths(grant);
+    verify_grant_inputs(root, &base, &paths)
 }
 
-/// `shell_cwd`: the hook's working directory, which must be a real directory inside the root.
-pub fn shell_cwd(payload: &Value, harness: &str, root: &Path) -> Result<PathBuf, CheckError> {
+fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckError> {
     let names: &[&str] = match harness {
         "claude" => &["Bash"],
         "factory" => &["Execute"],
@@ -460,7 +571,7 @@ pub fn shell_cwd(payload: &Value, harness: &str, root: &Path) -> Result<PathBuf,
     if !payload["tool_name"].as_str().is_some_and(|n| names.contains(&n)) {
         return Err(invalid("unexpected shell tool name"));
     }
-    let fields = [
+    const FIELDS: [&str; 8] = [
         "command",
         "description",
         "timeout",
@@ -473,9 +584,15 @@ pub fn shell_cwd(payload: &Value, harness: &str, root: &Path) -> Result<PathBuf,
     let input = payload["tool_input"]
         .as_object()
         .ok_or_else(|| invalid("invalid shell envelope"))?;
-    if input.keys().any(|k| !fields.contains(&k.as_str())) {
+    if input.keys().any(|k| !FIELDS.contains(&k.as_str())) {
         return Err(invalid("unsupported shell input fields"));
     }
+    Ok(())
+}
+
+/// `shell_cwd`: the hook's working directory, which must be a real directory inside the root.
+pub fn shell_cwd(payload: &Value, harness: &str, root: &Path) -> Result<PathBuf, CheckError> {
+    validate_shell_envelope(payload, harness)?;
     let directory = match payload.get("cwd").and_then(Value::as_str) {
         Some(d) if !d.is_empty() && !d.contains('\0') => d,
         _ => return Err(invalid("shell cwd must be an absolute directory")),
@@ -578,11 +695,88 @@ impl Moves {
     }
 }
 
+fn handle_cd_command(name: &str, args: &[String], moves: &mut Moves) {
+    let changes: Vec<&String> = args
+        .iter()
+        .filter(|a| !matches!(a.as_str(), "-L" | "-P" | "-e" | "-@" | "--"))
+        .collect();
+    moves.moved = if name != "popd" && changes.len() == 1 && changes[0] != "-" {
+        os_path_join(&moves.moved, changes[0])
+    } else {
+        "$CD".into()
+    };
+}
+
+fn sed_inplace_targets(args: &[String], targets: &mut Vec<(String, String)>) {
+    if !args.iter().any(|a| a.starts_with("-i") || a.starts_with("--in-place")) {
+        return;
+    }
+    let (mut files, mut scripted, mut skip) = (Vec::new(), false, false);
+    for arg in args {
+        if skip {
+            skip = false;
+        } else if matches!(arg.as_str(), "-e" | "-f" | "--expression" | "--file") {
+            scripted = true;
+            skip = true;
+        } else if !arg.starts_with('-') {
+            files.push(arg.clone());
+        }
+    }
+    let skip_script = usize::from(!scripted);
+    for file in files.into_iter().skip(skip_script) {
+        targets.push((file, "sed -i".to_string()));
+    }
+}
+
+fn perl_inplace_targets(args: &[String], targets: &mut Vec<(String, String)>) {
+    if !args.iter().any(|a| PERL_INPLACE.is_match(a)) {
+        return;
+    }
+    let mut skip = false;
+    for arg in args {
+        if skip {
+            skip = false;
+        } else if matches!(arg.as_str(), "-e" | "-E") {
+            skip = true;
+        } else if !arg.starts_with('-') {
+            targets.push((arg.clone(), "perl -i".to_string()));
+        }
+    }
+}
+
+fn copy_move_targets(
+    name: &str,
+    args: &[String],
+    plain: &[&String],
+    base: &Path,
+    targets: &mut Vec<(String, String)>,
+) {
+    let flag = args.iter().position(|a| a == "-t");
+    if let Some(directory) = flag.and_then(|i| args.get(i + 1)) {
+        for source in plain.iter().filter(|a| *a != &directory) {
+            targets.push((join_name(directory, source), name.to_string()));
+        }
+        return;
+    }
+    if plain.len() < 2 {
+        return;
+    }
+    let destination = plain[plain.len() - 1];
+    if plain.len() > 2 || destination.ends_with('/') || base.join(destination).is_dir() {
+        for source in &plain[..plain.len() - 1] {
+            targets.push((join_name(destination, source), name.to_string()));
+        }
+    } else {
+        targets.push((destination.clone(), name.to_string()));
+    }
+}
+
+fn is_command_prefix(word: &str) -> bool {
+    (word.contains('=') && !word.starts_with('-')) || COMMAND_PREFIXES.contains(&word)
+}
+
 fn command_targets(words: &mut Vec<String>, targets: &mut Vec<(String, String)>, base: &Path, moves: &mut Moves) {
-    while words
-        .first()
-        .is_some_and(|w| (w.contains('=') && !w.starts_with('-')) || COMMAND_PREFIXES.contains(&w.as_str()))
-    {
+    while words.first().is_some_and(|w| is_command_prefix(w)) {
         words.remove(0);
     }
     if words.is_empty() {
@@ -590,74 +784,48 @@ fn command_targets(words: &mut Vec<String>, targets: &mut Vec<(String, String)>,
     }
     let (name, args) = (file_name(&words[0]).to_string(), &words[1..]);
     if matches!(name.as_str(), "cd" | "pushd" | "popd") {
-        let changes: Vec<&String> = args
-            .iter()
-            .filter(|a| !matches!(a.as_str(), "-L" | "-P" | "-e" | "-@" | "--"))
-            .collect();
-        moves.moved = if name != "popd" && changes.len() == 1 && changes[0] != "-" {
-            os_path_join(&moves.moved, changes[0])
-        } else {
-            "$CD".into()
-        };
+        handle_cd_command(&name, args, moves);
         words.clear();
         return;
     }
     let plain: Vec<&String> = args.iter().filter(|a| !a.starts_with('-')).collect();
-    let mut add = |target: String, how: &str| targets.push((target, how.to_string()));
     match name.as_str() {
-        "tee" => plain.iter().for_each(|a| add(a.to_string(), "tee")),
-        "sed" if args.iter().any(|a| a.starts_with("-i") || a.starts_with("--in-place")) => {
-            let (mut files, mut scripted, mut skip) = (Vec::new(), false, false);
-            for arg in args {
-                if skip {
-                    skip = false;
-                } else if matches!(arg.as_str(), "-e" | "-f" | "--expression" | "--file") {
-                    scripted = true;
-                    skip = true;
-                } else if !arg.starts_with('-') {
-                    files.push(arg.clone());
-                }
-            }
-            let skip_script = usize::from(!scripted);
-            files.into_iter().skip(skip_script).for_each(|f| add(f, "sed -i"));
-        }
-        "perl" if args.iter().any(|a| PERL_INPLACE.is_match(a)) => {
-            let mut skip = false;
-            for arg in args {
-                if skip {
-                    skip = false;
-                } else if matches!(arg.as_str(), "-e" | "-E") {
-                    skip = true;
-                } else if !arg.starts_with('-') {
-                    add(arg.clone(), "perl -i");
-                }
-            }
-        }
-        "cp" | "mv" | "install" => {
-            let flag = args.iter().position(|a| a == "-t");
-            if let Some(directory) = flag.and_then(|i| args.get(i + 1)) {
-                for source in plain.iter().filter(|a| *a != &directory) {
-                    add(join_name(directory, source), &name);
-                }
-            } else if plain.len() >= 2 {
-                let destination = plain[plain.len() - 1];
-                if plain.len() > 2 || destination.ends_with('/') || base.join(destination).is_dir() {
-                    for source in &plain[..plain.len() - 1] {
-                        add(join_name(destination, source), &name);
-                    }
-                } else {
-                    add(destination.clone(), &name);
-                }
-            }
-        }
+        "tee" => plain.iter().for_each(|a| targets.push((a.to_string(), "tee".into()))),
+        "sed" => sed_inplace_targets(args, targets),
+        "perl" => perl_inplace_targets(args, targets),
+        "cp" | "mv" | "install" => copy_move_targets(&name, args, &plain, base, targets),
         "dd" => args
             .iter()
             .filter_map(|a| a.strip_prefix("of="))
-            .for_each(|t| add(t.into(), "dd")),
+            .for_each(|t| targets.push((t.into(), "dd".into()))),
         _ => {}
     }
     moves.place(targets);
     words.clear();
+}
+
+fn is_redirect_token(token: &str) -> bool {
+    matches!(token, ">" | ">>" | ">|" | "&>" | "&>>")
+        || ((token.ends_with('>') || token.ends_with(">>")) && punctuation_only(token))
+}
+
+fn is_fd_prefix(tokens: &[String], index: usize) -> bool {
+    let token = tokens[index].as_str();
+    !token.is_empty()
+        && token.chars().all(char::is_numeric)
+        && tokens.get(index + 1).is_some_and(|n| n == ">" || n == ">>")
+}
+
+fn apply_subshell_scopes(token: &str, moves: &mut Moves) {
+    for ch in token.chars() {
+        if ch == '(' {
+            moves.scopes.push(moves.moved.clone());
+        } else if ch == ')'
+            && let Some(saved) = moves.scopes.pop()
+        {
+            moves.moved = saved;
+        }
+    }
 }
 
 /// `shell_write_targets`: the files a shell command writes, as `(target, how)`; `None` when it cannot be parsed.
@@ -669,39 +837,22 @@ pub fn shell_write_targets(command: &str, base: &Path) -> Option<Vec<(String, St
     let mut index = 0;
     while index < tokens.len() {
         let token = tokens[index].as_str();
-        let redirect = matches!(token, ">" | ">>" | ">|" | "&>" | "&>>")
-            || ((token.ends_with('>') || token.ends_with(">>")) && punctuation_only(token));
-        if redirect {
+        if is_redirect_token(token) {
             if let Some(next) = tokens.get(index + 1) {
                 targets.push((next.clone(), "redirect".to_string()));
                 moves.place(&mut targets);
             }
             index += 2;
-            continue;
-        }
-        if punctuation_only(token) {
+        } else if punctuation_only(token) {
             command_targets(&mut words, &mut targets, base, &mut moves);
-            for char in token.chars() {
-                if char == '(' {
-                    moves.scopes.push(moves.moved.clone());
-                } else if char == ')'
-                    && let Some(saved) = moves.scopes.pop()
-                {
-                    moves.moved = saved;
-                }
-            }
+            apply_subshell_scopes(token, &mut moves);
             index += 1;
-            continue;
-        }
-        if !token.is_empty()
-            && token.chars().all(char::is_numeric)
-            && tokens.get(index + 1).is_some_and(|n| n == ">" || n == ">>")
-        {
+        } else if is_fd_prefix(&tokens, index) {
             index += 1;
-            continue;
+        } else {
+            words.push(token.to_string());
+            index += 1;
         }
-        words.push(token.to_string());
-        index += 1;
     }
     command_targets(&mut words, &mut targets, base, &mut moves);
     targets.retain(|(t, _)| {
@@ -718,6 +869,38 @@ fn git_ignored(root: &Path, relative: &str) -> bool {
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|s| s.success())
+}
+
+fn check_write_target(
+    target: &str,
+    how: &str,
+    root: &Path,
+    cwd: &Path,
+    config: &Config,
+) -> Result<Option<String>, CheckError> {
+    if target.contains(['$', '`', '*', '?', '~']) {
+        return Ok(None);
+    }
+    let path = abspath(cwd, target);
+    let Some(relative) = relative_of(&path, root) else {
+        return Ok(None);
+    };
+    if let Some(message) = protect_path(&path.to_string_lossy(), root, config)? {
+        return Ok(Some(message));
+    }
+    let ext = suffix(&path);
+    let data = TEXT_REDIRECT_SUFFIXES.contains(&ext.as_str()) || WRITE_DATA_EXTRA.contains(&ext.as_str());
+    if data && !hidden(&relative) {
+        return Ok(None);
+    }
+    let shown = if relative.is_empty() { ".".to_string() } else { relative };
+    if git_ignored(root, &shown) {
+        return Ok(None);
+    }
+    crate::evidence::finding("shell-write", Some(&shown));
+    Ok(Some(format!(
+        "loki: `{how}` into {shown} would skip Loki's write check; write source and configuration files with the file edit tools (Ultron: edit()/write())"
+    )))
 }
 
 /// `shell_writes_violation`: deny shell writes of source or configuration inside the project.
@@ -737,29 +920,9 @@ pub fn shell_writes_violation(
     let root = resolve(root);
     let config = crate::run::load(&root)?;
     for (target, how) in targets {
-        if target.contains(['$', '`', '*', '?', '~']) {
-            continue;
-        }
-        let path = abspath(cwd, &target);
-        let Some(relative) = relative_of(&path, &root) else {
-            continue;
-        };
-        if let Some(message) = protect_path(&path.to_string_lossy(), &root, &config)? {
+        if let Some(message) = check_write_target(&target, &how, &root, cwd, &config)? {
             return Ok(Some(message));
         }
-        let data = TEXT_REDIRECT_SUFFIXES.contains(&suffix(&path).as_str())
-            || WRITE_DATA_EXTRA.contains(&suffix(&path).as_str());
-        if data && !hidden(&relative) {
-            continue;
-        }
-        let shown = if relative.is_empty() { ".".to_string() } else { relative };
-        if git_ignored(&root, &shown) {
-            continue;
-        }
-        crate::evidence::finding("shell-write", Some(&shown));
-        return Ok(Some(format!(
-            "loki: `{how}` into {shown} would skip Loki's write check; write source and configuration files with the file edit tools (Ultron: edit()/write())"
-        )));
     }
     Ok(None)
 }

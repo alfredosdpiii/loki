@@ -97,11 +97,10 @@ fn regular(mode: &Option<String>) -> bool {
     matches!(mode.as_deref(), Some("100644" | "100755"))
 }
 
-/// Deleted tests, removed assertions, added skips and changed quality thresholds.
-pub fn test_integrity_violations(changes: &[&FileChange]) -> Result<Vec<String>, CheckError> {
-    let mut violations = Vec::new();
-    type Added = ((Vec<u8>, String), Vec<String>);
-    let mut additions: Vec<Added> = Vec::new();
+type AddedTest = ((Vec<u8>, String), Vec<String>);
+
+fn added_test_files(changes: &[&FileChange]) -> Vec<AddedTest> {
+    let mut additions: Vec<AddedTest> = Vec::new();
     for change in changes {
         if is_test_path(&change.path)
             && change.before.is_none()
@@ -115,22 +114,68 @@ pub fn test_integrity_violations(changes: &[&FileChange]) -> Result<Vec<String>,
             }
         }
     }
+    additions
+}
+
+fn moved_test_paths(changes: &[&FileChange]) -> HashSet<String> {
+    let mut additions = added_test_files(changes);
     let mut moved: HashSet<String> = HashSet::new();
     for change in changes {
         if is_test_path(&change.path)
             && change.after.is_none()
             && regular(&change.before_mode)
             && let (Some(before), Some(mode)) = (&change.before, &change.before_mode)
+            && let Some((_, destinations)) = additions.iter_mut().find(|(k, _)| *k == (before.clone(), mode.clone()))
+            && let Some(destination) = destinations.pop()
         {
-            let key = (before.clone(), mode.clone());
-            if let Some((_, destinations)) = additions.iter_mut().find(|(k, _)| *k == key)
-                && let Some(destination) = destinations.pop()
-            {
-                moved.insert(change.path.clone());
-                moved.insert(destination);
-            }
+            moved.insert(change.path.clone());
+            moved.insert(destination);
         }
     }
+    moved
+}
+
+fn decode_change_bytes(bytes: &Option<Vec<u8>>, path: &str) -> Result<String, CheckError> {
+    String::from_utf8(bytes.clone().unwrap_or_default())
+        .map_err(|_| invalid(format!("loki: cannot inspect non-UTF-8 test/config: {path}")))
+}
+
+fn diff_lines<'a>(before: &'a [&'a str], after: &'a [&'a str]) -> (Vec<&'a str>, Vec<&'a str>) {
+    let (mut removed, mut added) = (Vec::new(), Vec::new());
+    for (tag, i, j, a, b) in py::opcodes(before, after) {
+        if tag != "equal" {
+            removed.extend(&before[i..j]);
+            added.extend(&after[a..b]);
+        }
+    }
+    (removed, added)
+}
+
+fn check_test_change(change: &FileChange, removed: &[&str], added: &[&str], violations: &mut Vec<String>) {
+    let path = &change.path;
+    if change.before.is_some() && change.after.is_none() {
+        crate::evidence::finding("test-file-deleted", Some(path));
+        violations.push(format!("{path}: test file deleted"));
+    }
+    let count = |lines: &[&str], re: &Regex| lines.iter().filter(|l| re.is_match(l)).count();
+    if count(removed, &TEST_DECLARATION) > count(added, &TEST_DECLARATION) {
+        crate::evidence::finding("test-deleted", Some(path));
+        violations.push(format!("{path}: test deleted"));
+    }
+    if count(removed, &ASSERTION) > count(added, &ASSERTION) {
+        crate::evidence::finding("assertion-removed", Some(path));
+        violations.push(format!("{path}: assertion removed"));
+    }
+    if added.iter().any(|l| SKIP.is_match(l)) {
+        crate::evidence::finding("test-skip-added", Some(path));
+        violations.push(format!("{path}: test skip added"));
+    }
+}
+
+/// Deleted tests, removed assertions, added skips and changed quality thresholds.
+pub fn test_integrity_violations(changes: &[&FileChange]) -> Result<Vec<String>, CheckError> {
+    let mut violations = Vec::new();
+    let moved = moved_test_paths(changes);
     for change in changes {
         let path = &change.path;
         if moved.contains(path) {
@@ -141,38 +186,13 @@ pub fn test_integrity_violations(changes: &[&FileChange]) -> Result<Vec<String>,
         if !test && !quality {
             continue;
         }
-        let decode = |bytes: &Option<Vec<u8>>| -> Result<String, CheckError> {
-            String::from_utf8(bytes.clone().unwrap_or_default())
-                .map_err(|_| invalid(format!("loki: cannot inspect non-UTF-8 test/config: {path}")))
-        };
-        let (before_text, after_text) = (decode(&change.before)?, decode(&change.after)?);
+        let before_text = decode_change_bytes(&change.before, path)?;
+        let after_text = decode_change_bytes(&change.after, path)?;
         let before = py::splitlines(&before_text, false);
         let after = py::splitlines(&after_text, false);
-        let (mut removed, mut added): (Vec<&str>, Vec<&str>) = (Vec::new(), Vec::new());
-        for (tag, i, j, a, b) in py::opcodes(&before, &after) {
-            if tag != "equal" {
-                removed.extend(&before[i..j]);
-                added.extend(&after[a..b]);
-            }
-        }
-        if test && change.before.is_some() && change.after.is_none() {
-            crate::evidence::finding("test-file-deleted", Some(path));
-            violations.push(format!("{path}: test file deleted"));
-        }
+        let (removed, added) = diff_lines(&before, &after);
         if test {
-            let count = |lines: &[&str], re: &Regex| lines.iter().filter(|l| re.is_match(l)).count();
-            if count(&removed, &TEST_DECLARATION) > count(&added, &TEST_DECLARATION) {
-                crate::evidence::finding("test-deleted", Some(path));
-                violations.push(format!("{path}: test deleted"));
-            }
-            if count(&removed, &ASSERTION) > count(&added, &ASSERTION) {
-                crate::evidence::finding("assertion-removed", Some(path));
-                violations.push(format!("{path}: assertion removed"));
-            }
-            if added.iter().any(|l| SKIP.is_match(l)) {
-                crate::evidence::finding("test-skip-added", Some(path));
-                violations.push(format!("{path}: test skip added"));
-            }
+            check_test_change(change, &removed, &added, &mut violations);
         }
         if quality && removed.iter().chain(&added).any(|l| QUALITY_POLICY.is_match(l)) {
             crate::evidence::finding("quality-threshold-changed", Some(path));
@@ -251,9 +271,7 @@ pub fn declared_python_dependencies(root: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// `(ecosystem, name)` of every manifest dependency, sorted.
-pub fn manifest_dependencies(root: &Path) -> Vec<(String, String)> {
-    let mut found: BTreeSet<(String, String)> = BTreeSet::new();
+fn npm_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
     let package = root.join("package.json");
     if package.is_file()
         && let Ok(text) = proc::read_text(&package)
@@ -265,30 +283,33 @@ pub fn manifest_dependencies(root: &Path) -> Vec<(String, String)> {
             }
         }
     }
-    for name in pyproject_names(root).into_iter().chain(requirement_names(root)) {
-        found.insert(("pypi".into(), name.replace('_', "-")));
-    }
+}
+
+fn go_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
     let go_mod = root.join("go.mod");
-    if go_mod.is_file()
-        && let Ok(text) = proc::read_text(&go_mod)
-    {
-        let mut in_require = false;
-        for raw in py::splitlines(&text, false) {
-            let line = py::strip(raw);
-            if line == "require (" {
-                in_require = true;
-                continue;
-            }
-            if in_require && line == ")" {
-                in_require = false;
-                continue;
-            }
-            let pattern = if in_require { &GO_REQUIRE_LINE } else { &GO_REQUIRE };
-            if let Some(caps) = pattern.captures(line) {
-                found.insert(("go".into(), caps[1].to_string()));
-            }
+    if !go_mod.is_file() {
+        return;
+    }
+    let Ok(text) = proc::read_text(&go_mod) else { return };
+    let mut in_require = false;
+    for raw in py::splitlines(&text, false) {
+        let line = py::strip(raw);
+        if line == "require (" {
+            in_require = true;
+            continue;
+        }
+        if in_require && line == ")" {
+            in_require = false;
+            continue;
+        }
+        let pattern = if in_require { &GO_REQUIRE_LINE } else { &GO_REQUIRE };
+        if let Some(caps) = pattern.captures(line) {
+            found.insert(("go".into(), caps[1].to_string()));
         }
     }
+}
+
+fn cargo_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
     let cargo = root.join("Cargo.toml");
     if cargo.is_file()
         && let Some(data) = toml_table(&cargo)
@@ -296,6 +317,9 @@ pub fn manifest_dependencies(root: &Path) -> Vec<(String, String)> {
     {
         found.extend(values.keys().map(|name| ("crates".to_string(), name.clone())));
     }
+}
+
+fn mix_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
     let mix = root.join("mix.exs");
     if mix.is_file()
         && let Ok(text) = proc::read_text(&mix)
@@ -304,6 +328,18 @@ pub fn manifest_dependencies(root: &Path) -> Vec<(String, String)> {
             found.insert(("hex".into(), caps[1].to_string()));
         }
     }
+}
+
+/// `(ecosystem, name)` of every manifest dependency, sorted.
+pub fn manifest_dependencies(root: &Path) -> Vec<(String, String)> {
+    let mut found: BTreeSet<(String, String)> = BTreeSet::new();
+    npm_manifest_deps(root, &mut found);
+    for name in pyproject_names(root).into_iter().chain(requirement_names(root)) {
+        found.insert(("pypi".into(), name.replace('_', "-")));
+    }
+    go_manifest_deps(root, &mut found);
+    cargo_manifest_deps(root, &mut found);
+    mix_manifest_deps(root, &mut found);
     found.into_iter().collect()
 }
 
@@ -346,6 +382,77 @@ pub fn lockfile_violations(root: &Path, changes: &[FileChange]) -> Vec<String> {
     violations
 }
 
+fn report_repository_gap(gap: &str, warnings: Option<&mut Vec<String>>) -> Vec<String> {
+    let message = format!("NOT CHECKED repository changes: {gap}");
+    if crate::strict() {
+        return vec![message];
+    }
+    if let Some(warnings) = warnings {
+        if !warnings.contains(&message) {
+            warnings.push(message);
+        }
+    } else {
+        eprintln!("{message}");
+    }
+    vec![]
+}
+
+fn load_guardrail_changes(
+    root: &Path,
+    touched: &HashSet<String>,
+    deadline: Deadline,
+    warnings: Option<&mut Vec<String>>,
+) -> Result<(Option<String>, Vec<FileChange>), CheckError> {
+    match git::git_changes(root, None, deadline) {
+        Err(error) if git::snapshot_too_large(&error) => {
+            let mut note = format!(
+                "NOT CHECKED repository changes: {}; protected-file, test and lockfile checks covered only the files this write changed",
+                error.message()
+            );
+            let narrowed = match git::git_changes_only(root, None, deadline, Some(touched)) {
+                Err(written) if git::snapshot_too_large(&written) => {
+                    note = format!("NOT CHECKED repository changes: {}", written.message());
+                    (None, Vec::new())
+                }
+                other => other?,
+            };
+            if let Some(warnings) = warnings {
+                warnings.push(note);
+            }
+            Ok(narrowed)
+        }
+        other => other,
+    }
+}
+
+fn check_write_guardrails(
+    paths: &[PathBuf],
+    root: &Path,
+    config: &Config,
+    deadline: Deadline,
+    warnings: Option<&mut Vec<String>>,
+) -> Result<Vec<String>, CheckError> {
+    let resolved = resolve(root);
+    let touched: HashSet<String> = paths
+        .iter()
+        .filter_map(|p| p.strip_prefix(&resolved).ok().map(|r| r.to_string_lossy().into_owned()))
+        .collect();
+    let (base, changes) = load_guardrail_changes(root, &touched, deadline, warnings)?;
+    let policy = git::base_policy(root, base.as_deref(), deadline)?;
+    let protected = git::protected_change_violations(&changes, &policy.unwrap_or_default())?;
+    if !protected.is_empty() {
+        return Ok(protected);
+    }
+    let selected: Vec<&FileChange> = changes.iter().filter(|c| touched.contains(&c.path)).collect();
+    let mut violations = test_integrity_violations(&selected)?;
+    violations.extend(lockfile_violations(&resolved, &changes));
+    if MANIFESTS.iter().any(|m| touched.contains(*m)) {
+        violations.extend(dependency_policy_violations(&resolved, config));
+    }
+    violations.truncate(MAX_VIOLATIONS);
+    Ok(violations)
+}
+
 /// `write_guardrail_violations`: protected, test-integrity, lockfile and dependency policy.
 /// A snapshot of every change too large to take (`SnapshotTooLarge`) narrows to the written files, with a
 /// `NOT CHECKED repository changes` note in `warnings`, so the per-file checks still run.
@@ -354,64 +461,12 @@ pub fn write_guardrail_violations(
     root: &Path,
     config: &Config,
     deadline: Deadline,
-    mut warnings: Option<&mut Vec<String>>,
+    warnings: Option<&mut Vec<String>>,
 ) -> Result<Vec<String>, CheckError> {
     if let Some(gap) = git::repository_gap(root, deadline)? {
-        let message = format!("NOT CHECKED repository changes: {gap}");
-        if crate::strict() {
-            return Ok(vec![message]);
-        }
-        if let Some(warnings) = warnings.as_deref_mut() {
-            if !warnings.contains(&message) {
-                warnings.push(message);
-            }
-        } else {
-            eprintln!("{message}");
-        }
-        return Ok(vec![]);
+        return Ok(report_repository_gap(&gap, warnings));
     }
-    let mut checked = || -> Result<Vec<String>, CheckError> {
-        let resolved = resolve(root);
-        let touched: HashSet<String> = paths
-            .iter()
-            .filter_map(|p| p.strip_prefix(&resolved).ok().map(|r| r.to_string_lossy().into_owned()))
-            .collect();
-        let (base, changes) = match git::git_changes(root, None, deadline) {
-            Err(error) if git::snapshot_too_large(&error) => {
-                let mut note = format!(
-                    "NOT CHECKED repository changes: {}; protected-file, test and lockfile checks covered only the files this write changed",
-                    error.message()
-                );
-                let narrowed = match git::git_changes_only(root, None, deadline, Some(&touched)) {
-                    Err(written) if git::snapshot_too_large(&written) => {
-                        note = format!("NOT CHECKED repository changes: {}", written.message());
-                        (None, Vec::new())
-                    }
-                    other => other?,
-                };
-                if let Some(warnings) = warnings.as_deref_mut() {
-                    warnings.push(note);
-                }
-                narrowed
-            }
-            other => other?,
-        };
-        let policy = git::base_policy(root, base.as_deref(), deadline)?;
-        let protected = git::protected_change_violations(&changes, &policy.unwrap_or_default())?;
-        if !protected.is_empty() {
-            return Ok(protected);
-        }
-        let root = resolved;
-        let selected: Vec<&FileChange> = changes.iter().filter(|c| touched.contains(&c.path)).collect();
-        let mut violations = test_integrity_violations(&selected)?;
-        violations.extend(lockfile_violations(&root, &changes));
-        if MANIFESTS.iter().any(|m| touched.contains(*m)) {
-            violations.extend(dependency_policy_violations(&root, config));
-        }
-        violations.truncate(MAX_VIOLATIONS);
-        Ok(violations)
-    };
-    match checked() {
+    match check_write_guardrails(paths, root, config, deadline, warnings) {
         Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => Ok(vec![error.message().to_string()]),
         other => other,
     }
@@ -529,6 +584,39 @@ pub fn project_python(root: &Path, explicit: Option<&str>) -> Option<String> {
     None
 }
 
+fn probe_missing_imports(
+    interpreter: &str,
+    root: &Path,
+    asked: &[String],
+    deadline: Deadline,
+) -> Result<HashSet<String>, CheckError> {
+    let mut command = vec![interpreter.to_string(), "-c".into(), IMPORT_PROBE.into()];
+    command.extend(asked.iter().cloned());
+    let timeout = deadline.timeout()?.min(15.0);
+    let unavailable = |reason: String| invalid(format!("project interpreter {interpreter} unavailable: {reason}"));
+    let result = proc::run(&command, root, None, &[], timeout).map_err(|e| unavailable(e.to_string()))?;
+    let stdout = proc::text(&result.stdout);
+    let missing = if result.code == 0 {
+        match serde_json::from_str::<Value>(&stdout) {
+            Ok(value) => Some(value),
+            Err(e) => return Err(unavailable(crate::pyjson::error_text(&stdout, &e))),
+        }
+    } else {
+        None
+    };
+    let Some(Value::Array(missing)) = missing else {
+        let stderr = proc::text(&result.stderr);
+        let reason: String = py::strip(&stderr).chars().take(200).collect();
+        let reason = if reason.is_empty() {
+            format!("exited {}", result.code)
+        } else {
+            reason
+        };
+        return Err(unavailable(reason));
+    };
+    Ok(missing.iter().filter_map(Value::as_str).map(String::from).collect())
+}
+
 /// The modules the project's interpreter cannot import.
 fn resolve_imports(
     root: &Path,
@@ -555,35 +643,11 @@ fn resolve_imports(
             .collect()
     };
     if !asked.is_empty() {
-        let mut command = vec![interpreter.clone(), "-c".into(), IMPORT_PROBE.into()];
-        command.extend(asked.iter().cloned());
-        let timeout = deadline.timeout()?.min(15.0);
-        let unavailable = |reason: String| invalid(format!("project interpreter {interpreter} unavailable: {reason}"));
-        let result = proc::run(&command, root, None, &[], timeout).map_err(|e| unavailable(e.to_string()))?;
-        let stdout = proc::text(&result.stdout);
-        let missing = if result.code == 0 {
-            match serde_json::from_str::<Value>(&stdout) {
-                Ok(value) => Some(value),
-                Err(e) => return Err(unavailable(crate::pyjson::error_text(&stdout, &e))),
-            }
-        } else {
-            None
-        };
-        let Some(Value::Array(missing)) = missing else {
-            let stderr = proc::text(&result.stderr);
-            let reason: String = py::strip(&stderr).chars().take(200).collect();
-            let reason = if reason.is_empty() {
-                format!("exited {}", result.code)
-            } else {
-                reason
-            };
-            return Err(unavailable(reason));
-        };
-        let missing: HashSet<&str> = missing.iter().filter_map(Value::as_str).collect();
+        let missing = probe_missing_imports(&interpreter, root, &asked, deadline)?;
         let mut memo = IMPORT_MEMO.lock().map_err(|_| invalid("import memo poisoned"))?;
         let known = memo.entry(memo_key.clone()).or_default();
         for module in &asked {
-            known.insert(module.clone(), !missing.contains(module.as_str()));
+            known.insert(module.clone(), !missing.contains(module));
         }
     }
     let memo = IMPORT_MEMO.lock().map_err(|_| invalid("import memo poisoned"))?;
@@ -595,59 +659,17 @@ fn resolve_imports(
         .collect())
 }
 
-/// Placeholder bodies and unresolvable imports in a Python file.
 #[allow(clippy::too_many_arguments)]
-pub fn python_ast_violations(
-    path: &Path,
+fn append_unresolved_imports(
+    display: &str,
     root: &Path,
-    dependencies: Option<&BTreeSet<String>>,
-    base: &str,
+    imports: &[(i64, String)],
     python: Option<&str>,
     strict: bool,
     warnings: &mut Vec<String>,
     deadline: Deadline,
-) -> Result<Vec<String>, CheckError> {
-    let display = relative_display(path, root);
-    let old = match pyast::parse(base)? {
-        Some(tree) => tree,
-        None => {
-            return Ok(not_checked(
-                format!("NOT CHECKED python ast: {display} does not parse at the base"),
-                strict,
-                warnings,
-            ));
-        }
-    };
-    let source = match proc::read_text(path) {
-        Ok(source) => source,
-        Err(error) => {
-            crate::evidence::finding("python-syntax", Some(&display));
-            return Ok(vec![format!("{display}: python-ast: {error}")]);
-        }
-    };
-    let tree = match pyast::parse_named(&source, Some(&path.to_string_lossy()))? {
-        pyast::Parsed::Tree(tree) => tree,
-        pyast::Parsed::Error(error) => {
-            crate::evidence::finding("python-syntax", Some(&display));
-            return Ok(vec![format!("{display}: python-ast: {error}")]);
-        }
-    };
-    let declared = match dependencies {
-        Some(d) => d.clone(),
-        None => declared_python_dependencies(root),
-    };
-    let directory = resolve(path).parent().map(Path::to_path_buf).unwrap_or_default();
-    let stubs = net_new(pyast::python_stubs(&tree), &pyast::python_stubs(&old), &source, base);
-    let imports = net_new(
-        pyast::python_unknown_imports(&tree, root, &directory, &declared)?,
-        &pyast::python_unknown_imports(&old, root, &directory, &declared)?,
-        &source,
-        base,
-    );
-    let mut violations: Vec<String> = stubs
-        .iter()
-        .map(|(line, name)| format!("{display}:{line}: python-ast: stub body in {name}"))
-        .collect();
+    violations: &mut Vec<String>,
+) -> Result<(), CheckError> {
     let modules: BTreeSet<String> = imports.iter().map(|(_, m)| m.clone()).collect();
     match resolve_imports(root, &modules, python, deadline) {
         Ok(missing) => violations.extend(
@@ -663,6 +685,68 @@ pub fn python_ast_violations(
         )),
         Err(other) => return Err(other),
     }
+    Ok(())
+}
+
+/// Placeholder bodies and unresolvable imports in a Python file.
+#[allow(clippy::too_many_arguments)]
+pub fn python_ast_violations(
+    path: &Path,
+    root: &Path,
+    dependencies: Option<&BTreeSet<String>>,
+    base: &str,
+    python: Option<&str>,
+    strict: bool,
+    warnings: &mut Vec<String>,
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
+    let display = relative_display(path, root);
+    let Some(old) = pyast::parse(base)? else {
+        return Ok(not_checked(
+            format!("NOT CHECKED python ast: {display} does not parse at the base"),
+            strict,
+            warnings,
+        ));
+    };
+    let source = match proc::read_text(path) {
+        Ok(source) => source,
+        Err(error) => {
+            crate::evidence::finding("python-syntax", Some(&display));
+            return Ok(vec![format!("{display}: python-ast: {error}")]);
+        }
+    };
+    let tree = match pyast::parse_named(&source, Some(&path.to_string_lossy()))? {
+        pyast::Parsed::Tree(tree) => tree,
+        pyast::Parsed::Error(error) => {
+            crate::evidence::finding("python-syntax", Some(&display));
+            return Ok(vec![format!("{display}: python-ast: {error}")]);
+        }
+    };
+    let declared = dependencies
+        .cloned()
+        .unwrap_or_else(|| declared_python_dependencies(root));
+    let directory = resolve(path).parent().map(Path::to_path_buf).unwrap_or_default();
+    let stubs = net_new(pyast::python_stubs(&tree), &pyast::python_stubs(&old), &source, base);
+    let imports = net_new(
+        pyast::python_unknown_imports(&tree, root, &directory, &declared)?,
+        &pyast::python_unknown_imports(&old, root, &directory, &declared)?,
+        &source,
+        base,
+    );
+    let mut violations: Vec<String> = stubs
+        .iter()
+        .map(|(line, name)| format!("{display}:{line}: python-ast: stub body in {name}"))
+        .collect();
+    append_unresolved_imports(
+        &display,
+        root,
+        &imports,
+        python,
+        strict,
+        warnings,
+        deadline,
+        &mut violations,
+    )?;
     violations.truncate(MAX_VIOLATIONS);
     Ok(violations)
 }
@@ -763,13 +847,7 @@ fn py_str(value: &Value) -> String {
     }
 }
 
-/// Ruff findings present in each candidate but not its base, by line text.
-pub fn ruff_delta(
-    raw: &[u8],
-    pairs: &[(String, Vec<u8>, Vec<u8>)],
-    deadline: Deadline,
-    ruff: &[String],
-) -> Result<Vec<String>, CheckError> {
+fn validate_ruff_config(raw: &[u8]) -> Result<(), CheckError> {
     let text = proc::decode(raw).map_err(invalid)?;
     let config: toml::Table = text
         .parse()
@@ -777,6 +855,67 @@ pub fn ruff_delta(
     if config.contains_key("extend") {
         return Err(invalid("net-new Ruff requires self-contained base .ruff.toml"));
     }
+    Ok(())
+}
+
+fn run_ruff_check(
+    ruff: &[String],
+    trusted: &Path,
+    directory: &Path,
+    path: &str,
+    content: &[u8],
+    deadline: Deadline,
+) -> Result<Counter<(String, String, String)>, CheckError> {
+    let command: Vec<String> = ruff
+        .iter()
+        .map(String::as_str)
+        .chain([
+            "check",
+            "--no-cache",
+            "--no-respect-gitignore",
+            "--config",
+            &trusted.to_string_lossy(),
+            "--output-format",
+            "json",
+            "--stdin-filename",
+            path,
+            "-",
+        ])
+        .map(String::from)
+        .collect();
+    let result = proc::run(&command, directory, Some(content), &[], deadline.timeout()?)?;
+    if result.code != 0 && result.code != 1 {
+        return Err(invalid(format!(
+            "Ruff unavailable: {}",
+            String::from_utf8_lossy(&result.stderr)
+        )));
+    }
+    let stdout = String::from_utf8_lossy(&result.stdout).into_owned();
+    let diagnostics: Value =
+        serde_json::from_str(&stdout).map_err(|e| invalid(crate::pyjson::error_text(&stdout, &e)))?;
+    let source = proc::decode(content).map_err(invalid)?;
+    let lines = py::splitlines(&source, false);
+    let mut counter = Counter::new();
+    for item in diagnostics.as_array().into_iter().flatten() {
+        let row = item["location"]["row"].as_i64().unwrap_or(0);
+        let line = if 0 < row && row as usize <= lines.len() {
+            py::strip(lines[row as usize - 1]).to_string()
+        } else {
+            String::new()
+        };
+        counter.add((py_str(&item["code"]), py_str(&item["message"]), line));
+    }
+    Ok(counter)
+}
+
+/// Ruff findings present in each candidate but not its base, by line text.
+pub fn ruff_delta(
+    raw: &[u8],
+    pairs: &[(String, Vec<u8>, Vec<u8>)],
+    deadline: Deadline,
+    ruff: &[String],
+) -> Result<Vec<String>, CheckError> {
+    validate_ruff_config(raw)?;
     let directory = tempfile::Builder::new()
         .prefix("loki-ruff-")
         .tempdir()
@@ -785,50 +924,9 @@ pub fn ruff_delta(
     std::fs::write(&trusted, raw).map_err(|e| CheckError::os(&e, None))?;
     let mut violations = Vec::new();
     for (path, before, after) in pairs {
-        let mut counts: Vec<Counter<(String, String, String)>> = Vec::new();
-        for content in [before, after] {
-            let command: Vec<String> = ruff
-                .iter()
-                .map(String::as_str)
-                .chain([
-                    "check",
-                    "--no-cache",
-                    "--no-respect-gitignore",
-                    "--config",
-                    &trusted.to_string_lossy(),
-                    "--output-format",
-                    "json",
-                    "--stdin-filename",
-                    path,
-                    "-",
-                ])
-                .map(|s| s.to_string())
-                .collect();
-            let result = proc::run(&command, directory.path(), Some(content), &[], deadline.timeout()?)?;
-            if result.code != 0 && result.code != 1 {
-                return Err(invalid(format!(
-                    "Ruff unavailable: {}",
-                    String::from_utf8_lossy(&result.stderr)
-                )));
-            }
-            let stdout = String::from_utf8_lossy(&result.stdout).into_owned();
-            let diagnostics: Value =
-                serde_json::from_str(&stdout).map_err(|e| invalid(crate::pyjson::error_text(&stdout, &e)))?;
-            let source = proc::decode(content).map_err(invalid)?;
-            let lines = py::splitlines(&source, false);
-            let mut counter = Counter::new();
-            for item in diagnostics.as_array().into_iter().flatten() {
-                let row = item["location"]["row"].as_i64().unwrap_or(0);
-                let line = if 0 < row && row as usize <= lines.len() {
-                    py::strip(lines[row as usize - 1]).to_string()
-                } else {
-                    String::new()
-                };
-                counter.add((py_str(&item["code"]), py_str(&item["message"]), line));
-            }
-            counts.push(counter);
-        }
-        for ((code, message, _), count) in counts[1].minus(&counts[0]) {
+        let prior = run_ruff_check(ruff, &trusted, directory.path(), path, before, deadline)?;
+        let current = run_ruff_check(ruff, &trusted, directory.path(), path, after, deadline)?;
+        for ((code, message, _), count) in current.minus(&prior) {
             crate::evidence::finding(&format!("ruff:{code}"), Some(path));
             for _ in 0..count {
                 violations.push(format!("{path}: {code}: {message}"));
@@ -848,6 +946,29 @@ impl From<CheckError> for RuffError {
     fn from(error: CheckError) -> Self {
         RuffError::Other(error)
     }
+}
+
+fn committed_ruff_config(root: &Path, base: &str, deadline: Deadline) -> Result<Vec<u8>, RuffError> {
+    let listed = git_output(
+        root,
+        &["ls-tree", "--name-only", base, "--", ".ruff.toml"],
+        deadline,
+        None,
+    )?;
+    if py::strip(&String::from_utf8_lossy(&listed)).is_empty() {
+        return Err(RuffError::MissingConfig("no committed .ruff.toml".into()));
+    }
+    let raw = git_output(root, &["show", &format!("{base}:.ruff.toml")], deadline, None)?;
+    crate::evidence::policy("base", ".ruff.toml", Some(&raw), Some(base));
+    Ok(raw)
+}
+
+fn python_change_pairs(changes: Vec<FileChange>, paths: Option<&HashSet<String>>) -> Vec<(String, Vec<u8>, Vec<u8>)> {
+    changes
+        .into_iter()
+        .filter(|c| paths.is_none_or(|p| p.contains(&c.path)) && c.path.ends_with(".py"))
+        .filter_map(|c| c.after.map(|after| (c.path, c.before.unwrap_or_default(), after)))
+        .collect()
 }
 
 /// Net-new Ruff findings of changed Python files against the committed config.
@@ -871,22 +992,8 @@ pub fn ruff_new_violations(
     if !protected.is_empty() {
         return Ok(protected);
     }
-    let listed = git_output(
-        root,
-        &["ls-tree", "--name-only", &base, "--", ".ruff.toml"],
-        deadline,
-        None,
-    )?;
-    if py::strip(&String::from_utf8_lossy(&listed)).is_empty() {
-        return Err(RuffError::MissingConfig("no committed .ruff.toml".into()));
-    }
-    let raw = git_output(root, &["show", &format!("{base}:.ruff.toml")], deadline, None)?;
-    crate::evidence::policy("base", ".ruff.toml", Some(&raw), Some(&base));
-    let pairs: Vec<(String, Vec<u8>, Vec<u8>)> = changes
-        .into_iter()
-        .filter(|c| paths.is_none_or(|p| p.contains(&c.path)) && c.path.ends_with(".py"))
-        .filter_map(|c| c.after.map(|after| (c.path, c.before.unwrap_or_default(), after)))
-        .collect();
+    let raw = committed_ruff_config(root, &base, deadline)?;
+    let pairs = python_change_pairs(changes, paths);
     let ruff = ruff_command(root).unwrap_or_else(|| vec!["ruff".into()]);
     Ok(ruff_delta(&raw, &pairs, deadline, &ruff)?)
 }
@@ -1020,63 +1127,100 @@ pub fn possibly_existing<'a>(keys: impl Iterator<Item = (&'a str, &'a str)>, tex
     false
 }
 
-/// Net-new mypy errors in written files, against their committed text.
-fn mypy_violations(root: &Path, paths: &[String], deadline: Deadline) -> Result<Vec<String>, CheckError> {
-    if paths.is_empty() || mypy_binary(root).is_none() {
-        return Ok(vec![]);
-    }
-    let mut after = HashMap::new();
-    for name in paths {
-        let text = proc::read_text(&root.join(name)).map_err(invalid)?;
-        after.insert(name.clone(), text);
-    }
+fn any_annotated_python(after: &HashMap<String, String>, paths: &[String]) -> Result<bool, CheckError> {
     let texts: Vec<&str> = after.values().map(String::as_str).collect();
     pyast::prefetch(&texts)?;
-    let mut annotated = false;
     for name in paths {
         if pyast::annotated_python(&after[name])? {
-            annotated = true;
-            break;
+            return Ok(true);
         }
     }
-    if !annotated {
-        return Ok(vec![]);
+    Ok(false)
+}
+
+fn mypy_previous_errors(
+    root: &Path,
+    paths: &[String],
+    before: &HashMap<String, String>,
+    deadline: Deadline,
+) -> Result<Counter<Fingerprint>, CheckError> {
+    let directory = tempfile::Builder::new()
+        .prefix("loki-mypy-")
+        .tempdir()
+        .map_err(|e| CheckError::os(&e, None))?;
+    let mut shadows = Vec::new();
+    for (index, name) in paths.iter().enumerate() {
+        let shadow = directory.path().join(format!("{index}.py"));
+        std::fs::write(&shadow, &before[name]).map_err(|e| CheckError::os(&e, None))?;
+        shadows.extend([
+            "--shadow-file".to_string(),
+            name.clone(),
+            shadow.to_string_lossy().into_owned(),
+        ]);
     }
-    let (current, numbers) = mypy_errors(&mypy_run(root, paths, deadline, &[])?, &after);
-    if current.is_empty() {
-        return Ok(vec![]);
-    }
-    let mut before = HashMap::new();
+    Ok(mypy_errors(&mypy_run(root, paths, deadline, &shadows)?, before).0)
+}
+
+fn read_worktree_texts(root: &Path, paths: &[String]) -> Result<HashMap<String, String>, CheckError> {
+    let mut texts = HashMap::new();
     for name in paths {
-        before.insert(name.clone(), head_text(root, name, deadline)?);
+        texts.insert(name.clone(), proc::read_text(&root.join(name)).map_err(invalid)?);
     }
-    let mut previous = Counter::new();
-    if possibly_existing(current.keys().map(|k| (k.0.as_str(), k.3.as_str())), &before) {
-        let directory = tempfile::Builder::new()
-            .prefix("loki-mypy-")
-            .tempdir()
-            .map_err(|e| CheckError::os(&e, None))?;
-        let mut shadows = Vec::new();
-        for (index, name) in paths.iter().enumerate() {
-            let shadow = directory.path().join(format!("{index}.py"));
-            std::fs::write(&shadow, &before[name]).map_err(|e| CheckError::os(&e, None))?;
-            shadows.extend([
-                "--shadow-file".to_string(),
-                name.clone(),
-                shadow.to_string_lossy().into_owned(),
-            ]);
-        }
-        previous = mypy_errors(&mypy_run(root, paths, deadline, &shadows)?, &before).0;
-    }
+    Ok(texts)
+}
+
+fn format_mypy_violations(
+    current: &Counter<Fingerprint>,
+    previous: &Counter<Fingerprint>,
+    numbers: &HashMap<Fingerprint, i64>,
+) -> Vec<String> {
     let mut violations = Vec::new();
-    for (key, count) in current.minus(&previous) {
+    for (key, count) in current.minus(previous) {
         crate::evidence::finding(&format!("mypy:{}", key.1), Some(&key.0));
         for _ in 0..count {
             violations.push(format!("{}:{}: mypy[{}]: {}", key.0, numbers[&key], key.1, key.2));
         }
     }
     violations.truncate(MAX_VIOLATIONS);
-    Ok(violations)
+    violations
+}
+
+fn read_head_texts(root: &Path, paths: &[String], deadline: Deadline) -> Result<HashMap<String, String>, CheckError> {
+    let mut texts = HashMap::new();
+    for name in paths {
+        texts.insert(name.clone(), head_text(root, name, deadline)?);
+    }
+    Ok(texts)
+}
+
+fn mypy_baseline_errors(
+    root: &Path,
+    paths: &[String],
+    current: &Counter<Fingerprint>,
+    deadline: Deadline,
+) -> Result<Counter<Fingerprint>, CheckError> {
+    let before = read_head_texts(root, paths, deadline)?;
+    if !possibly_existing(current.keys().map(|k| (k.0.as_str(), k.3.as_str())), &before) {
+        return Ok(Counter::new());
+    }
+    mypy_previous_errors(root, paths, &before, deadline)
+}
+
+/// Net-new mypy errors in written files, against their committed text.
+fn mypy_violations(root: &Path, paths: &[String], deadline: Deadline) -> Result<Vec<String>, CheckError> {
+    if paths.is_empty() || mypy_binary(root).is_none() {
+        return Ok(vec![]);
+    }
+    let after = read_worktree_texts(root, paths)?;
+    if !any_annotated_python(&after, paths)? {
+        return Ok(vec![]);
+    }
+    let (current, numbers) = mypy_errors(&mypy_run(root, paths, deadline, &[])?, &after);
+    if current.is_empty() {
+        return Ok(vec![]);
+    }
+    let previous = mypy_baseline_errors(root, paths, &current, deadline)?;
+    Ok(format_mypy_violations(&current, &previous, &numbers))
 }
 
 fn oxlint_violations(root: &Path, display: &str, deadline: Deadline, warnings: &mut Vec<String>) -> Vec<String> {
@@ -1195,7 +1339,7 @@ fn clippy_failure(stderr: &str, code: i64) -> String {
 
 type Diagnostic = ((String, String, String, String), i64);
 
-fn clippy_diagnostics(krate: &Path, target: &Path, deadline: Deadline) -> Result<Vec<Diagnostic>, CheckError> {
+fn clippy_command(target: &Path) -> Vec<String> {
     let mut command: Vec<String> = [
         "cargo",
         "clippy",
@@ -1217,48 +1361,59 @@ fn clippy_diagnostics(krate: &Path, target: &Path, deadline: Deadline) -> Result
     ] {
         command.extend(["-W".to_string(), lint.to_string()]);
     }
+    command
+}
+
+fn parse_clippy_line(line: &str, krate: &Path, crate_root: &Path) -> Result<Option<Diagnostic>, CheckError> {
+    let Ok(item) = serde_json::from_str::<Value>(line) else {
+        return Ok(None);
+    };
+    if item["reason"] != "compiler-message" {
+        return Ok(None);
+    }
+    let message = &item["message"];
+    if !message.is_object() || !matches!(message["level"].as_str(), Some("error" | "warning")) {
+        return Ok(None);
+    }
+    let Some(span) = message["spans"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|s| s["is_primary"] == true)
+    else {
+        return Ok(None);
+    };
+    let source = resolve(&krate.join(span["file_name"].as_str().unwrap_or("")));
+    let Ok(relative) = source.strip_prefix(crate_root) else {
+        return Ok(None);
+    };
+    let line_number = span["line_start"].as_i64().unwrap_or(0);
+    let text = line_text(&proc::read_text(&source).map_err(invalid)?, line_number);
+    let code = message["code"]["code"]
+        .as_str()
+        .filter(|c| !c.is_empty())
+        .unwrap_or(message["level"].as_str().unwrap_or(""))
+        .to_string();
+    Ok(Some((
+        (
+            relative.to_string_lossy().into_owned(),
+            code,
+            message["message"].as_str().unwrap_or("").to_string(),
+            text,
+        ),
+        line_number,
+    )))
+}
+
+fn clippy_diagnostics(krate: &Path, target: &Path, deadline: Deadline) -> Result<Vec<Diagnostic>, CheckError> {
+    let command = clippy_command(target);
     let result = proc::run(&command, krate, None, &[], deadline.timeout()?)?;
     let crate_root = resolve(krate);
     let mut found = Vec::new();
     for line in py::splitlines(&proc::text(&result.stdout), false) {
-        let Ok(item) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
-        if item["reason"] != "compiler-message" {
-            continue;
+        if let Some(diagnostic) = parse_clippy_line(line, krate, &crate_root)? {
+            found.push(diagnostic);
         }
-        let message = &item["message"];
-        if !message.is_object() || !matches!(message["level"].as_str(), Some("error" | "warning")) {
-            continue;
-        }
-        let Some(span) = message["spans"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .find(|s| s["is_primary"] == true)
-        else {
-            continue;
-        };
-        let source = resolve(&krate.join(span["file_name"].as_str().unwrap_or("")));
-        let Ok(relative) = source.strip_prefix(&crate_root) else {
-            continue;
-        };
-        let line_number = span["line_start"].as_i64().unwrap_or(0);
-        let text = line_text(&proc::read_text(&source).map_err(invalid)?, line_number);
-        let code = message["code"]["code"]
-            .as_str()
-            .filter(|c| !c.is_empty())
-            .unwrap_or(message["level"].as_str().unwrap_or(""))
-            .to_string();
-        found.push((
-            (
-                relative.to_string_lossy().into_owned(),
-                code,
-                message["message"].as_str().unwrap_or("").to_string(),
-                text,
-            ),
-            line_number,
-        ));
     }
     if result.code != 0 && found.is_empty() {
         return Err(invalid(clippy_failure(
@@ -1275,6 +1430,50 @@ fn join_posix(prefix: &Path, relative: &str) -> String {
     } else {
         format!("{}/{relative}", prefix.to_string_lossy())
     }
+}
+
+fn clippy_base_diagnostics(
+    root: &Path,
+    prefix: &Path,
+    target: &Path,
+    deadline: Deadline,
+) -> Result<Vec<Diagnostic>, CheckError> {
+    let directory = tempfile::Builder::new()
+        .prefix("loki-clippy-")
+        .tempdir()
+        .map_err(|e| CheckError::os(&e, None))?;
+    let base = directory.path().join("base");
+    let commit = git_output(root, &["rev-parse", "--verify", "HEAD^{commit}"], deadline, None)?;
+    git::materialize_base(root, String::from_utf8_lossy(&commit).trim(), &base, deadline)?;
+    let base_crate = base.join(prefix);
+    if base_crate.join("Cargo.toml").is_file() {
+        clippy_diagnostics(&base_crate, target, deadline)
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+fn collect_new_clippy_violations(
+    current: Vec<Diagnostic>,
+    previous: Vec<Diagnostic>,
+    prefix: &Path,
+) -> Vec<String> {
+    let mut remaining: Counter<(String, String, String, String)> = Counter::new();
+    for (key, _) in previous {
+        remaining.add(key);
+    }
+    let mut violations = Vec::new();
+    for (key, line) in current {
+        if remaining.get(&key) != 0 {
+            remaining.decrement(&key);
+            continue;
+        }
+        let name = join_posix(prefix, &key.0);
+        crate::evidence::finding(&format!("clippy:{}", key.1), Some(&name));
+        violations.push(format!("{name}:{line}: {}: {}", key.1, key.2));
+    }
+    violations.truncate(MAX_VIOLATIONS);
+    violations
 }
 
 fn clippy_violations(path: &Path, root: &Path, deadline: Deadline) -> Result<Vec<String>, CheckError> {
@@ -1299,36 +1498,12 @@ fn clippy_violations(path: &Path, root: &Path, deadline: Deadline) -> Result<Vec
             texts.insert(key.0.clone(), head_text(root, &join_posix(&prefix, &key.0), deadline)?);
         }
     }
-    let mut previous = Vec::new();
-    if possibly_existing(current.iter().map(|(k, _)| (k.0.as_str(), k.3.as_str())), &texts) {
-        let directory = tempfile::Builder::new()
-            .prefix("loki-clippy-")
-            .tempdir()
-            .map_err(|e| CheckError::os(&e, None))?;
-        let base = directory.path().join("base");
-        let commit = git_output(root, &["rev-parse", "--verify", "HEAD^{commit}"], deadline, None)?;
-        git::materialize_base(root, String::from_utf8_lossy(&commit).trim(), &base, deadline)?;
-        let base_crate = base.join(&prefix);
-        if base_crate.join("Cargo.toml").is_file() {
-            previous = clippy_diagnostics(&base_crate, &target, deadline)?;
-        }
-    }
-    let mut remaining: Counter<(String, String, String, String)> = Counter::new();
-    for (key, _) in previous {
-        remaining.add(key);
-    }
-    let mut violations = Vec::new();
-    for (key, line) in current {
-        if remaining.get(&key) != 0 {
-            remaining.decrement(&key);
-            continue;
-        }
-        let name = join_posix(&prefix, &key.0);
-        crate::evidence::finding(&format!("clippy:{}", key.1), Some(&name));
-        violations.push(format!("{name}:{line}: {}: {}", key.1, key.2));
-    }
-    violations.truncate(MAX_VIOLATIONS);
-    Ok(violations)
+    let previous = if possibly_existing(current.iter().map(|(k, _)| (k.0.as_str(), k.3.as_str())), &texts) {
+        clippy_base_diagnostics(root, &prefix, &target, deadline)?
+    } else {
+        Vec::new()
+    };
+    Ok(collect_new_clippy_violations(current, previous, &prefix))
 }
 
 fn golangci_violations(root: &Path, package: &str, deadline: Deadline) -> Result<Vec<String>, CheckError> {
@@ -1403,6 +1578,270 @@ fn optional(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn check_python_batch(
+    root: &Path,
+    display: &str,
+    batch_paths: &[PathBuf],
+    strict: bool,
+    deadline: Deadline,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+    batch: &mut Batch,
+) -> Result<(), CheckError> {
+    let key = ("python".to_string(), root.to_path_buf());
+    if batch.checked.contains(&key) {
+        return Ok(());
+    }
+    let mut names: Vec<String> = batch_paths
+        .iter()
+        .filter(|item| item.extension().is_some_and(|e| e == "py") && item.is_file())
+        .filter_map(|item| item.strip_prefix(root).ok().map(|r| r.to_string_lossy().into_owned()))
+        .collect();
+    names.sort();
+    let selected: HashSet<String> = names.iter().cloned().collect();
+    match ruff_new_violations(root, None, Some(&selected), deadline) {
+        Ok(found) => violations.extend(found),
+        Err(RuffError::Other(error)) if git::snapshot_too_large(&error) => {
+            let message = format!("NOT CHECKED python ruff: {}", error.message());
+            violations.extend(not_checked(message, strict, warnings));
+        }
+        Err(RuffError::MissingConfig(error)) => {
+            if strict {
+                violations.push(format!("{display}: loki: {error}"));
+            } else {
+                warnings.push(format!("NOT CHECKED python ruff: {error}"));
+            }
+        }
+        Err(RuffError::Other(error)) => return Err(error),
+    }
+    if violations.is_empty() {
+        optional(
+            "python types",
+            mypy_violations(root, &names, deadline),
+            strict,
+            violations,
+            warnings,
+        )?;
+    }
+    batch.checked.insert(key);
+    Ok(())
+}
+
+fn check_go_file(
+    path: &Path,
+    root: &Path,
+    strict: bool,
+    deadline: Deadline,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+    batch: &mut Batch,
+) -> Result<(), CheckError> {
+    violations.extend(run_command(
+        &["gofmt".into(), "-w".into(), path.to_string_lossy().into_owned()],
+        root,
+        "gofmt",
+        deadline,
+    ));
+    let directory = resolve(path.parent().unwrap_or(root))
+        .strip_prefix(resolve(root))
+        .map(|r| {
+            if r.as_os_str().is_empty() {
+                ".".to_string()
+            } else {
+                r.to_string_lossy().into_owned()
+            }
+        })
+        .unwrap_or_else(|_| ".".into());
+    let package = if directory == "." {
+        "./".to_string()
+    } else {
+        format!("./{directory}")
+    };
+    let key = ("go".to_string(), root.join(&directory));
+    let lint = if !batch.checked.contains(&key) {
+        batch.checked.insert(key);
+        Some(golangci_violations(root, &package, deadline))
+    } else {
+        None
+    };
+    let vet_command = vec!["go".to_string(), "vet".into(), package];
+    violations.extend(run_command(&vet_command, root, "go vet", deadline));
+    if let Some(lint) = lint
+        && violations.is_empty()
+    {
+        optional("golangci-lint", lint, strict, violations, warnings)?;
+    }
+    Ok(())
+}
+
+fn check_rust_file(
+    path: &Path,
+    root: &Path,
+    strict: bool,
+    deadline: Deadline,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+    batch: &mut Batch,
+) -> Result<(), CheckError> {
+    let krate = cargo_project(path, root);
+    violations.extend(run_command(
+        &rustfmt_command(path, krate.as_deref(), root),
+        root,
+        "rustfmt",
+        deadline,
+    ));
+    let key = ("rust".to_string(), krate.unwrap_or_else(|| root.to_path_buf()));
+    if !batch.checked.contains(&key) {
+        optional(
+            "clippy",
+            clippy_violations(path, root, deadline),
+            strict,
+            violations,
+            warnings,
+        )?;
+        batch.checked.insert(key);
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_elixir_dispatch(
+    path: &Path,
+    root: &Path,
+    config: &Config,
+    strict: bool,
+    deadline: Deadline,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+    batch: &mut Batch,
+) -> Result<Option<Vec<String>>, CheckError> {
+    let Some(project) = crate::elixir::mix_project(path, root)? else {
+        let message = "NOT CHECKED elixir: enclosing Mix project required".to_string();
+        if strict {
+            return Ok(Some(vec![message]));
+        }
+        warnings.push(message);
+        return Ok(Some(vec![]));
+    };
+    let key = ("elixir".to_string(), project.clone());
+    let reused = batch.checked.contains(&key);
+    violations.extend(crate::elixir::check_elixir_file(
+        path, &project, config, strict, deadline, warnings, reused,
+    )?);
+    if reused {
+        violations.truncate(MAX_VIOLATIONS);
+        return Ok(Some(std::mem::take(violations)));
+    }
+    batch.checked.insert(key);
+    Ok(None)
+}
+
+fn check_python_ast_file(
+    path: &Path,
+    root: &Path,
+    display: &str,
+    python: Option<&str>,
+    strict: bool,
+    deadline: Deadline,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<String>, CheckError> {
+    let base = match head_text(root, display, deadline) {
+        Ok(text) => text,
+        Err(CheckError::Value(_)) => String::new(),
+        Err(other) => return Err(other),
+    };
+    python_ast_violations(path, root, None, &base, python, strict, warnings, deadline)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_language_file(
+    language: &str,
+    path: &Path,
+    root: &Path,
+    display: &str,
+    config: &Config,
+    strict: bool,
+    deadline: Deadline,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+    batch_paths: &[PathBuf],
+    batch: &mut Batch,
+) -> Result<Option<Vec<String>>, CheckError> {
+    match language {
+        "python" => check_python_batch(
+            root,
+            display,
+            batch_paths,
+            strict,
+            deadline,
+            violations,
+            warnings,
+            batch,
+        )?,
+        "typescript" => violations.extend(oxlint_violations(root, display, deadline, warnings)),
+        "go" => check_go_file(path, root, strict, deadline, violations, warnings, batch)?,
+        "rust" => check_rust_file(path, root, strict, deadline, violations, warnings, batch)?,
+        "elixir" => {
+            return check_elixir_dispatch(path, root, config, strict, deadline, violations, warnings, batch);
+        }
+        _ => {}
+    }
+    Ok(None)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_enabled_language(
+    language: &str,
+    path: &Path,
+    root: &Path,
+    display: &str,
+    config: &Config,
+    strict: bool,
+    deadline: Deadline,
+    warnings: &mut Vec<String>,
+    batch_paths: &[PathBuf],
+    batch: &mut Batch,
+    python: Option<&str>,
+) -> Result<Vec<String>, CheckError> {
+    let missing = missing_tool(language, root);
+    let mut violations = written_content_violations(
+        path,
+        root,
+        display,
+        language == "typescript" && missing.is_some(),
+        deadline,
+    )?;
+    if let Some(missing) = missing {
+        if strict {
+            violations.push(format!("{display}: loki: missing {missing}"));
+        } else {
+            warnings.push(format!("NOT CHECKED {language}: missing {missing}"));
+        }
+    } else if let Some(early) = check_language_file(
+        language,
+        path,
+        root,
+        display,
+        config,
+        strict,
+        deadline,
+        &mut violations,
+        warnings,
+        batch_paths,
+        batch,
+    )? {
+        return Ok(early);
+    }
+    if language == "python" {
+        violations.extend(check_python_ast_file(
+            path, root, display, python, strict, deadline, warnings,
+        )?);
+    }
+    violations.truncate(MAX_VIOLATIONS);
+    Ok(violations)
+}
+
 /// `check_file`: one written file through its language's analyzers.
 #[allow(clippy::too_many_arguments)]
 pub fn check_file(
@@ -1427,147 +1866,19 @@ pub fn check_file(
     let Some(language) = language.filter(|l| config::language_enabled(config, l)) else {
         return written_content_violations(path, root, &display, false, deadline);
     };
-    let missing = missing_tool(language, root);
-    let mut violations = written_content_violations(
+    run_enabled_language(
+        language,
         path,
         root,
         &display,
-        language == "typescript" && missing.is_some(),
+        config,
+        strict,
         deadline,
-    )?;
-    if let Some(missing) = missing {
-        if strict {
-            violations.push(format!("{display}: loki: missing {missing}"));
-        } else {
-            warnings.push(format!("NOT CHECKED {language}: missing {missing}"));
-        }
-    } else if language == "python" {
-        let key = ("python".to_string(), root.to_path_buf());
-        if !batch.checked.contains(&key) {
-            let mut names: Vec<String> = batch_paths
-                .iter()
-                .filter(|item| item.extension().is_some_and(|e| e == "py") && item.is_file())
-                .filter_map(|item| item.strip_prefix(root).ok().map(|r| r.to_string_lossy().into_owned()))
-                .collect();
-            names.sort();
-            let selected: HashSet<String> = names.iter().cloned().collect();
-            match ruff_new_violations(root, None, Some(&selected), deadline) {
-                Ok(found) => violations.extend(found),
-                Err(RuffError::Other(error)) if git::snapshot_too_large(&error) => {
-                    let message = format!("NOT CHECKED python ruff: {}", error.message());
-                    violations.extend(not_checked(message, strict, warnings));
-                }
-                Err(RuffError::MissingConfig(error)) => {
-                    if strict {
-                        violations.push(format!("{display}: loki: {error}"));
-                    } else {
-                        warnings.push(format!("NOT CHECKED python ruff: {error}"));
-                    }
-                }
-                Err(RuffError::Other(error)) => return Err(error),
-            }
-            if violations.is_empty() {
-                optional(
-                    "python types",
-                    mypy_violations(root, &names, deadline),
-                    strict,
-                    &mut violations,
-                    warnings,
-                )?;
-            }
-            batch.checked.insert(key);
-        }
-    } else if language == "typescript" {
-        violations.extend(oxlint_violations(root, &display, deadline, warnings));
-    } else if language == "go" {
-        violations.extend(run_command(
-            &["gofmt".into(), "-w".into(), path.to_string_lossy().into_owned()],
-            root,
-            "gofmt",
-            deadline,
-        ));
-        let directory = resolve(path.parent().unwrap_or(root))
-            .strip_prefix(resolve(root))
-            .map(|r| {
-                if r.as_os_str().is_empty() {
-                    ".".to_string()
-                } else {
-                    r.to_string_lossy().into_owned()
-                }
-            })
-            .unwrap_or_else(|_| ".".into());
-        let package = if directory == "." {
-            "./".to_string()
-        } else {
-            format!("./{directory}")
-        };
-        let key = ("go".to_string(), root.join(&directory));
-        let mut lint = None;
-        let vet_command = vec!["go".to_string(), "vet".into(), package.clone()];
-        let vet = if !batch.checked.contains(&key) {
-            lint = Some(golangci_violations(root, &package, deadline));
-            batch.checked.insert(key);
-            run_command(&vet_command, root, "go vet", deadline)
-        } else {
-            run_command(&vet_command, root, "go vet", deadline)
-        };
-        violations.extend(vet);
-        if let Some(lint) = lint
-            && violations.is_empty()
-        {
-            optional("golangci-lint", lint, strict, &mut violations, warnings)?;
-        }
-    } else if language == "rust" {
-        let krate = cargo_project(path, root);
-        violations.extend(run_command(
-            &rustfmt_command(path, krate.as_deref(), root),
-            root,
-            "rustfmt",
-            deadline,
-        ));
-        let key = ("rust".to_string(), krate.unwrap_or_else(|| root.to_path_buf()));
-        if !batch.checked.contains(&key) {
-            optional(
-                "clippy",
-                clippy_violations(path, root, deadline),
-                strict,
-                &mut violations,
-                warnings,
-            )?;
-            batch.checked.insert(key);
-        }
-    } else if language == "elixir" {
-        let Some(project) = crate::elixir::mix_project(path, root)? else {
-            let message = "NOT CHECKED elixir: enclosing Mix project required".to_string();
-            if strict {
-                return Ok(vec![message]);
-            }
-            warnings.push(message);
-            return Ok(vec![]);
-        };
-        let key = ("elixir".to_string(), project.clone());
-        let reused = batch.checked.contains(&key);
-        violations.extend(crate::elixir::check_elixir_file(
-            path, &project, config, strict, deadline, warnings, reused,
-        )?);
-        if reused {
-            violations.truncate(MAX_VIOLATIONS);
-            return Ok(violations);
-        }
-        batch.checked.insert(key);
-    }
-    if language == "python" {
-        let base = match head_text(root, &display, deadline) {
-            Ok(text) => text,
-            Err(CheckError::Value(_)) => String::new(),
-            Err(other) => return Err(other),
-        };
-        violations.extend(python_ast_violations(
-            path, root, None, &base, python, strict, warnings, deadline,
-        )?);
-    }
-    violations.truncate(MAX_VIOLATIONS);
-    Ok(violations)
+        warnings,
+        batch_paths,
+        batch,
+        python,
+    )
 }
 
 #[cfg(test)]

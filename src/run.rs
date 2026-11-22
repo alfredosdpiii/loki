@@ -152,6 +152,66 @@ pub fn file_paths(files: &[String]) -> Result<Vec<String>, CheckError> {
     Ok(paths)
 }
 
+fn has_typescript_target(targets: &[PathBuf]) -> bool {
+    targets.iter().any(|t| {
+        let name = t
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        name.rfind('.')
+            .filter(|&i| i > 0)
+            .is_some_and(|i| crate::typescript::TYPESCRIPT_SUFFIXES.contains(&&name[i..]))
+    })
+}
+
+fn collect_written_slop(
+    root: &Path,
+    config: &Config,
+    targets: &[PathBuf],
+    deadline: crate::proc::Deadline,
+    messages: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Result<(), CheckError> {
+    let notes = match crate::slop::written_slop(root, targets, deadline) {
+        Ok(notes) => notes,
+        Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => {
+            vec![format!("NOT CHECKED slop: {}", error.message())]
+        }
+        Err(other) => return Err(other),
+    };
+    if !config::slop_block(config).map_err(CheckError::Value)? {
+        warnings.extend(notes);
+        return Ok(());
+    }
+    for note in notes {
+        if note.contains("NOT CHECKED") {
+            warnings.push(note);
+        } else {
+            messages.push(note);
+        }
+    }
+    Ok(())
+}
+
+fn check_targets(
+    root: &Path,
+    config: &Config,
+    targets: &[PathBuf],
+    python: Option<&str>,
+    deadline: crate::proc::Deadline,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<String>, CheckError> {
+    let strict = crate::strict();
+    let mut batch = crate::hook::Batch::default();
+    let mut messages = Vec::new();
+    for target in targets {
+        messages.extend(crate::hook::check_file(
+            target, root, config, strict, deadline, warnings, targets, &mut batch, python,
+        )?);
+    }
+    Ok(messages)
+}
+
 /// `hook`'s check of written files: protected paths, then (when none is protected) the write guardrails, the
 /// TypeScript checks, written slop and each file's analyzers. `python` is `--python`.
 pub fn hook_violations(
@@ -163,56 +223,25 @@ pub fn hook_violations(
     warnings: &mut Vec<String>,
 ) -> Result<Vec<String>, CheckError> {
     let mut messages = protected(root, config, paths)?;
-    if messages.is_empty() {
-        let targets: Vec<PathBuf> = paths.iter().map(|p| crate::abspath(root, p)).collect();
-        messages.extend(crate::hook::write_guardrail_violations(
-            &targets,
-            root,
-            config,
-            deadline,
-            Some(&mut *warnings),
+    if !messages.is_empty() {
+        return Ok(messages);
+    }
+    let targets: Vec<PathBuf> = paths.iter().map(|p| crate::abspath(root, p)).collect();
+    messages.extend(crate::hook::write_guardrail_violations(
+        &targets,
+        root,
+        config,
+        deadline,
+        Some(&mut *warnings),
+    )?);
+    if messages.is_empty() && has_typescript_target(&targets) {
+        messages.extend(crate::typescript::typescript_findings(
+            root, config, deadline, warnings,
         )?);
-        let typescript = targets.iter().any(|t| {
-            let name = t
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            name.rfind('.')
-                .filter(|&i| i > 0)
-                .is_some_and(|i| crate::typescript::TYPESCRIPT_SUFFIXES.contains(&&name[i..]))
-        });
-        if messages.is_empty() && typescript {
-            messages.extend(crate::typescript::typescript_findings(
-                root, config, deadline, warnings,
-            )?);
-        }
-        if messages.is_empty() {
-            let notes = match crate::slop::written_slop(root, &targets, deadline) {
-                Ok(notes) => notes,
-                Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => {
-                    vec![format!("NOT CHECKED slop: {}", error.message())]
-                }
-                Err(other) => return Err(other),
-            };
-            if config::slop_block(config).map_err(CheckError::Value)? {
-                for note in notes {
-                    if note.contains("NOT CHECKED") {
-                        warnings.push(note)
-                    } else {
-                        messages.push(note)
-                    }
-                }
-            } else {
-                warnings.extend(notes);
-            }
-            let strict = crate::strict();
-            let mut batch = crate::hook::Batch::default();
-            for target in &targets {
-                messages.extend(crate::hook::check_file(
-                    target, root, config, strict, deadline, warnings, &targets, &mut batch, python,
-                )?);
-            }
-        }
+    }
+    if messages.is_empty() {
+        collect_written_slop(root, config, &targets, deadline, &mut messages, warnings)?;
+        messages.extend(check_targets(root, config, &targets, python, deadline, warnings)?);
     }
     Ok(messages)
 }

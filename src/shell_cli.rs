@@ -45,12 +45,73 @@ fn report(result: Result<Option<String>, CheckError>) -> ExitCode {
     ExitCode::from(status)
 }
 
-/// Handles `shell`, `shell-writes` and `explain`; `None` for every other command.
-pub fn dispatch(argv: &[String]) -> Option<ExitCode> {
-    let mut items = argv.iter().flat_map(|a| match a.split_once('=') {
+struct ParsedArgs {
+    root: PathBuf,
+    command: String,
+    harness: Option<String>,
+    limit: i64,
+}
+
+fn parse_choice(command: &str, value: Option<String>, choices: &[&str]) -> Result<String, ExitCode> {
+    let Some(value) = value else {
+        return Err(arg_error(command, "argument --harness: expected one argument"));
+    };
+    if !choices.contains(&value.as_str()) {
+        let listed = choices.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
+        let message = format!("argument --harness: invalid choice: '{value}' (choose from {listed})");
+        return Err(arg_error(command, &message));
+    }
+    Ok(value)
+}
+
+fn parse_limit(command: &str, value: Option<String>) -> Result<i64, ExitCode> {
+    let Some(value) = value else {
+        return Err(arg_error(command, "argument --limit: expected one argument"));
+    };
+    py::strip(&value)
+        .parse::<i64>()
+        .map_err(|_| arg_error(command, &format!("argument --limit: invalid int value: '{value}'")))
+}
+
+fn parse_option(
+    command: &str,
+    item: &str,
+    items: &mut impl Iterator<Item = String>,
+    harness: &mut Option<String>,
+    limit: &mut i64,
+) -> Result<(), ExitCode> {
+    let choices: &[&str] = if command == "shell" {
+        &["claude", "factory", "omp", "pi"]
+    } else {
+        &["ultron"]
+    };
+    match (command, item) {
+        ("shell" | "shell-writes", "--harness") => {
+            *harness = Some(parse_choice(command, items.next(), choices)?);
+        }
+        // `--record` is handled around the whole run (main's record wrapper).
+        ("shell", "--record") => {}
+        ("explain", "--limit") => {
+            *limit = parse_limit(command, items.next())?;
+        }
+        (_, other) => {
+            loki::evidence::finding("invalid-cli", None);
+            eprintln!("{TOP_USAGE}\nloki: error: unrecognized arguments: {other}");
+            return Err(ExitCode::from(2));
+        }
+    }
+    Ok(())
+}
+
+fn split_eq_tokens(argv: &[String]) -> impl Iterator<Item = String> + '_ {
+    argv.iter().flat_map(|a| match a.split_once('=') {
         Some((flag, value)) if flag.starts_with("--") => vec![flag.to_string(), value.to_string()],
         _ => vec![a.clone()],
-    });
+    })
+}
+
+fn parse_args(argv: &[String]) -> Option<Result<ParsedArgs, ExitCode>> {
+    let mut items = split_eq_tokens(argv);
     let mut root: Option<PathBuf> = None;
     let command = loop {
         match items.next()?.as_str() {
@@ -59,72 +120,55 @@ pub fn dispatch(argv: &[String]) -> Option<ExitCode> {
             _ => return None,
         }
     };
-    let (mut harness, mut record, mut limit) = (None::<String>, false, 20i64);
+    let (mut harness, mut limit) = (None, 20i64);
     while let Some(item) = items.next() {
-        let choices: &[&str] = match command.as_str() {
-            "shell" => &["claude", "factory", "omp", "pi"],
-            _ => &["ultron"],
-        };
-        match (command.as_str(), item.as_str()) {
-            ("shell" | "shell-writes", "--harness") => {
-                let Some(value) = items.next() else {
-                    return Some(arg_error(&command, "argument --harness: expected one argument"));
-                };
-                if !choices.contains(&value.as_str()) {
-                    let listed = choices.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
-                    let message = format!("argument --harness: invalid choice: '{value}' (choose from {listed})");
-                    return Some(arg_error(&command, &message));
-                }
-                harness = Some(value);
-            }
-            ("shell", "--record") => record = true,
-            ("explain", "--limit") => {
-                let Some(value) = items.next() else {
-                    return Some(arg_error(&command, "argument --limit: expected one argument"));
-                };
-                match py::strip(&value).parse::<i64>() {
-                    Ok(n) => limit = n,
-                    Err(_) => {
-                        return Some(arg_error(
-                            &command,
-                            &format!("argument --limit: invalid int value: '{value}'"),
-                        ));
-                    }
-                }
-            }
-            (_, other) => {
-                loki::evidence::finding("invalid-cli", None);
-                eprintln!("{TOP_USAGE}\nloki: error: unrecognized arguments: {other}");
-                return Some(ExitCode::from(2));
-            }
+        if let Err(code) = parse_option(&command, &item, &mut items, &mut harness, &mut limit) {
+            return Some(Err(code));
         }
     }
-    let root = resolve(&root.unwrap_or_else(|| PathBuf::from(".")));
-    Some(match command.as_str() {
-        "explain" => match shell::explain(Path::new("."), limit) {
-            Ok(lines) => {
-                lines.iter().for_each(|line| println!("{line}"));
-                ExitCode::SUCCESS
-            }
-            Err(message) => {
-                eprintln!("loki: {message}");
-                ExitCode::from(1)
-            }
-        },
-        "shell" => {
-            let Some(harness) = harness else {
-                return Some(arg_error(&command, "the following arguments are required: --harness"));
-            };
-            // `--record` is handled around the whole run (main's record wrapper).
-            let _ = record;
-            report(read_payload().and_then(|payload| {
-                if !payload["tool_input"].is_object() {
-                    return Err(CheckError::Value("invalid shell envelope".into()));
-                }
-                let cwd = shell::shell_cwd(&payload, &harness, &root)?;
-                shell::shell_violation(&payload["tool_input"]["command"], &root, &cwd)
-            }))
+    Some(Ok(ParsedArgs {
+        root: resolve(&root.unwrap_or_else(|| PathBuf::from("."))),
+        command,
+        harness,
+        limit,
+    }))
+}
+
+fn run_explain(limit: i64) -> ExitCode {
+    match shell::explain(Path::new("."), limit) {
+        Ok(lines) => {
+            lines.iter().for_each(|line| println!("{line}"));
+            ExitCode::SUCCESS
         }
-        _ => report(read_payload().and_then(|payload| shell::shell_writes(&root, &payload, Path::new(".")))),
+        Err(message) => {
+            eprintln!("loki: {message}");
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn run_shell(root: &Path, command: &str, harness: Option<String>) -> ExitCode {
+    let Some(harness) = harness else {
+        return arg_error(command, "the following arguments are required: --harness");
+    };
+    report(read_payload().and_then(|payload| {
+        if !payload["tool_input"].is_object() {
+            return Err(CheckError::Value("invalid shell envelope".into()));
+        }
+        let cwd = shell::shell_cwd(&payload, &harness, root)?;
+        shell::shell_violation(&payload["tool_input"]["command"], root, &cwd)
+    }))
+}
+
+/// Handles `shell`, `shell-writes` and `explain`; `None` for every other command.
+pub fn dispatch(argv: &[String]) -> Option<ExitCode> {
+    let parsed = match parse_args(argv)? {
+        Ok(parsed) => parsed,
+        Err(code) => return Some(code),
+    };
+    Some(match parsed.command.as_str() {
+        "explain" => run_explain(parsed.limit),
+        "shell" => run_shell(&parsed.root, &parsed.command, parsed.harness),
+        _ => report(read_payload().and_then(|payload| shell::shell_writes(&parsed.root, &payload, Path::new(".")))),
     })
 }

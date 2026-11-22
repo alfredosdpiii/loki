@@ -257,6 +257,44 @@ pub fn is_alnum(c: char) -> bool {
     c.is_alphanumeric()
 }
 
+fn is_js_regex_start(previous: &str, word: &str) -> bool {
+    previous.is_empty()
+        || (previous.chars().count() == 1 && JS_REGEX_PRECEDERS.contains(previous))
+        || JS_REGEX_KEYWORDS.contains(&word)
+}
+
+fn js_regex_end(t: &[char], start: usize) -> usize {
+    let (mut end, mut in_class) = (start, false);
+    while end < t.len() && t[end] != '\n' {
+        match t[end] {
+            '\\' => {
+                end += 2;
+                continue;
+            }
+            '/' if !in_class => break,
+            '[' => in_class = true,
+            ']' => in_class = false,
+            _ => {}
+        }
+        end += 1;
+    }
+    end
+}
+
+fn update_js_token(c: char, previous: &mut String, word: &mut String) {
+    if is_alnum(c) || c == '_' || c == '$' {
+        if previous == "word" {
+            word.push(c);
+        } else {
+            *word = c.to_string();
+        }
+        *previous = "word".into();
+    } else if !crate::py::is_space(c) {
+        *previous = c.to_string();
+        word.clear();
+    }
+}
+
 /// Blank comments and literal contents; quotes and offsets stay in place.
 pub fn mask_javascript(text: &Text) -> Text {
     let t = &text.c;
@@ -277,57 +315,54 @@ pub fn mask_javascript(text: &Text) -> Text {
             word.clear();
             continue;
         }
-        if c == '/'
-            && (previous.is_empty()
-                || (previous.chars().count() == 1 && JS_REGEX_PRECEDERS.contains(previous.as_str()))
-                || JS_REGEX_KEYWORDS.contains(&word.as_str()))
-        {
-            let (mut end, mut in_class) = (index + 1, false);
-            while end < t.len() && t[end] != '\n' {
-                if t[end] == '\\' {
-                    end += 2;
-                    continue;
-                }
-                if t[end] == '/' && !in_class {
-                    break;
-                }
-                if t[end] == '[' || t[end] == ']' {
-                    in_class = t[end] == '[';
-                }
-                end += 1;
-            }
+        if c == '/' && is_js_regex_start(&previous, &word) {
+            let end = js_regex_end(t, index + 1);
             blank(&mut chars, index + 1, end);
             index = end + 1;
             previous = "/".into();
             word.clear();
             continue;
         }
-        if is_alnum(c) || c == '_' || c == '$' {
-            if previous == "word" {
-                word.push(c);
-            } else {
-                word = c.to_string();
-            }
-            previous = "word".into();
-        } else if !crate::py::is_space(c) {
-            previous = c.to_string();
-            word.clear();
-        }
+        update_js_token(c, &mut previous, &mut word);
         index += 1;
     }
     Text::from_chars(chars)
 }
 
-pub fn mask_elixir(text: &Text) -> Text {
-    let t = &text.c;
-    let mut chars = t.clone();
-    let closer = |c: char| match c {
+fn elixir_closer(c: char) -> char {
+    match c {
         '(' => ')',
         '[' => ']',
         '{' => '}',
         '<' => '>',
         other => other,
-    };
+    }
+}
+
+fn is_elixir_char_literal(t: &[char], index: usize) -> bool {
+    index + 1 < t.len() && (index == 0 || !(is_alnum(t[index - 1]) || "_?!".contains(t[index - 1])))
+}
+
+fn mask_elixir_literal(t: &[char], chars: &mut [char], index: usize) -> usize {
+    let opener = t[index];
+    let triple: Vec<char> = t[index..(index + 3).min(t.len())].to_vec();
+    if triple == ['"', '"', '"'] || triple == ['\'', '\'', '\''] {
+        let end = find_chars(t, &triple, index + 3).unwrap_or(t.len());
+        blank(chars, index + 3, end);
+        return end + 3;
+    }
+    let end = closing_quote(t, index + 1, elixir_closer(opener), true);
+    blank(chars, index + 1, end);
+    end + 1
+}
+
+fn is_elixir_sigil(t: &[char], index: usize) -> bool {
+    t[index] == '~' && index + 2 < t.len() && t[index + 1].is_alphabetic()
+}
+
+pub fn mask_elixir(text: &Text) -> Text {
+    let t = &text.c;
+    let mut chars = t.clone();
     let mut index = 0;
     while index < t.len() {
         let c = t[index];
@@ -335,32 +370,17 @@ pub fn mask_elixir(text: &Text) -> Text {
             let end = find_chars(t, &['\n'], index).unwrap_or(t.len());
             blank(&mut chars, index, end);
             index = end;
-            continue;
-        }
-        if c == '?' && index + 1 < t.len() && (index == 0 || !(is_alnum(t[index - 1]) || "_?!".contains(t[index - 1])))
-        {
+        } else if c == '?' && is_elixir_char_literal(t, index) {
             let width = if t[index + 1] == '\\' { 3 } else { 2 };
             blank(&mut chars, index + 1, index + width);
             index += width;
-            continue;
-        }
-        if c == '~' && index + 2 < t.len() && t[index + 1].is_alphabetic() {
-            index += 2;
-        } else if c != '"' && c != '\'' {
+        } else if is_elixir_sigil(t, index) {
+            index = mask_elixir_literal(t, &mut chars, index + 2);
+        } else if c == '"' || c == '\'' {
+            index = mask_elixir_literal(t, &mut chars, index);
+        } else {
             index += 1;
-            continue;
         }
-        let opener = t[index];
-        let triple: Vec<char> = t[index..(index + 3).min(t.len())].to_vec();
-        if triple == ['"', '"', '"'] || triple == ['\'', '\'', '\''] {
-            let end = find_chars(t, &triple, index + 3).unwrap_or(t.len());
-            blank(&mut chars, index + 3, end);
-            index = end + 3;
-            continue;
-        }
-        let end = closing_quote(t, index + 1, closer(opener), true);
-        blank(&mut chars, index + 1, end);
-        index = end + 1;
     }
     Text::from_chars(chars)
 }
@@ -382,73 +402,79 @@ pub fn mask_go(text: &Text) -> Text {
     mask_c_family(text, true)
 }
 
-fn mask_c_family(text: &Text, go: bool) -> Text {
+fn nested_block_comment_end(t: &[char], start: usize) -> usize {
+    let (mut depth, mut end) = (1i64, start);
+    while end < t.len() && depth != 0 {
+        let step = &t[end..(end + 2).min(t.len())];
+        if step == ['/', '*'] {
+            depth += 1;
+            end += 2;
+        } else if step == ['*', '/'] {
+            depth -= 1;
+            end += 2;
+        } else {
+            end += 1;
+        }
+    }
+    end
+}
+
+fn mask_rust_raw_string(text: &Text, chars: &mut [char], index: usize) -> usize {
     let t = &text.c;
-    let mut chars = t.clone();
+    let identifier = index > 0 && (is_alnum(t[index - 1]) || t[index - 1] == '_');
+    match RUST_RAW.match_at(text, index) {
+        Some(raw) if !identifier => {
+            let hashes = raw.group(text, 1).unwrap_or("");
+            let start = raw.end();
+            let closing: Vec<char> = std::iter::once('"').chain(hashes.chars()).collect();
+            let end = find_chars(t, &closing, start).unwrap_or(t.len());
+            blank(chars, start, end);
+            end + 1 + hashes.chars().count()
+        }
+        _ => find_chars(t, &['"'], index).unwrap_or(t.len()),
+    }
+}
+
+fn mask_c_token(text: &Text, chars: &mut [char], index: usize) -> usize {
+    let t = &text.c;
+    match t[index] {
+        '`' => {
+            let end = find_chars(t, &['`'], index + 1).unwrap_or(t.len());
+            blank(chars, index + 1, end);
+            end + 1
+        }
+        '/' if text.starts_at(index, "/*") => {
+            let end = nested_block_comment_end(t, index + 2);
+            blank(chars, index, end);
+            end
+        }
+        '/' => {
+            let end = find_chars(t, &['\n'], index).unwrap_or(t.len());
+            blank(chars, index, end);
+            end
+        }
+        '"' => {
+            let end = closing_quote(t, index + 1, '"', true);
+            blank(chars, index + 1, end);
+            end + 1
+        }
+        '\'' => match RUST_CHAR.match_at(text, index) {
+            Some(literal) => {
+                blank(chars, index + 1, literal.end() - 1);
+                literal.end()
+            }
+            None => index + 1,
+        },
+        _ => mask_rust_raw_string(text, chars, index),
+    }
+}
+
+fn mask_c_family(text: &Text, go: bool) -> Text {
+    let mut chars = text.c.clone();
     let mut index = 0;
     let interesting = if go { &GO_INTERESTING } else { &RUST_INTERESTING };
     while let Some(found) = interesting.search(text, index) {
-        index = found.start();
-        if t[index] == '`' {
-            let end = find_chars(t, &['`'], index + 1).unwrap_or(t.len());
-            blank(&mut chars, index + 1, end);
-            index = end + 1;
-            continue;
-        }
-        if text.starts_at(index, "/*") {
-            let (mut depth, mut end) = (1i64, index + 2);
-            while end < t.len() && depth != 0 {
-                let step = &t[end..(end + 2).min(t.len())];
-                if step == ['/', '*'] {
-                    depth += 1;
-                    end += 2;
-                } else if step == ['*', '/'] {
-                    depth -= 1;
-                    end += 2;
-                } else {
-                    end += 1;
-                }
-            }
-            blank(&mut chars, index, end);
-            index = end;
-            continue;
-        }
-        if text.starts_at(index, "//") {
-            let end = find_chars(t, &['\n'], index).unwrap_or(t.len());
-            blank(&mut chars, index, end);
-            index = end;
-            continue;
-        }
-        if t[index] != '"' && t[index] != '\'' {
-            let identifier = index > 0 && (is_alnum(t[index - 1]) || t[index - 1] == '_');
-            let raw = RUST_RAW.match_at(text, index);
-            match raw {
-                Some(raw) if !identifier => {
-                    let hashes = raw.group(text, 1).unwrap_or("");
-                    let start = raw.end();
-                    let closing: Vec<char> = std::iter::once('"').chain(hashes.chars()).collect();
-                    let end = find_chars(t, &closing, start).unwrap_or(t.len());
-                    blank(&mut chars, start, end);
-                    index = end + 1 + hashes.chars().count();
-                }
-                _ => {
-                    index = find_chars(t, &['"'], index).unwrap_or(t.len());
-                }
-            }
-            continue;
-        }
-        if t[index] == '"' {
-            let end = closing_quote(t, index + 1, '"', true);
-            blank(&mut chars, index + 1, end);
-            index = end + 1;
-            continue;
-        }
-        if let Some(literal) = RUST_CHAR.match_at(text, index) {
-            blank(&mut chars, index + 1, literal.end() - 1);
-            index = literal.end();
-            continue;
-        }
-        index += 1;
+        index = mask_c_token(text, &mut chars, found.start());
     }
     Text::from_chars(chars)
 }

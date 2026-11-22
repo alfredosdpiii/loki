@@ -81,24 +81,7 @@ fn now_seconds() -> f64 {
         .map_or(0.0, |d| d.as_secs_f64())
 }
 
-/// `record_event`: append one event for `root` (the file locked; over 4 MiB it restarts with a retention-reset
-/// line).
-pub fn record_event(
-    root: &Path,
-    operation: &str,
-    outcome: &str,
-    started: Instant,
-    evidence: &Evidence,
-) -> std::io::Result<()> {
-    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
-    // O_NOFOLLOW: a symlink planted at the log is never written through.
-    if std::fs::symlink_metadata(crate::shell::event_path(root)).is_ok_and(|m| m.file_type().is_symlink()) {
-        return Err(std::io::Error::other("events log is a symlink"));
-    }
-    let path = crate::shell::event_path(root);
-    if let Some(parent) = path.parent() {
-        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(parent)?;
-    }
+fn build_event(operation: &str, outcome: &str, started: Instant, evidence: &Evidence) -> Value {
     let duration = (started.elapsed().as_secs_f64() * 1000.0 * 100.0).round() / 100.0;
     let mut event = Map::new();
     for (key, value) in [
@@ -119,12 +102,17 @@ pub fn record_event(
     ] {
         event.insert(key.into(), value);
     }
+    Value::Object(event)
+}
+
+fn append_event(path: &Path, event: &Value) -> std::io::Result<()> {
+    use std::os::unix::fs::OpenOptionsExt;
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .append(true)
         .create(true)
         .mode(0o600)
-        .open(&path)?;
+        .open(path)?;
     file.lock()?;
     if file.metadata()?.len() > 4 * 1024 * 1024 {
         file.set_len(0)?;
@@ -132,5 +120,27 @@ pub fn record_event(
         let reset = json!({ "event": "retention-reset", "time": now_seconds() });
         writeln!(file, "{}", crate::py::dumps(&reset))?;
     }
-    writeln!(file, "{}", crate::py::dumps(&Value::Object(event)))
+    writeln!(file, "{}", crate::py::dumps(event))
+}
+
+/// `record_event`: append one event for `root` (the file locked; over 4 MiB it restarts with a retention-reset
+/// line).
+pub fn record_event(
+    root: &Path,
+    operation: &str,
+    outcome: &str,
+    started: Instant,
+    evidence: &Evidence,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    let path = crate::shell::event_path(root);
+    // O_NOFOLLOW: a symlink planted at the log is never written through.
+    if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err(std::io::Error::other("events log is a symlink"));
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(parent)?;
+    }
+    let event = build_event(operation, outcome, started, evidence);
+    append_event(&path, &event)
 }

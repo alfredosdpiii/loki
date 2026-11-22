@@ -51,57 +51,63 @@ fn changed_content_violations(changes: &[FileChange]) -> Result<Vec<String>, Che
     rules::content_rule_violations(&pairs, false)
 }
 
+fn expand_command(command: &[String], base: Option<&str>, paths: &[String]) -> Option<Vec<String>> {
+    let mut expanded = Vec::new();
+    for part in command {
+        match part.as_str() {
+            "{base}" => expanded.push(base.filter(|b| !b.is_empty())?.to_string()),
+            "{files}" => expanded.extend(paths.iter().cloned()),
+            _ => expanded.push(part.clone()),
+        }
+    }
+    Some(expanded)
+}
+
+fn wrap_mutation_command(mut bounded: Vec<String>) -> Result<Vec<String>, String> {
+    if proc::which("systemd-run").is_none() {
+        return Err("mutation: systemd-run is required for the 8 GB memory limit".into());
+    }
+    if bounded.iter().any(|p| p == "mutmut") && bounded.iter().any(|p| p == "run") {
+        while let Some(index) = bounded.iter().position(|p| p == "--max-children") {
+            bounded.drain(index..(index + 2).min(bounded.len()));
+        }
+        bounded.extend(["--max-children".to_string(), "2".into()]);
+    }
+    Ok(["systemd-run", "--user", "--scope", "--quiet", "-p", "MemoryMax=8G"]
+        .iter()
+        .map(|s| s.to_string())
+        .chain(bounded)
+        .collect())
+}
+
+fn run_guardrail_command(
+    root: &Path,
+    group: &str,
+    command: &[String],
+    base: Option<&str>,
+    paths: &[String],
+) -> Vec<String> {
+    if command.iter().any(|p| p == "{files}") && paths.is_empty() {
+        println!("NOT APPLICABLE {group}: no changed files");
+        return vec![];
+    }
+    let Some(mut expanded) = expand_command(command, base, paths) else {
+        return vec![format!("{group}: command requires --base")];
+    };
+    if group == "mutation" {
+        expanded = match wrap_mutation_command(expanded) {
+            Ok(wrapped) => wrapped,
+            Err(message) => return vec![message],
+        };
+    }
+    run_command(&expanded, root, &format!("{group}: {}", command[0]), Deadline::none())
+}
+
 fn command_guardrail_violations(root: &Path, config: &Config, base: Option<&str>, paths: &[String]) -> Vec<String> {
     let mut violations = Vec::new();
     for group in COMMAND_GROUPS {
         for command in configured_commands(config, group) {
-            if command.iter().any(|p| p == "{files}") && paths.is_empty() {
-                println!("NOT APPLICABLE {group}: no changed files");
-                continue;
-            }
-            let mut expanded: Vec<String> = Vec::new();
-            let mut missing_base = false;
-            for part in &command {
-                match part.as_str() {
-                    "{base}" => match base.filter(|b| !b.is_empty()) {
-                        Some(base) => expanded.push(base.to_string()),
-                        None => {
-                            missing_base = true;
-                            break;
-                        }
-                    },
-                    "{files}" => expanded.extend(paths.iter().cloned()),
-                    _ => expanded.push(part.clone()),
-                }
-            }
-            if missing_base {
-                violations.push(format!("{group}: command requires --base"));
-                continue;
-            }
-            if group == "mutation" {
-                if proc::which("systemd-run").is_none() {
-                    violations.push("mutation: systemd-run is required for the 8 GB memory limit".into());
-                    continue;
-                }
-                let mut bounded = expanded.clone();
-                if bounded.iter().any(|p| p == "mutmut") && bounded.iter().any(|p| p == "run") {
-                    while let Some(index) = bounded.iter().position(|p| p == "--max-children") {
-                        bounded.drain(index..(index + 2).min(bounded.len()));
-                    }
-                    bounded.extend(["--max-children".to_string(), "2".into()]);
-                }
-                expanded = ["systemd-run", "--user", "--scope", "--quiet", "-p", "MemoryMax=8G"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .chain(bounded)
-                    .collect();
-            }
-            violations.extend(run_command(
-                &expanded,
-                root,
-                &format!("{group}: {}", command[0]),
-                Deadline::none(),
-            ));
+            violations.extend(run_guardrail_command(root, group, &command, base, paths));
         }
     }
     violations
@@ -247,6 +253,225 @@ fn scan_command(language: &str, files: &[PathBuf], root: &Path) -> (Option<&'sta
     }
 }
 
+fn check_repository_changes(
+    root: &Path,
+    config: &mut Config,
+    base: Option<&str>,
+) -> Result<Option<Vec<String>>, CheckError> {
+    let (resolved, changes) = git::git_changes(root, base, Deadline::none())?;
+    let policy = git::base_policy(root, resolved.as_deref(), Deadline::none())?;
+    let protected = git::protected_change_violations(&changes, &policy.clone().unwrap_or_default())?;
+    if !protected.is_empty() {
+        return Ok(Some(protected));
+    }
+    if let Some(policy) = policy {
+        *config = policy;
+    }
+    let findings = repository_violations(root, config, resolved.as_deref(), &changes)?;
+    Ok((!findings.is_empty()).then_some(findings))
+}
+
+fn scan_repository(root: &Path, config: &mut Config, strict: bool, base: Option<&str>) -> Result<bool, CheckError> {
+    match git_output(root, &["rev-parse", "--show-toplevel"], Deadline::none(), None) {
+        Err(CheckError::Value(error)) => {
+            if strict || base.is_some() {
+                println!("{error}");
+                return Ok(true);
+            }
+            println!("NOT CHECKED repository: git repository required");
+            return Ok(false);
+        }
+        Err(other) => return Err(other),
+        Ok(_) => {}
+    }
+    match check_repository_changes(root, config, base) {
+        Ok(Some(findings)) => {
+            println!("{}", findings.join("\n"));
+            Ok(true)
+        }
+        Ok(None) => Ok(false),
+        Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => {
+            println!("loki: {}", error.message());
+            Ok(true)
+        }
+        Err(other) => Err(other),
+    }
+}
+
+fn group_source_files(root: &Path, config: &Config) -> Vec<(&'static str, Vec<PathBuf>)> {
+    let mut grouped: Vec<(&'static str, Vec<PathBuf>)> = Vec::new();
+    for path in iter_source_files(root) {
+        let Some(language) = rules::language(&path.to_string_lossy()) else {
+            continue;
+        };
+        if !config::language_enabled(config, language) {
+            continue;
+        }
+        match grouped.iter_mut().find(|(l, _)| *l == language) {
+            Some((_, files)) => files.push(path),
+            None => grouped.push((language, vec![path])),
+        }
+    }
+    grouped
+}
+
+fn violations_entry<'a>(violations: &'a mut Vec<(String, Vec<String>)>, language: &str) -> &'a mut Vec<String> {
+    let index = match violations.iter().position(|(l, _)| l == language) {
+        Some(index) => index,
+        None => {
+            violations.push((language.to_string(), Vec::new()));
+            violations.len() - 1
+        }
+    };
+    &mut violations[index].1
+}
+
+fn scan_elixir_project(
+    root: &Path,
+    project: &Path,
+    strict: bool,
+    violations: &mut Vec<(String, Vec<String>)>,
+) {
+    let report = crate::elixir::elixir_analysis(project, "project", &[]).unwrap_or_default();
+    let relative = project
+        .strip_prefix(crate::resolve(root))
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let prefix = if relative.is_empty() { "." } else { &relative };
+    for crate::elixir::Check {
+        tool, status, output, ..
+    } in report
+    {
+        let label = format!("{prefix}:{tool}");
+        println!("[{label}] {status}");
+        if status == "FAIL" || (strict && status == "NOT CHECKED") {
+            violations_entry(violations, "elixir").push(format!("{label}: {output}"));
+        } else if !output.is_empty() {
+            println!("{output}");
+        }
+    }
+}
+
+fn scan_elixir(
+    root: &Path,
+    files: &[PathBuf],
+    strict: bool,
+    violations: &mut Vec<(String, Vec<String>)>,
+) {
+    let projects: Vec<Option<PathBuf>> = files.iter().map(|f| mix_project(f, root)).collect();
+    if projects.iter().any(Option::is_none) {
+        println!("NOT CHECKED elixir: source files without an enclosing Mix project");
+        if strict {
+            violations_entry(violations, "elixir").push("Mix project required".into());
+        }
+    }
+    let unique: BTreeSet<PathBuf> = projects.into_iter().flatten().collect();
+    for project in unique {
+        scan_elixir_project(root, &project, strict, violations);
+    }
+}
+
+fn scan_python_ast(
+    root: &Path,
+    files: &[PathBuf],
+    python: Option<&str>,
+    strict: bool,
+    list: &mut Vec<String>,
+) -> Result<(), CheckError> {
+    let dependencies = hook::declared_python_dependencies(root);
+    let mut notices = Vec::new();
+    for path in files {
+        let found = hook::python_ast_violations(
+            path,
+            root,
+            Some(&dependencies),
+            "",
+            python,
+            strict,
+            &mut notices,
+            Deadline::none(),
+        )?;
+        list.extend(found);
+        if list.len() >= MAX_VIOLATIONS {
+            break;
+        }
+    }
+    let mut seen = BTreeSet::new();
+    list.retain(|item| seen.insert(item.clone()));
+    for notice in notices {
+        println!("{notice}");
+    }
+    Ok(())
+}
+
+fn scan_language(
+    root: &Path,
+    language: &str,
+    files: &[PathBuf],
+    python: Option<&str>,
+    strict: bool,
+    violations: &mut Vec<(String, Vec<String>)>,
+) -> Result<(), CheckError> {
+    if language == "elixir" {
+        scan_elixir(root, files, strict, violations);
+        return Ok(());
+    }
+    let (missing, commands) = scan_command(language, files, root);
+    if let Some(missing) = missing {
+        println!("SKIP {language} (no {missing})");
+        if strict {
+            violations_entry(violations, language).push(format!("loki: missing {missing}"));
+        }
+    }
+    for command in &commands {
+        let found = run_command(command, root, &command[0], Deadline::none());
+        violations_entry(violations, language).extend(found);
+    }
+    if language == "python" {
+        scan_python_ast(root, files, python, strict, violations_entry(violations, language))?;
+    }
+    Ok(())
+}
+
+fn report_scan_violations(violations: &[(String, Vec<String>)]) -> i32 {
+    let mut failed = false;
+    for (language, messages) in violations {
+        if messages.is_empty() {
+            continue;
+        }
+        failed = true;
+        println!("[{language}]");
+        for message in messages.iter().take(MAX_VIOLATIONS) {
+            println!("{message}");
+        }
+    }
+    i32::from(failed)
+}
+
+fn scan_typescript_and_online(
+    root: &Path,
+    config: &Config,
+    has_typescript: bool,
+    online: bool,
+    violations: &mut Vec<(String, Vec<String>)>,
+) -> Result<(), CheckError> {
+    if has_typescript {
+        let mut notices = Vec::new();
+        let found = crate::typescript::typescript_findings(root, config, Deadline::none(), &mut notices)?;
+        for notice in notices {
+            eprintln!("{notice}");
+        }
+        violations_entry(violations, "typescript").extend(found);
+    }
+    if online {
+        let issues = crate::registry::slopsquatting_violations(root, config);
+        if !issues.is_empty() {
+            *violations_entry(violations, "dependencies") = issues;
+        }
+    }
+    Ok(())
+}
+
 /// `loki scan`: exit status 1 on any finding.
 pub fn scan(
     root: &Path,
@@ -257,177 +482,32 @@ pub fn scan(
     python: Option<&str>,
 ) -> Result<i32, CheckError> {
     let mut config = config.clone();
-    match git_output(root, &["rev-parse", "--show-toplevel"], Deadline::none(), None) {
-        Err(CheckError::Value(error)) => {
-            if strict || base.is_some() {
-                println!("{error}");
-                return Ok(1);
-            }
-            println!("NOT CHECKED repository: git repository required");
-        }
-        Err(other) => return Err(other),
-        Ok(_) => {
-            let checked = (|| -> Result<Option<Vec<String>>, CheckError> {
-                let (resolved, changes) = git::git_changes(root, base, Deadline::none())?;
-                let policy = git::base_policy(root, resolved.as_deref(), Deadline::none())?;
-                let protected = git::protected_change_violations(&changes, &policy.clone().unwrap_or_default())?;
-                if !protected.is_empty() {
-                    return Ok(Some(protected));
-                }
-                if let Some(policy) = policy {
-                    config = policy;
-                }
-                let findings = repository_violations(root, &config, resolved.as_deref(), &changes)?;
-                Ok((!findings.is_empty()).then_some(findings))
-            })();
-            match checked {
-                Ok(Some(findings)) => {
-                    println!("{}", findings.join("\n"));
-                    return Ok(1);
-                }
-                Ok(None) => {}
-                Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => {
-                    println!("loki: {}", error.message());
-                    return Ok(1);
-                }
-                Err(other) => return Err(other),
-            }
-        }
+    if scan_repository(root, &mut config, strict, base)? {
+        return Ok(1);
     }
-    let mut grouped: Vec<(&'static str, Vec<PathBuf>)> = Vec::new();
-    for path in iter_source_files(root) {
-        let Some(language) = rules::language(&path.to_string_lossy()) else {
-            continue;
-        };
-        if !config::language_enabled(&config, language) {
-            continue;
-        }
-        match grouped.iter_mut().find(|(l, _)| *l == language) {
-            Some((_, files)) => files.push(path),
-            None => grouped.push((language, vec![path])),
-        }
-    }
+    let grouped = group_source_files(root, &config);
     let files_of = |language: &str| {
         grouped
             .iter()
             .find(|(l, _)| *l == language)
-            .map(|(_, f)| f.clone())
-            .unwrap_or_default()
+            .map(|(_, f)| f.as_slice())
+            .unwrap_or(&[])
     };
     let mut violations: Vec<(String, Vec<String>)> = Vec::new();
-    fn entry<'a>(violations: &'a mut Vec<(String, Vec<String>)>, language: &str) -> &'a mut Vec<String> {
-        let index = match violations.iter().position(|(l, _)| l == language) {
-            Some(index) => index,
-            None => {
-                violations.push((language.to_string(), Vec::new()));
-                violations.len() - 1
-            }
-        };
-        &mut violations[index].1
-    }
-    let dependencies = hook::declared_python_dependencies(root);
     for language in ["python", "typescript", "go", "rust", "elixir"] {
         let files = files_of(language);
-        if files.is_empty() {
-            continue;
-        }
-        if language == "elixir" {
-            let projects: Vec<Option<PathBuf>> = files.iter().map(|f| mix_project(f, root)).collect();
-            if projects.iter().any(Option::is_none) {
-                println!("NOT CHECKED elixir: source files without an enclosing Mix project");
-                if strict {
-                    entry(&mut violations, language).push("Mix project required".into());
-                }
-            }
-            let unique: BTreeSet<PathBuf> = projects.into_iter().flatten().collect();
-            for project in unique {
-                let report = crate::elixir::elixir_analysis(&project, "project", &[]).unwrap_or_default();
-                for crate::elixir::Check {
-                    tool, status, output, ..
-                } in report
-                {
-                    let relative = project
-                        .strip_prefix(crate::resolve(root))
-                        .map(|p| p.to_string_lossy().into_owned())
-                        .unwrap_or_default();
-                    let label = format!("{}:{tool}", if relative.is_empty() { "." } else { &relative });
-                    println!("[{label}] {status}");
-                    if status == "FAIL" || (strict && status == "NOT CHECKED") {
-                        entry(&mut violations, language).push(format!("{label}: {output}"));
-                    } else if !output.is_empty() {
-                        println!("{output}");
-                    }
-                }
-            }
-            continue;
-        }
-        let (missing, commands) = scan_command(language, &files, root);
-        if let Some(missing) = missing {
-            println!("SKIP {language} (no {missing})");
-            if strict {
-                entry(&mut violations, language).push(format!("loki: missing {missing}"));
-            }
-        }
-        for command in &commands {
-            let found = run_command(command, root, &command[0], Deadline::none());
-            entry(&mut violations, language).extend(found);
-        }
-        if language == "python" {
-            let mut notices = Vec::new();
-            for path in &files {
-                let found = hook::python_ast_violations(
-                    path,
-                    root,
-                    Some(&dependencies),
-                    "",
-                    python,
-                    strict,
-                    &mut notices,
-                    Deadline::none(),
-                )?;
-                let list = entry(&mut violations, language);
-                list.extend(found);
-                if list.len() >= MAX_VIOLATIONS {
-                    break;
-                }
-            }
-            let list = entry(&mut violations, language);
-            let mut seen = BTreeSet::new();
-            list.retain(|item| seen.insert(item.clone()));
-            for notice in notices {
-                println!("{notice}");
-            }
+        if !files.is_empty() {
+            scan_language(root, language, files, python, strict, &mut violations)?;
         }
     }
-    if !files_of("typescript").is_empty() {
-        let mut notices = Vec::new();
-        let found = crate::typescript::typescript_findings(root, &config, Deadline::none(), &mut notices)?;
-        for notice in notices {
-            eprintln!("{notice}");
-        }
-        entry(&mut violations, "typescript").extend(found);
-    }
-    if online {
-        let issues = crate::registry::slopsquatting_violations(root, &config);
-        if !issues.is_empty() {
-            match violations.iter_mut().find(|(l, _)| l == "dependencies") {
-                Some((_, list)) => *list = issues,
-                None => violations.push(("dependencies".into(), issues)),
-            }
-        }
-    }
-    let mut failed = false;
-    for (language, messages) in &violations {
-        if messages.is_empty() {
-            continue;
-        }
-        failed = true;
-        println!("[{language}]");
-        for message in messages.iter().take(MAX_VIOLATIONS) {
-            println!("{message}");
-        }
-    }
-    Ok(i32::from(failed))
+    scan_typescript_and_online(
+        root,
+        &config,
+        !files_of("typescript").is_empty(),
+        online,
+        &mut violations,
+    )?;
+    Ok(report_scan_violations(&violations))
 }
 
 pub(crate) const TEMPLATE: &[u8] = include_bytes!("../templates/loki.json");

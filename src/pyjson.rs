@@ -6,13 +6,25 @@ struct Scanner<'a> {
     s: &'a [char],
 }
 
-fn is_ws(c: Option<char>) -> bool {
-    matches!(c, Some(' ' | '\t' | '\n' | '\r'))
+enum Delim {
+    Closed(usize),
+    Comma { comma: usize, next: usize },
 }
 
 impl Scanner<'_> {
     fn at(&self, i: usize) -> Option<char> {
         self.s.get(i).copied()
+    }
+
+    fn is_digit(&self, i: usize) -> bool {
+        self.at(i).is_some_and(|c| c.is_ascii_digit())
+    }
+
+    fn scan_digits(&self, mut i: usize) -> usize {
+        while self.is_digit(i) {
+            i += 1;
+        }
+        i
     }
 
     fn skip(&self, mut i: usize) -> usize {
@@ -41,40 +53,28 @@ impl Scanner<'_> {
         }
     }
 
-    fn number(&self, i: usize) -> Option<usize> {
-        let digit = |j: usize| self.at(j).is_some_and(|c| c.is_ascii_digit());
-        let mut j = i;
-        if self.at(j) == Some('-') {
-            j += 1;
+    fn scan_exponent(&self, j: usize) -> usize {
+        if !matches!(self.at(j), Some('e' | 'E')) {
+            return j;
         }
+        let mut k = j + 1;
+        if matches!(self.at(k), Some('+' | '-')) {
+            k += 1;
+        }
+        if self.is_digit(k) { self.scan_digits(k) } else { j }
+    }
+
+    fn number(&self, i: usize) -> Option<usize> {
+        let mut j = i + usize::from(self.at(i) == Some('-'));
         match self.at(j) {
             Some('0') => j += 1,
-            Some('1'..='9') => {
-                while digit(j) {
-                    j += 1;
-                }
-            }
+            Some('1'..='9') => j = self.scan_digits(j),
             _ => return None,
         }
-        if self.at(j) == Some('.') && digit(j + 1) {
-            j += 1;
-            while digit(j) {
-                j += 1;
-            }
+        if self.at(j) == Some('.') && self.is_digit(j + 1) {
+            j = self.scan_digits(j + 1);
         }
-        if matches!(self.at(j), Some('e' | 'E')) {
-            let mut k = j + 1;
-            if matches!(self.at(k), Some('+' | '-')) {
-                k += 1;
-            }
-            if digit(k) {
-                while digit(k) {
-                    k += 1;
-                }
-                j = k;
-            }
-        }
-        Some(j)
+        Some(self.scan_exponent(j))
     }
 
     fn string(&self, start: usize) -> Result<usize, Fail> {
@@ -108,92 +108,61 @@ impl Scanner<'_> {
         }
     }
 
-    fn object(&self, mut end: usize) -> Result<usize, Fail> {
-        let mut next = self.at(end);
-        if next != Some('"') {
-            if is_ws(next) {
-                end = self.skip(end);
-                next = self.at(end);
-            }
-            if next == Some('}') {
-                return Ok(end + 1);
-            }
-            if next != Some('"') {
-                return Err(Fail("Expecting property name enclosed in double quotes", end));
-            }
+    fn next_delim(&self, end: usize, close: char) -> Result<Delim, Fail> {
+        let end = self.skip(end);
+        match self.at(end) {
+            Some(c) if c == close => Ok(Delim::Closed(end + 1)),
+            Some(',') => Ok(Delim::Comma {
+                comma: end,
+                next: self.skip(end + 1),
+            }),
+            _ => Err(Fail("Expecting ',' delimiter", end)),
         }
-        end += 1;
+    }
+
+    fn object_pair(&self, end: usize) -> Result<usize, Fail> {
+        let end = self.skip(self.string(end)?);
+        if self.at(end) != Some(':') {
+            return Err(Fail("Expecting ':' delimiter", end));
+        }
+        self.value(self.skip(end + 1))
+    }
+
+    fn object(&self, end: usize) -> Result<usize, Fail> {
+        let mut end = self.skip(end);
+        match self.at(end) {
+            Some('}') => return Ok(end + 1),
+            Some('"') => end += 1,
+            _ => return Err(Fail("Expecting property name enclosed in double quotes", end)),
+        }
         loop {
-            end = self.string(end)?;
-            if self.at(end) != Some(':') {
-                end = self.skip(end);
-                if self.at(end) != Some(':') {
-                    return Err(Fail("Expecting ':' delimiter", end));
-                }
-            }
-            end += 1;
-            if is_ws(self.at(end)) && self.at(end).is_some() {
-                end += 1;
-                if is_ws(self.at(end)) && self.at(end).is_some() {
-                    end = self.skip(end + 1);
-                }
-            }
-            end = self.value(end)?;
-            let mut next = self.at(end);
-            if next.is_some() && is_ws(next) {
-                end = self.skip(end + 1);
-                next = self.at(end);
-            }
-            end += 1;
-            match next {
-                Some('}') => return Ok(end),
-                Some(',') => {}
-                _ => return Err(Fail("Expecting ',' delimiter", end - 1)),
-            }
-            let comma = end - 1;
-            end = self.skip(end);
-            let next = self.at(end);
-            end += 1;
-            if next != Some('"') {
-                if next == Some('}') {
-                    return Err(Fail("Illegal trailing comma before end of object", comma));
-                }
-                return Err(Fail("Expecting property name enclosed in double quotes", end - 1));
+            end = self.object_pair(end)?;
+            match self.next_delim(end, '}')? {
+                Delim::Closed(done) => return Ok(done),
+                Delim::Comma { comma, next } => match self.at(next) {
+                    Some('"') => end = next + 1,
+                    Some('}') => return Err(Fail("Illegal trailing comma before end of object", comma)),
+                    _ => return Err(Fail("Expecting property name enclosed in double quotes", next)),
+                },
             }
         }
     }
 
-    fn array(&self, mut end: usize) -> Result<usize, Fail> {
-        let mut next = self.at(end);
-        if is_ws(next) {
-            end = self.skip(end + 1);
-            next = self.at(end);
-        }
-        if next == Some(']') {
+    fn array(&self, end: usize) -> Result<usize, Fail> {
+        let mut end = self.skip(end);
+        if self.at(end) == Some(']') {
             return Ok(end + 1);
         }
         loop {
             end = self.value(end)?;
-            let mut next = self.at(end);
-            if is_ws(next) {
-                end = self.skip(end + 1);
-                next = self.at(end);
-            }
-            end += 1;
-            match next {
-                Some(']') => return Ok(end),
-                Some(',') => {}
-                _ => return Err(Fail("Expecting ',' delimiter", end - 1)),
-            }
-            let comma = end - 1;
-            if is_ws(self.at(end)) && self.at(end).is_some() {
-                end += 1;
-                if is_ws(self.at(end)) && self.at(end).is_some() {
-                    end = self.skip(end + 1);
+            match self.next_delim(end, ']')? {
+                Delim::Closed(done) => return Ok(done),
+                Delim::Comma { comma, next } => {
+                    if self.at(next) == Some(']') {
+                        return Err(Fail("Illegal trailing comma before end of array", comma));
+                    }
+                    end = next;
                 }
-            }
-            if self.at(end) == Some(']') {
-                return Err(Fail("Illegal trailing comma before end of array", comma));
             }
         }
     }

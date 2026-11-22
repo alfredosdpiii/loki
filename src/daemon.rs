@@ -137,6 +137,53 @@ pub fn client(argv: &[String], stdin: &mut dyn Read) -> Forwarded {
     }
 }
 
+fn build_request(argv: &[String], raw: &str) -> std::io::Result<Value> {
+    let env: serde_json::Map<String, Value> = std::env::vars().map(|(k, v)| (k, Value::String(v))).collect();
+    let cwd = std::env::current_dir()?;
+    Ok(json!({
+        "engine": engine_digest(),
+        "argv": argv,
+        "stdin": raw,
+        "cwd": cwd.to_string_lossy(),
+        "env": env,
+    }))
+}
+
+fn exchange_request(socket: &Path, request: &Value) -> std::io::Result<Value> {
+    let mut connection = UnixStream::connect(socket)?;
+    connection.set_read_timeout(Some(REQUEST))?;
+    connection.set_write_timeout(Some(REQUEST))?;
+    connection.write_all(format!("{request}\n").as_bytes())?;
+    connection.shutdown(std::net::Shutdown::Write)?;
+    let mut text = String::new();
+    connection.read_to_string(&mut text)?;
+    serde_json::from_str(&text).map_err(std::io::Error::other)
+}
+
+fn parse_reply(reply: &Value) -> Option<Reply> {
+    let stale = reply
+        .get("stale")
+        .is_some_and(|s| s != &Value::Bool(false) && !s.is_null());
+    if stale {
+        return None;
+    }
+    let exit = reply.get("exit").and_then(Value::as_i64)? as i32;
+    let text = |key: &str| reply[key].as_str().unwrap_or_default().to_string();
+    Some(Reply {
+        exit,
+        stdout: text("stdout"),
+        stderr: text("stderr"),
+    })
+}
+
+fn read_harness_stdin(argv: &[String], stdin: &mut dyn Read) -> Option<String> {
+    let mut raw = String::new();
+    if argv.iter().any(|a| a == "--harness" || a == "--preview") && stdin.read_to_string(&mut raw).is_err() {
+        return None;
+    }
+    Some(raw)
+}
+
 fn forward(argv: &[String], stdin: &mut dyn Read) -> Result<Reply, Option<String>> {
     let setting = std::env::var("LOKI_DAEMON").unwrap_or_default();
     if setting == "0" || !argv.iter().any(|a| COMMANDS.contains(&a.as_str())) {
@@ -150,43 +197,10 @@ fn forward(argv: &[String], stdin: &mut dyn Read) -> Result<Reply, Option<String
         }
         return Err(None);
     }
-    let mut raw = String::new();
-    if argv.iter().any(|a| a == "--harness" || a == "--preview") && stdin.read_to_string(&mut raw).is_err() {
-        return Err(None);
-    }
-    let consumed = || Some(raw.clone());
-    let env: serde_json::Map<String, Value> = std::env::vars().map(|(k, v)| (k, Value::String(v))).collect();
-    let request = json!({
-        "engine": engine_digest(),
-        "argv": argv,
-        "stdin": raw,
-        "cwd": std::env::current_dir().map_err(|_| consumed())?.to_string_lossy(),
-        "env": env,
-    });
-    let reply = (|| -> std::io::Result<Value> {
-        let mut connection = UnixStream::connect(&paths.0)?;
-        connection.set_read_timeout(Some(REQUEST))?;
-        connection.set_write_timeout(Some(REQUEST))?;
-        connection.write_all(format!("{request}\n").as_bytes())?;
-        connection.shutdown(std::net::Shutdown::Write)?;
-        let mut text = String::new();
-        connection.read_to_string(&mut text)?;
-        serde_json::from_str(&text).map_err(std::io::Error::other)
-    })()
-    .map_err(|_| consumed())?;
-    if reply
-        .get("stale")
-        .is_some_and(|s| s != &Value::Bool(false) && !s.is_null())
-    {
-        return Err(consumed());
-    }
-    let exit = reply.get("exit").and_then(Value::as_i64).ok_or_else(consumed)? as i32;
-    let text = |key: &str| reply[key].as_str().unwrap_or_default().to_string();
-    Ok(Reply {
-        exit,
-        stdout: text("stdout"),
-        stderr: text("stderr"),
-    })
+    let raw = read_harness_stdin(argv, stdin).ok_or(None)?;
+    let request = build_request(argv, &raw).map_err(|_| Some(raw.clone()))?;
+    let reply = exchange_request(&paths.0, &request).map_err(|_| Some(raw.clone()))?;
+    parse_reply(&reply).ok_or(Some(raw))
 }
 
 /// `daemon_command`: `serve` in the foreground; `start`, `stop` and `status` report on it. The status line and
@@ -220,27 +234,78 @@ pub fn command(action: &str, root: &Path) -> (i32, String, String) {
     )
 }
 
+fn prepare_socket_dir(socket: &Path) -> Result<(), &'static str> {
+    let Some(directory) = socket.parent() else {
+        return Err("loki: daemon socket path too long\n");
+    };
+    let created = std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(directory)
+        .is_ok();
+    let owned = std::fs::metadata(directory).map(|m| m.uid()).ok() == Some(rustix::process::getuid().as_raw());
+    if !created || !owned {
+        return Err("loki: daemon directory is not owned by this user\n");
+    }
+    Ok(())
+}
+
+fn should_stop(root: &Path, engine: &str, checked: &mut Instant) -> bool {
+    if checked.elapsed() < RECHECK {
+        return false;
+    }
+    *checked = Instant::now();
+    !root.is_dir() || engine_digest() != engine
+}
+
+fn accept_next(listener: &UnixListener) -> std::io::Result<Option<UnixStream>> {
+    match listener.accept() {
+        Ok((connection, _)) => Ok(Some(connection)),
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+fn accept_loop(root: &Path, socket: &Path, engine: &str) -> std::io::Result<()> {
+    let listener = UnixListener::bind(socket)?;
+    std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o600))?;
+    listener.set_nonblocking(true)?;
+    let mut idle_since = Instant::now();
+    // loki.py looks again after each connection and each 30-second accept timeout.
+    let mut checked = Instant::now();
+    loop {
+        if should_stop(root, engine, &mut checked) {
+            break;
+        }
+        let wait = RECHECK
+            .saturating_sub(checked.elapsed())
+            .min(IDLE.saturating_sub(idle_since.elapsed()));
+        if !readable(&listener, wait)? {
+            if idle_since.elapsed() >= IDLE {
+                break;
+            }
+            continue;
+        }
+        let Some(connection) = accept_next(&listener)? else {
+            continue;
+        };
+        idle_since = Instant::now();
+        checked = Instant::now().checked_sub(RECHECK).unwrap_or(checked);
+        if !answer(connection, engine) {
+            break;
+        }
+    }
+    Ok(())
+}
+
 /// `daemon_serve`: answer forwarded runs until idle for 30 minutes, the repository is gone, the engine changed,
 /// or a request names another engine (`stop` does).
 fn serve(root: &Path) -> (i32, String, String) {
     let Some((socket, lock)) = daemon_paths(root) else {
         return (1, String::new(), "loki: daemon socket path too long\n".into());
     };
-    let Some(directory) = socket.parent() else {
-        return (1, String::new(), "loki: daemon socket path too long\n".into());
-    };
-    if std::fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(directory)
-        .is_err()
-        || std::fs::metadata(directory).map(|m| m.uid()).ok() != Some(rustix::process::getuid().as_raw())
-    {
-        return (
-            1,
-            String::new(),
-            "loki: daemon directory is not owned by this user\n".into(),
-        );
+    if let Err(message) = prepare_socket_dir(&socket) {
+        return (1, String::new(), message.into());
     }
     let engine = engine_digest();
     let started = Instant::now();
@@ -249,42 +314,7 @@ fn serve(root: &Path) -> (i32, String, String) {
         started.elapsed().as_secs_f64()
     );
     let _ = std::fs::remove_file(&socket);
-    let served = (|| -> std::io::Result<()> {
-        let listener = UnixListener::bind(&socket)?;
-        std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600))?;
-        listener.set_nonblocking(true)?;
-        let mut idle_since = Instant::now();
-        // loki.py looks again after each connection and each 30-second accept timeout.
-        let mut checked = Instant::now();
-        loop {
-            if checked.elapsed() >= RECHECK {
-                checked = Instant::now();
-                if !root.is_dir() || engine_digest() != engine {
-                    break;
-                }
-            }
-            let wait = RECHECK
-                .saturating_sub(checked.elapsed())
-                .min(IDLE.saturating_sub(idle_since.elapsed()));
-            if !readable(&listener, wait)? {
-                if idle_since.elapsed() >= IDLE {
-                    break;
-                }
-                continue;
-            }
-            let connection = match listener.accept() {
-                Ok((connection, _)) => connection,
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => continue,
-                Err(error) => return Err(error),
-            };
-            idle_since = Instant::now();
-            checked = Instant::now().checked_sub(RECHECK).unwrap_or(checked);
-            if !answer(connection, &engine) {
-                break;
-            }
-        }
-        Ok(())
-    })();
+    let served = accept_loop(root, &socket, &engine);
     let _ = std::fs::remove_file(&socket);
     let _ = std::fs::remove_file(&lock);
     match served {

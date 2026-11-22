@@ -1,112 +1,29 @@
 //! Rust, Go and Elixir rule packs (`rust_rules`, `go_rules`, `elixir_rules`).
 
-use crate::jsrules::{SQL_IDENTIFIER, SQL_IDENTIFIER_POSITION, SQL_QUERY, SQL_WORD, TLS_VERIFICATION};
+use crate::jsrules::{SQL_IDENTIFIER, SQL_IDENTIFIER_POSITION, SQL_QUERY, SQL_WORD, TLS_VERIFICATION, re};
 use crate::py;
 use crate::rules::Finding;
 use crate::text::{Re, Text, closing_quote, mask_elixir, mask_go, mask_rust, matching_close, split_arguments};
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
-macro_rules! re {
-    (pub $name:ident, $pattern:expr) => {
-        pub static $name: LazyLock<Re> = LazyLock::new(|| Re::new($pattern));
-    };
-    ($name:ident, $pattern:expr) => {
-        static $name: LazyLock<Re> = LazyLock::new(|| Re::new($pattern));
-    };
-}
-
 pub const SHELLS: [&str; 7] = ["sh", "bash", "zsh", "dash", "/bin/sh", "/bin/bash", "/usr/bin/env"];
 pub const SHELL_COMMAND: &str = "shell command injection: command string built from variables runs through a shell with -c; pass the program and arguments separately";
+
+re!(
+    pub AUTHORIZATION_KEY,
+    r"(?i)^(?:[a-z_]*?(?:admin|superuser|super_user|staff|role|roles|permission|permissions|privilege|privileges|scope|scopes|authorized|authorised)[a-z_?]*)$"
+);
 
 re!(PLACEHOLDER, r"(?<![\w:])(todo|unimplemented)\s*!\s*[(\[{]");
 re!(RUST_FN, r"\bfn\s+\w+[^{;]*\{");
 re!(BUF_WRITER, r"\bBufWriter\s*::\s*(?:new|with_capacity)\s*\(");
 re!(FLUSHED, r"\.flush\s*\(|\binto_inner\s*\(|->\s*[^{]*BufWriter");
 re!(UNCHECKED, r"\.get_unchecked(?:_mut)?\s*\(\s*([A-Za-z_]\w*)");
-re!(COMMAND_NEW, r#"\bCommand\s*::\s*new\s*\(\s*""#);
-re!(DYNAMIC_ARGS, r#"format!|\.args?\s*\(\s*(?!["\[\s])"#);
-re!(
-    DANGER_ACCEPT,
-    r"\.\s*danger_accept_invalid_(?:certs|hostnames)\s*\(\s*true\s*\)"
-);
-re!(
-    RUST_SQL_FORMAT,
-    r"(?:(?<![\w.])(?:sqlx\s*::\s*)?query(?:_as|_scalar)?(?:\s*::\s*<[^>()]*>)?|\.\s*execute|(?<![\w.])(?:diesel\s*::\s*)?sql_query)\s*\(\s*&?\s*format\s*!\s*\("
-);
-re!(RUST_STRING_START, r#"^r?#*""#);
-re!(RUST_HOLE, r"\{(\{)?");
-re!(GO_SKIP_VERIFY, r"\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b");
-re!(GO_EXEC, r"\bexec\s*\.\s*Command(Context)?\s*\(");
-re!(GO_SQL_CALL, r"\.\s*(?:Query|QueryRow|Exec|Prepare)(Context)?\s*\(");
-re!(GO_SPRINTF, r"^\s*fmt\s*\.\s*Sprintf\s*\(");
-re!(GO_VERB, r"%(?:%|[-+# 0-9.]*([sv]))");
-re!(
-    GO_LITERAL,
-    r#"^\s*(?:"[^"\n]*"|`[^`]*`)\s*(?:\+\s*(?:"[^"\n]*"|`[^`]*`)\s*)*$"#
-);
-re!(GO_ARCHIVE, r#""archive/(?:zip|tar)""#);
-re!(GO_FUNC, r"\bfunc\b[^{]*\{");
-re!(GO_JOIN, r"\b(?:filepath|path)\.Join\s*\([^)]*\b\w+\.Name\b");
-re!(
-    GO_GUARD,
-    r"\bIsLocal\s*\(|\bfilepath\.Rel\s*\(|\bHasPrefix\s*\(|\bValidPath\s*\(|\bContains\s*\([^)]*\.\."
-);
-re!(
-    pub AUTHORIZATION_KEY,
-    r"(?i)^(?:[a-z_]*?(?:admin|superuser|super_user|staff|role|roles|permission|permissions|privilege|privileges|scope|scopes|authorized|authorised)[a-z_?]*)$"
-);
-re!(
-    EX_PARAM,
-    r#"(?<![\w.])(?:conn\s*\.\s*)?(?:params|query_params|body_params)\s*\[\s*""#
-);
-re!(EX_COMPARE_AFTER, r"^\s*(?:===?|!==?|and\b|or\b|&&|\|\|)");
-re!(EX_HEAD, r"\bdefp?\s+[\w?!]+\s*\(");
-re!(EX_ARROW_VALUE, r"=>\s*([a-z][\w]*)");
-re!(EX_PARAMS_NAME, r"\b([a-z]\w*params)\b");
-re!(EX_LITERAL_FLAG, r#""\s*"\s*=>\s*(true|false)\b"#);
-re!(EX_PARAMS_ASSIGN, r"(?m)^\s*([a-z]\w*)\s*=[^\n]*\bparams\b");
-re!(EX_REDIRECT, r"\bredirect\s*\(");
-re!(EX_EXTERNAL, r"\bexternal:\s*([^,)]+)");
-re!(EX_LOCAL_WORD, r"(?<![\w.:])([a-z]\w*)");
-re!(EX_PARAMS, r"\bparams\b");
-re!(EX_SORT, r"\bEnum\.(?:sort_by|max_by|min_by)\s*\(");
-re!(EX_DATE_FIELD, r"\.\w*(?:_at|_on|date|time|timestamp)\b");
-re!(EX_DIRECTION, r"^:(?:asc|desc)$");
-re!(
-    EX_FILE_MATCH,
-    r"\{:ok,\s*[\w_]+\}\s*=\s*File\.(read|open|stat|ls|lstat|read_link)\s*\("
-);
-re!(EX_FILE_OPEN, r"\{:ok,\s*([a-z]\w*)\}\s*(?:=|<-)\s*File\.open\s*\(");
-re!(EX_SYSTEM_CMD, r#"\bSystem\.cmd\s*\(\s*""#);
-re!(EX_VARIABLE_ARG, r#",\s*(?!["\s])[a-z_]\w*\s*[\]<]"#);
-re!(EX_OS_CMD, r"(?<![\w.]):os\.cmd\s*\(");
-re!(EX_CHARLIST, r#"^\s*~c?["'].*["']\s*$"#);
-re!(
-    EX_HTTP_CALL,
-    r"(?<![\w.]):(?:httpc|hackney)\.request\s*\(|(?<![\w.])(?:HTTPoison|Req|Tesla)\.(?:get|post|put|patch|delete|head|options|request|new)!?\s*\(|(?<![\w.])Finch\.build\s*\(|(?<![\w.])Mint\.HTTP\.connect\s*\("
-);
-re!(EX_WORD, r"(?<![\w.:])([a-z]\w*)\b");
-re!(EX_REQUEST_PARAMS, r"\b(?:query_|body_)?params\b");
 
-pub fn rust_rules(text: &Text) -> Vec<Finding> {
-    let masked = mask_rust(text);
+fn rust_fn_rules(masked: &Text, findings: &mut Vec<Finding>) {
     let m = &masked.c;
-    let mut findings: Vec<Finding> = PLACEHOLDER
-        .iter(&masked)
-        .into_iter()
-        .map(|found| {
-            (
-                "loki/placeholder",
-                format!(
-                    "{}!() placeholder left in code panics at runtime",
-                    found.group(&masked, 1).unwrap_or("")
-                ),
-                found.start(),
-            )
-        })
-        .collect();
-    for function in RUST_FN.iter(&masked) {
+    for function in RUST_FN.iter(masked) {
         let open = function.end() - 1;
         let body = Text::new(masked.sl(open, matching_close(m, open)));
         if let Some(writer) = BUF_WRITER.search(&body, 0) {
@@ -133,7 +50,17 @@ pub fn rust_rules(text: &Text) -> Vec<Finding> {
             }
         }
     }
-    for found in COMMAND_NEW.iter(&masked) {
+}
+
+re!(COMMAND_NEW, r#"\bCommand\s*::\s*new\s*\(\s*""#);
+re!(DYNAMIC_ARGS, r#"format!|\.args?\s*\(\s*(?!["\[\s])"#);
+re!(
+    DANGER_ACCEPT,
+    r"\.\s*danger_accept_invalid_(?:certs|hostnames)\s*\(\s*true\s*\)"
+);
+
+fn rust_command_and_tls_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
+    for found in COMMAND_NEW.iter(masked) {
         let program = text.sl(found.end(), closing_quote(&text.c, found.end(), '"', false));
         let end = masked.find(";", found.end()).unwrap_or(text.len());
         let chain = text.sl(found.end(), end);
@@ -141,11 +68,21 @@ pub fn rust_rules(text: &Text) -> Vec<Finding> {
             findings.push(("loki/command-injection", SHELL_COMMAND.into(), found.start()));
         }
     }
-    for found in DANGER_ACCEPT.iter(&masked) {
+    for found in DANGER_ACCEPT.iter(masked) {
         findings.push(("loki/tls-verification", TLS_VERIFICATION.into(), found.start()));
     }
-    for found in RUST_SQL_FORMAT.iter(&masked) {
-        let arguments = split_arguments(m, found.end() - 1);
+}
+
+re!(
+    RUST_SQL_FORMAT,
+    r"(?:(?<![\w.])(?:sqlx\s*::\s*)?query(?:_as|_scalar)?(?:\s*::\s*<[^>()]*>)?|\.\s*execute|(?<![\w.])(?:diesel\s*::\s*)?sql_query)\s*\(\s*&?\s*format\s*!\s*\("
+);
+re!(RUST_STRING_START, r#"^r?#*""#);
+re!(RUST_HOLE, r"\{(\{)?");
+
+fn rust_sql_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
+    for found in RUST_SQL_FORMAT.iter(masked) {
+        let arguments = split_arguments(&masked.c, found.end() - 1);
         let literal = arguments
             .first()
             .map_or("", |&(a, b)| text.sl(a, b).trim_matches(py::is_space));
@@ -163,6 +100,27 @@ pub fn rust_rules(text: &Text) -> Vec<Finding> {
             findings.push(("loki/sql-injection", message.into(), found.start()));
         }
     }
+}
+
+pub fn rust_rules(text: &Text) -> Vec<Finding> {
+    let masked = mask_rust(text);
+    let mut findings: Vec<Finding> = PLACEHOLDER
+        .iter(&masked)
+        .into_iter()
+        .map(|found| {
+            (
+                "loki/placeholder",
+                format!(
+                    "{}!() placeholder left in code panics at runtime",
+                    found.group(&masked, 1).unwrap_or("")
+                ),
+                found.start(),
+            )
+        })
+        .collect();
+    rust_fn_rules(&masked, &mut findings);
+    rust_command_and_tls_rules(text, &masked, &mut findings);
+    rust_sql_rules(text, &masked, &mut findings);
     findings
 }
 
@@ -176,6 +134,11 @@ fn sql_message(literal: &Text, holes: &[usize]) -> Option<&'static str> {
         .all(|&hole| SQL_IDENTIFIER_POSITION.is_match(literal.sl(0, hole)));
     Some(if identifier { SQL_IDENTIFIER } else { SQL_QUERY })
 }
+
+re!(
+    GO_LITERAL,
+    r#"^\s*(?:"[^"\n]*"|`[^`]*`)\s*(?:\+\s*(?:"[^"\n]*"|`[^`]*`)\s*)*$"#
+);
 
 fn go_literal(masked: &Text, (a, b): (usize, usize)) -> bool {
     GO_LITERAL.is_match(masked.sl(a, b))
@@ -199,6 +162,42 @@ fn plus_parts(masked: &[char], start: usize, end: usize) -> Vec<(usize, usize)> 
     spans
 }
 
+re!(GO_SPRINTF, r"^\s*fmt\s*\.\s*Sprintf\s*\(");
+re!(GO_VERB, r"%(?:%|[-+# 0-9.]*([sv]))");
+
+fn go_sql_message(text: &Text, masked: &Text, start: usize, end: usize) -> Option<&'static str> {
+    let m = &masked.c;
+    if let Some(sprintf) = GO_SPRINTF.search(&Text::new(masked.sl(start, end)), 0) {
+        let inner = split_arguments(m, start + sprintf.end() - 1);
+        let &format = inner.first()?;
+        if inner[1..].iter().all(|&span| go_literal(masked, span)) || !go_literal(masked, format) {
+            return None;
+        }
+        let literal = Text::new(text.sl(format.0, format.1));
+        let holes: Vec<usize> = GO_VERB
+            .iter(&literal)
+            .into_iter()
+            .filter(|h| h.get(1).is_some())
+            .map(|h| h.start())
+            .collect();
+        return sql_message(&literal, &holes);
+    }
+    let parts = plus_parts(m, start, end);
+    let literals: Vec<&str> = parts
+        .iter()
+        .filter(|&&part| go_literal(masked, part))
+        .map(|&(a, b)| text.sl(a, b))
+        .collect();
+    if literals.is_empty() || literals.len() == parts.len() {
+        return None;
+    }
+    sql_message(&Text::new(&literals.concat()), &[0])
+}
+
+re!(GO_SKIP_VERIFY, r"\bInsecureSkipVerify\s*(?::|=(?!=))\s*true\b");
+re!(GO_EXEC, r"\bexec\s*\.\s*Command(Context)?\s*\(");
+re!(GO_SQL_CALL, r"\.\s*(?:Query|QueryRow|Exec|Prepare)(Context)?\s*\(");
+
 fn go_security_rules(text: &Text, masked: &Text) -> Vec<Finding> {
     let m = &masked.c;
     let mut findings: Vec<Finding> = GO_SKIP_VERIFY
@@ -221,38 +220,20 @@ fn go_security_rules(text: &Text, masked: &Text) -> Vec<Finding> {
         let Some(&(start, end)) = all.get(usize::from(call.get(1).is_some())) else {
             continue;
         };
-        let message = if let Some(sprintf) = GO_SPRINTF.search(&Text::new(masked.sl(start, end)), 0) {
-            let inner = split_arguments(m, start + sprintf.end() - 1);
-            let Some(&format) = inner.first() else { continue };
-            if inner[1..].iter().all(|&span| go_literal(masked, span)) || !go_literal(masked, format) {
-                continue;
-            }
-            let literal = Text::new(text.sl(format.0, format.1));
-            let holes: Vec<usize> = GO_VERB
-                .iter(&literal)
-                .into_iter()
-                .filter(|h| h.get(1).is_some())
-                .map(|h| h.start())
-                .collect();
-            sql_message(&literal, &holes)
-        } else {
-            let parts = plus_parts(m, start, end);
-            let literals: Vec<&str> = parts
-                .iter()
-                .filter(|&&part| go_literal(masked, part))
-                .map(|&(a, b)| text.sl(a, b))
-                .collect();
-            if literals.is_empty() || literals.len() == parts.len() {
-                continue;
-            }
-            sql_message(&Text::new(&literals.concat()), &[0])
-        };
-        if let Some(message) = message {
+        if let Some(message) = go_sql_message(text, masked, start, end) {
             findings.push(("loki/sql-injection", message.into(), call.start()));
         }
     }
     findings
 }
+
+re!(GO_ARCHIVE, r#""archive/(?:zip|tar)""#);
+re!(GO_FUNC, r"\bfunc\b[^{]*\{");
+re!(GO_JOIN, r"\b(?:filepath|path)\.Join\s*\([^)]*\b\w+\.Name\b");
+re!(
+    GO_GUARD,
+    r"\bIsLocal\s*\(|\bfilepath\.Rel\s*\(|\bHasPrefix\s*\(|\bValidPath\s*\(|\bContains\s*\([^)]*\.\."
+);
 
 /// Zip slip, SQL built with Sprintf or +, shell -c commands, TLS skip-verify.
 pub fn go_rules(text: &Text) -> Vec<Finding> {
@@ -301,11 +282,19 @@ fn authorization(key: &str) -> String {
     )
 }
 
-pub fn elixir_rules(text: &Text) -> Vec<Finding> {
-    let masked = mask_elixir(text);
-    let m = &masked.c;
-    let mut findings: Vec<Finding> = Vec::new();
-    for found in EX_PARAM.iter(&masked) {
+re!(
+    EX_PARAM,
+    r#"(?<![\w.])(?:conn\s*\.\s*)?(?:params|query_params|body_params)\s*\[\s*""#
+);
+re!(EX_COMPARE_AFTER, r"^\s*(?:===?|!==?|and\b|or\b|&&|\|\|)");
+re!(EX_HEAD, r"\bdefp?\s+[\w?!]+\s*\(");
+re!(EX_ARROW_VALUE, r"=>\s*([a-z][\w]*)");
+re!(EX_PARAMS_NAME, r"\b([a-z]\w*params)\b");
+re!(EX_LITERAL_FLAG, r#""\s*"\s*=>\s*(true|false)\b"#);
+re!(EX_PARAMS_ASSIGN, r"(?m)^\s*([a-z]\w*)\s*=[^\n]*\bparams\b");
+
+fn elixir_tainted_and_auth(text: &Text, masked: &Text, findings: &mut Vec<Finding>) -> BTreeSet<String> {
+    for found in EX_PARAM.iter(masked) {
         let close = closing_quote(&text.c, found.end(), '"', false);
         let key = text.sl(found.end(), close);
         let after_start = masked.find("]", close).map_or(0, |i| i + 1);
@@ -316,8 +305,8 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
         }
     }
     let mut tainted: BTreeSet<String> = BTreeSet::new();
-    for head in EX_HEAD.iter(&masked) {
-        let arguments = Text::new(masked.sl(head.end(), matching_close(m, head.end() - 1) - 1));
+    for head in EX_HEAD.iter(masked) {
+        let arguments = Text::new(masked.sl(head.end(), matching_close(&masked.c, head.end() - 1) - 1));
         tainted.extend(EX_ARROW_VALUE.group1_strs(&arguments.s).iter().map(|s| s.to_string()));
         tainted.extend(EX_PARAMS_NAME.group1_strs(&arguments.s).iter().map(|s| s.to_string()));
         for pair in EX_LITERAL_FLAG.iter(&arguments) {
@@ -329,7 +318,23 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
         }
     }
     tainted.extend(EX_PARAMS_ASSIGN.group1_strs(&masked.s).iter().map(|s| s.to_string()));
-    for call in EX_REDIRECT.iter(&masked) {
+    tainted
+}
+
+re!(EX_REDIRECT, r"\bredirect\s*\(");
+re!(EX_EXTERNAL, r"\bexternal:\s*([^,)]+)");
+re!(EX_LOCAL_WORD, r"(?<![\w.:])([a-z]\w*)");
+re!(EX_PARAMS, r"\bparams\b");
+re!(
+    EX_HTTP_CALL,
+    r"(?<![\w.]):(?:httpc|hackney)\.request\s*\(|(?<![\w.])(?:HTTPoison|Req|Tesla)\.(?:get|post|put|patch|delete|head|options|request|new)!?\s*\(|(?<![\w.])Finch\.build\s*\(|(?<![\w.])Mint\.HTTP\.connect\s*\("
+);
+re!(EX_WORD, r"(?<![\w.:])([a-z]\w*)\b");
+re!(EX_REQUEST_PARAMS, r"\b(?:query_|body_)?params\b");
+
+fn elixir_redirect_and_ssrf(masked: &Text, tainted: &BTreeSet<String>, findings: &mut Vec<Finding>) {
+    let m = &masked.c;
+    for call in EX_REDIRECT.iter(masked) {
         let arguments = Text::new(masked.sl(call.end(), matching_close(m, call.end() - 1) - 1));
         if let Some(external) = EX_EXTERNAL.search(&arguments, 0) {
             let target = external.group(&arguments, 1).unwrap_or("");
@@ -342,16 +347,36 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
             }
         }
     }
-    for call in EX_SORT.iter(&masked) {
-        let arguments: Vec<&str> = split_arguments(m, call.end() - 1)
+    for call in EX_HTTP_CALL.iter(masked) {
+        let arguments = masked.sl(call.end(), matching_close(m, call.end() - 1) - 1);
+        if EX_WORD.group1_strs(arguments).iter().any(|w| tainted.contains(*w)) || EX_REQUEST_PARAMS.is_match(arguments)
+        {
+            findings.push((
+                "loki/ssrf",
+                "server-side request forgery (SSRF): outbound request to an untrusted URL from request parameters; validate the host against an allowlist".into(),
+                call.start(),
+            ));
+        }
+    }
+}
+
+re!(EX_SORT, r"\bEnum\.(?:sort_by|max_by|min_by)\s*\(");
+re!(EX_DATE_FIELD, r"\.\w*(?:_at|_on|date|time|timestamp)\b");
+re!(EX_DIRECTION, r"^:(?:asc|desc)$");
+re!(
+    EX_FILE_MATCH,
+    r"\{:ok,\s*[\w_]+\}\s*=\s*File\.(read|open|stat|ls|lstat|read_link)\s*\("
+);
+re!(EX_FILE_OPEN, r"\{:ok,\s*([a-z]\w*)\}\s*(?:=|<-)\s*File\.open\s*\(");
+
+fn elixir_sort_and_file_rules(masked: &Text, findings: &mut Vec<Finding>) {
+    for call in EX_SORT.iter(masked) {
+        let arguments: Vec<&str> = split_arguments(&masked.c, call.end() - 1)
             .iter()
             .map(|&(a, b)| py::strip(masked.sl(a, b)))
             .collect();
         let mapper = arguments.iter().find(|item| EX_DATE_FIELD.is_match(item));
-        let sorter = match arguments.last() {
-            Some(last) if Some(last) != mapper => *last,
-            _ => "",
-        };
+        let sorter = arguments.last().filter(|last| Some(*last) != mapper).copied().unwrap_or("");
         if mapper.is_some() && (sorter.is_empty() || EX_DIRECTION.is_match(sorter)) {
             findings.push((
                 "loki/structural-date-sort",
@@ -360,18 +385,18 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
             ));
         }
     }
-    for found in EX_FILE_MATCH.iter(&masked) {
+    for found in EX_FILE_MATCH.iter(masked) {
         findings.push((
             "loki/unhandled-error-tuple",
             format!(
                 "{{:ok, _}} = File.{}(...) raises MatchError on {{:error, reason}}; use case/with, or the ! variant deliberately",
-                found.group(&masked, 1).unwrap_or("")
+                found.group(masked, 1).unwrap_or("")
             ),
             found.start(),
         ));
     }
-    for found in EX_FILE_OPEN.iter(&masked) {
-        let handle = found.group(&masked, 1).unwrap_or("");
+    for found in EX_FILE_OPEN.iter(masked) {
+        let handle = found.group(masked, 1).unwrap_or("");
         let closed = Re::new(&format!(r"\bFile\.close\s*\(\s*{handle}\b"));
         if !closed.is_match(&masked.s) {
             findings.push((
@@ -383,7 +408,16 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
             ));
         }
     }
-    for call in EX_SYSTEM_CMD.iter(&masked) {
+}
+
+re!(EX_SYSTEM_CMD, r#"\bSystem\.cmd\s*\(\s*""#);
+re!(EX_VARIABLE_ARG, r#",\s*(?!["\s])[a-z_]\w*\s*[\]<]"#);
+re!(EX_OS_CMD, r"(?<![\w.]):os\.cmd\s*\(");
+re!(EX_CHARLIST, r#"^\s*~c?["'].*["']\s*$"#);
+
+fn elixir_command_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
+    let m = &masked.c;
+    for call in EX_SYSTEM_CMD.iter(masked) {
         let program = text.sl(call.end(), closing_quote(&text.c, call.end(), '"', false));
         let arguments = text.sl(call.end(), matching_close(m, call.end() - 2));
         if SHELLS.contains(&program)
@@ -393,23 +427,21 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
             findings.push(("loki/command-injection", SHELL_COMMAND.into(), call.start()));
         }
     }
-    for call in EX_OS_CMD.iter(&masked) {
+    for call in EX_OS_CMD.iter(masked) {
         let arguments = text.sl(call.end(), matching_close(m, call.end() - 1) - 1);
         if arguments.contains("#{") || !EX_CHARLIST.is_match(arguments) {
             findings.push(("loki/command-injection", SHELL_COMMAND.into(), call.start()));
         }
     }
-    for call in EX_HTTP_CALL.iter(&masked) {
-        let arguments = masked.sl(call.end(), matching_close(m, call.end() - 1) - 1);
-        if EX_WORD.group1_strs(arguments).iter().any(|w| tainted.contains(*w)) || EX_REQUEST_PARAMS.is_match(arguments)
-        {
-            findings.push((
-                "loki/ssrf",
-                "server-side request forgery (SSRF): outbound request to an untrusted URL from request parameters; validate the host against an allowlist".into(),
-                call.start(),
-            ));
-        }
-    }
+}
+
+pub fn elixir_rules(text: &Text) -> Vec<Finding> {
+    let masked = mask_elixir(text);
+    let mut findings: Vec<Finding> = Vec::new();
+    let tainted = elixir_tainted_and_auth(text, &masked, &mut findings);
+    elixir_redirect_and_ssrf(&masked, &tainted, &mut findings);
+    elixir_sort_and_file_rules(&masked, &mut findings);
+    elixir_command_rules(text, &masked, &mut findings);
     findings
 }
 

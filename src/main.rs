@@ -28,61 +28,103 @@ const COMMANDS: [&str; 14] = [
 ];
 const TOP_USAGE: &str = "usage: loki [-h] [--version] [--root ROOT]\n            {verify-installation,explain,context,elixir,apply,shell,shell-writes,protect,hook,scan,slop,hygiene,daemon,init} ...";
 
+const USAGES: &[(&str, &str)] = &[
+    (
+        "protect",
+        "usage: loki protect [-h] [--root ROOT] (--file FILE |\n                    --harness {claude,codex,factory}) [--record]\n                    [--format {text,json}] [--python PYTHON]\n                    [--preview {pi,omp,ultron}]",
+    ),
+    (
+        "hook",
+        "usage: loki hook [-h] [--root ROOT] (--file FILE |\n                 --harness {claude,codex,factory}) [--record]\n                 [--format {text,json}] [--python PYTHON]",
+    ),
+    (
+        "scan",
+        "usage: loki scan [-h] [--online] [--strict] [--base BASE] [--ruff-new]\n                 [--python PYTHON]",
+    ),
+    ("slop", "usage: loki slop [-h] [--base BASE] [--json] [--top TOP]"),
+    (
+        "hygiene",
+        "usage: loki hygiene [-h] [--base BASE] [--file FILE] [--level {on,all}] [--json]",
+    ),
+    (
+        "init",
+        "usage: loki init [-h] [--force] [--dir DIR] [--managed-dir MANAGED_DIR]\n                 [--shell-guard] [--minimal]",
+    ),
+    (
+        "verify-installation",
+        "usage: loki verify-installation [-h] --engine ENGINE\n                                --registration REGISTRATION\n                                --agent-uid AGENT_UID",
+    ),
+    (
+        "elixir",
+        "usage: loki elixir [-h] [--project PROJECT] [--tier {fast,project,deep}]\n                   [--file FILE] [--json] [--credo-new]",
+    ),
+    ("apply", "usage: loki apply [-h] --manifest MANIFEST [--check-only]"),
+    ("daemon", "usage: loki daemon [-h] {serve,start,stop,status}"),
+];
+
+const DEFAULT_USAGE: &str = "usage: loki context [-h] [--root ROOT]\n                    [--event {SessionStart,UserPromptSubmit}]\n                    [--host {ultron}]";
+
 fn usage(command: &str) -> &'static str {
-    match command {
-        "protect" => {
-            "usage: loki protect [-h] [--root ROOT] (--file FILE |\n                    --harness {claude,codex,factory}) [--record]\n                    [--format {text,json}] [--python PYTHON]\n                    [--preview {pi,omp,ultron}]"
-        }
-        "hook" => {
-            "usage: loki hook [-h] [--root ROOT] (--file FILE |\n                 --harness {claude,codex,factory}) [--record]\n                 [--format {text,json}] [--python PYTHON]"
-        }
-        "scan" => {
-            "usage: loki scan [-h] [--online] [--strict] [--base BASE] [--ruff-new]\n                 [--python PYTHON]"
-        }
-        "slop" => "usage: loki slop [-h] [--base BASE] [--json] [--top TOP]",
-        "hygiene" => "usage: loki hygiene [-h] [--base BASE] [--file FILE] [--level {on,all}] [--json]",
-        "init" => {
-            "usage: loki init [-h] [--force] [--dir DIR] [--managed-dir MANAGED_DIR]\n                 [--shell-guard] [--minimal]"
-        }
-        "verify-installation" => {
-            "usage: loki verify-installation [-h] --engine ENGINE\n                                --registration REGISTRATION\n                                --agent-uid AGENT_UID"
-        }
-        "elixir" => {
-            "usage: loki elixir [-h] [--project PROJECT] [--tier {fast,project,deep}]\n                   [--file FILE] [--json] [--credo-new]"
-        }
-        "apply" => "usage: loki apply [-h] --manifest MANIFEST [--check-only]",
-        "daemon" => "usage: loki daemon [-h] {serve,start,stop,status}",
-        _ => {
-            "usage: loki context [-h] [--root ROOT]\n                    [--event {SessionStart,UserPromptSubmit}]\n                    [--host {ultron}]"
-        }
-    }
+    USAGES
+        .iter()
+        .find(|&&(name, _)| name == command)
+        .map_or(DEFAULT_USAGE, |&(_, text)| text)
 }
+
+const PROTECT_HELP_OPTIONS: &str = "  -h, --help            show this help message and exit\n  --root ROOT\n  --file FILE\n  --harness {claude,codex,factory}\n  --record\n  --format {text,json}\n  --python PYTHON       the project's Python interpreter\n";
+
+const HELP_OPTIONS: &[(&str, &str)] = &[
+    ("hook", PROTECT_HELP_OPTIONS),
+    (
+        "scan",
+        "  -h, --help       show this help message and exit\n  --online\n  --strict\n  --base BASE\n  --ruff-new\n  --python PYTHON  the project's Python interpreter\n",
+    ),
+    (
+        "slop",
+        "  -h, --help   show this help message and exit\n  --base BASE  compare against this revision\n  --json\n  --top TOP\n",
+    ),
+    (
+        "hygiene",
+        "  -h, --help          show this help message and exit\n  --base BASE         compare against this revision\n  --file FILE         check specific file(s)\n  --level {on,all}    override hygiene level\n  --json              output JSON\n",
+    ),
+    (
+        "init",
+        "  -h, --help            show this help message and exit\n  --force\n  --dir DIR\n  --managed-dir MANAGED_DIR\n  --shell-guard\n  --minimal\n",
+    ),
+    (
+        "verify-installation",
+        "  -h, --help            show this help message and exit\n  --engine ENGINE\n  --registration REGISTRATION\n  --agent-uid AGENT_UID\n",
+    ),
+    (
+        "elixir",
+        "  -h, --help            show this help message and exit\n  --project PROJECT\n  --tier {fast,project,deep}\n  --file FILE\n  --json\n  --credo-new\n",
+    ),
+    (
+        "apply",
+        "  -h, --help           show this help message and exit\n  --manifest MANIFEST\n  --check-only\n",
+    ),
+];
+
+const DEFAULT_HELP_OPTIONS: &str = "  -h, --help            show this help message and exit\n  --root ROOT\n  --event {SessionStart,UserPromptSubmit}\n  --host {ultron}\n";
 
 /// `loki <command> --help`: the usage, then argparse's option list.
 fn help(command: &str) -> String {
-    let options = match command {
-        "protect" | "hook" => {
-            let mut text = "  -h, --help            show this help message and exit\n  --root ROOT\n  --file FILE\n  --harness {claude,codex,factory}\n  --record\n  --format {text,json}\n  --python PYTHON       the project's Python interpreter\n".to_string();
-            if command == "protect" {
-                text.push_str("  --preview {pi,omp,ultron}\n");
-            }
-            text
-        }
-        "scan" => "  -h, --help       show this help message and exit\n  --online\n  --strict\n  --base BASE\n  --ruff-new\n  --python PYTHON  the project's Python interpreter\n".to_string(),
-        "slop" => "  -h, --help   show this help message and exit\n  --base BASE  compare against this revision\n  --json\n  --top TOP\n".to_string(),
-        "hygiene" => "  -h, --help          show this help message and exit\n  --base BASE         compare against this revision\n  --file FILE         check specific file(s)\n  --level {on,all}    override hygiene level\n  --json              output JSON\n".to_string(),
-        "init" => "  -h, --help            show this help message and exit\n  --force\n  --dir DIR\n  --managed-dir MANAGED_DIR\n  --shell-guard\n  --minimal\n".to_string(),
-        "verify-installation" => "  -h, --help            show this help message and exit\n  --engine ENGINE\n  --registration REGISTRATION\n  --agent-uid AGENT_UID\n".to_string(),
-        "elixir" => "  -h, --help            show this help message and exit\n  --project PROJECT\n  --tier {fast,project,deep}\n  --file FILE\n  --json\n  --credo-new\n".to_string(),
-        "apply" => "  -h, --help           show this help message and exit\n  --manifest MANIFEST\n  --check-only\n".to_string(),
-        "daemon" => {
-            return format!(
-                "{}\n\npositional arguments:\n  {{serve,start,stop,status}}\n\noptions:\n  -h, --help            show this help message and exit\n",
-                usage(command)
-            );
-        }
-        _ => "  -h, --help            show this help message and exit\n  --root ROOT\n  --event {SessionStart,UserPromptSubmit}\n  --host {ultron}\n".to_string(),
-    };
+    if command == "daemon" {
+        return format!(
+            "{}\n\npositional arguments:\n  {{serve,start,stop,status}}\n\noptions:\n  -h, --help            show this help message and exit\n",
+            usage(command)
+        );
+    }
+    if command == "protect" {
+        return format!(
+            "{}\n\noptions:\n{PROTECT_HELP_OPTIONS}  --preview {{pi,omp,ultron}}\n",
+            usage(command)
+        );
+    }
+    let options = HELP_OPTIONS
+        .iter()
+        .find(|&&(name, _)| name == command)
+        .map_or(DEFAULT_HELP_OPTIONS, |&(_, text)| text);
     format!("{}\n\noptions:\n{options}", usage(command))
 }
 
@@ -94,65 +136,93 @@ enum Kind {
     Choice(&'static [&'static str]),
 }
 
-fn options(command: &str) -> Vec<(&'static str, Kind)> {
-    const HARNESS: &[&str] = &["claude", "codex", "factory"];
-    const FORMAT: &[&str] = &["text", "json"];
-    match command {
-        "protect" | "hook" => {
-            let mut list = vec![
-                ("--root", Kind::Value),
-                ("--file", Kind::Value),
-                ("--harness", Kind::Choice(HARNESS)),
-                ("--record", Kind::Flag),
-                ("--format", Kind::Choice(FORMAT)),
-                ("--python", Kind::Value),
-            ];
-            if command == "protect" {
-                list.push(("--preview", Kind::Choice(&["pi", "omp", "ultron"])));
-            }
-            list
-        }
-        "scan" => vec![
+const HARNESS_CHOICES: &[&str] = &["claude", "codex", "factory"];
+const FORMAT_CHOICES: &[&str] = &["text", "json"];
+const PREVIEW_CHOICES: &[&str] = &["pi", "omp", "ultron"];
+const LEVEL_CHOICES: &[&str] = &["on", "all"];
+const TIER_CHOICES: &[&str] = &["fast", "project", "deep"];
+const EVENT_CHOICES: &[&str] = &["SessionStart", "UserPromptSubmit"];
+const HOST_CHOICES: &[&str] = &["ultron"];
+
+const GUARD_OPTIONS: &[(&str, Kind)] = &[
+    ("--root", Kind::Value),
+    ("--file", Kind::Value),
+    ("--harness", Kind::Choice(HARNESS_CHOICES)),
+    ("--record", Kind::Flag),
+    ("--format", Kind::Choice(FORMAT_CHOICES)),
+    ("--python", Kind::Value),
+    ("--preview", Kind::Choice(PREVIEW_CHOICES)),
+];
+
+const OPTION_SPECS: &[(&str, &[(&str, Kind)])] = &[
+    ("protect", GUARD_OPTIONS),
+    ("hook", GUARD_OPTIONS.split_at(6).0),
+    (
+        "scan",
+        &[
             ("--online", Kind::Flag),
             ("--strict", Kind::Flag),
             ("--base", Kind::Value),
             ("--ruff-new", Kind::Flag),
             ("--python", Kind::Value),
         ],
-        "slop" => vec![("--base", Kind::Value), ("--json", Kind::Flag), ("--top", Kind::Int)],
-        "hygiene" => vec![
+    ),
+    (
+        "slop",
+        &[("--base", Kind::Value), ("--json", Kind::Flag), ("--top", Kind::Int)],
+    ),
+    (
+        "hygiene",
+        &[
             ("--base", Kind::Value),
             ("--file", Kind::Value),
-            ("--level", Kind::Choice(&["on", "all"])),
+            ("--level", Kind::Choice(LEVEL_CHOICES)),
             ("--json", Kind::Flag),
         ],
-        "init" => vec![
+    ),
+    (
+        "init",
+        &[
             ("--force", Kind::Flag),
             ("--dir", Kind::Value),
             ("--managed-dir", Kind::Value),
             ("--shell-guard", Kind::Flag),
             ("--minimal", Kind::Flag),
         ],
-        "verify-installation" => vec![
+    ),
+    (
+        "verify-installation",
+        &[
             ("--engine", Kind::Value),
             ("--registration", Kind::Value),
             ("--agent-uid", Kind::Int),
         ],
-        "elixir" => vec![
+    ),
+    (
+        "elixir",
+        &[
             ("--project", Kind::Value),
-            ("--tier", Kind::Choice(&["fast", "project", "deep"])),
+            ("--tier", Kind::Choice(TIER_CHOICES)),
             ("--file", Kind::Value),
             ("--json", Kind::Flag),
             ("--credo-new", Kind::Flag),
         ],
-        "apply" => vec![("--manifest", Kind::Value), ("--check-only", Kind::Flag)],
-        "daemon" => vec![],
-        _ => vec![
-            ("--root", Kind::Value),
-            ("--event", Kind::Choice(&["SessionStart", "UserPromptSubmit"])),
-            ("--host", Kind::Choice(&["ultron"])),
-        ],
-    }
+    ),
+    ("apply", &[("--manifest", Kind::Value), ("--check-only", Kind::Flag)]),
+    ("daemon", &[]),
+];
+
+const DEFAULT_OPTION_SPECS: &[(&str, Kind)] = &[
+    ("--root", Kind::Value),
+    ("--event", Kind::Choice(EVENT_CHOICES)),
+    ("--host", Kind::Choice(HOST_CHOICES)),
+];
+
+fn options(command: &str) -> &'static [(&'static str, Kind)] {
+    OPTION_SPECS
+        .iter()
+        .find(|&&(name, _)| name == command)
+        .map_or(DEFAULT_OPTION_SPECS, |&(_, specs)| specs)
 }
 
 /// Parsed values: last value per option, all values for `--file`.
@@ -222,54 +292,68 @@ fn python_int(text: &str) -> Option<i64> {
     clean.parse::<i64>().ok().map(|n| sign * n)
 }
 
-fn parse(argv: &[String]) -> Result<Args, ParseError> {
+fn resolve_top_flag(flag: &str) -> Option<&'static str> {
+    let matches: Vec<&str> = ["--version", "--root"]
+        .into_iter()
+        .filter(|o| o.starts_with(flag))
+        .collect();
+    if matches.contains(&flag) {
+        Some(if flag == "--version" { "--version" } else { "--root" })
+    } else if matches.len() == 1 {
+        Some(matches[0])
+    } else {
+        None
+    }
+}
+
+fn parse_top_option<'a>(
+    flag: &str,
+    inline: Option<String>,
+    token: &str,
+    items: &mut std::iter::Peekable<std::slice::Iter<'a, String>>,
+    args: &mut Args,
+    top_extras: &mut Vec<String>,
+) -> Result<(), ParseError> {
+    match resolve_top_flag(flag) {
+        Some("--version") => {
+            println!("loki {}", loki::VERSION);
+            Err(ParseError::Exit(0))
+        }
+        Some(_) => {
+            let value = match inline {
+                Some(v) => v,
+                None => match items.peek() {
+                    Some(v) if !optional_like(v) => items.next().cloned().unwrap_or_default(),
+                    _ => return Err(ParseError::Top("argument --root: expected one argument".into())),
+                },
+            };
+            args.root = Some(value);
+            Ok(())
+        }
+        // argparse keeps going: an unknown option is reported once the command parsed.
+        None => {
+            top_extras.push(token.to_string());
+            Ok(())
+        }
+    }
+}
+
+fn parse_top(argv: &[String]) -> Result<(Args, Vec<String>, Vec<String>), ParseError> {
     let mut args = Args::default();
-    let mut top_extras: Vec<String> = Vec::new();
+    let mut top_extras = Vec::new();
     let mut items = argv.iter().peekable();
-    let top = |m: String| ParseError::Top(m);
     while let Some(token) = items.next() {
         let (flag, inline) = match token.split_once('=') {
             Some((f, v)) if f.starts_with("--") => (f.to_string(), Some(v.to_string())),
             _ => (token.clone(), None),
         };
         if flag.starts_with("--") && flag.len() > 2 {
-            let matches: Vec<&str> = ["--version", "--root"]
-                .into_iter()
-                .filter(|o| o.starts_with(flag.as_str()))
-                .collect();
-            let chosen = if matches.contains(&flag.as_str()) {
-                Some(flag.as_str())
-            } else if matches.len() == 1 {
-                Some(matches[0])
-            } else {
-                None
-            };
-            match chosen {
-                Some("--version") => {
-                    println!("loki {}", loki::VERSION);
-                    return Err(ParseError::Exit(0));
-                }
-                Some(_) => {
-                    let value = match inline {
-                        Some(v) => v,
-                        None => match items.peek() {
-                            Some(v) if !optional_like(v) => items.next().cloned().unwrap_or_default(),
-                            _ => return Err(top("argument --root: expected one argument".into())),
-                        },
-                    };
-                    args.root = Some(value);
-                    continue;
-                }
-                // argparse keeps going: an unknown option is reported once the command parsed.
-                None => {
-                    top_extras.push(token.clone());
-                    continue;
-                }
-            }
+            parse_top_option(&flag, inline, token, &mut items, &mut args, &mut top_extras)?;
+            continue;
         }
         if !COMMANDS.contains(&token.as_str()) {
             let listed = COMMANDS.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
-            return Err(top(format!(
+            return Err(ParseError::Top(format!(
                 "argument command: invalid choice: '{token}' (choose from {listed})"
             )));
         }
@@ -277,9 +361,209 @@ fn parse(argv: &[String]) -> Result<Args, ParseError> {
         break;
     }
     if args.command.is_empty() {
-        return Err(top("the following arguments are required: command".into()));
+        return Err(ParseError::Top("the following arguments are required: command".into()));
     }
+    Ok((args, top_extras, items.cloned().collect()))
+}
+
+fn resolve_sub_option(
+    specs: &[(&'static str, Kind)],
+    flag: &str,
+    command: &str,
+) -> Result<Option<(&'static str, Kind)>, ParseError> {
+    if let Some(&spec) = specs.iter().find(|(n, _)| *n == flag) {
+        return Ok(Some(spec));
+    }
+    let candidates: Vec<&(&str, Kind)> = specs.iter().filter(|(n, _)| n.starts_with(flag)).collect();
+    match candidates.len() {
+        0 => Ok(None),
+        1 => Ok(Some(*candidates[0])),
+        _ => {
+            let names = candidates.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ");
+            Err(ParseError::Sub(
+                command.to_string(),
+                format!("ambiguous option: {flag} could match {names}"),
+            ))
+        }
+    }
+}
+
+fn validate_option_value(command: &str, name: &str, kind: Kind, value: &str) -> Result<(), ParseError> {
+    match kind {
+        Kind::Choice(choices) if !choices.contains(&value) => {
+            let listed = choices.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
+            Err(ParseError::Sub(
+                command.to_string(),
+                format!("argument {name}: invalid choice: '{value}' (choose from {listed})"),
+            ))
+        }
+        Kind::Int if python_int(value).is_none() => Err(ParseError::Sub(
+            command.to_string(),
+            format!("argument {name}: invalid int value: '{value}'"),
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn check_exclusive(command: &str, name: &'static str, exclusive: &mut Option<&'static str>) -> Result<(), ParseError> {
+    if name != "--file" && name != "--harness" {
+        return Ok(());
+    }
+    if let Some(other) = *exclusive
+        && other != name
+    {
+        return Err(ParseError::Sub(
+            command.to_string(),
+            format!("argument {name}: not allowed with argument {other}"),
+        ));
+    }
+    *exclusive = Some(name);
+    Ok(())
+}
+
+fn take_option_value(
+    command: &str,
+    name: &str,
+    inline: Option<String>,
+    rest: &[String],
+    index: &mut usize,
+) -> Result<String, ParseError> {
+    match inline {
+        Some(v) => Ok(v),
+        None if *index < rest.len() && !optional_like(&rest[*index]) => {
+            *index += 1;
+            Ok(rest[*index - 1].clone())
+        }
+        None => Err(ParseError::Sub(
+            command.to_string(),
+            format!("argument {name}: expected one argument"),
+        )),
+    }
+}
+
+fn apply_sub_option(
+    args: &mut Args,
+    spec: (&'static str, Kind),
+    inline: Option<String>,
+    rest: &[String],
+    index: &mut usize,
+    exclusive: &mut Option<&'static str>,
+) -> Result<(), ParseError> {
+    let (name, kind) = spec;
+    check_exclusive(&args.command, name, exclusive)?;
+    if kind == Kind::Flag {
+        if let Some(val) = inline {
+            return Err(ParseError::Sub(
+                args.command.clone(),
+                format!("argument {name}: ignored explicit argument '{val}'"),
+            ));
+        }
+        args.values.push((name, String::new()));
+        return Ok(());
+    }
+    let value = take_option_value(&args.command, name, inline, rest, index)?;
+    validate_option_value(&args.command, name, kind, &value)?;
+    if name == "--root" {
+        args.root = Some(value);
+    } else {
+        args.values.push((name, value));
+    }
+    Ok(())
+}
+
+fn is_help_token(token: &str, specs: &[(&str, Kind)]) -> bool {
+    token == "-h"
+        || (token.len() > 2 && "--help".starts_with(token) && !specs.iter().any(|(n, _)| n.starts_with(token)))
+}
+
+fn parse_sub_args(args: &mut Args, rest: &[String]) -> Result<(Vec<String>, Option<&'static str>), ParseError> {
+    let specs = options(&args.command);
+    let mut extras = Vec::new();
+    let mut exclusive = None;
+    let mut index = 0;
+    while index < rest.len() {
+        let token = &rest[index];
+        index += 1;
+        if token == "--" {
+            extras.extend(rest[index..].iter().cloned());
+            break;
+        }
+        if is_help_token(token, specs) {
+            print!("{}", help(&args.command));
+            return Err(ParseError::Exit(0));
+        }
+        if !optional_like(token) || !token.starts_with("--") {
+            extras.push(token.clone());
+            continue;
+        }
+        let (flag, inline) = match token.split_once('=') {
+            Some((f, v)) => (f, Some(v.to_string())),
+            None => (token.as_str(), None),
+        };
+        let Some(spec) = resolve_sub_option(specs, flag, &args.command)? else {
+            extras.push(token.clone());
+            continue;
+        };
+        apply_sub_option(args, spec, inline, rest, &mut index, &mut exclusive)?;
+    }
+    Ok((extras, exclusive))
+}
+
+fn parse_daemon_action(args: &mut Args, extras: &mut Vec<String>) -> Result<(), ParseError> {
+    if args.command != "daemon" || extras.is_empty() {
+        return Ok(());
+    }
+    let action = extras.remove(0);
+    const ACTIONS: [&str; 4] = ["serve", "start", "stop", "status"];
+    if !ACTIONS.contains(&action.as_str()) {
+        let listed = ACTIONS.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
+        return Err(ParseError::Sub(
+            args.command.clone(),
+            format!("argument action: invalid choice: '{action}' (choose from {listed})"),
+        ));
+    }
+    args.values.push(("action", action));
+    Ok(())
+}
+
+fn finalize_sub_args(
+    args: &mut Args,
+    mut extras: Vec<String>,
+    mut top_extras: Vec<String>,
+    exclusive: Option<&'static str>,
+) -> Result<(), ParseError> {
     let command = args.command.clone();
+    let sub = |m: String| ParseError::Sub(command.clone(), m);
+    // `daemon`'s positional action: the first remaining word.
+    parse_daemon_action(args, &mut extras)?;
+    let required: &[&str] = match args.command.as_str() {
+        "verify-installation" => &["--engine", "--registration", "--agent-uid"],
+        "apply" => &["--manifest"],
+        "daemon" => &["action"],
+        _ => &[],
+    };
+    let missing: Vec<&str> = required.iter().filter(|name| !args.has(name)).copied().collect();
+    if !missing.is_empty() {
+        return Err(sub(format!(
+            "the following arguments are required: {}",
+            missing.join(", ")
+        )));
+    }
+    if matches!(args.command.as_str(), "protect" | "hook") && exclusive.is_none() {
+        return Err(sub("one of the arguments --file --harness is required".into()));
+    }
+    top_extras.extend(extras);
+    if !top_extras.is_empty() {
+        return Err(ParseError::Top(format!(
+            "unrecognized arguments: {}",
+            top_extras.join(" ")
+        )));
+    }
+    Ok(())
+}
+
+fn parse(argv: &[String]) -> Result<Args, ParseError> {
+    let (mut args, top_extras, rest) = parse_top(argv)?;
     const PARSED: [&str; 11] = [
         "protect",
         "hook",
@@ -293,131 +577,17 @@ fn parse(argv: &[String]) -> Result<Args, ParseError> {
         "apply",
         "daemon",
     ];
-    if !PARSED.contains(&command.as_str()) {
+    if !PARSED.contains(&args.command.as_str()) {
         if !top_extras.is_empty() {
-            return Err(top(format!("unrecognized arguments: {}", top_extras.join(" "))));
+            return Err(ParseError::Top(format!(
+                "unrecognized arguments: {}",
+                top_extras.join(" ")
+            )));
         }
         return Ok(args);
     }
-    let sub = |m: String| ParseError::Sub(command.clone(), m);
-    let specs = options(&command);
-    let mut extras: Vec<String> = Vec::new();
-    let mut exclusive: Option<&'static str> = None;
-    let rest: Vec<String> = items.cloned().collect();
-    let mut index = 0;
-    while index < rest.len() {
-        let token = &rest[index];
-        index += 1;
-        if token == "--" {
-            extras.extend(rest[index..].iter().cloned());
-            break;
-        }
-        let help_prefix = token.len() > 2
-            && "--help".starts_with(token.as_str())
-            && !specs.iter().any(|(n, _)| n.starts_with(token.as_str()));
-        if token == "-h" || help_prefix {
-            print!("{}", help(&command));
-            return Err(ParseError::Exit(0));
-        }
-        if !optional_like(token) || !token.starts_with("--") {
-            extras.push(token.clone());
-            continue;
-        }
-        let (flag, inline) = match token.split_once('=') {
-            Some((f, v)) => (f.to_string(), Some(v.to_string())),
-            None => (token.clone(), None),
-        };
-        let exact = specs.iter().find(|(n, _)| *n == flag);
-        let candidates: Vec<&(&str, Kind)> = specs.iter().filter(|(n, _)| n.starts_with(flag.as_str())).collect();
-        let spec = match (exact, candidates.len()) {
-            (Some(spec), _) => *spec,
-            (None, 1) => *candidates[0],
-            (None, 0) => {
-                extras.push(token.clone());
-                continue;
-            }
-            (None, _) => {
-                let names = candidates.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ");
-                return Err(sub(format!("ambiguous option: {flag} could match {names}")));
-            }
-        };
-        let (name, kind) = spec;
-        if name == "--file" || name == "--harness" {
-            match exclusive {
-                Some(other) if other != name => {
-                    return Err(sub(format!("argument {name}: not allowed with argument {other}")));
-                }
-                _ => exclusive = Some(name),
-            }
-        }
-        if kind == Kind::Flag {
-            if inline.is_some() {
-                return Err(sub(format!(
-                    "argument {name}: ignored explicit argument '{}'",
-                    inline.unwrap_or_default()
-                )));
-            }
-            args.values.push((name, String::new()));
-            continue;
-        }
-        let value = match inline {
-            Some(v) => v,
-            None if index < rest.len() && !optional_like(&rest[index]) => {
-                index += 1;
-                rest[index - 1].clone()
-            }
-            None => return Err(sub(format!("argument {name}: expected one argument"))),
-        };
-        match kind {
-            Kind::Choice(choices) if !choices.contains(&value.as_str()) => {
-                let listed = choices.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
-                return Err(sub(format!(
-                    "argument {name}: invalid choice: '{value}' (choose from {listed})"
-                )));
-            }
-            Kind::Int if python_int(&value).is_none() => {
-                return Err(sub(format!("argument {name}: invalid int value: '{value}'")));
-            }
-            _ => {}
-        }
-        if name == "--root" {
-            args.root = Some(value);
-        } else {
-            args.values.push((name, value));
-        }
-    }
-    // `daemon`'s positional action: the first remaining word.
-    if command == "daemon" && !extras.is_empty() {
-        let action = extras.remove(0);
-        const ACTIONS: [&str; 4] = ["serve", "start", "stop", "status"];
-        if !ACTIONS.contains(&action.as_str()) {
-            let listed = ACTIONS.iter().map(|c| format!("'{c}'")).collect::<Vec<_>>().join(", ");
-            return Err(sub(format!(
-                "argument action: invalid choice: '{action}' (choose from {listed})"
-            )));
-        }
-        args.values.push(("action", action));
-    }
-    let required: &[&str] = match command.as_str() {
-        "verify-installation" => &["--engine", "--registration", "--agent-uid"],
-        "apply" => &["--manifest"],
-        "daemon" => &["action"],
-        _ => &[],
-    };
-    let missing: Vec<&str> = required.iter().filter(|name| !args.has(name)).copied().collect();
-    if !missing.is_empty() {
-        return Err(sub(format!(
-            "the following arguments are required: {}",
-            missing.join(", ")
-        )));
-    }
-    if matches!(command.as_str(), "protect" | "hook") && exclusive.is_none() {
-        return Err(sub("one of the arguments --file --harness is required".into()));
-    }
-    top_extras.extend(extras);
-    if !top_extras.is_empty() {
-        return Err(top(format!("unrecognized arguments: {}", top_extras.join(" "))));
-    }
+    let (extras, exclusive) = parse_sub_args(&mut args, &rest)?;
+    finalize_sub_args(&mut args, extras, top_extras, exclusive)?;
     Ok(args)
 }
 
@@ -626,6 +796,28 @@ fn exit(code: i32) -> ExitCode {
     ExitCode::from(u8::try_from(code).unwrap_or(1))
 }
 
+fn report_audit_error(error: CheckError) -> ExitCode {
+    match error {
+        CheckError::Value(m) => eprintln!("loki: {m}"),
+        other if other.is_os() => eprintln!("loki: {}", other.message()),
+        other => eprintln!("loki: {}", other.describe()),
+    }
+    ExitCode::from(1)
+}
+
+fn run_ruff_new(args: &Args, root: &Path) -> ExitCode {
+    match hook::ruff_new_violations(root, args.get("--base"), None, Deadline::none()) {
+        Ok(findings) => {
+            if !findings.is_empty() {
+                println!("{}", findings.join("\n"));
+            }
+            exit(i32::from(!findings.is_empty()))
+        }
+        Err(hook::RuffError::MissingConfig(m)) => report_audit_error(CheckError::Value(m)),
+        Err(hook::RuffError::Other(error)) => report_audit_error(error),
+    }
+}
+
 /// `scan` and `slop`: the policy loads first, then the command runs.
 fn audit(args: &Args) -> ExitCode {
     let root = root_of(args);
@@ -640,32 +832,15 @@ fn audit(args: &Args) -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let report = |error: CheckError| {
-        match error {
-            CheckError::Value(m) => eprintln!("loki: {m}"),
-            other if other.is_os() => eprintln!("loki: {}", other.message()),
-            other => eprintln!("loki: {}", other.describe()),
-        }
-        ExitCode::from(1)
-    };
     if args.command == "slop" {
         let top = args.get("--top").and_then(python_int).unwrap_or(10);
         return match loki::slop::slop_command(&root, &config, args.get("--base"), args.has("--json"), top) {
             Ok(code) => exit(code),
-            Err(error) => report(error),
+            Err(error) => report_audit_error(error),
         };
     }
     if args.has("--ruff-new") {
-        return match hook::ruff_new_violations(&root, args.get("--base"), None, Deadline::none()) {
-            Ok(findings) => {
-                if !findings.is_empty() {
-                    println!("{}", findings.join("\n"));
-                }
-                exit(i32::from(!findings.is_empty()))
-            }
-            Err(hook::RuffError::MissingConfig(m)) => report(CheckError::Value(m)),
-            Err(hook::RuffError::Other(error)) => report(error),
-        };
+        return run_ruff_new(args, &root);
     }
     let strict = args.has("--strict") || loki::strict();
     match loki::scan::scan(
@@ -677,7 +852,7 @@ fn audit(args: &Args) -> ExitCode {
         args.get("--python"),
     ) {
         Ok(code) => exit(code),
-        Err(error) => report(error),
+        Err(error) => report_audit_error(error),
     }
 }
 
@@ -762,38 +937,49 @@ fn local_with(argv: &[String], stdin: &str) -> ExitCode {
     }
 }
 
+fn run_record_child(argv: &[String]) -> std::io::Result<(i32, String, loki::evidence::Evidence)> {
+    let directory = tempfile::Builder::new().prefix("loki-record-").tempdir()?;
+    let file = directory.path().join("evidence.json");
+    let child = std::process::Command::new(std::env::current_exe()?)
+        .args(argv)
+        .env(RECORD_CHILD, &file)
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let output = child.wait_with_output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let status = output.status.code().unwrap_or(2);
+    let collected: Value = std::fs::read_to_string(&file)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default();
+    let list = |key: &str| collected[key].as_array().cloned().unwrap_or_default();
+    let evidence = loki::evidence::Evidence {
+        findings: list("findings"),
+        policies: list("policies"),
+        targets: list("targets")
+            .iter()
+            .filter_map(|t| t.as_str().map(String::from))
+            .collect(),
+    };
+    Ok((status, stderr, evidence))
+}
+
+fn record_outcome(status: i32, diagnostic: &str) -> &'static str {
+    if status != 0 {
+        "deny"
+    } else if !diagnostic.is_empty() {
+        "warning"
+    } else {
+        "allow"
+    }
+}
+
 /// `main` with `--record`: the run's diagnostics are passed through, then its event (the operation, outcome,
 /// targets, the policies it read and the rules it applied) is appended for `loki explain`. The run itself goes
 /// to a child of this engine, which reports its evidence in a private file.
 fn record(argv: &[String]) -> ExitCode {
     let started = std::time::Instant::now();
-    let run = || -> std::io::Result<(i32, String, loki::evidence::Evidence)> {
-        let directory = tempfile::Builder::new().prefix("loki-record-").tempdir()?;
-        let file = directory.path().join("evidence.json");
-        let child = std::process::Command::new(std::env::current_exe()?)
-            .args(argv)
-            .env(RECORD_CHILD, &file)
-            .stderr(std::process::Stdio::piped())
-            .spawn()?;
-        let output = child.wait_with_output()?;
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        let status = output.status.code().unwrap_or(2);
-        let collected: Value = std::fs::read_to_string(&file)
-            .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default();
-        let list = |key: &str| collected[key].as_array().cloned().unwrap_or_default();
-        let evidence = loki::evidence::Evidence {
-            findings: list("findings"),
-            policies: list("policies"),
-            targets: list("targets")
-                .iter()
-                .filter_map(|t| t.as_str().map(String::from))
-                .collect(),
-        };
-        Ok((status, stderr, evidence))
-    };
-    let (status, diagnostic, mut evidence) = match run() {
+    let (status, diagnostic, mut evidence) = match run_record_child(argv) {
         Ok(ran) => ran,
         Err(error) => (2, format!("loki: {error}\n"), loki::evidence::Evidence::default()),
     };
@@ -811,13 +997,7 @@ fn record(argv: &[String]) -> ExitCode {
             .findings
             .push(json!({"rule": "unclassified-failure", "path": null}));
     }
-    let outcome = if status != 0 {
-        "deny"
-    } else if !diagnostic.is_empty() {
-        "warning"
-    } else {
-        "allow"
-    };
+    let outcome = record_outcome(status, &diagnostic);
     if let Err(error) = loki::evidence::record_event(&root, operation, outcome, started, &evidence) {
         eprintln!("loki: evidence unavailable: {}", py::os_error(&error, None));
         return ExitCode::from(2);
@@ -863,69 +1043,84 @@ fn hygiene_cmd(args: &Args) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+fn report_parse_error(error: ParseError) -> ExitCode {
+    loki::evidence::finding("invalid-cli", None);
+    match error {
+        ParseError::Exit(code) => exit(code),
+        ParseError::Top(message) => {
+            eprintln!("{TOP_USAGE}\nloki: error: {message}");
+            ExitCode::from(2)
+        }
+        ParseError::Sub(command, message) => {
+            eprintln!("{}\nloki {command}: error: {message}", usage(&command));
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn run_daemon(args: &Args) -> ExitCode {
+    let (status, stdout, stderr) = loki::daemon::command(args.get("action").unwrap_or_default(), &root_of(args));
+    print!("{stdout}");
+    eprint!("{stderr}");
+    exit(status)
+}
+
+fn run_apply(args: &Args) -> ExitCode {
+    let manifest = PathBuf::from(args.get("--manifest").unwrap_or_default());
+    match loki::apply::apply_transaction(&root_of(args), &manifest, args.has("--check-only")) {
+        Ok(text) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("loki: {}", error.message());
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn run_verify_installation(args: &Args) -> ExitCode {
+    let mut paths = vec![PathBuf::from(args.get("--engine").unwrap_or_default())];
+    paths.extend(args.all("--registration").into_iter().map(PathBuf::from));
+    let uid = args.get("--agent-uid").and_then(python_int).unwrap_or_default();
+    let findings = loki::installation::installation_violations(&paths, uid);
+    for finding in &findings {
+        println!("{finding}");
+    }
+    if findings.is_empty() {
+        println!(
+            "Ownership/mode checks passed; ACLs, privileged access and host activation require operator verification"
+        );
+    }
+    ExitCode::from(u8::from(!findings.is_empty()))
+}
+
+type Handler = fn(&Args) -> ExitCode;
+
+const HANDLERS: &[(&str, Handler)] = &[
+    ("context", context),
+    ("protect", guard),
+    ("hook", guard),
+    ("scan", audit),
+    ("slop", audit),
+    ("hygiene", hygiene_cmd),
+    ("init", init),
+    ("elixir", elixir),
+    ("daemon", run_daemon),
+    ("apply", run_apply),
+    ("verify-installation", run_verify_installation),
+];
+
 fn dispatch(argv: &[String]) -> ExitCode {
     if let Some(code) = shell_cli::dispatch(argv) {
         return code;
     }
     let args = match parse(argv) {
         Ok(args) => args,
-        Err(ParseError::Exit(code)) => {
-            loki::evidence::finding("invalid-cli", None);
-            return exit(code);
-        }
-        Err(ParseError::Top(message)) => {
-            loki::evidence::finding("invalid-cli", None);
-            eprintln!("{TOP_USAGE}\nloki: error: {message}");
-            return ExitCode::from(2);
-        }
-        Err(ParseError::Sub(command, message)) => {
-            loki::evidence::finding("invalid-cli", None);
-            eprintln!("{}\nloki {command}: error: {message}", usage(&command));
-            return ExitCode::from(2);
-        }
+        Err(error) => return report_parse_error(error),
     };
-    match args.command.as_str() {
-        "context" => context(&args),
-        "protect" | "hook" => guard(&args),
-        "scan" | "slop" => audit(&args),
-        "hygiene" => hygiene_cmd(&args),
-        "init" => init(&args),
-        "elixir" => elixir(&args),
-        "daemon" => {
-            let (status, stdout, stderr) =
-                loki::daemon::command(args.get("action").unwrap_or_default(), &root_of(&args));
-            print!("{stdout}");
-            eprint!("{stderr}");
-            exit(status)
-        }
-        "apply" => {
-            let manifest = PathBuf::from(args.get("--manifest").unwrap_or_default());
-            match loki::apply::apply_transaction(&root_of(&args), &manifest, args.has("--check-only")) {
-                Ok(text) => {
-                    print!("{text}");
-                    ExitCode::SUCCESS
-                }
-                Err(error) => {
-                    eprintln!("loki: {}", error.message());
-                    ExitCode::from(2)
-                }
-            }
-        }
-        "verify-installation" => {
-            let mut paths = vec![PathBuf::from(args.get("--engine").unwrap_or_default())];
-            paths.extend(args.all("--registration").into_iter().map(PathBuf::from));
-            let uid = args.get("--agent-uid").and_then(python_int).unwrap_or_default();
-            let findings = loki::installation::installation_violations(&paths, uid);
-            for finding in &findings {
-                println!("{finding}");
-            }
-            if findings.is_empty() {
-                println!(
-                    "Ownership/mode checks passed; ACLs, privileged access and host activation require operator verification"
-                );
-            }
-            ExitCode::from(u8::from(!findings.is_empty()))
-        }
-        other => unreachable!("`parse` accepts no command {other}"),
+    match HANDLERS.iter().find(|&&(cmd, _)| cmd == args.command) {
+        Some(&(_, handler)) => handler(&args),
+        None => unreachable!("`parse` accepts no command {}", args.command),
     }
 }

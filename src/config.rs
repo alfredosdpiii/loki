@@ -143,18 +143,23 @@ pub fn security_policy(config: &Config) -> Result<(String, String), String> {
     Ok((SECURITY_LEVELS[block].into(), SECURITY_LEVELS[warn].into()))
 }
 
-/// `simple_shell_words`: a plain command without shell syntax.
-pub fn simple_shell_words(command: &Value) -> Result<Vec<String>, String> {
-    let command = match command.as_str() {
-        Some(s) if !py::strip(s).is_empty() && !s.contains('\0') => s,
-        _ => return Err("shell command must be a nonempty string".into()),
-    };
+fn validate_shell_text(command: &str) -> Result<(), String> {
     if command.chars().count() > 4096 || command.chars().any(|c| (c as u32) < 32 || c as u32 == 127) {
         return Err("shell command is too long or contains control characters".into());
     }
     if command.chars().any(|c| "><`$;|&()*?[]{}~#!".contains(c)) {
         return Err("loki: shell syntax unsupported: redirects, substitutions and compound commands or expansions require review".into());
     }
+    Ok(())
+}
+
+/// `simple_shell_words`: a plain command without shell syntax.
+pub fn simple_shell_words(command: &Value) -> Result<Vec<String>, String> {
+    let command = match command.as_str() {
+        Some(s) if !py::strip(s).is_empty() && !s.contains('\0') => s,
+        _ => return Err("shell command must be a nonempty string".into()),
+    };
+    validate_shell_text(command)?;
     let words = py::shlex_split(command)?;
     match words.first() {
         Some(first) if !first.contains('=') && !first.contains('/') => Ok(words),
@@ -176,6 +181,33 @@ fn canonical_relative(name: &Value) -> bool {
     !parts.contains(&"..") && posix == name
 }
 
+fn validate_grant_inputs(cwd: &Value, inputs: &Value) -> Result<(), String> {
+    let inputs = match inputs.as_array() {
+        Some(i) if (1..=64).contains(&i.len()) && i.iter().all(Value::is_string) => i,
+        _ => return Err("shell permission inputs must list 1 to 64 files".into()),
+    };
+    if !std::iter::once(cwd).chain(inputs).all(canonical_relative) {
+        return Err("shell permission paths must be canonical and relative".into());
+    }
+    if inputs.iter().any(|i| i == ".") {
+        return Err("shell permission inputs must be files".into());
+    }
+    Ok(())
+}
+
+fn validate_shell_grant(grant: &Value) -> Result<(&Value, &Value), String> {
+    let grant = match grant.as_object() {
+        Some(g) if g.len() == 3 && ["command", "cwd", "inputs"].iter().all(|k| g.contains_key(*k)) => g,
+        _ => return Err("shell permissions require command, cwd and inputs".into()),
+    };
+    let words = simple_shell_words(&grant["command"])?;
+    if words[0] == "git" {
+        return Err("shell permissions cannot override Git restrictions".into());
+    }
+    validate_grant_inputs(&grant["cwd"], &grant["inputs"])?;
+    Ok((&grant["command"], &grant["cwd"]))
+}
+
 pub fn shell_permissions(config: &Config) -> Result<(), String> {
     let empty = Value::Array(vec![]);
     let grants = config.get("shell_commands").unwrap_or(&empty);
@@ -185,25 +217,7 @@ pub fn shell_permissions(config: &Config) -> Result<(), String> {
     };
     let mut seen: Vec<(&Value, &Value)> = Vec::new();
     for grant in grants {
-        let grant = match grant.as_object() {
-            Some(g) if g.len() == 3 && ["command", "cwd", "inputs"].iter().all(|k| g.contains_key(*k)) => g,
-            _ => return Err("shell permissions require command, cwd and inputs".into()),
-        };
-        let words = simple_shell_words(&grant["command"])?;
-        if words[0] == "git" {
-            return Err("shell permissions cannot override Git restrictions".into());
-        }
-        let inputs = match grant["inputs"].as_array() {
-            Some(i) if (1..=64).contains(&i.len()) && i.iter().all(Value::is_string) => i,
-            _ => return Err("shell permission inputs must list 1 to 64 files".into()),
-        };
-        if !std::iter::once(&grant["cwd"]).chain(inputs).all(canonical_relative) {
-            return Err("shell permission paths must be canonical and relative".into());
-        }
-        if inputs.iter().any(|i| i == ".") {
-            return Err("shell permission inputs must be files".into());
-        }
-        let key = (&grant["command"], &grant["cwd"]);
+        let key = validate_shell_grant(grant)?;
         if seen.contains(&key) {
             return Err("duplicate shell permission".into());
         }
@@ -239,18 +253,30 @@ pub fn slop_block(config: &Config) -> Result<bool, String> {
     Ok(block)
 }
 
-pub fn validate_config(value: &Value) -> Result<Config, String> {
-    let config = value.as_object().ok_or("loki config must be a JSON object")?;
-    let mut unknown: Vec<&String> = config.keys().filter(|k| !KEYS.contains(&k.as_str())).collect();
-    unknown.sort();
-    if let Some(key) = unknown.first() {
-        return Err(format!("loki: unknown configuration key: {key}"));
+fn is_nonempty_string_array(v: &Value) -> bool {
+    v.as_array()
+        .is_some_and(|parts| !parts.is_empty() && parts.iter().all(|p| p.as_str().is_some_and(|s| !s.is_empty())))
+}
+
+fn validate_commands(commands: &Value) -> Result<(), String> {
+    let commands = commands.as_object().ok_or("loki: commands must be a JSON object")?;
+    if let Some(group) = commands.keys().find(|g| !COMMAND_GROUPS.contains(&g.as_str())) {
+        return Err(format!("loki: unknown command group: {group}"));
     }
-    protected_patterns(config)?;
-    rule_packs(config)?;
-    security_policy(config)?;
-    shell_permissions(config)?;
-    slop_block(config)?;
+    for group in COMMAND_GROUPS {
+        let valid = commands
+            .get(group)
+            .is_none_or(|values| values.as_array().is_some_and(|items| items.iter().all(is_nonempty_string_array)));
+        if !valid {
+            return Err(format!(
+                "loki: commands.{group} must be a list of non-empty string arrays"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_optional_fields(config: &Config) -> Result<(), String> {
     if config.get("typescript_check").is_some_and(|v| !v.is_boolean()) {
         return Err("typescript_check must be a boolean".into());
     }
@@ -269,27 +295,29 @@ pub fn validate_config(value: &Value) -> Result<Config, String> {
     {
         return Err("loki: languages must map known language names to booleans".into());
     }
+    Ok(())
+}
+
+fn validate_policies(config: &Config) -> Result<(), String> {
+    protected_patterns(config)?;
+    rule_packs(config)?;
+    security_policy(config)?;
+    shell_permissions(config)?;
+    slop_block(config)?;
+    Ok(())
+}
+
+pub fn validate_config(value: &Value) -> Result<Config, String> {
+    let config = value.as_object().ok_or("loki config must be a JSON object")?;
+    let mut unknown: Vec<&String> = config.keys().filter(|k| !KEYS.contains(&k.as_str())).collect();
+    unknown.sort();
+    if let Some(key) = unknown.first() {
+        return Err(format!("loki: unknown configuration key: {key}"));
+    }
+    validate_policies(config)?;
+    validate_optional_fields(config)?;
     if let Some(commands) = config.get("commands") {
-        let commands = commands.as_object().ok_or("loki: commands must be a JSON object")?;
-        if let Some(group) = commands.keys().find(|g| !COMMAND_GROUPS.contains(&g.as_str())) {
-            return Err(format!("loki: unknown command group: {group}"));
-        }
-        for group in COMMAND_GROUPS {
-            let valid = commands.get(group).is_none_or(|values| {
-                values.as_array().is_some_and(|values| {
-                    values.iter().all(|v| {
-                        v.as_array().is_some_and(|parts| {
-                            !parts.is_empty() && parts.iter().all(|p| p.as_str().is_some_and(|s| !s.is_empty()))
-                        })
-                    })
-                })
-            });
-            if !valid {
-                return Err(format!(
-                    "loki: commands.{group} must be a list of non-empty string arrays"
-                ));
-            }
-        }
+        validate_commands(commands)?;
     }
     Ok(config.clone())
 }

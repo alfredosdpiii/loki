@@ -326,96 +326,231 @@ fn typescript_config_json(name: &str, extends: Option<&HashSet<String>>) -> bool
         })
 }
 
-/// Net-new project type errors, using the committed tsconfig.json.
-pub fn typescript_violations(
-    root: &Path,
-    deadline: Deadline,
-    mut notices: Option<&mut Vec<String>>,
-    overrides: Option<&BTreeMap<String, String>>,
-) -> Result<Vec<String>, CheckError> {
-    let mut setup = |message: String| -> Vec<String> {
-        match notices.as_deref_mut() {
-            None => vec![message],
-            Some(list) => {
-                list.push(message);
-                vec![]
-            }
+fn report_setup(notices: Option<&mut Vec<String>>, message: String) -> Vec<String> {
+    match notices {
+        None => vec![message],
+        Some(list) => {
+            list.push(message);
+            vec![]
         }
-    };
+    }
+}
+
+fn read_base_file(root: &Path, base: &str, path: &str, deadline: Deadline) -> Result<Option<Vec<u8>>, CheckError> {
+    match git_output(root, &["show", &format!("{base}:{path}")], deadline, None) {
+        Ok(raw) => Ok(Some(raw)),
+        Err(CheckError::Value(_)) => Ok(None),
+        Err(other) => Err(other),
+    }
+}
+
+fn check_config_and_deps(
+    changes: &[FileChange],
+    overrides: Option<&BTreeMap<String, String>>,
+    extends: Option<&HashSet<String>>,
+) -> Option<String> {
+    let names = changes
+        .iter()
+        .map(|c| c.path.as_str())
+        .chain(overrides.into_iter().flatten().map(|(k, _)| k.as_str()));
+    for name in names {
+        if typescript_config_json(name, extends) {
+            return Some(format!("{name}: JSON/config change requires separate review"));
+        }
+        if name.starts_with("node_modules/") {
+            return Some("typescript: dependency changes require separate review".into());
+        }
+    }
+    None
+}
+
+enum Prepared {
+    Ready {
+        compiler: PathBuf,
+        base: String,
+        raw: Vec<u8>,
+        changes: Vec<FileChange>,
+    },
+    Setup(String),
+    Findings(Vec<String>),
+}
+
+fn load_base_tsconfig(
+    root: &Path,
+    base: &str,
+    changes: &[FileChange],
+    overrides: Option<&BTreeMap<String, String>>,
+    deadline: Deadline,
+) -> Result<Result<Vec<u8>, String>, CheckError> {
+    let raw = read_base_file(root, base, "tsconfig.json", deadline)?;
+    let extends = typescript_extends(raw.as_deref());
+    if let Some(message) = check_config_and_deps(changes, overrides, extends.as_ref()) {
+        return Ok(Err(message));
+    }
+    match raw {
+        Some(raw) => Ok(Ok(raw)),
+        None => Ok(Err("typescript: committed tsconfig.json required".into())),
+    }
+}
+
+fn prepare_typescript_check(
+    root: &Path,
+    overrides: Option<&BTreeMap<String, String>>,
+    deadline: Deadline,
+) -> Result<Prepared, CheckError> {
     let Some(compiler) = typescript_compiler(root) else {
-        return Ok(setup("typescript: required TypeScript compiler is missing".into()));
+        return Ok(Prepared::Setup(
+            "typescript: required TypeScript compiler is missing".into(),
+        ));
     };
     let (base, changes) = git::git_changes(root, None, deadline)?;
     let Some(base) = base else {
-        return Ok(setup("typescript: committed base required".into()));
+        return Ok(Prepared::Setup("typescript: committed base required".into()));
     };
     let policy = git::base_policy(root, Some(&base), deadline)?.unwrap_or_default();
     let findings = git::protected_change_violations(&changes, &policy)?;
     if !findings.is_empty() {
-        return Ok(findings);
+        return Ok(Prepared::Findings(findings));
     }
-    let raw = match git_output(root, &["show", &format!("{base}:tsconfig.json")], deadline, None) {
-        Ok(raw) => Some(raw),
-        Err(CheckError::Value(_)) => None,
-        Err(other) => return Err(other),
-    };
-    let extends = typescript_extends(raw.as_deref());
-    let names = changes
+    match load_base_tsconfig(root, &base, &changes, overrides, deadline)? {
+        Ok(raw) => Ok(Prepared::Ready {
+            compiler,
+            base,
+            raw,
+            changes,
+        }),
+        Err(message) => Ok(Prepared::Setup(message)),
+    }
+}
+
+fn write_overrides(
+    root: &Path,
+    dir: &Path,
+    overrides: &BTreeMap<String, String>,
+) -> Result<(PathBuf, Option<PathBuf>), CheckError> {
+    let os = |e: std::io::Error| CheckError::os(&e, None);
+    let path = dir.join("overrides.json");
+    let map: Map<String, Value> = overrides
         .iter()
-        .map(|c| c.path.clone())
-        .chain(overrides.into_iter().flatten().map(|(k, _)| k.clone()));
-    for name in names {
-        if typescript_config_json(&name, extends.as_ref()) {
-            return Ok(setup(format!("{name}: JSON/config change requires separate review")));
-        }
-        if name.starts_with("node_modules/") {
-            return Ok(setup("typescript: dependency changes require separate review".into()));
+        .map(|(name, text)| {
+            (
+                root.join(name).to_string_lossy().into_owned(),
+                Value::String(text.clone()),
+            )
+        })
+        .collect();
+    std::fs::write(&path, py::dumps(&Value::Object(map))).map_err(os)?;
+    let tree = dir.join("shadow");
+    for name in overrides.keys() {
+        if !root.join(name).exists() {
+            let file = tree.join(name);
+            if let Some(parent) = file.parent() {
+                std::fs::create_dir_all(parent).map_err(os)?;
+            }
+            std::fs::write(&file, b"").map_err(os)?;
         }
     }
-    let Some(raw) = raw else {
-        return Ok(setup("typescript: committed tsconfig.json required".into()));
-    };
-    crate::evidence::policy("base", "tsconfig.json", Some(&raw), Some(&base));
-    let marker = typescript_state(root, &base, &raw, &changes, overrides);
-    if overrides.is_none() && marker.is_file() {
-        return Ok(vec![]);
+    Ok((path, tree.is_dir().then_some(tree)))
+}
+
+fn touch_marker(marker: &Path) -> Result<(), CheckError> {
+    let os = |e: std::io::Error| CheckError::os(&e, None);
+    if let Some(parent) = marker.parent() {
+        std::fs::create_dir_all(parent).map_err(os)?;
     }
+    std::fs::write(marker, b"").map_err(os)
+}
+
+fn load_base_texts(
+    root: &Path,
+    base: &str,
+    found: &Counter<Key>,
+    deadline: Deadline,
+) -> Result<HashMap<String, String>, CheckError> {
+    let mut texts = HashMap::new();
+    for key in found.keys() {
+        if key.0.is_empty() || texts.contains_key(&key.0) {
+            continue;
+        }
+        let text = read_base_file(root, base, &key.0, deadline)?
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+            .unwrap_or_default();
+        texts.insert(key.0.clone(), text);
+    }
+    Ok(texts)
+}
+
+fn baseline_diagnostics(
+    root: &Path,
+    base: &str,
+    compiler: &Path,
+    dir: &Path,
+    after: &Report,
+    deadline: Deadline,
+) -> Result<Counter<Key>, CheckError> {
+    let texts = load_base_texts(root, base, &after.found, deadline)?;
+    if !possibly_existing(after.found.keys().map(|k| (k.0.as_str(), k.3.as_str())), &texts) {
+        return Ok(Counter::new());
+    }
+    let before = dir.join("before");
+    git::materialize_base(root, base, &before, deadline)?;
+    if root.join("node_modules").is_dir() {
+        std::os::unix::fs::symlink(resolve(&root.join("node_modules")), before.join("node_modules"))
+            .map_err(|e| CheckError::os(&e, None))?;
+    }
+    Ok(diagnostics(compiler, &before, None, deadline, None, None)?.found)
+}
+
+fn format_findings(after: &Report, previous: &Counter<Key>) -> Vec<String> {
+    let mut findings = Vec::new();
+    for (key, count) in after.found.minus(previous) {
+        let (label, code) = match key.1.split_once(':') {
+            Some(("s", name)) => (name.to_string(), name),
+            Some((_, number)) => (format!("TS{number}"), number),
+            None => (key.1.clone(), key.1.as_str()),
+        };
+        crate::evidence::finding(&format!("typescript:{code}"), Some(&key.0));
+        for _ in 0..count {
+            findings.push(format!("{}:{}: {label}: {}", key.0, after.lines[&key], key.2));
+        }
+    }
+    findings
+}
+
+fn prepare_check_dir(
+    root: &Path,
+    raw: &[u8],
+    overrides: Option<&BTreeMap<String, String>>,
+) -> Result<(tempfile::TempDir, PathBuf, Option<PathBuf>, Option<PathBuf>), CheckError> {
     let os = |e: std::io::Error| CheckError::os(&e, None);
     let directory = tempfile::Builder::new()
         .prefix("loki-typescript-")
         .tempdir()
         .map_err(os)?;
     let trusted = directory.path().join("tsconfig.json");
-    std::fs::write(&trusted, &raw).map_err(os)?;
-    let (mut proposed, mut shadow) = (None, None);
-    if let Some(overrides) = overrides {
-        let path = directory.path().join("overrides.json");
-        let map: Map<String, Value> = overrides
-            .iter()
-            .map(|(name, text)| {
-                (
-                    root.join(name).to_string_lossy().into_owned(),
-                    Value::String(text.clone()),
-                )
-            })
-            .collect();
-        std::fs::write(&path, py::dumps(&Value::Object(map))).map_err(os)?;
-        proposed = Some(path);
-        let tree = directory.path().join("shadow");
-        for name in overrides.keys() {
-            if !root.join(name).exists() {
-                let file = tree.join(name);
-                if let Some(parent) = file.parent() {
-                    std::fs::create_dir_all(parent).map_err(os)?;
-                }
-                std::fs::write(&file, b"").map_err(os)?;
-            }
+    std::fs::write(&trusted, raw).map_err(os)?;
+    let (proposed, shadow) = match overrides {
+        Some(overrides) => {
+            let (p, s) = write_overrides(root, directory.path(), overrides)?;
+            (Some(p), s)
         }
-        shadow = Some(tree);
-    }
-    let shadow = shadow.filter(|s| s.is_dir());
+        None => (None, None),
+    };
+    Ok((directory, trusted, proposed, shadow))
+}
+
+fn run_typescript_check(
+    root: &Path,
+    compiler: &Path,
+    base: &str,
+    raw: &[u8],
+    marker: &Path,
+    overrides: Option<&BTreeMap<String, String>>,
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
+    let (directory, trusted, proposed, shadow) = prepare_check_dir(root, raw, overrides)?;
     let after = diagnostics(
-        &compiler,
+        compiler,
         root,
         Some(&trusted),
         deadline,
@@ -424,51 +559,37 @@ pub fn typescript_violations(
     )?;
     if after.found.is_empty() {
         if overrides.is_some() && after.uncovered.is_empty() {
-            if let Some(parent) = marker.parent() {
-                std::fs::create_dir_all(parent).map_err(os)?;
-            }
-            std::fs::write(&marker, b"").map_err(os)?;
+            touch_marker(marker)?;
         }
         return Ok(vec![]);
     }
-    let mut texts = HashMap::new();
-    for key in after.found.keys() {
-        if key.0.is_empty() || texts.contains_key(&key.0) {
-            continue;
-        }
-        let text = match git_output(root, &["show", &format!("{base}:{}", key.0)], deadline, None) {
-            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
-            Err(CheckError::Value(_)) => String::new(),
-            Err(other) => return Err(other),
-        };
-        texts.insert(key.0.clone(), text);
+    let previous = baseline_diagnostics(root, base, compiler, directory.path(), &after, deadline)?;
+    Ok(format_findings(&after, &previous))
+}
+
+/// Net-new project type errors, using the committed tsconfig.json.
+pub fn typescript_violations(
+    root: &Path,
+    deadline: Deadline,
+    notices: Option<&mut Vec<String>>,
+    overrides: Option<&BTreeMap<String, String>>,
+) -> Result<Vec<String>, CheckError> {
+    let (compiler, base, raw, changes) = match prepare_typescript_check(root, overrides, deadline)? {
+        Prepared::Ready {
+            compiler,
+            base,
+            raw,
+            changes,
+        } => (compiler, base, raw, changes),
+        Prepared::Setup(message) => return Ok(report_setup(notices, message)),
+        Prepared::Findings(findings) => return Ok(findings),
+    };
+    crate::evidence::policy("base", "tsconfig.json", Some(&raw), Some(&base));
+    let marker = typescript_state(root, &base, &raw, &changes, overrides);
+    if overrides.is_none() && marker.is_file() {
+        return Ok(vec![]);
     }
-    let mut previous = Counter::new();
-    if possibly_existing(after.found.keys().map(|k| (k.0.as_str(), k.3.as_str())), &texts) {
-        let before = directory.path().join("before");
-        git::materialize_base(root, &base, &before, deadline)?;
-        if root.join("node_modules").is_dir() {
-            std::os::unix::fs::symlink(resolve(&root.join("node_modules")), before.join("node_modules")).map_err(os)?;
-        }
-        previous = diagnostics(&compiler, &before, None, deadline, None, None)?.found;
-    }
-    let mut findings = Vec::new();
-    for (key, count) in after.found.minus(&previous) {
-        let label = match key.1.split_once(':') {
-            Some(("s", name)) => name.to_string(),
-            Some((_, number)) => format!("TS{number}"),
-            None => key.1.clone(),
-        };
-        let code = match key.1.split_once(':') {
-            Some((_, code)) => code,
-            None => key.1.as_str(),
-        };
-        crate::evidence::finding(&format!("typescript:{code}"), Some(&key.0));
-        for _ in 0..count {
-            findings.push(format!("{}:{}: {label}: {}", key.0, after.lines[&key], key.2));
-        }
-    }
-    Ok(findings)
+    run_typescript_check(root, &compiler, &base, &raw, &marker, overrides, deadline)
 }
 
 /// Type-check proposed TypeScript before it lands.

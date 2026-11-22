@@ -294,37 +294,98 @@ pub fn finding_key(root: &Path, finding: &str) -> (String, String) {
     }
 }
 
-/// `preview_changes`: the exact post-write content of a host write or edit.
-fn preview_changes(
-    root: &Path,
-    paths: &[String],
-    payload: &Value,
-    harness: &str,
-    deadline: proc::Deadline,
-) -> Result<Option<Vec<rules::Change>>, CheckError> {
-    let invalid = || CheckError::Value("invalid preview envelope".into());
-    let data = payload
-        .as_object()
-        .and_then(|p| p.get("tool_input"))
-        .and_then(Value::as_object)
-        .ok_or_else(invalid)?;
-    let name = payload.get("tool_name").and_then(Value::as_str).unwrap_or("");
-    let known = matches!(
+fn is_known_preview_tool(harness: &str, name: &str) -> bool {
+    matches!(
         (harness, name),
         ("claude", "Write" | "Edit" | "MultiEdit")
             | ("factory", "Create" | "Edit")
             | ("pi", "write" | "edit")
             | ("omp" | "ultron", "write")
-    );
-    if !known || payload.get("tool_name").is_some_and(|n| !n.is_string()) {
+    )
+}
+
+fn extract_write_content(data: &Map<String, Value>) -> Result<Option<String>, CheckError> {
+    match data.get("content") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.clone())),
+        Some(_) => Err(CheckError::Value("preview content must be text".into())),
+    }
+}
+
+fn apply_preview_edit(
+    content: &str,
+    edit: &Value,
+    fields: (&str, &str, &str),
+) -> Result<Option<String>, CheckError> {
+    let Some(edit) = edit.as_object() else {
+        return Err(CheckError::Value("invalid edit preview".into()));
+    };
+    let (Some(Value::String(source)), Some(Value::String(replacement))) = (edit.get(fields.0), edit.get(fields.1))
+    else {
+        return Ok(None);
+    };
+    if source.is_empty() {
         return Ok(None);
     }
+    let replace_all = match edit.get(fields.2) {
+        None => false,
+        Some(Value::Bool(b)) => *b,
+        Some(_) => return Err(CheckError::Value("replacement mode must be boolean".into())),
+    };
+    let matches = content.matches(source.as_str()).count();
+    if matches == 0 || (matches != 1 && !replace_all) {
+        return Ok(None);
+    }
+    let size = content.len() as i64 + matches as i64 * (replacement.len() as i64 - source.len() as i64);
+    if size > PREVIEW_LIMIT as i64 {
+        return Err(CheckError::Value("preview exceeds 4 MiB".into()));
+    }
+    Ok(Some(if replace_all {
+        content.replace(source.as_str(), replacement)
+    } else {
+        content.replacen(source.as_str(), replacement, 1)
+    }))
+}
+
+fn apply_preview_edits(
+    old: &str,
+    data: &Map<String, Value>,
+    name: &str,
+    harness: &str,
+    deadline: proc::Deadline,
+) -> Result<Option<String>, CheckError> {
+    let single = [Value::Object(data.clone())];
+    let edits: &[Value] = if name == "MultiEdit" {
+        match data.get("edits") {
+            Some(Value::Array(items)) if (1..=256).contains(&items.len()) => items,
+            _ => return Err(CheckError::Value("edit preview requires 1 to 256 edits".into())),
+        }
+    } else {
+        &single
+    };
+    let fields = match harness {
+        "pi" => ("oldText", "newText", "replace_all"),
+        "factory" => ("old_str", "new_str", "change_all"),
+        _ => ("old_string", "new_string", "replace_all"),
+    };
+    let mut content = old.to_string();
+    for edit in edits {
+        deadline.timeout()?;
+        let Some(next) = apply_preview_edit(&content, edit, fields)? else {
+            return Ok(None);
+        };
+        content = next;
+    }
+    Ok(Some(content))
+}
+
+fn load_preview_base(root: &Path, paths: &[String]) -> Result<(String, Option<Vec<u8>>, String), CheckError> {
     if paths.len() != 1 {
         return Err(CheckError::Value("single-file preview requires one target".into()));
     }
     let root = resolve(root);
     let path = lexical_path(&root, &paths[0]);
-    let relative = relative_posix(&path, &root).ok_or_else(invalid)?;
+    let relative = relative_posix(&path, &root).ok_or_else(|| CheckError::Value("invalid preview envelope".into()))?;
     if resolve(&path) != path {
         return Err(CheckError::Value(
             "preview through symlinked paths is unsupported".into(),
@@ -338,64 +399,46 @@ fn preview_changes(
         Some(bytes) => proc::decode(bytes).map_err(CheckError::Value)?,
         None => String::new(),
     };
-    let content = if matches!(name, "Write" | "Create" | "write") {
-        match data.get("content") {
-            None | Some(Value::Null) => return Ok(None),
-            Some(Value::String(s)) => s.clone(),
-            Some(_) => return Err(CheckError::Value("preview content must be text".into())),
-        }
-    } else {
-        if before.is_none() {
-            return Err(CheckError::Value("edit preview requires an existing file".into()));
-        }
-        let single = [Value::Object(data.clone())];
-        let edits: &[Value] = if name == "MultiEdit" {
-            match data.get("edits") {
-                Some(Value::Array(items)) if (1..=256).contains(&items.len()) => items,
-                _ => return Err(CheckError::Value("edit preview requires 1 to 256 edits".into())),
-            }
-        } else {
-            &single
-        };
-        let fields = match harness {
-            "pi" => ("oldText", "newText", "replace_all"),
-            "factory" => ("old_str", "new_str", "change_all"),
-            _ => ("old_string", "new_string", "replace_all"),
-        };
-        let mut content = old.clone();
-        for edit in edits {
-            deadline.timeout()?;
-            let Some(edit) = edit.as_object() else {
-                return Err(CheckError::Value("invalid edit preview".into()));
-            };
-            let (Some(Value::String(source)), Some(Value::String(replacement))) =
-                (edit.get(fields.0), edit.get(fields.1))
-            else {
-                return Ok(None);
-            };
-            if source.is_empty() {
-                return Ok(None);
-            }
-            let replace_all = match edit.get(fields.2) {
-                None => false,
-                Some(Value::Bool(b)) => *b,
-                Some(_) => return Err(CheckError::Value("replacement mode must be boolean".into())),
-            };
-            let matches = content.matches(source.as_str()).count();
-            if matches == 0 || (matches != 1 && !replace_all) {
-                return Ok(None);
-            }
-            let size = content.len() as i64 + matches as i64 * (replacement.len() as i64 - source.len() as i64);
-            if size > PREVIEW_LIMIT as i64 {
-                return Err(CheckError::Value("preview exceeds 4 MiB".into()));
-            }
-            content = if replace_all {
-                content.replace(source.as_str(), replacement)
-            } else {
-                content.replacen(source.as_str(), replacement, 1)
-            };
-        }
-        content
+    Ok((relative, before, old))
+}
+
+fn compute_preview_content(
+    old: &str,
+    before: &Option<Vec<u8>>,
+    data: &Map<String, Value>,
+    name: &str,
+    harness: &str,
+    deadline: proc::Deadline,
+) -> Result<Option<String>, CheckError> {
+    if matches!(name, "Write" | "Create" | "write") {
+        return extract_write_content(data);
+    }
+    if before.is_none() {
+        return Err(CheckError::Value("edit preview requires an existing file".into()));
+    }
+    apply_preview_edits(old, data, name, harness, deadline)
+}
+
+/// `preview_changes`: the exact post-write content of a host write or edit.
+fn preview_changes(
+    root: &Path,
+    paths: &[String],
+    payload: &Value,
+    harness: &str,
+    deadline: proc::Deadline,
+) -> Result<Option<Vec<rules::Change>>, CheckError> {
+    let data = payload
+        .as_object()
+        .and_then(|p| p.get("tool_input"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| CheckError::Value("invalid preview envelope".into()))?;
+    let name = payload.get("tool_name").and_then(Value::as_str).unwrap_or("");
+    if !is_known_preview_tool(harness, name) || payload.get("tool_name").is_some_and(|n| !n.is_string()) {
+        return Ok(None);
+    }
+    let (relative, before, old) = load_preview_base(root, paths)?;
+    let Some(content) = compute_preview_content(&old, &before, data, name, harness, deadline)? else {
+        return Ok(None);
     };
     if content.len() > PREVIEW_LIMIT {
         return Err(CheckError::Value("preview exceeds 4 MiB".into()));
@@ -417,19 +460,18 @@ const JS_PREVIEW_RULES: [&str; 11] = [
     "vitest/no-focused-tests",
 ];
 
-/// Oxlint's preview rules over before and after copies; net-new findings block.
-fn preview_oxlint(
-    root: &Path,
+type OxlintPrint = (String, String, String, String, String);
+type OxlintFile = (String, (&'static str, String, String));
+
+fn exact_int(v: &Value) -> Option<i64> {
+    v.as_i64().filter(|_| v.is_i64() || v.is_u64())
+}
+
+fn write_oxlint_workspace(
+    work: &Path,
     changes: &[(String, String, String)],
-    deadline: proc::Deadline,
-) -> Result<Vec<String>, CheckError> {
-    let invalid = |m: &str| CheckError::Value(m.to_string());
-    let Some(binary) = hook::resolve_tool(root, "oxlint") else {
-        return Err(invalid("missing oxlint for content preview"));
-    };
+) -> Result<(PathBuf, Vec<OxlintFile>), CheckError> {
     let os = |e: std::io::Error| CheckError::os(&e, None);
-    let directory = tempfile::Builder::new().prefix("loki-preview-").tempdir().map_err(os)?;
-    let work = directory.path();
     let config = work.join("config.json");
     let rules: Map<String, Value> = JS_PREVIEW_RULES
         .iter()
@@ -437,7 +479,7 @@ fn preview_oxlint(
         .collect();
     let document = json!({"plugins": ["jest", "vitest"], "categories": {"correctness": "off"}, "rules": rules});
     std::fs::write(&config, py::dumps(&document)).map_err(os)?;
-    let mut files: Vec<(String, (&str, String, String))> = Vec::new();
+    let mut files: Vec<OxlintFile> = Vec::new();
     for (index, (relative, old, new)) in changes.iter().enumerate() {
         for (side, content) in [("before", old), ("after", new)] {
             let content = content.replace("eslint", "xslint").replace("oxlint", "xxlint");
@@ -449,91 +491,68 @@ fn preview_oxlint(
             files.push((name, (side, relative.clone(), content)));
         }
     }
-    let mut command: Vec<String> = vec![
-        resolve(Path::new(&binary)).to_string_lossy().into_owned(),
-        "-c".into(),
-        config.to_string_lossy().into_owned(),
-        "--disable-nested-config".into(),
-        "--no-ignore".into(),
-        "--threads".into(),
-        "1".into(),
-        "--format".into(),
-        "json".into(),
-    ];
-    command.extend(
-        files
-            .iter()
-            .map(|(name, _)| work.join(name).to_string_lossy().into_owned()),
-    );
-    let result = proc::run(&command, work, None, &[], deadline.timeout()?)?;
-    if !(result.code == 0 || result.code == 1) || !py::strip(&proc::text(&result.stderr)).is_empty() {
-        return Err(invalid("Oxlint preview failed or reported incomplete coverage"));
+    Ok((config, files))
+}
+
+fn extract_oxlint_span(span: &Value, content: &str) -> Result<(i64, String, String), CheckError> {
+    let lines = py::splitlines(content, false);
+    let encoded = content.as_bytes();
+    let (Some(offset), Some(length), Some(line)) = (
+        exact_int(&span["offset"]),
+        exact_int(&span["length"]),
+        exact_int(&span["line"]),
+    ) else {
+        return Err(invalid("invalid Oxlint preview diagnostic span"));
+    };
+    if offset < 0 || length < 0 || offset + length > encoded.len() as i64 || line < 1 || line > lines.len() as i64 {
+        return Err(invalid("invalid Oxlint preview diagnostic span"));
     }
-    let stdout = proc::text(&result.stdout);
-    let report: Value =
-        serde_json::from_str(&stdout).map_err(|e| CheckError::Value(pyjson::error_text(&stdout, &e)))?;
-    let exact_int = |v: &Value| v.as_i64().filter(|_| v.is_i64() || v.is_u64());
-    let complete = report.is_object()
-        && exact_int(&report["number_of_files"]) == Some(files.len() as i64)
-        && exact_int(&report["number_of_rules"]) == Some(JS_PREVIEW_RULES.len() as i64)
-        && report["diagnostics"].is_array();
-    if !complete {
-        return Err(invalid("invalid or incomplete Oxlint preview report"));
-    }
-    type Print = (String, String, String, String, String);
-    let mut before: py::Counter<Print> = py::Counter::new();
-    let mut after: py::Counter<Print> = py::Counter::new();
-    let mut locations: std::collections::HashMap<Print, i64> = std::collections::HashMap::new();
-    let diagnostics = report["diagnostics"].as_array().cloned().unwrap_or_default();
-    for item in &diagnostics {
-        let Some((_, (side, relative, content))) = item
-            .get("filename")
-            .and_then(Value::as_str)
-            .and_then(|f| files.iter().find(|(name, _)| name == f))
-        else {
-            return Err(invalid("invalid Oxlint preview diagnostic"));
-        };
-        let code = item.get("code").and_then(Value::as_str).filter(|s| !s.is_empty());
-        let message = item.get("message").and_then(Value::as_str).filter(|s| !s.is_empty());
-        let span = item
-            .get("labels")
-            .and_then(Value::as_array)
-            .and_then(|l| l.first())
-            .and_then(|l| l.get("span"))
-            .filter(|s| s.is_object());
-        let (Some(code), Some(message), Some(span)) = (code, message, span) else {
-            return Err(invalid("unpositioned Oxlint preview diagnostic"));
-        };
-        let lines = py::splitlines(content, false);
-        let encoded = content.as_bytes();
-        let numbers = (
-            exact_int(&span["offset"]),
-            exact_int(&span["length"]),
-            exact_int(&span["line"]),
-        );
-        let (Some(offset), Some(length), Some(line)) = numbers else {
-            return Err(invalid("invalid Oxlint preview diagnostic span"));
-        };
-        if offset < 0 || length < 0 || offset + length > encoded.len() as i64 || line < 1 || line > lines.len() as i64 {
-            return Err(invalid("invalid Oxlint preview diagnostic span"));
-        }
-        let snippet = proc::decode(&encoded[offset as usize..(offset + length) as usize]).map_err(CheckError::Value)?;
-        let key = (
-            relative.clone(),
-            code.to_string(),
-            message.to_string(),
-            py::strip(lines[line as usize - 1]).to_string(),
-            snippet,
-        );
-        if *side == "before" {
-            before.add(key.clone())
+    let snippet = proc::decode(&encoded[offset as usize..(offset + length) as usize]).map_err(CheckError::Value)?;
+    Ok((line, py::strip(lines[line as usize - 1]).to_string(), snippet))
+}
+
+fn parse_oxlint_diagnostic<'a>(
+    item: &Value,
+    files: &'a [OxlintFile],
+) -> Result<(&'a str, OxlintPrint, i64), CheckError> {
+    let Some((_, (side, relative, content))) = item
+        .get("filename")
+        .and_then(Value::as_str)
+        .and_then(|f| files.iter().find(|(name, _)| name == f))
+    else {
+        return Err(invalid("invalid Oxlint preview diagnostic"));
+    };
+    let code = item.get("code").and_then(Value::as_str).filter(|s| !s.is_empty());
+    let message = item.get("message").and_then(Value::as_str).filter(|s| !s.is_empty());
+    let span = item
+        .get("labels")
+        .and_then(Value::as_array)
+        .and_then(|l| l.first())
+        .and_then(|l| l.get("span"))
+        .filter(|s| s.is_object());
+    let (Some(code), Some(message), Some(span)) = (code, message, span) else {
+        return Err(invalid("unpositioned Oxlint preview diagnostic"));
+    };
+    let (line, line_text, snippet) = extract_oxlint_span(span, content)?;
+    let key = (relative.clone(), code.to_string(), message.to_string(), line_text, snippet);
+    Ok((*side, key, line))
+}
+
+fn collect_oxlint_violations(
+    diagnostics: &[Value],
+    files: &[OxlintFile],
+) -> Result<Vec<String>, CheckError> {
+    let mut before: py::Counter<OxlintPrint> = py::Counter::new();
+    let mut after: py::Counter<OxlintPrint> = py::Counter::new();
+    let mut locations: std::collections::HashMap<OxlintPrint, i64> = std::collections::HashMap::new();
+    for item in diagnostics {
+        let (side, key, line) = parse_oxlint_diagnostic(item, files)?;
+        if side == "before" {
+            before.add(key.clone());
         } else {
-            after.add(key.clone())
+            after.add(key.clone());
         }
         locations.insert(key, line);
-    }
-    if diagnostics.is_empty() != (result.code == 0) {
-        return Err(invalid("Oxlint preview status disagrees with diagnostics"));
     }
     let mut violations = Vec::new();
     for (key, count) in after.minus(&before) {
@@ -546,8 +565,112 @@ fn preview_oxlint(
     Ok(violations)
 }
 
+fn parse_oxlint_report(result: &proc::Output, expected_files: usize) -> Result<Vec<Value>, CheckError> {
+    if !(result.code == 0 || result.code == 1) || !py::strip(&proc::text(&result.stderr)).is_empty() {
+        return Err(invalid("Oxlint preview failed or reported incomplete coverage"));
+    }
+    let stdout = proc::text(&result.stdout);
+    let report: Value =
+        serde_json::from_str(&stdout).map_err(|e| CheckError::Value(pyjson::error_text(&stdout, &e)))?;
+    let complete = report.is_object()
+        && exact_int(&report["number_of_files"]) == Some(expected_files as i64)
+        && exact_int(&report["number_of_rules"]) == Some(JS_PREVIEW_RULES.len() as i64)
+        && report["diagnostics"].is_array();
+    if !complete {
+        return Err(invalid("invalid or incomplete Oxlint preview report"));
+    }
+    let diagnostics = report["diagnostics"].as_array().cloned().unwrap_or_default();
+    if diagnostics.is_empty() != (result.code == 0) {
+        return Err(invalid("Oxlint preview status disagrees with diagnostics"));
+    }
+    Ok(diagnostics)
+}
+
+/// Oxlint's preview rules over before and after copies; net-new findings block.
+fn preview_oxlint(
+    root: &Path,
+    changes: &[(String, String, String)],
+    deadline: proc::Deadline,
+) -> Result<Vec<String>, CheckError> {
+    let Some(binary) = hook::resolve_tool(root, "oxlint") else {
+        return Err(invalid("missing oxlint for content preview"));
+    };
+    let directory = tempfile::Builder::new()
+        .prefix("loki-preview-")
+        .tempdir()
+        .map_err(|e| CheckError::os(&e, None))?;
+    let work = directory.path();
+    let (config, files) = write_oxlint_workspace(work, changes)?;
+    let mut command: Vec<String> = vec![
+        resolve(Path::new(&binary)).to_string_lossy().into_owned(),
+        "-c".into(),
+        config.to_string_lossy().into_owned(),
+        "--disable-nested-config".into(),
+        "--no-ignore".into(),
+        "--threads".into(),
+        "1".into(),
+        "--format".into(),
+        "json".into(),
+    ];
+    command.extend(files.iter().map(|(name, _)| work.join(name).to_string_lossy().into_owned()));
+    let result = proc::run(&command, work, None, &[], deadline.timeout()?)?;
+    let diagnostics = parse_oxlint_report(&result, files.len())?;
+    collect_oxlint_violations(&diagnostics, &files)
+}
+
 fn recoverable(error: &CheckError) -> bool {
     matches!(error, CheckError::Value(_)) || error.is_os() || error.is_timeout()
+}
+
+fn run_javascript_preview(
+    root: &Path,
+    config: &config::Config,
+    changes: &[rules::Change],
+    deadline: proc::Deadline,
+    violations: &mut Vec<String>,
+) -> Result<(), CheckError> {
+    if violations.is_empty() {
+        violations.extend(typescript::preview_typescript(root, config, changes, deadline)?);
+    }
+    match preview_oxlint(root, changes, deadline) {
+        Ok(found) => {
+            violations.extend(found);
+            Ok(())
+        }
+        Err(error) if recoverable(&error) => {
+            violations.extend(rules::content_rule_violations(changes, true)?);
+            Err(error)
+        }
+        Err(other) => Err(other),
+    }
+}
+
+fn handle_preview_error(
+    error: CheckError,
+    javascript: bool,
+    previewed: bool,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Result<bool, CheckError> {
+    if !recoverable(&error) {
+        return Err(error);
+    }
+    if !javascript {
+        return Ok(true);
+    }
+    evidence::finding("preview-unavailable", None);
+    let suffix = if previewed {
+        "; built-in fallback rules applied"
+    } else {
+        ""
+    };
+    let message = format!("NOT CHECKED pre-write content: {}{suffix}", error.message());
+    if crate::strict() {
+        violations.push(message);
+        return Ok(true);
+    }
+    warnings.push(message);
+    Ok(false)
 }
 
 /// `preview_violations`: net-new findings in the previewed content.
@@ -572,48 +695,100 @@ pub fn preview_violations(
         violations.extend(rules::content_rule_violations(&changes, false)?);
         violations.extend(hook::preview_ruff(root, &changes, deadline)?);
         if javascript {
-            if violations.is_empty() {
-                violations.extend(typescript::preview_typescript(root, config, &changes, deadline)?);
-            }
-            match preview_oxlint(root, &changes, deadline) {
-                Ok(found) => violations.extend(found),
-                Err(error) if recoverable(&error) => {
-                    violations.extend(rules::content_rule_violations(&changes, true)?);
-                    return Err(error);
-                }
-                Err(other) => return Err(other),
-            }
+            run_javascript_preview(root, config, &changes, deadline, &mut violations)?;
         }
         Ok(())
     })();
-    match attempt {
-        Ok(()) => {}
-        Err(error) if recoverable(&error) => {
-            if !javascript {
-                return Ok(violations);
-            }
-            evidence::finding("preview-unavailable", None);
-            let suffix = if previewed {
-                "; built-in fallback rules applied"
-            } else {
-                ""
-            };
-            let message = format!("NOT CHECKED pre-write content: {}{suffix}", error.message());
-            if crate::strict() {
-                violations.push(message);
-                return Ok(violations);
-            }
-            warnings.push(message);
-        }
-        Err(other) => return Err(other),
+    if let Err(error) = attempt
+        && handle_preview_error(error, javascript, previewed, &mut violations, warnings)?
+    {
+        return Ok(violations);
     }
     violations.truncate(MAX_VIOLATIONS);
     Ok(violations)
 }
 
+fn patch_header_op(line: &str) -> Option<&'static str> {
+    ["Add", "Update", "Delete"]
+        .into_iter()
+        .find(|op| line.starts_with(&format!("*** {op} File: ")))
+}
+
+fn consume_update_line(line: &str, content: &mut usize, pending: &mut bool, ended: &mut bool) -> Result<(), CheckError> {
+    if line == "@@" || line.starts_with("@@ ") {
+        if *pending {
+            return Err(invalid("empty change hunk"));
+        }
+        *pending = true;
+    } else if line.starts_with(['+', '-', ' ']) {
+        *content += 1;
+        *pending = false;
+    } else if line == "*** End of File" && *content > 0 && !*pending {
+        *ended = true;
+    } else {
+        return Err(invalid("unknown patch structural marker"));
+    }
+    Ok(())
+}
+
+fn consume_patch_line(
+    line: &str,
+    operation: &str,
+    content: &mut usize,
+    pending: &mut bool,
+    ended: &mut bool,
+) -> Result<(), CheckError> {
+    if *ended || operation == "Delete" {
+        return Err(invalid("unexpected patch body"));
+    }
+    if operation == "Add" {
+        if !line.starts_with('+') {
+            return Err(invalid("Add requires added content lines"));
+        }
+        *content += 1;
+        return Ok(());
+    }
+    consume_update_line(line, content, pending, ended)
+}
+
+fn consume_patch_body(lines: &[&str], index: &mut usize, operation: &str, moved: bool) -> Result<(), CheckError> {
+    let (mut content, mut pending, mut ended) = (0, false, false);
+    while *index < lines.len() - 1 {
+        let line = lines[*index];
+        if patch_header_op(line).is_some() {
+            break;
+        }
+        consume_patch_line(line, operation, &mut content, &mut pending, &mut ended)?;
+        *index += 1;
+    }
+    if pending || (operation == "Add" && content == 0) || (operation == "Update" && content == 0 && !moved) {
+        return Err(invalid("empty patch operation"));
+    }
+    Ok(())
+}
+
+fn parse_patch_operation(lines: &[&str], index: &mut usize, paths: &mut Vec<String>) -> Result<(), CheckError> {
+    let header = lines[*index];
+    let Some(operation) = patch_header_op(header) else {
+        return Err(invalid("unknown patch operation"));
+    };
+    let target = &header[format!("*** {operation} File: ").len()..];
+    valid_path(target)?;
+    paths.push(target.to_string());
+    *index += 1;
+    let mut moved = false;
+    if operation == "Update" && lines[*index].starts_with("*** Move to: ") {
+        let target = &lines[*index]["*** Move to: ".len()..];
+        valid_path(target)?;
+        paths.push(target.to_string());
+        moved = true;
+        *index += 1;
+    }
+    consume_patch_body(lines, index, operation, moved)
+}
+
 /// `patch_paths`: the files a Codex `apply_patch` envelope touches.
 pub fn patch_paths(patch: &Value) -> Result<Vec<String>, CheckError> {
-    let invalid = |m: &str| CheckError::Value(m.to_string());
     let Some(patch) = patch.as_str().filter(|p| !p.contains('\0')) else {
         return Err(invalid("patch must be a string without NUL"));
     };
@@ -624,62 +799,10 @@ pub fn patch_paths(patch: &Value) -> Result<Vec<String>, CheckError> {
     if lines.len() < 3 || lines[0] != "*** Begin Patch" || lines[lines.len() - 1] != "*** End Patch" {
         return Err(invalid("invalid patch boundaries"));
     }
-    let header_op = |line: &str| -> Option<&'static str> {
-        ["Add", "Update", "Delete"]
-            .into_iter()
-            .find(|op| line.starts_with(&format!("*** {op} File: ")))
-    };
     let mut paths: Vec<String> = Vec::new();
     let mut index = 1;
     while index < lines.len() - 1 {
-        let header = lines[index];
-        let Some(operation) = header_op(header) else {
-            return Err(invalid("unknown patch operation"));
-        };
-        let target = &header[format!("*** {operation} File: ").len()..];
-        valid_path(target)?;
-        paths.push(target.to_string());
-        index += 1;
-        let mut moved = false;
-        if operation == "Update" && lines[index].starts_with("*** Move to: ") {
-            let target = &lines[index]["*** Move to: ".len()..];
-            valid_path(target)?;
-            paths.push(target.to_string());
-            moved = true;
-            index += 1;
-        }
-        let (mut content, mut pending, mut ended) = (0, false, false);
-        while index < lines.len() - 1 {
-            let line = lines[index];
-            if header_op(line).is_some() {
-                break;
-            }
-            if ended || operation == "Delete" {
-                return Err(invalid("unexpected patch body"));
-            }
-            if operation == "Add" {
-                if !line.starts_with('+') {
-                    return Err(invalid("Add requires added content lines"));
-                }
-                content += 1;
-            } else if line == "@@" || line.starts_with("@@ ") {
-                if pending {
-                    return Err(invalid("empty change hunk"));
-                }
-                pending = true;
-            } else if line.starts_with(['+', '-', ' ']) {
-                content += 1;
-                pending = false;
-            } else if line == "*** End of File" && content > 0 && !pending {
-                ended = true;
-            } else {
-                return Err(invalid("unknown patch structural marker"));
-            }
-            index += 1;
-        }
-        if pending || (operation == "Add" && content == 0) || (operation == "Update" && content == 0 && !moved) {
-            return Err(invalid("empty patch operation"));
-        }
+        parse_patch_operation(&lines, &mut index, &mut paths)?;
     }
     let mut unique = Vec::new();
     for path in paths {
@@ -690,47 +813,57 @@ pub fn patch_paths(patch: &Value) -> Result<Vec<String>, CheckError> {
     Ok(unique)
 }
 
-/// `harness_paths`: absolute targets of a Claude, Codex or Factory hook envelope.
-pub fn harness_paths(payload: &Value, harness: &str) -> Result<Vec<String>, CheckError> {
-    let invalid = |m: String| CheckError::Value(m);
-    let Some(object) = payload.as_object() else {
-        return Err(invalid("hook envelope must be an object".into()));
-    };
-    let cwd = match object.get("cwd") {
-        Some(Value::String(cwd)) if !cwd.is_empty() && !cwd.contains('\0') => cwd.clone(),
-        _ => return Err(invalid("path must be a nonempty string without NUL".into())),
-    };
-    if !cwd.starts_with('/') {
-        return Err(invalid("cwd must be absolute".into()));
-    }
-    let name = object
-        .get("tool_name")
-        .and_then(Value::as_str)
-        .filter(|n| !n.is_empty());
-    let input = object.get("tool_input").and_then(Value::as_object);
-    let (Some(name), Some(input)) = (name, input) else {
-        return Err(invalid("tool_name and object tool_input are required".into()));
-    };
-    let supported: &[&str] = match harness {
+fn supported_harness_tools(harness: &str) -> &'static [&'static str] {
+    match harness {
         "claude" => &["Write", "Edit", "MultiEdit"],
         "codex" => &["apply_patch"],
         "factory" => &["Create", "Edit", "ApplyPatch"],
         _ => &[],
+    }
+}
+
+fn extract_harness_target_paths(harness: &str, input: &Map<String, Value>) -> Result<Vec<String>, CheckError> {
+    if harness == "codex" {
+        return patch_paths(input.get("command").unwrap_or(&Value::Null));
+    }
+    match input.get("file_path") {
+        Some(Value::String(p)) if !p.is_empty() && !p.contains('\0') => Ok(vec![p.clone()]),
+        _ => Err(invalid("path must be a nonempty string without NUL")),
+    }
+}
+
+fn validate_harness_envelope<'a>(
+    payload: &'a Value,
+    harness: &str,
+) -> Result<(String, &'a Map<String, Value>), CheckError> {
+    let Some(object) = payload.as_object() else {
+        return Err(invalid("hook envelope must be an object"));
     };
-    if !supported.contains(&name) {
+    let cwd = match object.get("cwd") {
+        Some(Value::String(cwd)) if !cwd.is_empty() && !cwd.contains('\0') => cwd.clone(),
+        _ => return Err(invalid("path must be a nonempty string without NUL")),
+    };
+    if !cwd.starts_with('/') {
+        return Err(invalid("cwd must be absolute"));
+    }
+    let name = object.get("tool_name").and_then(Value::as_str).filter(|n| !n.is_empty());
+    let input = object.get("tool_input").and_then(Value::as_object);
+    let (Some(name), Some(input)) = (name, input) else {
+        return Err(invalid("tool_name and object tool_input are required"));
+    };
+    if !supported_harness_tools(harness).contains(&name) {
         return Err(invalid(format!("loki: unsupported {harness} tool: {name}")));
     }
     if harness == "factory" && name == "ApplyPatch" {
-        return Err(invalid("loki: unsupported factory ApplyPatch payload".into()));
+        return Err(invalid("loki: unsupported factory ApplyPatch payload"));
     }
-    let paths = if harness == "codex" {
-        patch_paths(input.get("command").unwrap_or(&Value::Null))?
-    } else {
-        match input.get("file_path") {
-            Some(Value::String(p)) if !p.is_empty() && !p.contains('\0') => vec![p.clone()],
-            _ => return Err(invalid("path must be a nonempty string without NUL".into())),
-        }
-    };
+    Ok((cwd, input))
+}
+
+/// `harness_paths`: absolute targets of a Claude, Codex or Factory hook envelope.
+pub fn harness_paths(payload: &Value, harness: &str) -> Result<Vec<String>, CheckError> {
+    let (cwd, input) = validate_harness_envelope(payload, harness)?;
+    let paths = extract_harness_target_paths(harness, input)?;
     let mut unique = Vec::new();
     for path in paths {
         let absolute = abspath(Path::new(&cwd), &path).to_string_lossy().into_owned();
@@ -787,60 +920,69 @@ pub fn session_note(root: &std::path::Path) -> Option<String> {
     injected_context(&config, Some("ultron")).ok()
 }
 
+fn ultron_context(packs: &[String]) -> String {
+    let checks = [
+        ("core", "secrets, security rules, protected files"),
+        ("python", "Ruff (Python)"),
+        ("typescript", "Oxlint and type checks (TS/JS)"),
+        ("phoenix", "Credo and Sobelow (Elixir)"),
+    ];
+    let listed: Vec<&str> = checks
+        .iter()
+        .filter(|(p, _)| packs.iter().any(|name| name == p))
+        .map(|(_, c)| *c)
+        .collect();
+    let mut text = String::from(
+        "LOKI guardrails: edit() and write() are checked before the file changes. Change source and configuration with edit()/write(): a bash() command that writes them (redirect, tee, sed -i, cp/mv) is refused. Other writes (Path.write_text, programs) are checked after the cell. A blocked write raises ValueError with the finding: fix the cause and retry. Never weaken Loki, its policy (.loki/), tests or hooks.",
+    );
+    if !listed.is_empty() {
+        text.push_str(&format!(" Checks: {}.", listed.join("; ")));
+    }
+    text
+}
+
+fn phoenix_context(config: &Config) -> Result<Vec<String>, String> {
+    let (block, warn) = config::security_policy(config)?;
+    let first = if block == "none" {
+        "Sobelow blocking is disabled; ".to_string()
+    } else {
+        format!("Sobelow {block} confidence findings block; ")
+    };
+    let second = if warn == "none" {
+        "warnings are disabled. Lower levels remain visible as info.".to_string()
+    } else {
+        format!("{warn} findings warn. Lower levels remain visible.")
+    };
+    Ok(vec![
+        "Phoenix/Elixir hooks check formatting, net-new Credo and source-security Sobelow findings. Compilation and HEEx component checks require the project tier; they do not run on every write.".into(),
+        first + &second,
+        "Use Ecto parameterization, supervised processes, validated changesets and assigns-based authorization.".into(),
+    ])
+}
+
 /// `injected_context`: session guidance for the configured rule packs.
 pub fn injected_context(config: &Config, host: Option<&str>) -> Result<String, String> {
     let packs = config::rule_packs(config)?;
     let has = |name: &str| packs.iter().any(|p| p == name);
     if host == Some("ultron") {
-        let checks = [
-            ("core", "secrets, security rules, protected files"),
-            ("python", "Ruff (Python)"),
-            ("typescript", "Oxlint and type checks (TS/JS)"),
-            ("phoenix", "Credo and Sobelow (Elixir)"),
-        ];
-        let listed: Vec<&str> = checks.iter().filter(|(p, _)| has(p)).map(|(_, c)| *c).collect();
-        let mut text = String::from(
-            "LOKI guardrails: edit() and write() are checked before the file changes. Change source and configuration with edit()/write(): a bash() command that writes them (redirect, tee, sed -i, cp/mv) is refused. Other writes (Path.write_text, programs) are checked after the cell. A blocked write raises ValueError with the finding: fix the cause and retry. Never weaken Loki, its policy (.loki/), tests or hooks.",
-        );
-        if !listed.is_empty() {
-            text.push_str(&format!(" Checks: {}.", listed.join("; ")));
-        }
-        return Ok(text);
+        return Ok(ultron_context(&packs));
     }
     let mut lines = vec![
         "LOKI POLICY GUIDANCE. This describes configured policy, not proof that hooks or analyzers are active. NOT CHECKED means coverage is unavailable.".to_string(),
         "When a rule reports a violation, fix it and retry. Do not weaken the checker, policy, tests or hooks.".into(),
         "Use verified file tools. Do not route writes through shell commands to bypass checks.".into(),
     ];
-    if has("core") {
-        lines.push("Protected policy, hook, workflow and quality files require independent review.".into());
-    }
-    if has("python") {
-        lines.push("Python edits must introduce no new Ruff findings and preserve meaningful tests.".into());
-    }
-    if has("typescript") {
-        lines.push(
-            "TypeScript edits must pass Oxlint and enabled project-wide type checks, including consumers.".into(),
-        );
+    for (pack, line) in [
+        ("core", "Protected policy, hook, workflow and quality files require independent review."),
+        ("python", "Python edits must introduce no new Ruff findings and preserve meaningful tests."),
+        ("typescript", "TypeScript edits must pass Oxlint and enabled project-wide type checks, including consumers."),
+    ] {
+        if has(pack) {
+            lines.push(line.into());
+        }
     }
     if has("phoenix") {
-        let (block, warn) = config::security_policy(config)?;
-        lines.push("Phoenix/Elixir hooks check formatting, net-new Credo and source-security Sobelow findings. Compilation and HEEx component checks require the project tier; they do not run on every write.".into());
-        let first = if block == "none" {
-            "Sobelow blocking is disabled; ".to_string()
-        } else {
-            format!("Sobelow {block} confidence findings block; ")
-        };
-        let second = if warn == "none" {
-            "warnings are disabled. Lower levels remain visible as info.".to_string()
-        } else {
-            format!("{warn} findings warn. Lower levels remain visible.")
-        };
-        lines.push(first + &second);
-        lines.push(
-            "Use Ecto parameterization, supervised processes, validated changesets and assigns-based authorization."
-                .into(),
-        );
+        lines.extend(phoenix_context(config)?);
     }
     if has("shell") {
         lines.push("Shell redirects, substitutions, compound commands and destructive Git operations require review when the optional shell guard is installed. Selecting this guidance pack does not install that guard.".into());

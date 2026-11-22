@@ -102,15 +102,17 @@ fn launchers() -> Vec<Vec<String>> {
     found
 }
 
+fn squiggles_from_reply(reply: Vec<Vec<(usize, String, String)>>) -> Vec<Vec<Squiggle>> {
+    let squiggle = |(line, kind, message)| Squiggle { line, kind, message };
+    reply
+        .into_iter()
+        .map(|file| file.into_iter().map(squiggle).collect())
+        .collect()
+}
+
 fn parse(stdout: &[u8]) -> Option<Vec<Vec<Squiggle>>> {
     let reply: Vec<Vec<(usize, String, String)>> = serde_json::from_slice(stdout).ok()?;
-    let squiggle = |(line, kind, message)| Squiggle { line, kind, message };
-    Some(
-        reply
-            .into_iter()
-            .map(|file| file.into_iter().map(squiggle).collect())
-            .collect(),
-    )
+    Some(squiggles_from_reply(reply))
 }
 
 /// Runs `driver`, with `request` on its stdin, in the first of `launchers` whose Python has what the driver imports
@@ -264,13 +266,7 @@ impl Drop for WarmWorker {
 
 pub(crate) fn parse_value(value: Value) -> Option<Vec<Vec<Squiggle>>> {
     let reply: Vec<Vec<(usize, String, String)>> = serde_json::from_value(value).ok()?;
-    let squiggle = |(line, kind, message)| Squiggle { line, kind, message };
-    Some(
-        reply
-            .into_iter()
-            .map(|file| file.into_iter().map(squiggle).collect())
-            .collect(),
-    )
+    Some(squiggles_from_reply(reply))
 }
 
 fn warm_hygiene_worker() -> &'static Mutex<Option<WarmWorker>> {
