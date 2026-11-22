@@ -1,0 +1,30 @@
+[package]
+name = "loki"
+version = "0.2.0"
+edition = "2024"
+description = "Deterministic guardrails for AI coding agents: standalone Rust CLI"
+license = "MIT"
+repository = "https://github.com/alfredosdpiii/loki"
+readme = "README.md"
+
+[lib]
+name = "loki"
+path = "src/lib.rs"
+
+[[bin]]
+name = "loki"
+path = "src/main.rs"
+
+[dependencies]
+fancy-regex = "0.19"
+regex = "1.11"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "system-proxy"] }
+rustix = { version = "1.1", features = ["event", "fs", "net", "process", "std"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+tempfile = "3.27"
+tokio = { version = "1.50", features = ["rt", "time"] }
+toml = { version = "0.9", default-features = false, features = ["parse", "serde", "std"] }
+
+[dev-dependencies]
+tempfile = "3.27"

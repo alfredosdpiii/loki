@@ -67,4 +67,4 @@ jobs:
       - name: Run loki
         env:
           LOKI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: python3 .loki/loki.py scan --strict --base "$LOKI_BASE"
+        run: loki scan --strict --base "$LOKI_BASE"

@@ -8,8 +8,8 @@ Loki checks every edit your agent makes with real analyzers and precise rules. I
 blocks the dangerous ones before the file changes, tells the agent exactly what
 to fix, and does all of this without calling a model.
 
-![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab?logo=python&logoColor=white)
-![Runtime dependencies: none](https://img.shields.io/badge/runtime%20dependencies-none-2ea44f)
+![Rust](https://img.shields.io/badge/rust-2024%20edition-dea584?logo=rust&logoColor=white)
+![Single binary](https://img.shields.io/badge/install-single%20binary-2ea44f)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Factory%20%C2%B7%20Pi%20%C2%B7%20OMP-8a63d2)
 ![Languages](https://img.shields.io/badge/languages-Python%20%C2%B7%20TS%2FJS%20%C2%B7%20Go%20%C2%B7%20Rust%20%C2%B7%20Elixir-e36209)
 
@@ -42,7 +42,7 @@ to fix, and does all of this without calling a model.
   and special-casing without complaining about untouched code.
 - **It measures structural sloppiness too.** `loki slop` scores complexity,
   duplication and import cycles in six languages and flags new hotspots as the
-  agent writes them. Loki scores `0/100` on itself.
+  agent writes them.
 
 ## How it compares
 
@@ -70,12 +70,14 @@ by an agent that could not see either product. Read the
 
 ## Quick start
 
-Loki needs Python 3.11 or newer and has no runtime dependencies.
+Loki is a standalone Rust CLI binary with templates, shims, and vendored plugins
+compiled in.
 
-**1. Install the command** (once per machine):
+**1. Build and install the binary** (once per machine):
 
 ```bash
-uv tool install loki-guardrails     # or: pipx install loki-guardrails
+cargo install --path .
+# or: cargo build --release && install -m 755 target/release/loki ~/.local/bin/loki
 ```
 
 **2. Set up a repository:**
@@ -85,10 +87,11 @@ cd your-repo
 loki init --dir .
 ```
 
-This adds a pinned copy of the engine and your policy in `.loki/`, hooks for every
-supported agent (`.claude/`, `.codex/`, `.factory/`, `.pi/`, `.omp/`), starter Ruff,
-Oxlint and golangci-lint configuration, and a `.github/workflows/loki.yml` CI check.
-Existing configuration files are left alone.
+This adds your policy and vendored plugins in `.loki/` (`loki.json`,
+`oxlint/anti-slop`, `oxlint/landmines`, `vendor/codehygiene`), hooks for every
+supported agent (`.claude/`, `.codex/`, `.factory/`, `.pi/`, `.omp/`), starter
+Ruff, Oxlint and golangci-lint configuration, and a `.github/workflows/loki.yml`
+CI check. Existing configuration files are left alone.
 
 **3. Finish the setup:**
 
@@ -136,16 +139,11 @@ Strict mode fails when an analyzer is missing instead of skipping it.
 **Upgrading:**
 
 ```bash
-uv tool upgrade loki-guardrails
-loki init --dir . --force          # replaces the engine in .loki/; review and commit
+git pull && cargo install --path . --force
+loki init --dir . --force          # updates vendored plugins and hooks in .loki/; review and commit
 ```
 
-Hooks always run the engine in `.loki/loki.py`, not the global `loki`, so each
-repository keeps the version its policy was reviewed against until you commit an
-upgrade. You can try Loki without installing it via
-`uvx --from loki-guardrails loki init --dir .`, or run `python3 loki.py init` from
-a clone of this repository. The
-[install guide](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md#install)
+The [install guide](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md#install)
 covers each host in detail.
 
 ## How it works
@@ -319,9 +317,9 @@ an agent can't loosen it mid-session:
 ## Development
 
 ```bash
-uv run --frozen pytest -q
-bun test ./tests/loki-shim.test.ts ./tests/loki-omp.test.ts
-ruff check --config templates/.ruff.toml loki.py tests benchmarks
+cargo test
+cargo clippy --all-targets -- -D warnings
+cargo build --release
 ```
 
 Regenerate the demos with:

@@ -9,18 +9,22 @@ export type ExtensionApi = {
   sendMessage?: (message: { content: Array<{ text: string; type: "text" }>; customType: string }, options: { triggerTurn: boolean }) => void;
 };
 
-function checkerArgs(root: string): string[] {
-  return [`${root}/.loki/loki.py`, "--root", root];
+function lokiBin(): string {
+  return process.env.LOKI_BIN || "loki";
 }
 
-const NOT_ON_BRANCH = "loki: .loki/loki.py is not on this branch; Loki did not check this";
+function checkerArgs(root: string): string[] {
+  return ["--root", root];
+}
 
-/** A checkout whose working tree and HEAD lack the engine while another ref has it: a branch without Loki. */
+const NOT_ON_BRANCH = "loki: .loki/loki.json is not on this branch; Loki did not check this";
+
+/** A checkout whose working tree and HEAD lack the policy while another ref has it: a branch without Loki. */
 export function branchWithoutLoki(root: string): boolean {
-  if (existsSync(checkerArgs(root)[0])) return false;
+  if (existsSync(`${root}/.loki/loki.json`)) return false;
   const git = (args: string[]) => spawnSync("git", ["-C", root, ...args], { encoding: "utf8", timeout: 5_000 });
-  if (git(["cat-file", "-e", "HEAD:.loki/loki.py"]).status === 0) return false;
-  const other = git(["rev-list", "-1", "--all", "--", ".loki/loki.py"]);
+  if (git(["cat-file", "-e", "HEAD:.loki/loki.json"]).status === 0) return false;
+  const other = git(["rev-list", "-1", "--all", "--", ".loki/loki.json"]);
   return other.status === 0 && other.stdout.trim() !== "";
 }
 
@@ -59,7 +63,7 @@ function parseContextOutput(stdout: string): string {
 }
 
 function contextText(root: string): string {
-  const result = spawnSync("python3", [...checkerArgs(root), "context", "--event", "SessionStart"], { cwd: root, encoding: "utf8", timeout: 5_000 });
+  const result = spawnSync(lokiBin(), [...checkerArgs(root), "context", "--event", "SessionStart"], { cwd: root, encoding: "utf8", timeout: 5_000 });
   if (result.error || result.signal || result.status !== 0) {
     throw result.error ?? new Error(result.stderr?.trim() || "loki: context unavailable");
   }
@@ -119,7 +123,7 @@ function runChecker(root: string, args: string[], timeout: number, input?: strin
   const options = input === undefined
     ? { cwd: root, encoding: "utf8" as const, timeout }
     : { cwd: root, encoding: "utf8" as const, timeout, input };
-  return formatCheckerResult(spawnSync("python3", [...checkerArgs(root), ...args], options));
+  return formatCheckerResult(spawnSync(lokiBin(), [...checkerArgs(root), ...args], options));
 }
 
 function isWriteToolEvent(value: unknown, phase: string): value is Record<string, unknown> & { toolName: "edit" | "write" } {
