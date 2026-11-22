@@ -332,7 +332,7 @@ re!(
 re!(EX_WORD, r"(?<![\w.:])([a-z]\w*)\b");
 re!(EX_REQUEST_PARAMS, r"\b(?:query_|body_)?params\b");
 
-fn elixir_redirect_and_ssrf(masked: &Text, tainted: &BTreeSet<String>, findings: &mut Vec<Finding>) {
+fn elixir_redirect_rules(masked: &Text, tainted: &BTreeSet<String>, findings: &mut Vec<Finding>) {
     let m = &masked.c;
     for call in EX_REDIRECT.iter(masked) {
         let arguments = Text::new(masked.sl(call.end(), matching_close(m, call.end() - 1) - 1));
@@ -347,6 +347,10 @@ fn elixir_redirect_and_ssrf(masked: &Text, tainted: &BTreeSet<String>, findings:
             }
         }
     }
+}
+
+fn elixir_ssrf_rules(masked: &Text, tainted: &BTreeSet<String>, findings: &mut Vec<Finding>) {
+    let m = &masked.c;
     for call in EX_HTTP_CALL.iter(masked) {
         let arguments = masked.sl(call.end(), matching_close(m, call.end() - 1) - 1);
         if EX_WORD.group1_strs(arguments).iter().any(|w| tainted.contains(*w)) || EX_REQUEST_PARAMS.is_match(arguments)
@@ -439,9 +443,10 @@ pub fn elixir_rules(text: &Text) -> Vec<Finding> {
     let masked = mask_elixir(text);
     let mut findings: Vec<Finding> = Vec::new();
     let tainted = elixir_tainted_and_auth(text, &masked, &mut findings);
-    elixir_redirect_and_ssrf(&masked, &tainted, &mut findings);
+    elixir_redirect_rules(&masked, &tainted, &mut findings);
     elixir_sort_and_file_rules(&masked, &mut findings);
     elixir_command_rules(text, &masked, &mut findings);
+    elixir_ssrf_rules(&masked, &tainted, &mut findings);
     findings
 }
 
