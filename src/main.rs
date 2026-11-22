@@ -31,11 +31,11 @@ const TOP_USAGE: &str = "usage: loki [-h] [--version] [--root ROOT]\n           
 const USAGES: &[(&str, &str)] = &[
     (
         "protect",
-        "usage: loki protect [-h] [--root ROOT] (--file FILE |\n                    --harness {claude,codex,factory}) [--record]\n                    [--format {text,json}] [--python PYTHON]\n                    [--preview {pi,omp,ultron}]",
+        "usage: loki protect [-h] [--root ROOT] (--file FILE |\n                    --harness {agy,claude,codex,factory}) [--record]\n                    [--format {text,json}] [--python PYTHON]\n                    [--preview {pi,omp,ultron}]",
     ),
     (
         "hook",
-        "usage: loki hook [-h] [--root ROOT] (--file FILE |\n                 --harness {claude,codex,factory}) [--record]\n                 [--format {text,json}] [--python PYTHON]",
+        "usage: loki hook [-h] [--root ROOT] (--file FILE |\n                 --harness {agy,claude,codex,factory}) [--record]\n                 [--format {text,json}] [--python PYTHON]",
     ),
     (
         "scan",
@@ -62,7 +62,7 @@ const USAGES: &[(&str, &str)] = &[
     ("daemon", "usage: loki daemon [-h] {serve,start,stop,status}"),
 ];
 
-const DEFAULT_USAGE: &str = "usage: loki context [-h] [--root ROOT]\n                    [--event {SessionStart,UserPromptSubmit}]\n                    [--host {ultron}]";
+const DEFAULT_USAGE: &str = "usage: loki context [-h] [--root ROOT]\n                    [--event {SessionStart,UserPromptSubmit}]\n                    [--host {agy,ultron}]";
 
 fn usage(command: &str) -> &'static str {
     USAGES
@@ -71,7 +71,7 @@ fn usage(command: &str) -> &'static str {
         .map_or(DEFAULT_USAGE, |&(_, text)| text)
 }
 
-const PROTECT_HELP_OPTIONS: &str = "  -h, --help            show this help message and exit\n  --root ROOT\n  --file FILE\n  --harness {claude,codex,factory}\n  --record\n  --format {text,json}\n  --python PYTHON       the project's Python interpreter\n";
+const PROTECT_HELP_OPTIONS: &str = "  -h, --help            show this help message and exit\n  --root ROOT\n  --file FILE\n  --harness {agy,claude,codex,factory}\n  --record\n  --format {text,json}\n  --python PYTHON       the project's Python interpreter\n";
 
 const HELP_OPTIONS: &[(&str, &str)] = &[
     ("hook", PROTECT_HELP_OPTIONS),
@@ -105,7 +105,7 @@ const HELP_OPTIONS: &[(&str, &str)] = &[
     ),
 ];
 
-const DEFAULT_HELP_OPTIONS: &str = "  -h, --help            show this help message and exit\n  --root ROOT\n  --event {SessionStart,UserPromptSubmit}\n  --host {ultron}\n";
+const DEFAULT_HELP_OPTIONS: &str = "  -h, --help            show this help message and exit\n  --root ROOT\n  --event {SessionStart,UserPromptSubmit}\n  --host {agy,ultron}\n";
 
 /// `loki <command> --help`: the usage, then argparse's option list.
 fn help(command: &str) -> String {
@@ -136,13 +136,13 @@ enum Kind {
     Choice(&'static [&'static str]),
 }
 
-const HARNESS_CHOICES: &[&str] = &["claude", "codex", "factory"];
+const HARNESS_CHOICES: &[&str] = &["agy", "claude", "codex", "factory"];
 const FORMAT_CHOICES: &[&str] = &["text", "json"];
 const PREVIEW_CHOICES: &[&str] = &["pi", "omp", "ultron"];
 const LEVEL_CHOICES: &[&str] = &["on", "all"];
 const TIER_CHOICES: &[&str] = &["fast", "project", "deep"];
 const EVENT_CHOICES: &[&str] = &["SessionStart", "UserPromptSubmit"];
-const HOST_CHOICES: &[&str] = &["ultron"];
+const HOST_CHOICES: &[&str] = &["agy", "ultron"];
 
 const GUARD_OPTIONS: &[(&str, Kind)] = &[
     ("--root", Kind::Value),
@@ -603,6 +603,11 @@ fn context(args: &Args) -> ExitCode {
     });
     match loaded.and_then(|c| injected_context(&c, host)) {
         Ok(text) => {
+            if host == Some("agy") {
+                let output = json!({"injectSteps": [{"systemMessage": {"systemMessage": text}}]});
+                println!("{}", py::dumps(&output));
+                return ExitCode::SUCCESS;
+            }
             let mut output = json!({"hookSpecificOutput": {
                 "hookEventName": args.get("--event").unwrap_or("SessionStart"),
                 "additionalContext": text,
@@ -697,17 +702,67 @@ fn guard(args: &Args) -> ExitCode {
         &args.command,
         checked,
         args.get("--format") == Some("json"),
-        harness.is_some(),
+        harness,
     );
     eprint!("{stderr}");
     print!("{stdout}");
     ExitCode::from(status)
 }
 
+/// Antigravity (`agy`) hook stdout contract: `PreToolUse` returns `{"decision": "allow"|"deny", "reason"?: ...}`
+/// on exit 0; `PostToolUse` returns `{}` on exit 0 with diagnostics on stderr.
+fn render_agy(command: &str, checked: Result<Report, CheckError>) -> (u8, String, String) {
+    let report = match checked {
+        Ok(report) => report,
+        Err(error) => {
+            let reason = format!("loki: {}", error.describe());
+            let stdout = if command == "protect" {
+                format!("{}\n", py::dumps(&json!({"decision": "deny", "reason": reason})))
+            } else {
+                "{}\n".into()
+            };
+            return (0, stdout, format!("{reason}\n"));
+        }
+    };
+    if report.blocked() {
+        let prefix = if command == "hook" {
+            "loki: post-write check failed; files are already changed.\n"
+        } else {
+            ""
+        };
+        let detail = format!("{prefix}{}", report.refusal_lines().join("\n"));
+        let stdout = if command == "protect" {
+            format!("{}\n", py::dumps(&json!({"decision": "deny", "reason": detail})))
+        } else {
+            "{}\n".into()
+        };
+        return (0, stdout, format!("{detail}\n"));
+    }
+    let stderr = if report.warnings.is_empty() {
+        String::new()
+    } else {
+        format!("{}\n", report.warnings.join("\n"))
+    };
+    let stdout = if command == "protect" {
+        format!("{}\n", py::dumps(&json!({"decision": "allow"})))
+    } else {
+        "{}\n".into()
+    };
+    (0, stdout, stderr)
+}
+
 /// What `protect` and `hook` print: the JSON report for `--format json`; a failed check's error, or blocking
 /// findings (then advisories and unchecked notes), on stderr with status 2; else the warnings, which a `--harness`
 /// run also hands back as hook context.
-fn rendered(command: &str, checked: Result<Report, CheckError>, json: bool, harness: bool) -> (u8, String, String) {
+fn rendered(
+    command: &str,
+    checked: Result<Report, CheckError>,
+    json: bool,
+    harness: Option<&str>,
+) -> (u8, String, String) {
+    if harness == Some("agy") {
+        return render_agy(command, checked);
+    }
     let report = match checked {
         Ok(report) => report,
         Err(error) => {
@@ -737,7 +792,7 @@ fn rendered(command: &str, checked: Result<Report, CheckError>, json: bool, harn
         return (0, stdout, String::new());
     }
     let text = report.warnings.join("\n");
-    if harness {
+    if harness.is_some() {
         let event = if command == "protect" {
             "PreToolUse"
         } else {

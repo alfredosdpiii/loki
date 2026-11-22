@@ -22,8 +22,9 @@ pub const RULE_PACKS: [&str; 5] = ["core", "python", "typescript", "phoenix", "s
 const SECURITY_LEVELS: [&str; 4] = ["none", "low", "medium", "high"];
 const COMMAND_GROUPS: [&str; 4] = ["contract", "property", "differential", "mutation"];
 const LANGUAGES: [&str; 5] = ["python", "typescript", "go", "rust", "elixir"];
-pub const PROTECTED_PATHS: [&str; 17] = [
+pub const PROTECTED_PATHS: [&str; 18] = [
     ".loki/**",
+    ".agents/hooks.json",
     ".claude/settings.json",
     ".codex/hooks.json",
     ".codex/config.toml",

@@ -18,6 +18,7 @@ macro_rules! asset {
     };
 }
 
+const AGY_HOOKS: &[u8] = include_bytes!("../templates/agy-hooks.json");
 const CLAUDE_SETTINGS: &[u8] = include_bytes!("../templates/claude-settings.fragment.json");
 const CODEX_HOOKS: &[u8] = include_bytes!("../templates/codex-hooks.json");
 const FACTORY_HOOKS: &[u8] = include_bytes!("../templates/factory-hooks.json");
@@ -177,7 +178,7 @@ fn owned_handler(handler: &Value) -> bool {
     handler
         .get("command")
         .and_then(Value::as_str)
-        .is_some_and(|command| command.contains(".loki/loki.py"))
+        .is_some_and(|command| command.contains(".loki/loki.py") || command.contains(".loki/loki.json"))
 }
 
 /// `merge_factory_hooks`: per event, previous Loki handlers are dropped (an entry left without handlers goes) and
@@ -363,6 +364,17 @@ fn install_shims(target: &Path) -> Result<(), InitError> {
     )
 }
 
+fn install_agy_hooks(target: &Path) -> Result<(), InitError> {
+    let destination = target.join(".agents/hooks.json");
+    let mut existing = read_json_object(&destination)?;
+    let fragment = template(AGY_HOOKS);
+    let Some(loki_group) = fragment.get("loki") else {
+        return Err("template agy hooks must contain a loki object".into());
+    };
+    existing.insert("loki".into(), loki_group.clone());
+    write_json(&destination, existing)
+}
+
 fn install_agent_hooks(target: &Path) -> Result<(), InitError> {
     for (destination, fragment) in [
         (".claude/settings.json", CLAUDE_SETTINGS),
@@ -373,6 +385,7 @@ fn install_agent_hooks(target: &Path) -> Result<(), InitError> {
         write_json(&destination, merge_hook_config(existing, &template(fragment))?)?;
     }
     enable_codex_hooks(target)?;
+    install_agy_hooks(target)?;
     let factory = target.join(".factory/hooks.json");
     let mut hooks = read_json_object(&factory)?;
     merge_factory_hooks(&mut hooks, &template(FACTORY_HOOKS))?;
@@ -445,6 +458,7 @@ pub fn install_target(target: &str, force: bool) -> Result<(), InitError> {
     install_agent_hooks(&target)?;
     install_linter_configs(&target)?;
     println!("Installed loki project guardrails.");
+    println!("Antigravity (agy): project hooks are installed in .agents/hooks.json.");
     println!("Codex: run /hooks and approve the project hooks.");
     println!("Factory: project hooks are installed in .factory/hooks.json.");
     println!("Pi: accept the project trust prompt.");
@@ -475,16 +489,18 @@ const SHELL_REGISTRATION: &str = r#"  api.on("tool_call", async (event, ctx) => 
 "#;
 
 fn is_shell_guard_entry(entry: &Value) -> bool {
-    matches!(entry.get("matcher").and_then(Value::as_str), Some("Bash" | "Execute"))
-        && entry.get("hooks").and_then(Value::as_array).is_some_and(|handlers| {
-            handlers.iter().any(|handler| {
-                handler
-                    .get("command")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .contains(" shell --harness ")
-            })
+    matches!(
+        entry.get("matcher").and_then(Value::as_str),
+        Some("Bash" | "Execute" | "run_command")
+    ) && entry.get("hooks").and_then(Value::as_array).is_some_and(|handlers| {
+        handlers.iter().any(|handler| {
+            handler
+                .get("command")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains(" shell --harness ")
         })
+    })
 }
 
 /// `missing_engine_guard`: shell prefix for an owned hook that passes with a note on a branch without Loki, that is a
@@ -497,29 +513,51 @@ pub fn missing_engine_guard(root: &str) -> String {
     )
 }
 
-fn install_harness_shell_guard(root: &Path, relative: &str, harness: &str) -> Result<(), InitError> {
+fn shell_guard_groups<'a>(document: &'a mut Map<String, Value>, harness: &str) -> Result<&'a mut Map<String, Value>, InitError> {
+    let key = match harness {
+        "claude" | "codex" => "hooks",
+        "agy" => "loki",
+        _ => return Ok(document),
+    };
+    match document.get_mut(key) {
+        Some(Value::Object(groups)) => Ok(groups),
+        _ => Err(format!("{key} must be a JSON object")),
+    }
+}
+
+fn shell_guard_command(root: &Path, harness: &str) -> String {
     use crate::shell::shlex_quote as quote;
+    let quoted_root = quote(&root.to_string_lossy());
+    if harness == "agy" {
+        return format!(
+            "R={quoted_root}; [ -f \"$R/.loki/loki.json\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.json 2>/dev/null || \
+             [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.json 2>/dev/null)\" ] || \
+             {{ printf '%s\\n' 'loki: .loki/loki.json is not on this branch; Loki did not check this' >&2; printf '{{\"decision\":\"allow\"}}\\n'; exit 0; }}; \
+             loki --root {quoted_root} shell --harness agy || {{ printf '%s\\n' '{{\"decision\":\"deny\",\"reason\":\"loki: shell guard failed\"}}'; exit 0; }}"
+        );
+    }
+    format!(
+        "{}loki --root {quoted_root} shell --harness {harness} || {{ printf '%s\\n' 'loki: shell guard failed' >&2; exit 2; }}",
+        missing_engine_guard(&quoted_root),
+    )
+}
+
+fn install_harness_shell_guard(root: &Path, relative: &str, harness: &str) -> Result<(), InitError> {
     let path = root.join(relative);
     let mut document = read_json_object(&path)?;
-    let command = format!(
-        "{}loki --root {} shell --harness {harness} || {{ printf '%s\\n' 'loki: shell guard failed' >&2; exit 2; }}",
-        missing_engine_guard(&quote(&root.to_string_lossy())),
-        quote(&root.to_string_lossy()),
-    );
-    let groups = if harness == "claude" {
-        match document.get_mut("hooks") {
-            Some(Value::Object(groups)) => groups,
-            _ => return Err("hooks must be a JSON object".into()),
-        }
-    } else {
-        &mut document
-    };
+    let command = shell_guard_command(root, harness);
+    let groups = shell_guard_groups(&mut document, harness)?;
     let Value::Array(entries) = groups.entry("PreToolUse").or_insert_with(|| json!([])) else {
         return Err("PreToolUse must be a JSON array".into());
     };
     entries.retain(|entry| !is_shell_guard_entry(entry));
+    let matcher = match harness {
+        "factory" => "Execute",
+        "agy" => "run_command",
+        _ => "Bash",
+    };
     entries.push(json!({
-        "matcher": if harness == "factory" { "Execute" } else { "Bash" },
+        "matcher": matcher,
         "hooks": [{"type": "command", "command": command, "timeout": 30}],
     }));
     write_json(&path, document)
@@ -535,10 +573,15 @@ fn install_shim_shell_guard(root: &Path, relative: &str) -> Result<(), InitError
     write(&path, updated.as_bytes())
 }
 
-/// `install_shell_guard`: a `shell` pre-tool hook for Claude Code (Bash) and Factory (Execute), replacing an earlier
-/// one, and the shell registration in the Pi/OMP shims.
+/// `install_shell_guard`: a `shell` pre-tool hook for Antigravity, Claude Code, Codex and Factory, replacing an
+/// earlier one, and the shell registration in the Pi/OMP shims.
 pub fn install_shell_guard(root: &Path) -> Result<(), InitError> {
-    for (relative, harness) in [(".claude/settings.json", "claude"), (".factory/hooks.json", "factory")] {
+    for (relative, harness) in [
+        (".agents/hooks.json", "agy"),
+        (".claude/settings.json", "claude"),
+        (".codex/hooks.json", "codex"),
+        (".factory/hooks.json", "factory"),
+    ] {
         install_harness_shell_guard(root, relative, harness)?;
     }
     for relative in [".pi/extensions/loki.ts", ".loki/loki-shim.ts"] {
@@ -566,6 +609,17 @@ fn write_managed_release(destination: &Path) -> Result<PathBuf, InitError> {
     Ok(engine)
 }
 
+fn managed_fallback(operation: &str, harness: &str) -> &'static str {
+    if harness != "agy" {
+        return "{ printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }";
+    }
+    match operation {
+        "protect" | "shell" => "{ printf '%s\\n' '{\"decision\":\"deny\",\"reason\":\"loki: hook command failed\"}'; exit 0; }",
+        "hook" => "{ printf '%s\\n' 'loki: hook command failed' >&2; printf '{}\\n'; exit 0; }",
+        _ => "{ printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
+    }
+}
+
 fn rewrite_hook_handler(
     handler: &mut Value,
     event: &str,
@@ -585,16 +639,38 @@ fn rewrite_hook_handler(
     let [operation] = operations[..] else {
         return Err("unrecognized owned hook command".into());
     };
-    let arguments = if operation == "context" {
+    let arguments = if operation == "context" && harness == "agy" {
+        format!("--event {} --host agy", quote(event))
+    } else if operation == "context" {
         format!("--event {}", quote(event))
     } else {
         format!("--harness {harness}")
     };
+    let fallback = managed_fallback(operation, harness);
     handler["command"] = json!(format!(
-        "{} --root {} {operation} {arguments} || {{ printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }} # .loki/loki.json managed engine",
+        "{} --root {} {operation} {arguments} || {fallback} # .loki/loki.json managed engine",
         quote(engine_text),
         quote(root_text),
     ));
+    Ok(())
+}
+
+fn rewrite_event_entries(
+    entries: &mut [Value],
+    event: &str,
+    harness: &str,
+    engine_text: &str,
+    root_text: &str,
+) -> Result<(), InitError> {
+    for entry in entries.iter_mut() {
+        if let Some(Value::Array(handlers)) = entry.get_mut("hooks") {
+            for handler in handlers.iter_mut() {
+                rewrite_hook_handler(handler, event, harness, engine_text, root_text)?;
+            }
+        } else if entry.get("command").is_some() {
+            rewrite_hook_handler(entry, event, harness, engine_text, root_text)?;
+        }
+    }
     Ok(())
 }
 
@@ -607,7 +683,9 @@ fn rewrite_harness_hooks(
 ) -> Result<(), InitError> {
     let path = root.join(relative);
     let mut document = read_json_object(&path)?;
-    let groups = if matches!(document.get("hooks"), Some(Value::Object(_))) {
+    let groups = if harness == "agy" {
+        document.get_mut("loki").and_then(Value::as_object_mut)
+    } else if matches!(document.get("hooks"), Some(Value::Object(_))) {
         document.get_mut("hooks").and_then(Value::as_object_mut)
     } else if document.contains_key("hooks") {
         None
@@ -616,14 +694,7 @@ fn rewrite_harness_hooks(
     };
     for (event, entries) in groups.into_iter().flatten() {
         let Value::Array(entries) = entries else { continue };
-        for entry in entries.iter_mut() {
-            let Some(Value::Array(handlers)) = entry.get_mut("hooks") else {
-                continue;
-            };
-            for handler in handlers.iter_mut() {
-                rewrite_hook_handler(handler, event, harness, engine_text, root_text)?;
-            }
-        }
+        rewrite_event_entries(entries, event, harness, engine_text, root_text)?;
     }
     write_json(&path, document)
 }
@@ -651,6 +722,7 @@ pub fn install_managed(root: &Path, destination: &Path) -> Result<(), InitError>
     let engine_text = engine.to_string_lossy().into_owned();
     let root_text = root.to_string_lossy().into_owned();
     for (relative, harness) in [
+        (".agents/hooks.json", "agy"),
         (".claude/settings.json", "claude"),
         (".codex/hooks.json", "codex"),
         (".factory/hooks.json", "factory"),

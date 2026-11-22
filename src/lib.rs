@@ -297,18 +297,36 @@ pub fn finding_key(root: &Path, finding: &str) -> (String, String) {
 fn is_known_preview_tool(harness: &str, name: &str) -> bool {
     matches!(
         (harness, name),
-        ("claude", "Write" | "Edit" | "MultiEdit")
+        ("claude" | "codex", "Write" | "Edit")
+            | ("claude", "MultiEdit")
             | ("factory", "Create" | "Edit")
+            | ("agy", "write_file" | "edit_file")
             | ("pi", "write" | "edit")
             | ("omp" | "ultron", "write")
     )
 }
 
-fn extract_write_content(data: &Map<String, Value>) -> Result<Option<String>, CheckError> {
-    match data.get("content") {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::String(s)) => Ok(Some(s.clone())),
-        Some(_) => Err(CheckError::Value("preview content must be text".into())),
+fn extract_write_content(old: &str, data: &Map<String, Value>, harness: &str) -> Result<Option<String>, CheckError> {
+    let key = if harness == "agy" { "Content" } else { "content" };
+    let text = match data.get(key) {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::String(s)) => s.clone(),
+        Some(_) => return Err(CheckError::Value("preview content must be text".into())),
+    };
+    if harness == "agy" && data.get("Append") == Some(&Value::Bool(true)) {
+        return Ok(Some(format!("{old}{text}")));
+    }
+    Ok(Some(text))
+}
+
+fn resolve_replace_all(edit: &Map<String, Value>, field: &str) -> Result<bool, CheckError> {
+    if field == "*" {
+        return Ok(true);
+    }
+    match edit.get(field) {
+        None => Ok(false),
+        Some(Value::Bool(b)) => Ok(*b),
+        Some(_) => Err(CheckError::Value("replacement mode must be boolean".into())),
     }
 }
 
@@ -327,11 +345,7 @@ fn apply_preview_edit(
     if source.is_empty() {
         return Ok(None);
     }
-    let replace_all = match edit.get(fields.2) {
-        None => false,
-        Some(Value::Bool(b)) => *b,
-        Some(_) => return Err(CheckError::Value("replacement mode must be boolean".into())),
-    };
+    let replace_all = resolve_replace_all(edit, fields.2)?;
     let matches = content.matches(source.as_str()).count();
     if matches == 0 || (matches != 1 && !replace_all) {
         return Ok(None);
@@ -366,6 +380,7 @@ fn apply_preview_edits(
     let fields = match harness {
         "pi" => ("oldText", "newText", "replace_all"),
         "factory" => ("old_str", "new_str", "change_all"),
+        "agy" => ("Target", "Replacement", "*"),
         _ => ("old_string", "new_string", "replace_all"),
     };
     let mut content = old.to_string();
@@ -410,13 +425,50 @@ fn compute_preview_content(
     harness: &str,
     deadline: proc::Deadline,
 ) -> Result<Option<String>, CheckError> {
-    if matches!(name, "Write" | "Create" | "write") {
-        return extract_write_content(data);
+    if matches!(name, "Write" | "Create" | "write" | "write_file") {
+        return extract_write_content(old, data, harness);
     }
     if before.is_none() {
         return Err(CheckError::Value("edit preview requires an existing file".into()));
     }
     apply_preview_edits(old, data, name, harness, deadline)
+}
+
+type ToolCall<'a> = (&'a str, &'a Map<String, Value>);
+
+fn extract_agy_tool_call(object: &Map<String, Value>) -> Option<ToolCall<'_>> {
+    let call = object.get("toolCall")?.as_object()?;
+    let name = call.get("name")?.as_str().filter(|n| !n.is_empty())?;
+    let args = call.get("args")?.as_object()?;
+    Some((name, args))
+}
+
+fn extract_tool_call<'a>(payload: &'a Value, harness: &str) -> Option<ToolCall<'a>> {
+    let object = payload.as_object()?;
+    if harness == "agy" {
+        return extract_agy_tool_call(object);
+    }
+    let name = object.get("tool_name")?.as_str().filter(|n| !n.is_empty())?;
+    let input = object.get("tool_input")?.as_object()?;
+    Some((name, input))
+}
+
+fn extract_preview_call<'a>(payload: &'a Value, harness: &str) -> Result<Option<ToolCall<'a>>, CheckError> {
+    if harness == "agy" {
+        return extract_tool_call(payload, harness)
+            .map(Some)
+            .ok_or_else(|| CheckError::Value("invalid preview envelope".into()));
+    }
+    let data = payload
+        .as_object()
+        .and_then(|p| p.get("tool_input"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| CheckError::Value("invalid preview envelope".into()))?;
+    let name = payload.get("tool_name").and_then(Value::as_str).unwrap_or("");
+    if payload.get("tool_name").is_some_and(|n| !n.is_string()) {
+        return Ok(None);
+    }
+    Ok(Some((name, data)))
 }
 
 /// `preview_changes`: the exact post-write content of a host write or edit.
@@ -427,13 +479,10 @@ fn preview_changes(
     harness: &str,
     deadline: proc::Deadline,
 ) -> Result<Option<Vec<rules::Change>>, CheckError> {
-    let data = payload
-        .as_object()
-        .and_then(|p| p.get("tool_input"))
-        .and_then(Value::as_object)
-        .ok_or_else(|| CheckError::Value("invalid preview envelope".into()))?;
-    let name = payload.get("tool_name").and_then(Value::as_str).unwrap_or("");
-    if !is_known_preview_tool(harness, name) || payload.get("tool_name").is_some_and(|n| !n.is_string()) {
+    let Some((name, data)) = extract_preview_call(payload, harness)? else {
+        return Ok(None);
+    };
+    if !is_known_preview_tool(harness, name) {
         return Ok(None);
     }
     let (relative, before, old) = load_preview_base(root, paths)?;
@@ -815,41 +864,77 @@ pub fn patch_paths(patch: &Value) -> Result<Vec<String>, CheckError> {
 
 fn supported_harness_tools(harness: &str) -> &'static [&'static str] {
     match harness {
-        "claude" => &["Write", "Edit", "MultiEdit"],
-        "codex" => &["apply_patch"],
+        "claude" => &["Write", "Edit", "MultiEdit", "NotebookEdit"],
+        "codex" => &["apply_patch", "Write", "Edit"],
         "factory" => &["Create", "Edit", "ApplyPatch"],
+        "agy" => &["write_file", "edit_file"],
         _ => &[],
     }
 }
 
-fn extract_harness_target_paths(harness: &str, input: &Map<String, Value>) -> Result<Vec<String>, CheckError> {
-    if harness == "codex" {
-        return patch_paths(input.get("command").unwrap_or(&Value::Null));
+fn raw_target_path<'a>(harness: &str, tool_name: &str, input: &'a Map<String, Value>) -> Option<&'a Value> {
+    match (harness, tool_name) {
+        ("agy", _) => input.get("Path").or_else(|| input.get("path")),
+        (_, "NotebookEdit") => input.get("notebook_path").or_else(|| input.get("file_path")),
+        _ => input.get("file_path"),
     }
-    match input.get("file_path") {
+}
+
+fn extract_harness_target_paths(
+    harness: &str,
+    tool_name: &str,
+    input: &Map<String, Value>,
+) -> Result<Vec<String>, CheckError> {
+    if harness == "codex" && tool_name == "apply_patch" {
+        let patch = input
+            .get("command")
+            .or_else(|| input.get("input"))
+            .or_else(|| input.get("patch"))
+            .unwrap_or(&Value::Null);
+        return patch_paths(patch);
+    }
+    match raw_target_path(harness, tool_name, input) {
         Some(Value::String(p)) if !p.is_empty() && !p.contains('\0') => Ok(vec![p.clone()]),
         _ => Err(invalid("path must be a nonempty string without NUL")),
     }
 }
 
-fn validate_harness_envelope<'a>(
-    payload: &'a Value,
-    harness: &str,
-) -> Result<(String, &'a Map<String, Value>), CheckError> {
-    let Some(object) = payload.as_object() else {
-        return Err(invalid("hook envelope must be an object"));
-    };
-    let cwd = match object.get("cwd") {
+fn extract_harness_cwd(object: &Map<String, Value>, harness: &str) -> Result<String, CheckError> {
+    let raw = object.get("cwd").or_else(|| {
+        (harness == "agy")
+            .then(|| {
+                object
+                    .get("workspacePaths")
+                    .and_then(Value::as_array)
+                    .and_then(|a| a.first())
+            })
+            .flatten()
+    });
+    let cwd = match raw {
         Some(Value::String(cwd)) if !cwd.is_empty() && !cwd.contains('\0') => cwd.clone(),
         _ => return Err(invalid("path must be a nonempty string without NUL")),
     };
     if !cwd.starts_with('/') {
         return Err(invalid("cwd must be absolute"));
     }
-    let name = object.get("tool_name").and_then(Value::as_str).filter(|n| !n.is_empty());
-    let input = object.get("tool_input").and_then(Value::as_object);
-    let (Some(name), Some(input)) = (name, input) else {
-        return Err(invalid("tool_name and object tool_input are required"));
+    Ok(cwd)
+}
+
+fn validate_harness_envelope<'a>(
+    payload: &'a Value,
+    harness: &str,
+) -> Result<(String, &'a str, &'a Map<String, Value>), CheckError> {
+    let Some(object) = payload.as_object() else {
+        return Err(invalid("hook envelope must be an object"));
+    };
+    let cwd = extract_harness_cwd(object, harness)?;
+    let Some((name, input)) = extract_tool_call(payload, harness) else {
+        let msg = if harness == "agy" {
+            "toolCall.name and object toolCall.args are required"
+        } else {
+            "tool_name and object tool_input are required"
+        };
+        return Err(invalid(msg));
     };
     if !supported_harness_tools(harness).contains(&name) {
         return Err(invalid(format!("loki: unsupported {harness} tool: {name}")));
@@ -857,13 +942,13 @@ fn validate_harness_envelope<'a>(
     if harness == "factory" && name == "ApplyPatch" {
         return Err(invalid("loki: unsupported factory ApplyPatch payload"));
     }
-    Ok((cwd, input))
+    Ok((cwd, name, input))
 }
 
-/// `harness_paths`: absolute targets of a Claude, Codex or Factory hook envelope.
+/// `harness_paths`: absolute targets of a Claude, Codex, Factory or Antigravity hook envelope.
 pub fn harness_paths(payload: &Value, harness: &str) -> Result<Vec<String>, CheckError> {
-    let (cwd, input) = validate_harness_envelope(payload, harness)?;
-    let paths = extract_harness_target_paths(harness, input)?;
+    let (cwd, tool_name, input) = validate_harness_envelope(payload, harness)?;
+    let paths = extract_harness_target_paths(harness, tool_name, input)?;
     let mut unique = Vec::new();
     for path in paths {
         let absolute = abspath(Path::new(&cwd), &path).to_string_lossy().into_owned();

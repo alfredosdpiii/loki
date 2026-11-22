@@ -43,6 +43,263 @@ fn init_installs_policy_hooks_and_vendored_plugins() {
     assert!(root.join(".loki/vendor/codehygiene/__init__.py").is_file());
     assert!(root.join(".oxlintrc.json").is_file());
     assert!(root.join(".claude/settings.json").is_file());
+    assert!(root.join(".codex/hooks.json").is_file());
+    assert!(root.join(".agents/hooks.json").is_file());
+
+    // Preserve user hooks in .agents/hooks.json and avoid duplicating hooks on re-init.
+    let mut agy: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join(".agents/hooks.json")).unwrap()).unwrap();
+    agy["custom"] = serde_json::json!({"SessionStart": [{"type": "command", "command": "echo hi"}]});
+    std::fs::write(root.join(".agents/hooks.json"), serde_json::to_string_pretty(&agy).unwrap()).unwrap();
+
+    let rerun = Command::new(loki_bin())
+        .args(["init", "--dir", root.to_str().unwrap(), "--shell-guard"])
+        .output()
+        .expect("loki init rerun");
+    assert!(rerun.status.success(), "stderr: {}", String::from_utf8_lossy(&rerun.stderr));
+
+    let claude: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join(".claude/settings.json")).unwrap()).unwrap();
+    assert_eq!(claude["hooks"]["PostToolUse"].as_array().unwrap().len(), 1);
+    assert_eq!(claude["hooks"]["PreToolUse"].as_array().unwrap().len(), 2);
+
+    let codex: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join(".codex/hooks.json")).unwrap()).unwrap();
+    assert_eq!(codex["hooks"]["PostToolUse"].as_array().unwrap().len(), 1);
+    assert_eq!(codex["hooks"]["PreToolUse"].as_array().unwrap().len(), 2);
+
+    let agy_after: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join(".agents/hooks.json")).unwrap()).unwrap();
+    assert!(agy_after.get("custom").is_some(), "custom agy hook must be preserved");
+    assert_eq!(agy_after["loki"]["PreToolUse"].as_array().unwrap().len(), 2);
+}
+
+fn run_with_stdin(args: &[&str], payload: &serde_json::Value) -> std::process::Output {
+    use std::io::Write;
+    let mut child = Command::new(loki_bin())
+        .args(args)
+        .env("LOKI_DAEMON", "0")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(payload.to_string().as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
+}
+
+#[test]
+fn agy_hooks_context_protect_hook_and_shell() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    std::fs::write(root.join("app.ts"), "export const token = \"safe\";\n").unwrap();
+    let init = Command::new(loki_bin())
+        .args(["init", "--minimal", "--dir", root.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "init"]);
+
+    let root_s = root.to_str().unwrap();
+
+    // SessionStart context
+    let ctx = Command::new(loki_bin())
+        .args(["context", "--root", root_s, "--event", "SessionStart", "--host", "agy"])
+        .output()
+        .unwrap();
+    assert!(ctx.status.success(), "stderr: {}", String::from_utf8_lossy(&ctx.stderr));
+    let ctx_json: serde_json::Value = serde_json::from_slice(&ctx.stdout).unwrap();
+    let msg = ctx_json["injectSteps"][0]["systemMessage"]["systemMessage"]
+        .as_str()
+        .unwrap();
+    assert!(msg.contains("LOKI POLICY GUIDANCE"), "got: {msg}");
+
+    // PreToolUse write_file secret -> exit 0 + decision deny
+    let deny_out = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "write_file",
+                "args": {
+                    "Path": root.join("config.ts"),
+                    "Content": "export const k = \"sk_live_51Hq8TzK2m9XbV4dLpQ7rW3nY6cF0aJ\";\n"
+                }
+            }
+        }),
+    );
+    assert!(deny_out.status.success());
+    let deny_json: serde_json::Value = serde_json::from_slice(&deny_out.stdout).unwrap();
+    assert_eq!(deny_json["decision"], "deny");
+    assert!(deny_json["reason"].as_str().unwrap().contains("loki/secret"));
+
+    // PreToolUse edit_file secret -> exit 0 + decision deny
+    let edit_deny = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "agy"],
+        &serde_json::json!({
+            "workspacePaths": [root],
+            "toolCall": {
+                "name": "edit_file",
+                "args": {
+                    "Path": root.join("app.ts"),
+                    "Target": "\"safe\"",
+                    "Replacement": "\"sk_live_51Hq8TzK2m9XbV4dLpQ7rW3nY6cF0aJ\""
+                }
+            }
+        }),
+    );
+    assert!(edit_deny.status.success());
+    let edit_json: serde_json::Value = serde_json::from_slice(&edit_deny.stdout).unwrap();
+    assert_eq!(edit_json["decision"], "deny");
+
+    // PreToolUse protected .agents/hooks.json -> decision deny
+    let prot_deny = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "write_file",
+                "args": {
+                    "Path": root.join(".agents/hooks.json"),
+                    "Content": "{}\n"
+                }
+            }
+        }),
+    );
+    assert!(prot_deny.status.success());
+    let prot_json: serde_json::Value = serde_json::from_slice(&prot_deny.stdout).unwrap();
+    assert_eq!(prot_json["decision"], "deny");
+    assert!(prot_json["reason"].as_str().unwrap().contains("protected file"));
+
+    // PreToolUse clean write_file -> exit 0 + decision allow
+    let allow_out = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "write_file",
+                "args": {
+                    "Path": root.join("clean.py"),
+                    "Content": "def ok() -> int:\n    return 1\n"
+                }
+            }
+        }),
+    );
+    assert!(allow_out.status.success());
+    let allow_json: serde_json::Value = serde_json::from_slice(&allow_out.stdout).unwrap();
+    assert_eq!(allow_json["decision"], "allow");
+
+    // PostToolUse -> exit 0 + {}
+    let post_out = run_with_stdin(
+        &["--root", root_s, "hook", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "write_file",
+                "args": { "Path": root.join("app.ts") }
+            }
+        }),
+    );
+    assert!(post_out.status.success());
+    let post_json: serde_json::Value = serde_json::from_slice(&post_out.stdout).unwrap();
+    assert_eq!(post_json, serde_json::json!({}));
+
+    // Shell guard: git status allow, git reset --hard deny
+    let sh_allow = run_with_stdin(
+        &["--root", root_s, "shell", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "run_command",
+                "args": { "CommandLine": "git status" }
+            }
+        }),
+    );
+    assert!(sh_allow.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&sh_allow.stdout).unwrap()["decision"],
+        "allow"
+    );
+
+    let sh_deny = run_with_stdin(
+        &["--root", root_s, "shell", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "run_command",
+                "args": { "CommandLine": "git reset --hard" }
+            }
+        }),
+    );
+    assert!(sh_deny.status.success());
+    let sh_deny_json: serde_json::Value = serde_json::from_slice(&sh_deny.stdout).unwrap();
+    assert_eq!(sh_deny_json["decision"], "deny");
+    assert!(sh_deny_json["reason"].as_str().unwrap().contains("destructive Git"));
+}
+
+#[test]
+fn codex_and_claude_updated_hook_payloads() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    let init = Command::new(loki_bin())
+        .args(["init", "--minimal", "--dir", root.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "init"]);
+
+    let root_s = root.to_str().unwrap();
+
+    let codex_write = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "codex"],
+        &serde_json::json!({
+            "cwd": root,
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": "config.ts",
+                "content": "export const k = \"sk_live_51Hq8TzK2m9XbV4dLpQ7rW3nY6cF0aJ\";\n"
+            }
+        }),
+    );
+    assert_eq!(codex_write.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&codex_write.stderr).contains("loki/secret"));
+
+    // Codex apply_patch using "input" key targeting protected file
+    let codex_patch = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "codex"],
+        &serde_json::json!({
+            "cwd": root,
+            "tool_name": "apply_patch",
+            "tool_input": {
+                "input": "*** Begin Patch\n*** Update File: .codex/hooks.json\n@@\n-a\n+b\n*** End Patch\n"
+            }
+        }),
+    );
+    assert_eq!(codex_patch.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&codex_patch.stderr).contains("protected file"));
+
+    // Claude NotebookEdit targeting protected path
+    let claude_nb = run_with_stdin(
+        &["--root", root_s, "protect", "--harness", "claude"],
+        &serde_json::json!({
+            "cwd": root,
+            "tool_name": "NotebookEdit",
+            "tool_input": {
+                "notebook_path": ".claude/settings.json"
+            }
+        }),
+    );
+    assert_eq!(claude_nb.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&claude_nb.stderr).contains("protected file"));
 }
 
 #[test]

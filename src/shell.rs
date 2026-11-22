@@ -562,16 +562,37 @@ fn reviewed_shell_violation(command: &str, root: &Path, cwd: &Path) -> Result<Op
     verify_grant_inputs(root, &base, &paths)
 }
 
+fn extract_shell_call<'a>(payload: &'a Value, harness: &str) -> Result<(&'a str, &'a serde_json::Map<String, Value>), CheckError> {
+    if harness == "agy" {
+        let call = payload["toolCall"]
+            .as_object()
+            .ok_or_else(|| invalid("invalid shell envelope"))?;
+        let name = call.get("name").and_then(Value::as_str).unwrap_or("");
+        let args = call
+            .get("args")
+            .and_then(Value::as_object)
+            .ok_or_else(|| invalid("invalid shell envelope"))?;
+        return Ok((name, args));
+    }
+    let name = payload["tool_name"].as_str().unwrap_or("");
+    let input = payload["tool_input"]
+        .as_object()
+        .ok_or_else(|| invalid("invalid shell envelope"))?;
+    Ok((name, input))
+}
+
 fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckError> {
     let names: &[&str] = match harness {
-        "claude" => &["Bash"],
+        "agy" => &["run_command"],
+        "claude" | "codex" => &["Bash"],
         "factory" => &["Execute"],
         _ => &["bash", "Bash"],
     };
-    if !payload["tool_name"].as_str().is_some_and(|n| names.contains(&n)) {
+    let (name, input) = extract_shell_call(payload, harness)?;
+    if !names.contains(&name) {
         return Err(invalid("unexpected shell tool name"));
     }
-    const FIELDS: [&str; 8] = [
+    const FIELDS: [&str; 13] = [
         "command",
         "description",
         "timeout",
@@ -580,22 +601,39 @@ fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckEr
         "riskLevel",
         "riskLevelReason",
         "fireAndForget",
+        "CommandLine",
+        "WaitMsBeforeAsync",
+        "IsDaemon",
+        "BypassSandbox",
+        "toolSummary",
     ];
-    let input = payload["tool_input"]
-        .as_object()
-        .ok_or_else(|| invalid("invalid shell envelope"))?;
     if input.keys().any(|k| !FIELDS.contains(&k.as_str())) {
         return Err(invalid("unsupported shell input fields"));
     }
     Ok(())
 }
 
+/// Extract the command JSON value from a shell hook envelope.
+pub fn shell_command<'a>(payload: &'a Value, harness: &str) -> Result<&'a Value, CheckError> {
+    let (_, input) = extract_shell_call(payload, harness)?;
+    let key = if harness == "agy" { "CommandLine" } else { "command" };
+    Ok(input.get(key).unwrap_or(&Value::Null))
+}
+
+fn raw_shell_cwd<'a>(payload: &'a Value, harness: &str) -> Option<&'a str> {
+    let raw = payload.get("cwd").or_else(|| {
+        (harness == "agy")
+            .then(|| payload.get("workspacePaths").and_then(Value::as_array).and_then(|a| a.first()))
+            .flatten()
+    });
+    raw.and_then(Value::as_str).filter(|d| !d.is_empty() && !d.contains('\0'))
+}
+
 /// `shell_cwd`: the hook's working directory, which must be a real directory inside the root.
 pub fn shell_cwd(payload: &Value, harness: &str, root: &Path) -> Result<PathBuf, CheckError> {
     validate_shell_envelope(payload, harness)?;
-    let directory = match payload.get("cwd").and_then(Value::as_str) {
-        Some(d) if !d.is_empty() && !d.contains('\0') => d,
-        _ => return Err(invalid("shell cwd must be an absolute directory")),
+    let Some(directory) = raw_shell_cwd(payload, harness) else {
+        return Err(invalid("shell cwd must be an absolute directory"));
     };
     // pathlib equality ignores `.` components and trailing slashes, not `..`.
     let cwd: PathBuf = Path::new(directory).components().collect();

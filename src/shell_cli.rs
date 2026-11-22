@@ -11,7 +11,7 @@ const COMMANDS: [&str; 3] = ["shell", "shell-writes", "explain"];
 
 fn usage(command: &str) -> &'static str {
     match command {
-        "shell" => "usage: loki shell [-h] --harness {claude,factory,omp,pi} [--record]",
+        "shell" => "usage: loki shell [-h] --harness {agy,claude,codex,factory,omp,pi} [--record]",
         "shell-writes" => "usage: loki shell-writes [-h] [--harness {ultron}]",
         _ => "usage: loki explain [-h] [--limit LIMIT]",
     }
@@ -81,7 +81,7 @@ fn parse_option(
     limit: &mut i64,
 ) -> Result<(), ExitCode> {
     let choices: &[&str] = if command == "shell" {
-        &["claude", "factory", "omp", "pi"]
+        &["agy", "claude", "codex", "factory", "omp", "pi"]
     } else {
         &["ultron"]
     };
@@ -147,17 +147,31 @@ fn run_explain(limit: i64) -> ExitCode {
     }
 }
 
+fn report_agy_shell(result: Result<Option<String>, CheckError>) -> ExitCode {
+    let (status, stderr) = shell::shell_report(result);
+    if status == 0 {
+        println!("{}", py::dumps(&serde_json::json!({"decision": "allow"})));
+    } else {
+        let reason = stderr.trim_end_matches('\n');
+        println!("{}", py::dumps(&serde_json::json!({"decision": "deny", "reason": reason})));
+        eprint!("{stderr}");
+    }
+    ExitCode::SUCCESS
+}
+
 fn run_shell(root: &Path, command: &str, harness: Option<String>) -> ExitCode {
     let Some(harness) = harness else {
         return arg_error(command, "the following arguments are required: --harness");
     };
-    report(read_payload().and_then(|payload| {
-        if !payload["tool_input"].is_object() {
-            return Err(CheckError::Value("invalid shell envelope".into()));
-        }
+    let result = read_payload().and_then(|payload| {
         let cwd = shell::shell_cwd(&payload, &harness, root)?;
-        shell::shell_violation(&payload["tool_input"]["command"], root, &cwd)
-    }))
+        let cmd = shell::shell_command(&payload, &harness)?;
+        shell::shell_violation(cmd, root, &cwd)
+    });
+    if harness == "agy" {
+        return report_agy_shell(result);
+    }
+    report(result)
 }
 
 /// Handles `shell`, `shell-writes` and `explain`; `None` for every other command.

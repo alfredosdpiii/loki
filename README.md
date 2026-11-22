@@ -10,7 +10,7 @@ to fix, and does all of this without calling a model.
 
 ![Rust](https://img.shields.io/badge/rust-2024%20edition-dea584?logo=rust&logoColor=white)
 ![Single binary](https://img.shields.io/badge/install-single%20binary-2ea44f)
-![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Factory%20%C2%B7%20Pi%20%C2%B7%20OMP-8a63d2)
+![Agents](https://img.shields.io/badge/agents-Antigravity%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Factory%20%C2%B7%20Pi%20%C2%B7%20OMP-8a63d2)
 ![Languages](https://img.shields.io/badge/languages-Python%20%C2%B7%20TS%2FJS%20%C2%B7%20Go%20%C2%B7%20Rust%20%C2%B7%20Elixir-e36209)
 
 <img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/demo.gif" alt="Loki blocking an XSS write, a leaked API key and a cross-file type error, then allowing the fix and flagging a complexity hotspot" width="820">
@@ -89,7 +89,7 @@ loki init --dir .
 
 This adds your policy and vendored plugins in `.loki/` (`loki.json`,
 `oxlint/anti-slop`, `oxlint/landmines`, `vendor/codehygiene`), hooks for every
-supported agent (`.claude/`, `.codex/`, `.factory/`, `.pi/`, `.omp/`), starter
+supported agent (`.agents/`, `.claude/`, `.codex/`, `.factory/`, `.pi/`, `.omp/`), starter
 Ruff, Oxlint and golangci-lint configuration, and a `.github/workflows/loki.yml`
 CI check. Existing configuration files are left alone.
 
@@ -97,14 +97,14 @@ CI check. Existing configuration files are left alone.
 
 - For JavaScript or TypeScript, install Oxlint with the command `init` prints,
   e.g. `npm i -D oxlint @oxlint/plugins`.
-- Claude Code and OMP pick the hooks up automatically. In Codex, run `/hooks` and
+- Antigravity (`agy`), Claude Code and OMP pick the hooks up automatically. In Codex, run `/hooks` and
   approve them; Pi asks you to trust the project.
 - **Commit the new files yourself.** Loki reads its policy from the committed
   version, never the working tree, so an agent can't loosen the rules mid-session.
   Until you commit, `scan` reports the setup as changes awaiting review.
 
 ```bash
-git add .loki .claude .codex .factory .pi .omp .ruff.toml .oxlintrc.json \
+git add .loki .agents/hooks.json .claude .codex .factory .pi .omp .ruff.toml .oxlintrc.json \
   .golangci.yml .github/workflows/loki.yml
 git commit -m "Add Loki guardrails"
 ```
@@ -299,6 +299,7 @@ an agent can't loosen it mid-session:
 
 | Agent | Integration |
 | --- | --- |
+| Antigravity (`agy`) | `.agents/hooks.json` hooks |
 | Claude Code | `.claude/settings.json` hooks |
 | Codex | `.codex/hooks.json` hooks |
 | Factory Droid | `.factory/hooks.json` hooks |
