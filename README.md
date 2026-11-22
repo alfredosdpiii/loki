@@ -73,11 +73,11 @@ by an agent that could not see either product. Read the
 Loki is a standalone Rust CLI binary with templates, shims, and vendored plugins
 compiled in.
 
-**1. Build and install the binary** (once per machine):
+**1. Install the binary** (once per machine):
 
 ```bash
-cargo install --path .
-# or: cargo build --release && install -m 755 target/release/loki ~/.local/bin/loki
+cargo install loki-guardrails
+# or from a checkout: cargo install --path .
 ```
 
 **2. Set up a repository:**
@@ -139,7 +139,7 @@ Strict mode fails when an analyzer is missing instead of skipping it.
 **Upgrading:**
 
 ```bash
-git pull && cargo install --path . --force
+cargo install loki-guardrails --force
 loki init --dir . --force          # updates vendored plugins and hooks in .loki/; review and commit
 ```
 

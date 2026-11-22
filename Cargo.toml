@@ -1,11 +1,24 @@
 [package]
-name = "loki"
+name = "loki-guardrails"
 version = "0.2.0"
 edition = "2024"
 description = "Deterministic guardrails for AI coding agents: standalone Rust CLI"
 license = "MIT"
 repository = "https://github.com/alfredosdpiii/loki"
+documentation = "https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md"
 readme = "README.md"
+keywords = ["ai-agents", "guardrails", "hooks", "linter", "static-analysis"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+  "Cargo.toml",
+  "LICENSE",
+  "README.md",
+  "src/**",
+  "tests/**",
+  "templates/**",
+  "shim/**",
+  "vendor/**",
+]
 
 [lib]
 name = "loki"
