@@ -14,13 +14,19 @@ pub type Finding = (&'static str, String, usize);
 
 const SECRET_PATTERNS: [(&str, &str); 8] = [
     ("AWS access key", r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
-    ("GitHub token", r"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_\w{60,})"),
+    (
+        "GitHub token",
+        r"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_\w{60,})",
+    ),
     ("private key", r"-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----"),
     ("Slack token", r"\bxox[abposr]-[A-Za-z0-9-]{20,}"),
     ("Stripe live key", r"\b(?:sk|rk)_live_[A-Za-z0-9]{20,}"),
     ("npm token", r"\bnpm_[A-Za-z0-9]{36}\b"),
     ("Google API key", r"\bAIza[0-9A-Za-z_-]{35}\b"),
-    ("model provider API key", r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{40,}"),
+    (
+        "model provider API key",
+        r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{40,}",
+    ),
 ];
 
 fn re(pattern: &str) -> Regex {
@@ -34,7 +40,8 @@ static SECRET_RE: LazyLock<Regex> = LazyLock::new(|| {
         .collect::<Vec<_>>()
         .join("|"))
 });
-static PLACEHOLDER_RE: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)example|placeholder|dummy|fake|redacted|x{6}"));
+static PLACEHOLDER_RE: LazyLock<Regex> =
+    LazyLock::new(|| re(r"(?i)example|placeholder|dummy|fake|redacted|x{6}"));
 static WORKFLOW_PATH_RE: LazyLock<Regex> =
     LazyLock::new(|| re(r"(?:^|/)\.github/(?:workflows/[^/]+|actions/.+/action)\.ya?ml$"));
 static UNTRUSTED_CONTEXT_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -66,7 +73,9 @@ pub fn generic_rules(relative: &str, text: &Text) -> Vec<Finding> {
     for caps in SECRET_RE.captures_iter(&text.s) {
         let token = caps.get(0).expect("whole match");
         let value = token.as_str();
-        if PLACEHOLDER_RE.is_match(value) || (!value.contains("PRIVATE KEY") && entropy(value) < 3.0) {
+        if PLACEHOLDER_RE.is_match(value)
+            || (!value.contains("PRIVATE KEY") && entropy(value) < 3.0)
+        {
             continue;
         }
         let group = (1..=SECRET_PATTERNS.len())
@@ -139,16 +148,26 @@ pub fn language(relative: &str) -> Option<&'static str> {
 
 /// `Path(relative).suffix.lower()`, None when there is no suffix.
 pub fn suffix(relative: &str) -> Option<String> {
-    let name = relative.trim_end_matches('/').rsplit('/').next().unwrap_or(relative);
+    let name = relative
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(relative);
     match name.rfind('.') {
-        Some(i) if i > 0 && i + 1 < name.len() && !name.ends_with('.') => Some(name[i..].to_lowercase()),
+        Some(i) if i > 0 && i + 1 < name.len() && !name.ends_with('.') => {
+            Some(name[i..].to_lowercase())
+        }
         _ => None,
     }
 }
 
 /// `content_rule_findings`: generic rules plus the file's language pack, or
 /// with `fallback` only the parser-free JavaScript rules.
-pub fn content_rule_findings(relative: &str, text: &Text, fallback: bool) -> Result<Vec<Finding>, CheckError> {
+pub fn content_rule_findings(
+    relative: &str,
+    text: &Text,
+    fallback: bool,
+) -> Result<Vec<Finding>, CheckError> {
     let language = language(relative);
     if fallback {
         return Ok(if language == Some("typescript") {
@@ -160,9 +179,9 @@ pub fn content_rule_findings(relative: &str, text: &Text, fallback: bool) -> Res
     let mut findings = generic_rules(relative, text);
     findings.extend(match language {
         Some("typescript") => crate::jsrules::javascript_rules(text),
-        Some("python") => crate::pyast::python_rules(text)?,
-        Some("elixir") => crate::langrules::elixir_rules(text),
-        Some("rust") => crate::langrules::rust_rules(text),
+        Some("python") => crate::pyast::python_rules_for(relative, text)?,
+        Some("elixir") => crate::langrules::elixir_rules_for(relative, text),
+        Some("rust") => crate::langrules::rust_rules_for(relative, text),
         Some("go") => crate::langrules::go_rules(text),
         _ => vec![],
     });
@@ -181,9 +200,9 @@ fn collect_side_findings(
     let mut found = Vec::new();
     for (rule, message, offset) in content_rule_findings(relative, &text, fallback)? {
         let number = text.newlines_before(offset) + 1;
-        let line = lines
-            .get(number - 1)
-            .ok_or_else(|| CheckError::Guard("IndexError".into(), "list index out of range".into()))?;
+        let line = lines.get(number - 1).ok_or_else(|| {
+            CheckError::Guard("IndexError".into(), "list index out of range".into())
+        })?;
         found.push(((rule, message, py::strip(line).to_string()), number));
     }
     Ok(found)

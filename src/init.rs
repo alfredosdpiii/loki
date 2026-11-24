@@ -47,14 +47,16 @@ const OWNED_TEMPLATES: [(&str, &str, &[u8]); 3] = [
 ];
 
 /// `vendor/anti-slop`, installed as `.loki/oxlint/anti-slop`.
-const ANTI_SLOP: [(&str, &[u8]); 20] = [
+const ANTI_SLOP: [(&str, &[u8]); 22] = [
     asset!("vendor/anti-slop/LICENSE"),
     asset!("vendor/anti-slop/index.ts"),
+    asset!("vendor/anti-slop/rules/no-array-filter-map.ts"),
     asset!("vendor/anti-slop/rules/no-chained-type-assertions.ts"),
     asset!("vendor/anti-slop/rules/no-conditional-empty-object-spread.ts"),
     asset!("vendor/anti-slop/rules/no-known-value-widening.ts"),
     asset!("vendor/anti-slop/rules/no-module-mocking.ts"),
     asset!("vendor/anti-slop/rules/no-object-parameters.ts"),
+    asset!("vendor/anti-slop/rules/no-reduce-accumulator-copy.ts"),
     asset!("vendor/anti-slop/rules/no-reflect-apply.ts"),
     asset!("vendor/anti-slop/rules/no-reflect-get.ts"),
     asset!("vendor/anti-slop/rules/no-runtime-typeof.ts"),
@@ -178,12 +180,17 @@ fn owned_handler(handler: &Value) -> bool {
     handler
         .get("command")
         .and_then(Value::as_str)
-        .is_some_and(|command| command.contains(".loki/loki.py") || command.contains(".loki/loki.json"))
+        .is_some_and(|command| {
+            command.contains(".loki/loki.py") || command.contains(".loki/loki.json")
+        })
 }
 
 /// `merge_factory_hooks`: per event, previous Loki handlers are dropped (an entry left without handlers goes) and
 /// the template's entries appended.
-pub fn merge_factory_hooks(existing: &mut Map<String, Value>, fragment: &Map<String, Value>) -> Result<(), InitError> {
+pub fn merge_factory_hooks(
+    existing: &mut Map<String, Value>,
+    fragment: &Map<String, Value>,
+) -> Result<(), InitError> {
     for (event, entries) in fragment {
         let current = existing.entry(event.clone()).or_insert_with(|| json!([]));
         let (Value::Array(current), Value::Array(entries)) = (current, entries) else {
@@ -193,7 +200,11 @@ pub fn merge_factory_hooks(existing: &mut Map<String, Value>, fragment: &Map<Str
         for entry in current.iter() {
             match entry.get("hooks") {
                 Some(Value::Array(handlers)) if entry.is_object() => {
-                    let kept: Vec<Value> = handlers.iter().filter(|h| !owned_handler(h)).cloned().collect();
+                    let kept: Vec<Value> = handlers
+                        .iter()
+                        .filter(|h| !owned_handler(h))
+                        .cloned()
+                        .collect();
                     if !kept.is_empty() {
                         let mut entry = entry.clone();
                         entry["hooks"] = Value::Array(kept);
@@ -250,7 +261,12 @@ fn copy_owned(bytes: &[u8], target: &Path, force: bool) -> Result<(), InitError>
 }
 
 /// `copy_owned` of a directory: replaced as a whole with `force`.
-fn copy_owned_tree(files: &[(&str, &[u8])], prefix: &str, target: &Path, force: bool) -> Result<(), InitError> {
+fn copy_owned_tree(
+    files: &[(&str, &[u8])],
+    prefix: &str,
+    target: &Path,
+    force: bool,
+) -> Result<(), InitError> {
     if target.exists() {
         if !force {
             return Ok(());
@@ -264,8 +280,9 @@ fn copy_owned_tree(files: &[(&str, &[u8])], prefix: &str, target: &Path, force: 
     Ok(())
 }
 
-static FEATURES_HEADER: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?m)^\s*\[features\][ \t]*(?:#[^\n]*)?(?:\n|$)").expect("static pattern"));
+static FEATURES_HEADER: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?m)^\s*\[features\][ \t]*(?:#[^\n]*)?(?:\n|$)").expect("static pattern")
+});
 
 /// `enable_codex_hooks`: `features.hooks = true` in `.codex/config.toml`, only where the edit keeps the existing
 /// layout and parses to exactly the intended document.
@@ -300,12 +317,20 @@ pub fn enable_codex_hooks(target: &Path) -> Result<(), InitError> {
     } else {
         FEATURES_HEADER
             .find_iter(&text)
-            .map(|found| format!("{}\nhooks = true\n{}", &text[..found.end()], &text[found.end()..]))
+            .map(|found| {
+                format!(
+                    "{}\nhooks = true\n{}",
+                    &text[..found.end()],
+                    &text[found.end()..]
+                )
+            })
             .collect()
     };
     let valid: Vec<&String> = candidates
         .iter()
-        .filter(|candidate| toml::from_str::<toml::Table>(candidate).is_ok_and(|parsed| parsed == expected))
+        .filter(|candidate| {
+            toml::from_str::<toml::Table>(candidate).is_ok_and(|parsed| parsed == expected)
+        })
         .collect();
     if valid.len() != 1 {
         println!(
@@ -319,7 +344,9 @@ pub fn enable_codex_hooks(target: &Path) -> Result<(), InitError> {
 /// `target.expanduser().resolve()`.
 pub fn expand_target(target: &str) -> PathBuf {
     let expanded = match (target.strip_prefix('~'), std::env::var("HOME")) {
-        (Some(rest), Ok(home)) if rest.is_empty() || rest.starts_with('/') => format!("{home}{rest}"),
+        (Some(rest), Ok(home)) if rest.is_empty() || rest.starts_with('/') => {
+            format!("{home}{rest}")
+        }
         _ => target.to_string(),
     };
     crate::resolve(Path::new(&expanded))
@@ -360,7 +387,9 @@ fn install_shims(target: &Path) -> Result<(), InitError> {
     }
     write_in(
         &target.join(".omp/extensions/loki.ts"),
-        OMP_SHIM.replace(marker, "from \"../../.loki/loki-shim.ts\"").as_bytes(),
+        OMP_SHIM
+            .replace(marker, "from \"../../.loki/loki-shim.ts\"")
+            .as_bytes(),
     )
 }
 
@@ -382,7 +411,10 @@ fn install_agent_hooks(target: &Path) -> Result<(), InitError> {
     ] {
         let destination = target.join(destination);
         let existing = read_json_object(&destination)?;
-        write_json(&destination, merge_hook_config(existing, &template(fragment))?)?;
+        write_json(
+            &destination,
+            merge_hook_config(existing, &template(fragment))?,
+        )?;
     }
     enable_codex_hooks(target)?;
     install_agy_hooks(target)?;
@@ -445,7 +477,10 @@ fn install_linter_configs(target: &Path) -> Result<(), InitError> {
     }
     install_credo_config(target)?;
     if target.join("package.json").is_file() {
-        println!("Install JavaScript guardrail dependencies: {}", js_install_command(target));
+        println!(
+            "Install JavaScript guardrail dependencies: {}",
+            js_install_command(target)
+        );
     }
     Ok(())
 }
@@ -492,15 +527,18 @@ fn is_shell_guard_entry(entry: &Value) -> bool {
     matches!(
         entry.get("matcher").and_then(Value::as_str),
         Some("Bash" | "Execute" | "run_command")
-    ) && entry.get("hooks").and_then(Value::as_array).is_some_and(|handlers| {
-        handlers.iter().any(|handler| {
-            handler
-                .get("command")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains(" shell --harness ")
+    ) && entry
+        .get("hooks")
+        .and_then(Value::as_array)
+        .is_some_and(|handlers| {
+            handlers.iter().any(|handler| {
+                handler
+                    .get("command")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .contains(" shell --harness ")
+            })
         })
-    })
 }
 
 /// `missing_engine_guard`: shell prefix for an owned hook that passes with a note on a branch without Loki, that is a
@@ -513,7 +551,10 @@ pub fn missing_engine_guard(root: &str) -> String {
     )
 }
 
-fn shell_guard_groups<'a>(document: &'a mut Map<String, Value>, harness: &str) -> Result<&'a mut Map<String, Value>, InitError> {
+fn shell_guard_groups<'a>(
+    document: &'a mut Map<String, Value>,
+    harness: &str,
+) -> Result<&'a mut Map<String, Value>, InitError> {
     let key = match harness {
         "claude" | "codex" => "hooks",
         "agy" => "loki",
@@ -542,7 +583,11 @@ fn shell_guard_command(root: &Path, harness: &str) -> String {
     )
 }
 
-fn install_harness_shell_guard(root: &Path, relative: &str, harness: &str) -> Result<(), InitError> {
+fn install_harness_shell_guard(
+    root: &Path,
+    relative: &str,
+    harness: &str,
+) -> Result<(), InitError> {
     let path = root.join(relative);
     let mut document = read_json_object(&path)?;
     let command = shell_guard_command(root, harness);
@@ -605,7 +650,8 @@ fn write_managed_release(destination: &Path) -> Result<PathBuf, InitError> {
     } else {
         write(&engine, &binary)?;
     }
-    std::fs::set_permissions(&engine, std::fs::Permissions::from_mode(0o555)).map_err(|e| os(e, &engine))?;
+    std::fs::set_permissions(&engine, std::fs::Permissions::from_mode(0o555))
+        .map_err(|e| os(e, &engine))?;
     Ok(engine)
 }
 
@@ -614,7 +660,9 @@ fn managed_fallback(operation: &str, harness: &str) -> &'static str {
         return "{ printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }";
     }
     match operation {
-        "protect" | "shell" => "{ printf '%s\\n' '{\"decision\":\"deny\",\"reason\":\"loki: hook command failed\"}'; exit 0; }",
+        "protect" | "shell" => {
+            "{ printf '%s\\n' '{\"decision\":\"deny\",\"reason\":\"loki: hook command failed\"}'; exit 0; }"
+        }
         "hook" => "{ printf '%s\\n' 'loki: hook command failed' >&2; printf '{}\\n'; exit 0; }",
         _ => "{ printf '%s\\n' 'loki: context unavailable' >&2; exit 2; }",
     }
@@ -693,7 +741,9 @@ fn rewrite_harness_hooks(
         Some(&mut document)
     };
     for (event, entries) in groups.into_iter().flatten() {
-        let Value::Array(entries) = entries else { continue };
+        let Value::Array(entries) = entries else {
+            continue;
+        };
         rewrite_event_entries(entries, event, harness, engine_text, root_text)?;
     }
     write_json(&path, document)
@@ -708,7 +758,9 @@ fn rewrite_shim_engine(root: &Path, relative: &str, engine_text: &str) -> Result
     }
     write(
         &path,
-        source.replace(marker, &py::dumps(&json!(engine_text))).as_bytes(),
+        source
+            .replace(marker, &py::dumps(&json!(engine_text)))
+            .as_bytes(),
     )
 }
 
@@ -738,7 +790,12 @@ pub fn install_managed(root: &Path, destination: &Path) -> Result<(), InitError>
 }
 
 /// `init` without `--minimal`: the target install, then the shell guard and the managed engine when asked.
-pub fn init(dir: &str, force: bool, shell_guard: bool, managed_dir: Option<&str>) -> Result<(), InitError> {
+pub fn init(
+    dir: &str,
+    force: bool,
+    shell_guard: bool,
+    managed_dir: Option<&str>,
+) -> Result<(), InitError> {
     install_target(dir, force)?;
     let root = || crate::resolve(Path::new(dir));
     if shell_guard {

@@ -17,7 +17,8 @@ use crate::invalid;
 
 macro_rules! re {
     ($name:ident, $pattern:expr) => {
-        static $name: LazyLock<Regex> = LazyLock::new(|| Regex::new($pattern).expect("static pattern"));
+        static $name: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new($pattern).expect("static pattern"));
     };
 }
 
@@ -71,7 +72,10 @@ pub const MANIFEST_LOCKFILES: [(&str, &[&str]); 5] = [
             "bun.lockb",
         ],
     ),
-    ("pypi", &["uv.lock", "poetry.lock", "pdm.lock", "Pipfile.lock"]),
+    (
+        "pypi",
+        &["uv.lock", "poetry.lock", "pdm.lock", "Pipfile.lock"],
+    ),
     ("go", &["go.sum"]),
     ("crates", &["Cargo.lock"]),
     ("hex", &["mix.lock"]),
@@ -87,7 +91,13 @@ pub fn ecosystem_manifest(ecosystem: &str) -> &'static str {
     }
 }
 
-pub const MANIFESTS: [&str; 5] = ["package.json", "pyproject.toml", "go.mod", "Cargo.toml", "mix.exs"];
+pub const MANIFESTS: [&str; 5] = [
+    "package.json",
+    "pyproject.toml",
+    "go.mod",
+    "Cargo.toml",
+    "mix.exs",
+];
 
 pub fn is_test_path(path: &str) -> bool {
     TEST_PATH.is_match(path)
@@ -125,7 +135,9 @@ fn moved_test_paths(changes: &[&FileChange]) -> HashSet<String> {
             && change.after.is_none()
             && regular(&change.before_mode)
             && let (Some(before), Some(mode)) = (&change.before, &change.before_mode)
-            && let Some((_, destinations)) = additions.iter_mut().find(|(k, _)| *k == (before.clone(), mode.clone()))
+            && let Some((_, destinations)) = additions
+                .iter_mut()
+                .find(|(k, _)| *k == (before.clone(), mode.clone()))
             && let Some(destination) = destinations.pop()
         {
             moved.insert(change.path.clone());
@@ -136,8 +148,11 @@ fn moved_test_paths(changes: &[&FileChange]) -> HashSet<String> {
 }
 
 fn decode_change_bytes(bytes: &Option<Vec<u8>>, path: &str) -> Result<String, CheckError> {
-    String::from_utf8(bytes.clone().unwrap_or_default())
-        .map_err(|_| invalid(format!("loki: cannot inspect non-UTF-8 test/config: {path}")))
+    String::from_utf8(bytes.clone().unwrap_or_default()).map_err(|_| {
+        invalid(format!(
+            "loki: cannot inspect non-UTF-8 test/config: {path}"
+        ))
+    })
 }
 
 fn diff_lines<'a>(before: &'a [&'a str], after: &'a [&'a str]) -> (Vec<&'a str>, Vec<&'a str>) {
@@ -151,7 +166,12 @@ fn diff_lines<'a>(before: &'a [&'a str], after: &'a [&'a str]) -> (Vec<&'a str>,
     (removed, added)
 }
 
-fn check_test_change(change: &FileChange, removed: &[&str], added: &[&str], violations: &mut Vec<String>) {
+fn check_test_change(
+    change: &FileChange,
+    removed: &[&str],
+    added: &[&str],
+    violations: &mut Vec<String>,
+) {
     let path = &change.path;
     if change.before.is_some() && change.after.is_none() {
         crate::evidence::finding("test-file-deleted", Some(path));
@@ -194,7 +214,12 @@ pub fn test_integrity_violations(changes: &[&FileChange]) -> Result<Vec<String>,
         if test {
             check_test_change(change, &removed, &added, &mut violations);
         }
-        if quality && removed.iter().chain(&added).any(|l| QUALITY_POLICY.is_match(l)) {
+        if quality
+            && removed
+                .iter()
+                .chain(&added)
+                .any(|l| QUALITY_POLICY.is_match(l))
+        {
             crate::evidence::finding("quality-threshold-changed", Some(path));
             violations.push(format!("{path}: quality threshold changed"));
         }
@@ -223,7 +248,9 @@ fn requirement_files(root: &Path) -> Vec<PathBuf> {
         .flatten()
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .filter(|name| {
-            name.starts_with("requirements") && name.ends_with(".txt") && name.len() >= "requirements.txt".len()
+            name.starts_with("requirements")
+                && name.ends_with(".txt")
+                && name.len() >= "requirements.txt".len()
         })
         .map(|name| root.join(name))
         .collect()
@@ -232,7 +259,9 @@ fn requirement_files(root: &Path) -> Vec<PathBuf> {
 fn requirement_names(root: &Path) -> Vec<String> {
     let mut names = Vec::new();
     for file in requirement_files(root) {
-        let Ok(text) = proc::read_text(&file) else { continue };
+        let Ok(text) = proc::read_text(&file) else {
+            continue;
+        };
         for line in py::splitlines(&text, false) {
             let stripped = py::strip(line);
             if stripped.is_empty() || stripped.starts_with('#') || stripped.starts_with('-') {
@@ -249,7 +278,9 @@ fn pyproject_names(root: &Path) -> Vec<String> {
     if !path.is_file() {
         return vec![];
     }
-    let Some(data) = toml_table(&path) else { return vec![] };
+    let Some(data) = toml_table(&path) else {
+        return vec![];
+    };
     let Some(toml::Value::Table(project)) = data.get("project") else {
         return vec![];
     };
@@ -290,7 +321,9 @@ fn go_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
     if !go_mod.is_file() {
         return;
     }
-    let Ok(text) = proc::read_text(&go_mod) else { return };
+    let Ok(text) = proc::read_text(&go_mod) else {
+        return;
+    };
     let mut in_require = false;
     for raw in py::splitlines(&text, false) {
         let line = py::strip(raw);
@@ -302,7 +335,11 @@ fn go_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
             in_require = false;
             continue;
         }
-        let pattern = if in_require { &GO_REQUIRE_LINE } else { &GO_REQUIRE };
+        let pattern = if in_require {
+            &GO_REQUIRE_LINE
+        } else {
+            &GO_REQUIRE
+        };
         if let Some(caps) = pattern.captures(line) {
             found.insert(("go".into(), caps[1].to_string()));
         }
@@ -315,7 +352,11 @@ fn cargo_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
         && let Some(data) = toml_table(&cargo)
         && let Some(toml::Value::Table(values)) = data.get("dependencies")
     {
-        found.extend(values.keys().map(|name| ("crates".to_string(), name.clone())));
+        found.extend(
+            values
+                .keys()
+                .map(|name| ("crates".to_string(), name.clone())),
+        );
     }
 }
 
@@ -334,7 +375,10 @@ fn mix_manifest_deps(root: &Path, found: &mut BTreeSet<(String, String)>) {
 pub fn manifest_dependencies(root: &Path) -> Vec<(String, String)> {
     let mut found: BTreeSet<(String, String)> = BTreeSet::new();
     npm_manifest_deps(root, &mut found);
-    for name in pyproject_names(root).into_iter().chain(requirement_names(root)) {
+    for name in pyproject_names(root)
+        .into_iter()
+        .chain(requirement_names(root))
+    {
         found.insert(("pypi".into(), name.replace('_', "-")));
     }
     go_manifest_deps(root, &mut found);
@@ -348,7 +392,10 @@ pub fn dependency_policy_violations(root: &Path, config: &Config) -> Vec<String>
     let Some(approved) = config.get("approved_dependencies").filter(|v| !v.is_null()) else {
         return vec![];
     };
-    let Some(items) = approved.as_array().filter(|items| items.iter().all(Value::is_string)) else {
+    let Some(items) = approved
+        .as_array()
+        .filter(|items| items.iter().all(Value::is_string))
+    else {
         return vec!["loki: approved_dependencies must be a list of ecosystem:name strings".into()];
     };
     let allowed: HashSet<&str> = items.iter().filter_map(Value::as_str).collect();
@@ -366,12 +413,16 @@ pub fn dependency_policy_violations(root: &Path, config: &Config) -> Vec<String>
 
 /// Deleted lockfiles whose manifest remains, and non-regular lockfiles.
 pub fn lockfile_violations(root: &Path, changes: &[FileChange]) -> Vec<String> {
-    let changed: HashMap<&str, &FileChange> = changes.iter().map(|c| (c.path.as_str(), c)).collect();
+    let changed: HashMap<&str, &FileChange> =
+        changes.iter().map(|c| (c.path.as_str(), c)).collect();
     let mut violations = Vec::new();
     for (ecosystem, lockfiles) in MANIFEST_LOCKFILES {
-        let remains = std::fs::symlink_metadata(root.join(ecosystem_manifest(ecosystem))).is_ok_and(|m| m.is_file());
+        let remains = std::fs::symlink_metadata(root.join(ecosystem_manifest(ecosystem)))
+            .is_ok_and(|m| m.is_file());
         for lockfile in lockfiles {
-            let Some(change) = changed.get(lockfile) else { continue };
+            let Some(change) = changed.get(lockfile) else {
+                continue;
+            };
             if change.after_mode.is_some() && !regular(&change.after_mode) {
                 violations.push(format!("loki: unsupported changed file type: {lockfile}"));
             } else if change.before.is_some() && change.after.is_none() && remains {
@@ -435,7 +486,11 @@ fn check_write_guardrails(
     let resolved = resolve(root);
     let touched: HashSet<String> = paths
         .iter()
-        .filter_map(|p| p.strip_prefix(&resolved).ok().map(|r| r.to_string_lossy().into_owned()))
+        .filter_map(|p| {
+            p.strip_prefix(&resolved)
+                .ok()
+                .map(|r| r.to_string_lossy().into_owned())
+        })
         .collect();
     let (base, changes) = load_guardrail_changes(root, &touched, deadline, warnings)?;
     let policy = git::base_policy(root, base.as_deref(), deadline)?;
@@ -443,7 +498,10 @@ fn check_write_guardrails(
     if !protected.is_empty() {
         return Ok(protected);
     }
-    let selected: Vec<&FileChange> = changes.iter().filter(|c| touched.contains(&c.path)).collect();
+    let selected: Vec<&FileChange> = changes
+        .iter()
+        .filter(|c| touched.contains(&c.path))
+        .collect();
     let mut violations = test_integrity_violations(&selected)?;
     violations.extend(lockfile_violations(&resolved, &changes));
     if MANIFESTS.iter().any(|m| touched.contains(*m)) {
@@ -467,7 +525,9 @@ pub fn write_guardrail_violations(
         return Ok(report_repository_gap(&gap, warnings));
     }
     match check_write_guardrails(paths, root, config, deadline, warnings) {
-        Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => Ok(vec![error.message().to_string()]),
+        Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => {
+            Ok(vec![error.message().to_string()])
+        }
         other => other,
     }
 }
@@ -533,7 +593,12 @@ pub fn not_checked(message: String, strict: bool, warnings: &mut Vec<String>) ->
     vec![]
 }
 
-fn net_new(found: Vec<(i64, String)>, prior: &[(i64, String)], after: &str, before: &str) -> Vec<(i64, String)> {
+fn net_new(
+    found: Vec<(i64, String)>,
+    prior: &[(i64, String)],
+    after: &str,
+    before: &str,
+) -> Vec<(i64, String)> {
     let mut seen: Counter<(String, String)> = Counter::new();
     for (line, name) in prior {
         seen.add((name.clone(), line_text(before, *line)));
@@ -570,7 +635,12 @@ pub fn project_python(root: &Path, explicit: Option<&str>) -> Option<String> {
     }
     let mut prefixes: Vec<PathBuf> = ["VIRTUAL_ENV", "CONDA_PREFIX"]
         .iter()
-        .filter_map(|v| std::env::var(v).ok().filter(|s| !s.is_empty()).map(PathBuf::from))
+        .filter_map(|v| {
+            std::env::var(v)
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(PathBuf::from)
+        })
         .collect();
     prefixes.push(root.join(".venv"));
     prefixes.push(root.join("venv"));
@@ -593,8 +663,13 @@ fn probe_missing_imports(
     let mut command = vec![interpreter.to_string(), "-c".into(), IMPORT_PROBE.into()];
     command.extend(asked.iter().cloned());
     let timeout = deadline.timeout()?.min(15.0);
-    let unavailable = |reason: String| invalid(format!("project interpreter {interpreter} unavailable: {reason}"));
-    let result = proc::run(&command, root, None, &[], timeout).map_err(|e| unavailable(e.to_string()))?;
+    let unavailable = |reason: String| {
+        invalid(format!(
+            "project interpreter {interpreter} unavailable: {reason}"
+        ))
+    };
+    let result =
+        proc::run(&command, root, None, &[], timeout).map_err(|e| unavailable(e.to_string()))?;
     let stdout = proc::text(&result.stdout);
     let missing = if result.code == 0 {
         match serde_json::from_str::<Value>(&stdout) {
@@ -614,7 +689,11 @@ fn probe_missing_imports(
         };
         return Err(unavailable(reason));
     };
-    Ok(missing.iter().filter_map(Value::as_str).map(String::from).collect())
+    Ok(missing
+        .iter()
+        .filter_map(Value::as_str)
+        .map(String::from)
+        .collect())
 }
 
 /// The modules the project's interpreter cannot import.
@@ -634,7 +713,9 @@ fn resolve_imports(
     };
     let memo_key = (interpreter.clone(), root.to_string_lossy().into_owned());
     let asked: Vec<String> = {
-        let memo = IMPORT_MEMO.lock().map_err(|_| invalid("import memo poisoned"))?;
+        let memo = IMPORT_MEMO
+            .lock()
+            .map_err(|_| invalid("import memo poisoned"))?;
         let known = memo.get(&memo_key);
         modules
             .iter()
@@ -644,13 +725,17 @@ fn resolve_imports(
     };
     if !asked.is_empty() {
         let missing = probe_missing_imports(&interpreter, root, &asked, deadline)?;
-        let mut memo = IMPORT_MEMO.lock().map_err(|_| invalid("import memo poisoned"))?;
+        let mut memo = IMPORT_MEMO
+            .lock()
+            .map_err(|_| invalid("import memo poisoned"))?;
         let known = memo.entry(memo_key.clone()).or_default();
         for module in &asked {
             known.insert(module.clone(), !missing.contains(module));
         }
     }
-    let memo = IMPORT_MEMO.lock().map_err(|_| invalid("import memo poisoned"))?;
+    let memo = IMPORT_MEMO
+        .lock()
+        .map_err(|_| invalid("import memo poisoned"))?;
     let known = &memo[&memo_key];
     Ok(modules
         .iter()
@@ -725,8 +810,16 @@ pub fn python_ast_violations(
     let declared = dependencies
         .cloned()
         .unwrap_or_else(|| declared_python_dependencies(root));
-    let directory = resolve(path).parent().map(Path::to_path_buf).unwrap_or_default();
-    let stubs = net_new(pyast::python_stubs(&tree), &pyast::python_stubs(&old), &source, base);
+    let directory = resolve(path)
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_default();
+    let stubs = net_new(
+        pyast::python_stubs(&tree),
+        &pyast::python_stubs(&old),
+        &source,
+        base,
+    );
     let imports = net_new(
         pyast::python_unknown_imports(&tree, root, &directory, &declared)?,
         &pyast::python_unknown_imports(&old, root, &directory, &declared)?,
@@ -815,7 +908,12 @@ pub fn command_output(stdout: &str, stderr: &str) -> Vec<String> {
 }
 
 /// `run_command`: a failing command's output lines, labelled.
-pub fn run_command(command: &[String], root: &Path, label: &str, deadline: Deadline) -> Vec<String> {
+pub fn run_command(
+    command: &[String],
+    root: &Path,
+    label: &str,
+    deadline: Deadline,
+) -> Vec<String> {
     let result = deadline
         .timeout()
         .and_then(|t| proc::run(command, root, None, &[], t).map_err(CheckError::from));
@@ -834,7 +932,10 @@ pub fn run_command(command: &[String], root: &Path, label: &str, deadline: Deadl
     if lines.is_empty() {
         lines = vec![format!("exited {}", output.code)];
     }
-    lines.into_iter().map(|line| format!("{label}: {line}")).collect()
+    lines
+        .into_iter()
+        .map(|line| format!("{label}: {line}"))
+        .collect()
 }
 
 /// `str()` of a JSON value as Python prints it in an f-string.
@@ -853,7 +954,9 @@ fn validate_ruff_config(raw: &[u8]) -> Result<(), CheckError> {
         .parse()
         .map_err(|e: toml::de::Error| invalid(e.message().to_string()))?;
     if config.contains_key("extend") {
-        return Err(invalid("net-new Ruff requires self-contained base .ruff.toml"));
+        return Err(invalid(
+            "net-new Ruff requires self-contained base .ruff.toml",
+        ));
     }
     Ok(())
 }
@@ -891,8 +994,8 @@ fn run_ruff_check(
         )));
     }
     let stdout = String::from_utf8_lossy(&result.stdout).into_owned();
-    let diagnostics: Value =
-        serde_json::from_str(&stdout).map_err(|e| invalid(crate::pyjson::error_text(&stdout, &e)))?;
+    let diagnostics: Value = serde_json::from_str(&stdout)
+        .map_err(|e| invalid(crate::pyjson::error_text(&stdout, &e)))?;
     let source = proc::decode(content).map_err(invalid)?;
     let lines = py::splitlines(&source, false);
     let mut counter = Counter::new();
@@ -948,7 +1051,11 @@ impl From<CheckError> for RuffError {
     }
 }
 
-fn committed_ruff_config(root: &Path, base: &str, deadline: Deadline) -> Result<Vec<u8>, RuffError> {
+fn committed_ruff_config(
+    root: &Path,
+    base: &str,
+    deadline: Deadline,
+) -> Result<Vec<u8>, RuffError> {
     let listed = git_output(
         root,
         &["ls-tree", "--name-only", base, "--", ".ruff.toml"],
@@ -958,16 +1065,27 @@ fn committed_ruff_config(root: &Path, base: &str, deadline: Deadline) -> Result<
     if py::strip(&String::from_utf8_lossy(&listed)).is_empty() {
         return Err(RuffError::MissingConfig("no committed .ruff.toml".into()));
     }
-    let raw = git_output(root, &["show", &format!("{base}:.ruff.toml")], deadline, None)?;
+    let raw = git_output(
+        root,
+        &["show", &format!("{base}:.ruff.toml")],
+        deadline,
+        None,
+    )?;
     crate::evidence::policy("base", ".ruff.toml", Some(&raw), Some(base));
     Ok(raw)
 }
 
-fn python_change_pairs(changes: Vec<FileChange>, paths: Option<&HashSet<String>>) -> Vec<(String, Vec<u8>, Vec<u8>)> {
+fn python_change_pairs(
+    changes: Vec<FileChange>,
+    paths: Option<&HashSet<String>>,
+) -> Vec<(String, Vec<u8>, Vec<u8>)> {
     changes
         .into_iter()
         .filter(|c| paths.is_none_or(|p| p.contains(&c.path)) && c.path.ends_with(".py"))
-        .filter_map(|c| c.after.map(|after| (c.path, c.before.unwrap_or_default(), after)))
+        .filter_map(|c| {
+            c.after
+                .map(|after| (c.path, c.before.unwrap_or_default(), after))
+        })
         .collect()
 }
 
@@ -1007,7 +1125,13 @@ pub fn preview_ruff(
     let pairs: Vec<(String, Vec<u8>, Vec<u8>)> = changes
         .iter()
         .filter(|(path, _, _)| path.ends_with(".py"))
-        .map(|(path, old, new)| (path.clone(), old.clone().into_bytes(), new.clone().into_bytes()))
+        .map(|(path, old, new)| {
+            (
+                path.clone(),
+                old.clone().into_bytes(),
+                new.clone().into_bytes(),
+            )
+        })
         .collect();
     let Some(ruff) = ruff_command(root).filter(|_| !pairs.is_empty()) else {
         return Ok(vec![]);
@@ -1047,7 +1171,12 @@ fn mypy_state(root: &Path) -> Result<PathBuf, CheckError> {
     Ok(state)
 }
 
-fn mypy_run(root: &Path, paths: &[String], deadline: Deadline, shadows: &[String]) -> Result<String, CheckError> {
+fn mypy_run(
+    root: &Path,
+    paths: &[String],
+    deadline: Deadline,
+    shadows: &[String],
+) -> Result<String, CheckError> {
     let Some(mypy) = mypy_binary(root) else {
         return Err(invalid("mypy unavailable"));
     };
@@ -1086,11 +1215,16 @@ fn mypy_run(root: &Path, paths: &[String], deadline: Deadline, shadows: &[String
 
 type Fingerprint = (String, String, String, String);
 
-fn mypy_errors(output: &str, contents: &HashMap<String, String>) -> (Counter<Fingerprint>, HashMap<Fingerprint, i64>) {
+fn mypy_errors(
+    output: &str,
+    contents: &HashMap<String, String>,
+) -> (Counter<Fingerprint>, HashMap<Fingerprint, i64>) {
     let mut found = Counter::new();
     let mut lines = HashMap::new();
     for line in py::splitlines(output, false) {
-        let Some(caps) = MYPY_LINE.captures(line) else { continue };
+        let Some(caps) = MYPY_LINE.captures(line) else {
+            continue;
+        };
         let Some(content) = contents.get(&caps["path"]) else {
             continue;
         };
@@ -1108,7 +1242,10 @@ fn mypy_errors(output: &str, contents: &HashMap<String, String>) -> (Counter<Fin
 }
 
 /// Whether any finding's source line also appears in its committed text.
-pub fn possibly_existing<'a>(keys: impl Iterator<Item = (&'a str, &'a str)>, texts: &HashMap<String, String>) -> bool {
+pub fn possibly_existing<'a>(
+    keys: impl Iterator<Item = (&'a str, &'a str)>,
+    texts: &HashMap<String, String>,
+) -> bool {
     let mut cache: HashMap<&str, HashSet<String>> = HashMap::new();
     for (path, text) in keys {
         if text.is_empty() {
@@ -1127,7 +1264,10 @@ pub fn possibly_existing<'a>(keys: impl Iterator<Item = (&'a str, &'a str)>, tex
     false
 }
 
-fn any_annotated_python(after: &HashMap<String, String>, paths: &[String]) -> Result<bool, CheckError> {
+fn any_annotated_python(
+    after: &HashMap<String, String>,
+    paths: &[String],
+) -> Result<bool, CheckError> {
     let texts: Vec<&str> = after.values().map(String::as_str).collect();
     pyast::prefetch(&texts)?;
     for name in paths {
@@ -1161,10 +1301,16 @@ fn mypy_previous_errors(
     Ok(mypy_errors(&mypy_run(root, paths, deadline, &shadows)?, before).0)
 }
 
-fn read_worktree_texts(root: &Path, paths: &[String]) -> Result<HashMap<String, String>, CheckError> {
+fn read_worktree_texts(
+    root: &Path,
+    paths: &[String],
+) -> Result<HashMap<String, String>, CheckError> {
     let mut texts = HashMap::new();
     for name in paths {
-        texts.insert(name.clone(), proc::read_text(&root.join(name)).map_err(invalid)?);
+        texts.insert(
+            name.clone(),
+            proc::read_text(&root.join(name)).map_err(invalid)?,
+        );
     }
     Ok(texts)
 }
@@ -1178,14 +1324,21 @@ fn format_mypy_violations(
     for (key, count) in current.minus(previous) {
         crate::evidence::finding(&format!("mypy:{}", key.1), Some(&key.0));
         for _ in 0..count {
-            violations.push(format!("{}:{}: mypy[{}]: {}", key.0, numbers[&key], key.1, key.2));
+            violations.push(format!(
+                "{}:{}: mypy[{}]: {}",
+                key.0, numbers[&key], key.1, key.2
+            ));
         }
     }
     violations.truncate(MAX_VIOLATIONS);
     violations
 }
 
-fn read_head_texts(root: &Path, paths: &[String], deadline: Deadline) -> Result<HashMap<String, String>, CheckError> {
+fn read_head_texts(
+    root: &Path,
+    paths: &[String],
+    deadline: Deadline,
+) -> Result<HashMap<String, String>, CheckError> {
     let mut texts = HashMap::new();
     for name in paths {
         texts.insert(name.clone(), head_text(root, name, deadline)?);
@@ -1200,14 +1353,21 @@ fn mypy_baseline_errors(
     deadline: Deadline,
 ) -> Result<Counter<Fingerprint>, CheckError> {
     let before = read_head_texts(root, paths, deadline)?;
-    if !possibly_existing(current.keys().map(|k| (k.0.as_str(), k.3.as_str())), &before) {
+    if !possibly_existing(
+        current.keys().map(|k| (k.0.as_str(), k.3.as_str())),
+        &before,
+    ) {
         return Ok(Counter::new());
     }
     mypy_previous_errors(root, paths, &before, deadline)
 }
 
 /// Net-new mypy errors in written files, against their committed text.
-fn mypy_violations(root: &Path, paths: &[String], deadline: Deadline) -> Result<Vec<String>, CheckError> {
+fn mypy_violations(
+    root: &Path,
+    paths: &[String],
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
     if paths.is_empty() || mypy_binary(root).is_none() {
         return Ok(vec![]);
     }
@@ -1223,9 +1383,20 @@ fn mypy_violations(root: &Path, paths: &[String], deadline: Deadline) -> Result<
     Ok(format_mypy_violations(&current, &previous, &numbers))
 }
 
-fn oxlint_violations(root: &Path, display: &str, deadline: Deadline, warnings: &mut Vec<String>) -> Vec<String> {
+fn oxlint_violations(
+    root: &Path,
+    display: &str,
+    deadline: Deadline,
+    warnings: &mut Vec<String>,
+) -> Vec<String> {
     let binary = resolve_tool(root, "oxlint").unwrap_or_else(|| "None".into());
-    let command: Vec<String> = vec![binary, "--fix".into(), "--format".into(), "unix".into(), display.into()];
+    let command: Vec<String> = vec![
+        binary,
+        "--fix".into(),
+        "--format".into(),
+        "unix".into(),
+        display.into(),
+    ];
     let result = deadline
         .timeout()
         .and_then(|t| proc::run(&command, root, None, &[], t).map_err(CheckError::from));
@@ -1242,7 +1413,10 @@ fn oxlint_violations(root: &Path, display: &str, deadline: Deadline, warnings: &
         .filter(|line| OXLINT_FINDING.is_match(line))
         .map(|line| py::strip(line).to_string())
         .collect();
-    let advisory: Vec<&String> = findings.iter().filter(|l| l.contains("[Warning/")).collect();
+    let advisory: Vec<&String> = findings
+        .iter()
+        .filter(|l| l.contains("[Warning/"))
+        .collect();
     if !advisory.is_empty() {
         let extra = if advisory.len() > 10 {
             format!("\n... {} more", advisory.len() - 10)
@@ -1250,19 +1424,29 @@ fn oxlint_violations(root: &Path, display: &str, deadline: Deadline, warnings: &
             String::new()
         };
         let shown: Vec<&str> = advisory.iter().take(10).map(|s| s.as_str()).collect();
-        warnings.push(format!("oxlint advisory (not blocking):\n{}{extra}", shown.join("\n")));
+        warnings.push(format!(
+            "oxlint advisory (not blocking):\n{}{extra}",
+            shown.join("\n")
+        ));
     }
     if output.code == 0 {
         return vec![];
     }
     crate::evidence::finding("external-check-failed", None);
-    let errors: Vec<String> = findings.iter().filter(|l| l.contains("[Error/")).cloned().collect();
+    let errors: Vec<String> = findings
+        .iter()
+        .filter(|l| l.contains("[Error/"))
+        .cloned()
+        .collect();
     let lines = if errors.is_empty() {
         command_output(&stdout, &proc::text(&output.stderr))
     } else {
         errors
     };
-    lines.into_iter().map(|line| format!("oxlint: {line}")).collect()
+    lines
+        .into_iter()
+        .map(|line| format!("oxlint: {line}"))
+        .collect()
 }
 
 /// The nearest enclosing Cargo project inside the root.
@@ -1297,9 +1481,14 @@ fn cargo_edition(krate: Option<&Path>, root: &Path) -> Option<String> {
         } else {
             data.get("package")
         };
-        match table.and_then(|t| t.as_table()).and_then(|t| t.get("edition")) {
+        match table
+            .and_then(|t| t.as_table())
+            .and_then(|t| t.get("edition"))
+        {
             Some(toml::Value::String(edition)) => return Some(edition.clone()),
-            Some(toml::Value::Table(edition)) if edition.get("workspace") == Some(&toml::Value::Boolean(true)) => {
+            Some(toml::Value::Table(edition))
+                if edition.get("workspace") == Some(&toml::Value::Boolean(true)) =>
+            {
                 inherit = true;
             }
             _ => {}
@@ -1333,7 +1522,9 @@ fn clippy_failure(stderr: &str, code: i64) -> String {
         return "the crate has no library or binary target yet".into();
     }
     let lines = py::splitlines(stderr, false);
-    let reason = lines.last().map_or_else(|| format!("exit {code}"), |l| l.to_string());
+    let reason = lines
+        .last()
+        .map_or_else(|| format!("exit {code}"), |l| l.to_string());
     format!("cargo clippy failed: {reason}")
 }
 
@@ -1358,13 +1549,22 @@ fn clippy_command(target: &Path) -> Vec<String> {
         "clippy::unimplemented",
         "clippy::unwrap_used",
         "clippy::expect_used",
+        "clippy::panic",
+        "clippy::dbg_macro",
+        "clippy::allow_attributes_without_reason",
+        "clippy::let_underscore_must_use",
+        "clippy::wildcard_imports",
     ] {
         command.extend(["-W".to_string(), lint.to_string()]);
     }
     command
 }
 
-fn parse_clippy_line(line: &str, krate: &Path, crate_root: &Path) -> Result<Option<Diagnostic>, CheckError> {
+fn parse_clippy_line(
+    line: &str,
+    krate: &Path,
+    crate_root: &Path,
+) -> Result<Option<Diagnostic>, CheckError> {
     let Ok(item) = serde_json::from_str::<Value>(line) else {
         return Ok(None);
     };
@@ -1405,7 +1605,11 @@ fn parse_clippy_line(line: &str, krate: &Path, crate_root: &Path) -> Result<Opti
     )))
 }
 
-fn clippy_diagnostics(krate: &Path, target: &Path, deadline: Deadline) -> Result<Vec<Diagnostic>, CheckError> {
+fn clippy_diagnostics(
+    krate: &Path,
+    target: &Path,
+    deadline: Deadline,
+) -> Result<Vec<Diagnostic>, CheckError> {
     let command = clippy_command(target);
     let result = proc::run(&command, krate, None, &[], deadline.timeout()?)?;
     let crate_root = resolve(krate);
@@ -1443,8 +1647,18 @@ fn clippy_base_diagnostics(
         .tempdir()
         .map_err(|e| CheckError::os(&e, None))?;
     let base = directory.path().join("base");
-    let commit = git_output(root, &["rev-parse", "--verify", "HEAD^{commit}"], deadline, None)?;
-    git::materialize_base(root, String::from_utf8_lossy(&commit).trim(), &base, deadline)?;
+    let commit = git_output(
+        root,
+        &["rev-parse", "--verify", "HEAD^{commit}"],
+        deadline,
+        None,
+    )?;
+    git::materialize_base(
+        root,
+        String::from_utf8_lossy(&commit).trim(),
+        &base,
+        deadline,
+    )?;
     let base_crate = base.join(prefix);
     if base_crate.join("Cargo.toml").is_file() {
         clippy_diagnostics(&base_crate, target, deadline)
@@ -1476,7 +1690,11 @@ fn collect_new_clippy_violations(
     violations
 }
 
-fn clippy_violations(path: &Path, root: &Path, deadline: Deadline) -> Result<Vec<String>, CheckError> {
+fn clippy_violations(
+    path: &Path,
+    root: &Path,
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
     let Some(krate) = cargo_project(path, root) else {
         return Ok(vec![]);
     };
@@ -1495,10 +1713,16 @@ fn clippy_violations(path: &Path, root: &Path, deadline: Deadline) -> Result<Vec
     let mut texts = HashMap::new();
     for (key, _) in &current {
         if !texts.contains_key(&key.0) {
-            texts.insert(key.0.clone(), head_text(root, &join_posix(&prefix, &key.0), deadline)?);
+            texts.insert(
+                key.0.clone(),
+                head_text(root, &join_posix(&prefix, &key.0), deadline)?,
+            );
         }
     }
-    let previous = if possibly_existing(current.iter().map(|(k, _)| (k.0.as_str(), k.3.as_str())), &texts) {
+    let previous = if possibly_existing(
+        current.iter().map(|(k, _)| (k.0.as_str(), k.3.as_str())),
+        &texts,
+    ) {
         clippy_base_diagnostics(root, &prefix, &target, deadline)?
     } else {
         Vec::new()
@@ -1506,7 +1730,11 @@ fn clippy_violations(path: &Path, root: &Path, deadline: Deadline) -> Result<Vec
     Ok(collect_new_clippy_violations(current, previous, &prefix))
 }
 
-fn golangci_violations(root: &Path, package: &str, deadline: Deadline) -> Result<Vec<String>, CheckError> {
+fn golangci_violations(
+    root: &Path,
+    package: &str,
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
     let Some(binary) = proc::which("golangci-lint") else {
         return Ok(vec![]);
     };
@@ -1543,7 +1771,10 @@ fn golangci_violations(root: &Path, package: &str, deadline: Deadline) -> Result
             reason
         }));
     }
-    let mut found: Vec<String> = issues.into_iter().map(|i| format!("golangci-lint: {i}")).collect();
+    let mut found: Vec<String> = issues
+        .into_iter()
+        .map(|i| format!("golangci-lint: {i}"))
+        .collect();
     found.truncate(MAX_VIOLATIONS);
     Ok(found)
 }
@@ -1564,7 +1795,9 @@ fn optional(
 ) -> Result<(), CheckError> {
     match result {
         Ok(found) => violations.extend(found),
-        Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() || error.is_timeout() => {
+        Err(error)
+            if matches!(error, CheckError::Value(_)) || error.is_os() || error.is_timeout() =>
+        {
             let text: String = py::strip(error.message()).chars().take(300).collect();
             let message = format!("NOT CHECKED {label}: {text}");
             if strict {
@@ -1596,7 +1829,11 @@ fn check_python_batch(
     let mut names: Vec<String> = batch_paths
         .iter()
         .filter(|item| item.extension().is_some_and(|e| e == "py") && item.is_file())
-        .filter_map(|item| item.strip_prefix(root).ok().map(|r| r.to_string_lossy().into_owned()))
+        .filter_map(|item| {
+            item.strip_prefix(root)
+                .ok()
+                .map(|r| r.to_string_lossy().into_owned())
+        })
         .collect();
     names.sort();
     let selected: HashSet<String> = names.iter().cloned().collect();
@@ -1638,7 +1875,11 @@ fn check_go_file(
     batch: &mut Batch,
 ) -> Result<(), CheckError> {
     violations.extend(run_command(
-        &["gofmt".into(), "-w".into(), path.to_string_lossy().into_owned()],
+        &[
+            "gofmt".into(),
+            "-w".into(),
+            path.to_string_lossy().into_owned(),
+        ],
         root,
         "gofmt",
         deadline,
@@ -1691,7 +1932,10 @@ fn check_rust_file(
         "rustfmt",
         deadline,
     ));
-    let key = ("rust".to_string(), krate.unwrap_or_else(|| root.to_path_buf()));
+    let key = (
+        "rust".to_string(),
+        krate.unwrap_or_else(|| root.to_path_buf()),
+    );
     if !batch.checked.contains(&key) {
         optional(
             "clippy",
@@ -1783,7 +2027,9 @@ fn check_language_file(
         "go" => check_go_file(path, root, strict, deadline, violations, warnings, batch)?,
         "rust" => check_rust_file(path, root, strict, deadline, violations, warnings, batch)?,
         "elixir" => {
-            return check_elixir_dispatch(path, root, config, strict, deadline, violations, warnings, batch);
+            return check_elixir_dispatch(
+                path, root, config, strict, deadline, violations, warnings, batch,
+            );
         }
         _ => {}
     }
@@ -1919,7 +2165,11 @@ mod tests {
     fn loki_rustfmt_gets_the_crate_edition() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().canonicalize().unwrap();
-        write(&root, "Cargo.toml", b"[workspace.package]\nedition = \"2024\"\n");
+        write(
+            &root,
+            "Cargo.toml",
+            b"[workspace.package]\nedition = \"2024\"\n",
+        );
         write(
             &root,
             "crates/a/Cargo.toml",
@@ -1938,7 +2188,10 @@ mod tests {
             "crates/a/Cargo.toml",
             b"[package]\nname = \"a\"\nedition = \"2021\"\n",
         );
-        assert_eq!(cargo_edition(krate.as_deref(), &root).as_deref(), Some("2021"));
+        assert_eq!(
+            cargo_edition(krate.as_deref(), &root).as_deref(),
+            Some("2021")
+        );
         write(&root, "crates/a/Cargo.toml", b"[package]\nname = \"a\"\n");
         assert_eq!(cargo_edition(krate.as_deref(), &root), None);
         assert_eq!(rustfmt_command(&path, None, &root), ["rustfmt", &shown]);
@@ -1980,7 +2233,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().canonicalize().unwrap();
         git(&root, &["init", "-q"]);
-        let test = write(&root, "tests/test_a.py", b"def test_a():\n    assert value\n");
+        let test = write(
+            &root,
+            "tests/test_a.py",
+            b"def test_a():\n    assert value\n",
+        );
         git(&root, &["add", "."]);
         git(&root, &["commit", "-q", "-m", "base"]);
         write(&root, "tests/test_a.py", b"def test_a():\n    pass\n");
@@ -1989,8 +2246,14 @@ mod tests {
         assert_eq!(error.message(), "git: snapshot content exceeds 64 MiB");
         let config = Config::default();
         let mut warnings = Vec::new();
-        let findings =
-            write_guardrail_violations(&[test], &root, &config, Deadline::none(), Some(&mut warnings)).unwrap();
+        let findings = write_guardrail_violations(
+            &[test],
+            &root,
+            &config,
+            Deadline::none(),
+            Some(&mut warnings),
+        )
+        .unwrap();
         assert_eq!(findings, ["tests/test_a.py: assertion removed"]);
         assert_eq!(
             warnings,
@@ -1999,8 +2262,14 @@ mod tests {
             ]
         );
         let mut warnings = Vec::new();
-        let findings =
-            write_guardrail_violations(&[big], &root, &config, Deadline::none(), Some(&mut warnings)).unwrap();
+        let findings = write_guardrail_violations(
+            &[big],
+            &root,
+            &config,
+            Deadline::none(),
+            Some(&mut warnings),
+        )
+        .unwrap();
         assert!(findings.is_empty(), "{findings:?}");
         assert_eq!(
             warnings,
@@ -2017,8 +2286,14 @@ mod tests {
         let config = Config::default();
         let mut warnings = Vec::new();
         let file = write(&root, "a.txt", b"x\n");
-        let findings =
-            write_guardrail_violations(&[file], &root, &config, Deadline::none(), Some(&mut warnings)).unwrap();
+        let findings = write_guardrail_violations(
+            &[file],
+            &root,
+            &config,
+            Deadline::none(),
+            Some(&mut warnings),
+        )
+        .unwrap();
         assert!(findings.is_empty(), "{findings:?}");
         assert!(
             warnings[0].starts_with("NOT CHECKED repository changes: git:"),
@@ -2028,7 +2303,14 @@ mod tests {
         let sub = root.join("sub");
         let file = write(&root, "sub/a.txt", b"x\n");
         let mut warnings = Vec::new();
-        write_guardrail_violations(&[file], &sub, &config, Deadline::none(), Some(&mut warnings)).unwrap();
+        write_guardrail_violations(
+            &[file],
+            &sub,
+            &config,
+            Deadline::none(),
+            Some(&mut warnings),
+        )
+        .unwrap();
         assert_eq!(
             warnings,
             ["NOT CHECKED repository changes: git: project root must be the repository root"]
@@ -2051,13 +2333,13 @@ mod tests {
         git(&root, &["commit", "-q", "-m", "base"]);
         write(&root, "a.py", b"x = 2\n");
         write(&root, "big.bin", &vec![b'x'; git::SNAPSHOT_LIMIT + 1]);
-        let report = crate::run::hook(&root, &[source.to_string_lossy().into_owned()], None).unwrap();
+        let report =
+            crate::run::hook(&root, &[source.to_string_lossy().into_owned()], None).unwrap();
         assert!(!report.blocked(), "{report:?}");
         assert!(
-            report
-                .warnings
-                .iter()
-                .any(|w| w.contains("NOT CHECKED python ruff: git: snapshot content exceeds 64 MiB")),
+            report.warnings.iter().any(
+                |w| w.contains("NOT CHECKED python ruff: git: snapshot content exceeds 64 MiB")
+            ),
             "{report:?}"
         );
     }

@@ -3,7 +3,9 @@
 
 use crate::py;
 use crate::rules::Finding;
-use crate::text::{Re, Text, closing_quote, expression_end, mask_javascript, matching_close, split_arguments};
+use crate::text::{
+    Re, Text, closing_quote, expression_end, mask_javascript, matching_close, split_arguments,
+};
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
@@ -19,13 +21,10 @@ pub(crate) use re;
 
 pub const REDOS_RULE: &str = "loki/redos";
 pub const REDOS_MESSAGE: &str = "ReDoS: nested quantifier such as (a+)+ causes catastrophic backtracking on crafted input; remove the nesting or bound the repetition";
-pub const OPEN_REDIRECT: &str =
-    "open redirect: unvalidated navigation target; check it against an allowlist of paths or origins";
-pub const TLS_VERIFICATION: &str =
-    "TLS certificate verification disabled; trust the needed CA instead of turning verification off";
+pub const OPEN_REDIRECT: &str = "open redirect: unvalidated navigation target; check it against an allowlist of paths or origins";
+pub const TLS_VERIFICATION: &str = "TLS certificate verification disabled; trust the needed CA instead of turning verification off";
 pub const SQL_IDENTIFIER: &str = "SQL injection: table or column name interpolated into the query; placeholders cannot bind identifiers, so map it to a fixed set of known names before building the query";
-pub const SQL_QUERY: &str =
-    "SQL injection: query text built by concatenation or interpolation; use parameterized placeholders";
+pub const SQL_QUERY: &str = "SQL injection: query text built by concatenation or interpolation; use parameterized placeholders";
 
 const TEST_FRAMEWORKS: [&str; 8] = [
     "vitest",
@@ -68,7 +67,10 @@ re!(
     SANITIZER_CALL,
     r"(?i)^\s*[\w$.]*?(?:(?<!un)safe|sanitiz|validat|allow|trusted|whitelist)[\w$]*\s*\("
 );
-re!(SAME_ORIGIN, r"(?i)^(?:/(?!/)|[#?]|[a-z][a-z0-9+.-]*://[^/\s]+/)");
+re!(
+    SAME_ORIGIN,
+    r"(?i)^(?:/(?!/)|[#?]|[a-z][a-z0-9+.-]*://[^/\s]+/)"
+);
 
 fn fixed_origin(text: &Text, masked: &Text, start: usize, end: usize) -> bool {
     if javascript_literal(text, masked, start, end).is_some() {
@@ -113,7 +115,10 @@ re!(
     HTML_CALL,
     r"\.\s*(insertAdjacentHTML)\s*\(|(?<![\w$.])document\s*\.\s*(writeln|write)\s*\("
 );
-re!(DANGEROUS_HTML, r"dangerouslySetInnerHTML\s*=\s*\{\s*\{\s*__html\s*:");
+re!(
+    DANGEROUS_HTML,
+    r"dangerouslySetInnerHTML\s*=\s*\{\s*\{\s*__html\s*:"
+);
 
 fn js_html_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
     let m = &masked.c;
@@ -134,11 +139,13 @@ fn js_html_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
         let arguments = split_arguments(m, found.end() - 1);
         let position = usize::from(found.get(1).is_some());
         if arguments.len() > position
-            && javascript_literal(text, masked, arguments[position].0, arguments[position].1).is_none()
+            && javascript_literal(text, masked, arguments[position].0, arguments[position].1)
+                .is_none()
         {
-            let sink = found
-                .group(masked, 1)
-                .map_or_else(|| format!("document.{}", found.group(masked, 2).unwrap_or("")), str::to_string);
+            let sink = found.group(masked, 1).map_or_else(
+                || format!("document.{}", found.group(masked, 2).unwrap_or("")),
+                str::to_string,
+            );
             findings.push((
                 "loki/unsanitized-html",
                 format!("cross-site scripting (XSS): non-literal HTML passed to {sink}"),
@@ -162,7 +169,10 @@ re!(
     LOCATION_SET,
     r"(?<![\w$.])(?:(?:window|document|self|top)\s*\.\s*)?location(?:\s*\.\s*href)?\s*=(?!=)"
 );
-re!(LOCATION_CALL, r"(?<![\w$])location\s*\.\s*(?:assign|replace)\s*\(");
+re!(
+    LOCATION_CALL,
+    r"(?<![\w$])location\s*\.\s*(?:assign|replace)\s*\("
+);
 re!(
     TLS_OFF,
     r#"\brejectUnauthorized\s*:\s*false\b|\bNODE_TLS_REJECT_UNAUTHORIZED\b\s*(?:\]\s*)?=(?!=)\s*['"`]?\s*0"#
@@ -203,7 +213,11 @@ fn js_redirect_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
 fn js_tls_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
     for found in TLS_OFF.iter(text) {
         if masked.at(found.start()) != Some(' ') {
-            findings.push(("loki/tls-verification", TLS_VERIFICATION.into(), found.start()));
+            findings.push((
+                "loki/tls-verification",
+                TLS_VERIFICATION.into(),
+                found.start(),
+            ));
         }
     }
 }
@@ -225,7 +239,9 @@ fn js_command_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
         .chain(aliases)
         .collect::<Vec<_>>()
         .join("|");
-    let runner = Re::new(&format!(r"(?:(?<![\w$.])|\bchild_process\s*\.\s*)({runners})\s*\("));
+    let runner = Re::new(&format!(
+        r"(?:(?<![\w$.])|\bchild_process\s*\.\s*)({runners})\s*\("
+    ));
     for found in runner.iter(masked) {
         let arguments = split_arguments(&masked.c, found.end() - 1);
         if shell
@@ -250,15 +266,22 @@ re!(SQL_CONCAT, r#"['"`]\s*\+|\+\s*['"`]"#);
 fn js_sql_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
     for found in SQL_CALL.iter(masked) {
         let arguments = split_arguments(&masked.c, found.end() - 1);
-        let Some(&first) = arguments.first() else { continue };
+        let Some(&first) = arguments.first() else {
+            continue;
+        };
         let argument = sl(text, first);
-        if SQL_WORD.is_match(argument) && (argument.contains("${") || SQL_CONCAT.is_match(argument)) {
+        if SQL_WORD.is_match(argument) && (argument.contains("${") || SQL_CONCAT.is_match(argument))
+        {
             let identifier = argument.contains("${")
                 && !argument.contains('+')
                 && argument
                     .match_indices("${")
                     .all(|(at, _)| SQL_IDENTIFIER_POSITION.is_match(&argument[..at]));
-            let message = if identifier { SQL_IDENTIFIER } else { SQL_QUERY };
+            let message = if identifier {
+                SQL_IDENTIFIER
+            } else {
+                SQL_QUERY
+            };
             findings.push(("loki/sql-injection", message.into(), found.start()));
         }
     }
@@ -268,9 +291,15 @@ re!(
     COMPARE,
     r"([\w$.]+(?:\([^()]*\))?|`[^`]*`)\s*(?:===?|!==?)\s*([\w$.]+(?:\([^()]*\))?|`[^`]*`)"
 );
-re!(SECRET_SIDE, r"(?i)\.digest\(|(?:signature|hmac|digest)[\w$]*$");
+re!(
+    SECRET_SIDE,
+    r"(?i)\.digest\(|(?:signature|hmac|digest)[\w$]*$"
+);
 re!(LENGTH_SIDE, r"\.length$");
-re!(CONSTANT_SIDE, r"^(?:null|undefined|true|false|\d+|[\w$.]*\.length)$");
+re!(
+    CONSTANT_SIDE,
+    r"^(?:null|undefined|true|false|\d+|[\w$.]*\.length)$"
+);
 
 fn js_compare_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
     for found in COMPARE.iter(masked) {
@@ -278,7 +307,9 @@ fn js_compare_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
             found.group(masked, 1).unwrap_or(""),
             found.group(masked, 2).unwrap_or(""),
         ];
-        if sides.iter().any(|s| s.starts_with('`')) && !text.sl(found.start(), found.end()).contains("${") {
+        if sides.iter().any(|s| s.starts_with('`'))
+            && !text.sl(found.start(), found.end()).contains("${")
+        {
             continue;
         }
         let secret = sides
@@ -287,7 +318,8 @@ fn js_compare_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
         if secret && !sides.iter().any(|side| CONSTANT_SIDE.is_match(side)) {
             findings.push((
                 "loki/timing-compare",
-                "timing attack: signature or digest compared with ==; use crypto.timingSafeEqual".into(),
+                "timing attack: signature or digest compared with ==; use crypto.timingSafeEqual"
+                    .into(),
                 found.start(),
             ));
         }
@@ -300,7 +332,10 @@ re!(ORIGIN_CHECK, r"\.\s*origin\b|\borigin\s*[,}=]");
 fn js_postmessage_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
     let m = &masked.c;
     for found in LISTENER.iter(masked) {
-        let quote_char = found.group(masked, 1).and_then(|q| q.chars().next()).unwrap_or('"');
+        let quote_char = found
+            .group(masked, 1)
+            .and_then(|q| q.chars().next())
+            .unwrap_or('"');
         let Some(quote) = (found.start()..masked.len()).find(|&i| m[i] == quote_char) else {
             continue;
         };
@@ -334,7 +369,10 @@ re!(
     FETCH_CALL,
     r"(?<![\w$.])(?:fetch|got|axios(?:\s*\.\s*(?:get|post|put|delete|head|request))?|https?\s*\.\s*(?:get|request))\s*\("
 );
-re!(REQUEST_SOURCE, r"\breq(?:uest)?\s*\.\s*(?:query|body|params|url)\b");
+re!(
+    REQUEST_SOURCE,
+    r"\breq(?:uest)?\s*\.\s*(?:query|body|params|url)\b"
+);
 re!(BARE_WORD, r"(?<![\w$.])([\w$]+)");
 
 fn js_ssrf_rules(masked: &Text, findings: &mut Vec<Finding>) {
@@ -406,7 +444,10 @@ fn js_prototype_pollution_rules(text: &Text, masked: &Text, findings: &mut Vec<F
 }
 
 re!(SET_INTERVAL, r"(?<![\w$.])setInterval\s*\(");
-re!(FOR_EACH, r"(?<![\w$.])((?:[\w$]+\s*\.\s*)*[\w$]+)\s*\.\s*forEach\s*\(");
+re!(
+    FOR_EACH,
+    r"(?<![\w$.])((?:[\w$]+\s*\.\s*)*[\w$]+)\s*\.\s*forEach\s*\("
+);
 re!(EVAL_CALL, r"(?<![\w$.])(eval|new\s+Function)\s*\(");
 
 fn js_misc_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
@@ -465,6 +506,28 @@ fn js_misc_rules(text: &Text, masked: &Text, findings: &mut Vec<Finding>) {
     }
 }
 
+re!(
+    TS_SUPPRESS_LINE,
+    r"(?m)//\s*(?:(@ts-ignore|@ts-nocheck)\b|(@ts-expect-error)\s*$|((?:eslint|oxlint)-disable(?:-next-line|-line)?)\s*$)"
+);
+
+fn js_suppression_rules(text: &Text, findings: &mut Vec<Finding>) {
+    for found in TS_SUPPRESS_LINE.iter(text) {
+        let message = if found.get(1).is_some() {
+            "unexplained TypeScript suppression (@ts-ignore / @ts-nocheck): fix the type error or use `@ts-expect-error -- <reason>`"
+        } else if found.get(2).is_some() {
+            "unexplained `@ts-expect-error`: include a reason explaining why the type error is expected"
+        } else {
+            "blanket lint disable without a rule name: specify the exact rule and reason instead of disabling all checks"
+        };
+        findings.push((
+            "loki/unexplained-ts-suppress",
+            message.into(),
+            found.start(),
+        ));
+    }
+}
+
 pub fn javascript_rules(text: &Text) -> Vec<Finding> {
     let masked = mask_javascript(text);
     let mut findings: Vec<Finding> = Vec::new();
@@ -478,6 +541,7 @@ pub fn javascript_rules(text: &Text) -> Vec<Finding> {
     js_ssrf_rules(&masked, &mut findings);
     js_prototype_pollution_rules(text, &masked, &mut findings);
     js_misc_rules(text, &masked, &mut findings);
+    js_suppression_rules(text, &mut findings);
     findings
 }
 
@@ -495,14 +559,23 @@ fn javascript_regexes(text: &Text, masked: &Text) -> Vec<(String, usize)> {
         }
     }
     for item in REGEXP_CALL.iter(masked) {
-        let quote = item.group(masked, 1).and_then(|q| q.chars().next()).unwrap_or('"');
+        let quote = item
+            .group(masked, 1)
+            .and_then(|q| q.chars().next())
+            .unwrap_or('"');
         let close = closing_quote(&text.c, item.end(), quote, false);
-        found.push((text.sl(item.end(), close).replace("\\\\", "\\"), item.start()));
+        found.push((
+            text.sl(item.end(), close).replace("\\\\", "\\"),
+            item.start(),
+        ));
     }
     found
 }
 
-re!(LEADING_LITERAL, r"^(?:\\[^dDwWsSbB]|[^\\\[(.|^$?*+{}])(?![?*+{])");
+re!(
+    LEADING_LITERAL,
+    r"^(?:\\[^dDwWsSbB]|[^\\\[(.|^$?*+{}])(?![?*+{])"
+);
 re!(
     TRAILING_LITERAL,
     r"(?<!\\)(?:\\[^dDwWsSbB]|[^\\\[(.|^$?*+{}])(?:\z|(?=\n\z))"
@@ -624,7 +697,10 @@ fn javascript_test_names(relative: &str, text: &Text, masked: &Text) -> BTreeSet
         BTreeSet::new()
     };
     for statement in TEST_IMPORT.iter(masked) {
-        let quote = statement.group(masked, 2).and_then(|q| q.chars().next()).unwrap_or('"');
+        let quote = statement
+            .group(masked, 2)
+            .and_then(|q| q.chars().next())
+            .unwrap_or('"');
         let end = closing_quote(&text.c, statement.end(), quote, false);
         if TEST_FRAMEWORKS.contains(&text.sl(statement.end(), end)) {
             for item in statement.group(masked, 1).unwrap_or("").split(',') {
@@ -654,12 +730,19 @@ fn js_fallback_test_rules(relative: &str, text: &Text, masked: &Text, findings: 
             let kind = match found.group(masked, 1) {
                 Some(kind) => kind.to_string(),
                 None => {
-                    let quote_char = found.group(masked, 2).and_then(|q| q.chars().next()).unwrap_or('"');
-                    let Some(quote) = (found.start()..masked.len()).find(|&i| m[i] == quote_char) else {
+                    let quote_char = found
+                        .group(masked, 2)
+                        .and_then(|q| q.chars().next())
+                        .unwrap_or('"');
+                    let Some(quote) = (found.start()..masked.len()).find(|&i| m[i] == quote_char)
+                    else {
                         continue;
                     };
-                    text.sl(quote + 1, closing_quote(&text.c, quote + 1, text.c[quote], false))
-                        .to_string()
+                    text.sl(
+                        quote + 1,
+                        closing_quote(&text.c, quote + 1, text.c[quote], false),
+                    )
+                    .to_string()
                 }
             };
             if kind == "only" {
@@ -694,7 +777,11 @@ pub fn javascript_fallback_rules(relative: &str, text: &Text) -> Vec<Finding> {
     for found in CATCH_BLOCK.iter(&masked) {
         let close = matching_close(m, found.end() - 1);
         if py::strip(text.sl(found.end(), close.saturating_sub(1))).is_empty() {
-            findings.push(("no-empty", "empty catch block swallows the error".into(), found.start()));
+            findings.push((
+                "no-empty",
+                "empty catch block swallows the error".into(),
+                found.start(),
+            ));
         }
     }
     for found in ASYNC_EXECUTOR.iter(&masked) {
@@ -773,5 +860,35 @@ mod tests {
         ] {
             assert_eq!(message(source), SQL_QUERY, "{source}");
         }
+    }
+
+    #[test]
+    fn loki_js_unexplained_suppressions_are_flagged() {
+        let check = |source: &str| -> Vec<&'static str> {
+            javascript_rules(&Text::new(source))
+                .into_iter()
+                .map(|(rule, _, _)| rule)
+                .collect()
+        };
+        assert_eq!(
+            check("// @ts-ignore\nconst x = 1;\n"),
+            vec!["loki/unexplained-ts-suppress"]
+        );
+        assert_eq!(
+            check("// @ts-expect-error\nconst x = 1;\n"),
+            vec!["loki/unexplained-ts-suppress"]
+        );
+        assert_eq!(
+            check("// @ts-expect-error -- testing invalid arg\nconst x = 1;\n"),
+            vec![] as Vec<&str>
+        );
+        assert_eq!(
+            check("// eslint-disable-next-line\nconst x = 1;\n"),
+            vec!["loki/unexplained-ts-suppress"]
+        );
+        assert_eq!(
+            check("// eslint-disable-next-line no-console\nconsole.log(1);\n"),
+            vec![] as Vec<&str>
+        );
     }
 }
