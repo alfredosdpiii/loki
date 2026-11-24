@@ -575,24 +575,113 @@ pub fn head_text(root: &Path, relative: &str, deadline: Deadline) -> Result<Stri
 
 /// The file's text at `revision`, or empty text for a file absent from it.
 pub fn text_at(root: &Path, revision: &str, relative: &str, deadline: Deadline) -> Result<String, CheckError> {
-    let row = git_output(root, &["ls-tree", "-z", revision, "--", relative], deadline, None)?;
-    if row.is_empty() {
-        return Ok(String::new());
+    let mut map = texts_at(root, revision, &[relative], deadline)?;
+    Ok(map.remove(relative).unwrap_or_default())
+}
+
+/// Batch size for streaming base blobs without holding an entire large repository in memory at once.
+const MATERIALIZE_BATCH_BYTES: usize = 16 * 1024 * 1024;
+
+/// Batch-read the text of multiple `relatives` at `revision` using a single `ls-tree` and
+/// chunked `cat-file --batch` calls. Missing or non-blob paths map to an empty string.
+pub fn texts_at(
+    root: &Path,
+    revision: &str,
+    relatives: &[&str],
+    deadline: Deadline,
+) -> Result<HashMap<String, String>, CheckError> {
+    if relatives.is_empty() {
+        return Ok(HashMap::new());
     }
-    let tab = row.iter().position(|&b| b == b'\t').unwrap_or(row.len());
-    let metadata = String::from_utf8_lossy(&row[..tab]).into_owned();
-    let parts: Vec<&str> = metadata.split_whitespace().collect();
-    if parts.len() != 3 {
-        return Err(CheckError::Value(format!(
-            "not enough values to unpack (expected 3, got {})",
-            parts.len()
-        )));
+    let mut args: Vec<&str> = Vec::with_capacity(relatives.len() + 4);
+    args.extend(["ls-tree", "-z", revision, "--"]);
+    args.extend(relatives.iter().copied());
+    let output = git_output(root, &args, deadline, None)?;
+    let mut path_oids: Vec<(String, String)> = Vec::new();
+    for row in output.split(|&b| b == 0).filter(|r| !r.is_empty()) {
+        let tab = row.iter().position(|&b| b == b'\t').unwrap_or(row.len());
+        let metadata = String::from_utf8_lossy(&row[..tab]);
+        let parts: Vec<&str> = metadata.split_whitespace().collect();
+        if parts.len() != 3 {
+            return Err(CheckError::Value(format!(
+                "not enough values to unpack (expected 3, got {})",
+                parts.len()
+            )));
+        }
+        if parts[1] != "blob" {
+            continue;
+        }
+        let name = String::from_utf8_lossy(&row[(tab + 1).min(row.len())..]).into_owned();
+        path_oids.push((name, parts[2].to_string()));
     }
-    if parts[1] != "blob" {
-        return Ok(String::new());
+    let oids: Vec<String> = path_oids.iter().map(|(_, oid)| oid.clone()).collect();
+    let blobs = read_blobs_chunked(root, &oids, deadline)?;
+    let mut out = HashMap::with_capacity(relatives.len());
+    for (name, oid) in path_oids {
+        if let Some(bytes) = blobs.get(&oid) {
+            out.insert(name, String::from_utf8_lossy(bytes).into_owned());
+        }
     }
-    let blobs = git_blobs(root, &[parts[2].to_string()], deadline)?;
-    Ok(String::from_utf8_lossy(&blobs[parts[2]]).into_owned())
+    Ok(out)
+}
+
+/// Read blob sizes via `cat-file --batch-check` without enforcing the 64 MiB aggregate cap.
+pub fn blob_sizes(root: &Path, oids: &[String], deadline: Deadline) -> Result<HashMap<String, usize>, CheckError> {
+    let mut unique: Vec<&String> = Vec::new();
+    let mut seen: HashSet<&str> = HashSet::new();
+    for oid in oids {
+        if seen.insert(oid.as_str()) {
+            unique.push(oid);
+        }
+    }
+    if unique.is_empty() {
+        return Ok(HashMap::new());
+    }
+    if unique.len() > 100_000 {
+        return Err(invalid(TOO_MANY_OBJECTS));
+    }
+    let request: Vec<u8> = unique.iter().flat_map(|o| format!("{o}\n").into_bytes()).collect();
+    let metadata = git_output(root, &["cat-file", "--batch-check"], deadline, Some(&request))?;
+    let rows: Vec<&[u8]> = py_splitlines_bytes(&metadata);
+    if rows.len() != unique.len() {
+        return Err(invalid("git: invalid batch metadata response"));
+    }
+    let mut sizes = HashMap::with_capacity(unique.len());
+    for (oid, row) in unique.iter().zip(rows) {
+        let fields = split_fields(row);
+        let size = parse_blob_header(&fields, oid, "git: invalid batch metadata response")?;
+        sizes.insert((*oid).clone(), size);
+    }
+    Ok(sizes)
+}
+
+/// Read blobs in bounded batches (suitable for targeted subsets of source files).
+fn read_blobs_chunked(
+    root: &Path,
+    oids: &[String],
+    deadline: Deadline,
+) -> Result<HashMap<String, Vec<u8>>, CheckError> {
+    let sizes = blob_sizes(root, oids, deadline)?;
+    let mut out = HashMap::with_capacity(sizes.len());
+    let mut batch: Vec<&String> = Vec::new();
+    let mut batch_bytes = 0usize;
+    let unique: Vec<&String> = sizes.keys().collect();
+    for oid in unique {
+        let size = sizes[oid];
+        if !batch.is_empty() && batch_bytes.saturating_add(size) > MATERIALIZE_BATCH_BYTES {
+            let req: Vec<u8> = batch.iter().flat_map(|o| format!("{o}\n").into_bytes()).collect();
+            out.extend(read_batch_blobs(root, &batch, &req, deadline)?);
+            batch.clear();
+            batch_bytes = 0;
+        }
+        batch.push(oid);
+        batch_bytes = batch_bytes.saturating_add(size);
+    }
+    if !batch.is_empty() {
+        let req: Vec<u8> = batch.iter().flat_map(|o| format!("{o}\n").into_bytes()).collect();
+        out.extend(read_batch_blobs(root, &batch, &req, deadline)?);
+    }
+    Ok(out)
 }
 
 fn validate_base_entry(name: &str, mode: &str, kind: &str) -> Result<(), CheckError> {
@@ -621,7 +710,8 @@ fn write_base_file(destination: &Path, base: &str, name: &str, mode: &str, conte
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(bits)).map_err(os)
 }
 
-/// Write the base commit's regular files into `destination`.
+/// Write the base commit's regular files into `destination`, streaming blobs in bounded batches
+/// so repositories larger than `SNAPSHOT_LIMIT` can still be materialized without exhausting RAM.
 pub fn materialize_base(root: &Path, base: &str, destination: &Path, deadline: Deadline) -> Result<(), CheckError> {
     std::fs::create_dir(destination).map_err(|e| invalid(py::os_error(&e, None)))?;
     let mut entries = Vec::new();
@@ -629,10 +719,48 @@ pub fn materialize_base(root: &Path, base: &str, destination: &Path, deadline: D
         validate_base_entry(&name, &mode, &kind)?;
         entries.push((name, mode, oid));
     }
-    let oids: Vec<String> = entries.iter().map(|e| e.2.clone()).collect();
-    let blobs = git_blobs(root, &oids, deadline)?;
-    for (name, mode, oid) in entries {
-        write_base_file(destination, base, &name, &mode, &blobs[&oid])?;
+    if entries.is_empty() {
+        return Ok(());
     }
+    let oids: Vec<String> = entries.iter().map(|e| e.2.clone()).collect();
+    let sizes = blob_sizes(root, &oids, deadline)?;
+    // Group entries into batches of ~MATERIALIZE_BATCH_BYTES by unique oid size, writing each
+    // batch to disk and dropping its memory before reading the next.
+    let mut batch_entries: Vec<(String, String, String)> = Vec::new();
+    let mut batch_oids: Vec<String> = Vec::new();
+    let mut batch_seen: HashSet<String> = HashSet::new();
+    let mut batch_bytes = 0usize;
+    let flush = |batch_entries: &mut Vec<(String, String, String)>,
+                 batch_oids: &mut Vec<String>,
+                 batch_seen: &mut HashSet<String>,
+                 batch_bytes: &mut usize|
+     -> Result<(), CheckError> {
+        if batch_entries.is_empty() {
+            return Ok(());
+        }
+        let oid_refs: Vec<&String> = batch_oids.iter().collect();
+        let req: Vec<u8> = oid_refs.iter().flat_map(|o| format!("{o}\n").into_bytes()).collect();
+        let blobs = read_batch_blobs(root, &oid_refs, &req, deadline)?;
+        for (name, mode, oid) in batch_entries.drain(..) {
+            write_base_file(destination, base, &name, &mode, &blobs[&oid])?;
+        }
+        batch_oids.clear();
+        batch_seen.clear();
+        *batch_bytes = 0;
+        Ok(())
+    };
+    for (name, mode, oid) in entries {
+        let size = sizes.get(&oid).copied().unwrap_or(0);
+        let added_bytes = if batch_seen.contains(&oid) { 0 } else { size };
+        if !batch_entries.is_empty() && batch_bytes.saturating_add(added_bytes) > MATERIALIZE_BATCH_BYTES {
+            flush(&mut batch_entries, &mut batch_oids, &mut batch_seen, &mut batch_bytes)?;
+        }
+        if batch_seen.insert(oid.clone()) {
+            batch_oids.push(oid.clone());
+            batch_bytes = batch_bytes.saturating_add(size);
+        }
+        batch_entries.push((name, mode, oid));
+    }
+    flush(&mut batch_entries, &mut batch_oids, &mut batch_seen, &mut batch_bytes)?;
     Ok(())
 }

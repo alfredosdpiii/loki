@@ -172,7 +172,8 @@ fn collect_written_slop(
     messages: &mut Vec<String>,
     warnings: &mut Vec<String>,
 ) -> Result<(), CheckError> {
-    let notes = match crate::slop::written_slop(root, targets, deadline) {
+    let excludes = config::slop_excludes(config).map_err(CheckError::Value)?;
+    let notes = match crate::slop::written_slop_with(root, targets, &excludes, deadline) {
         Ok(notes) => notes,
         Err(error) if matches!(error, CheckError::Value(_)) || error.is_os() => {
             vec![format!("NOT CHECKED slop: {}", error.message())]

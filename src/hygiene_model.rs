@@ -3,7 +3,7 @@
 
 use crate::hygiene::Squiggle;
 use flate2::read::DeflateDecoder;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::sync::OnceLock;
 
@@ -863,6 +863,62 @@ pub fn score_code(code: &str) -> Result<Vec<Squiggle>, String> {
     Ok(squiggles)
 }
 
+/// Half-window radius around changed lines: 2x `MAX_REL_DIST` (32) preserves the full cross-line
+/// attention receptive field while avoiding scoring hundreds of unchanged lines in large files.
+const WINDOW_RADIUS: usize = 64;
+const WINDOW_THRESHOLD_LINES: usize = 256;
+
+/// Scores only windows around `target_lines` (1-based) when `code` is large, mapping line numbers
+/// back to the full file. Falls back to [`score_code`] on small files or when windows cover most
+/// of the file.
+pub fn score_code_windowed(code: &str, target_lines: &HashSet<usize>) -> Result<Vec<Squiggle>, String> {
+    if target_lines.is_empty() {
+        return Ok(Vec::new());
+    }
+    let lines: Vec<&str> = code.split('\n').collect();
+    let total = lines.len();
+    if total <= WINDOW_THRESHOLD_LINES {
+        return score_code(code);
+    }
+    let mut intervals: Vec<(usize, usize)> = target_lines
+        .iter()
+        .filter(|&&line| line >= 1 && line <= total)
+        .map(|&line| {
+            let idx = line - 1;
+            (idx.saturating_sub(WINDOW_RADIUS), (idx + WINDOW_RADIUS + 1).min(total))
+        })
+        .collect();
+    if intervals.is_empty() {
+        return Ok(Vec::new());
+    }
+    intervals.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::with_capacity(intervals.len());
+    for (start, end) in intervals {
+        if let Some(last) = merged.last_mut()
+            && start <= last.1
+        {
+            last.1 = last.1.max(end);
+        } else {
+            merged.push((start, end));
+        }
+    }
+    let covered: usize = merged.iter().map(|(s, e)| e - s).sum();
+    if covered * 4 >= total * 3 {
+        return score_code(code);
+    }
+    let mut out = Vec::new();
+    for (start, end) in merged {
+        let slice = lines[start..end].join("\n");
+        for mut sq in score_code(&slice)? {
+            sq.line += start;
+            if target_lines.contains(&sq.line) {
+                out.push(sq);
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -874,6 +930,25 @@ mod tests {
         assert!(
             squiggles.iter().any(|s| s.kind == "swallowed_error"),
             "expected swallowed_error squiggle, got: {squiggles:?}"
+        );
+    }
+
+    #[test]
+    fn windowed_scoring_maps_lines_back_on_large_files() {
+        let mut lines: Vec<String> = (0..320).map(|i| format!("x_{i} = {i}")).collect();
+        lines.push("def load(p):".into());
+        lines.push("    try:".into());
+        lines.push("        return open(p).read()".into());
+        lines.push("    except Exception:".into());
+        lines.push("        pass".into());
+        let code = lines.join("\n");
+        let target: HashSet<usize> = (321..=325).collect();
+        let squiggles = score_code_windowed(&code, &target).expect("windowed score");
+        assert!(
+            squiggles
+                .iter()
+                .any(|s| s.kind == "swallowed_error" && (321..=325).contains(&s.line)),
+            "expected windowed swallowed_error on lines 321..=325, got: {squiggles:?}"
         );
     }
 }

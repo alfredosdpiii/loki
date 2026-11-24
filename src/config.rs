@@ -233,11 +233,11 @@ pub fn slop_block(config: &Config) -> Result<bool, String> {
     let policy = match policy.as_object() {
         Some(p)
             if p.keys()
-                .all(|k| ["block", "max_index", "max_index_increase"].contains(&k.as_str())) =>
+                .all(|k| ["block", "max_index", "max_index_increase", "exclude"].contains(&k.as_str())) =>
         {
             p
         }
-        _ => return Err("slop must be an object with block, max_index, max_index_increase".into()),
+        _ => return Err("slop must be an object with block, max_index, max_index_increase, exclude".into()),
     };
     let block = match policy.get("block") {
         None => false,
@@ -251,7 +251,24 @@ pub fn slop_block(config: &Config) -> Result<bool, String> {
             return Err(format!("slop.{key} must be an integer from 0 to 100"));
         }
     }
+    if let Some(exclude) = policy.get("exclude")
+        && !string_list(exclude)
+    {
+        return Err("slop.exclude must be a list of nonempty strings".into());
+    }
     Ok(block)
+}
+
+pub fn slop_excludes(config: &Config) -> Result<Vec<String>, String> {
+    slop_block(config)?;
+    Ok(config
+        .get("slop")
+        .and_then(|v| v.get("exclude"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect())
 }
 
 fn is_nonempty_string_array(v: &Value) -> bool {

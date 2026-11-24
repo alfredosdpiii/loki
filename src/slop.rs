@@ -31,6 +31,7 @@ const EXCLUDED_DIRECTORIES: [&str; 9] = [
     "target",
     "coverage",
 ];
+const FIXTURE_DIRECTORIES: [&str; 3] = ["fixtures", "__fixtures__", "testdata"];
 pub const SKIP_DIRECTORIES: [&str; 10] = [
     ".git",
     ".loki",
@@ -1400,7 +1401,7 @@ fn count_points(count: f64, scale: f64) -> f64 {
 
 re!(GENERATED, r"\.(?:min|generated|pb|g)\.[\w]+$|_pb2\.py$");
 
-/// Vendored, generated, build-output and Loki-owned code is not project debt.
+/// Vendored, generated, fixture, build-output and Loki-owned code is not project debt.
 pub(crate) fn slop_included(path: &str) -> bool {
     if PROTECTED_PATHS.iter().any(|p| path_matches(path, p)) {
         return false;
@@ -1408,6 +1409,10 @@ pub(crate) fn slop_included(path: &str) -> bool {
     let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty() && *p != ".").collect();
     let directories = &parts[..parts.len().saturating_sub(1)];
     !directories.iter().any(|d| EXCLUDED_DIRECTORIES.contains(d)) && !GENERATED.is_match(path)
+}
+
+pub(crate) fn slop_included_with(path: &str, excludes: &[String]) -> bool {
+    slop_included(path) && !excludes.iter().any(|pattern| path_matches(path, pattern))
 }
 
 /// A number as Python keeps it: an int, or a float from a division.
@@ -1441,8 +1446,14 @@ fn ratio(numerator: f64, denominator: usize) -> Num {
     }
 }
 
-fn is_production_source(path: &str) -> bool {
-    slop_language(path).is_some() && slop_included(path) && !is_test_path(path)
+fn is_fixture_path(path: &str) -> bool {
+    let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty() && *p != ".").collect();
+    let directories = &parts[..parts.len().saturating_sub(1)];
+    directories.iter().any(|d| FIXTURE_DIRECTORIES.contains(d))
+}
+
+fn is_production_source_with(path: &str, excludes: &[String]) -> bool {
+    slop_language(path).is_some() && slop_included_with(path, excludes) && !is_test_path(path) && !is_fixture_path(path)
 }
 
 fn count_verbose_lines(
@@ -1517,9 +1528,19 @@ fn format_clone_groups(groups: &[Vec<Span>]) -> Vec<Value> {
 
 /// Raw structural metrics and the 0-100 sloppiness index (lower is better).
 pub fn slop_measure(root: &Path, files: &[(String, String)], deadline: Deadline) -> Result<Value, CheckError> {
+    slop_measure_with(root, files, &[], deadline)
+}
+
+/// Raw structural metrics and the 0-100 sloppiness index with optional `slop.exclude` patterns.
+pub fn slop_measure_with(
+    root: &Path,
+    files: &[(String, String)],
+    excludes: &[String],
+    deadline: Deadline,
+) -> Result<Value, CheckError> {
     let production: Vec<(String, String)> = files
         .iter()
-        .filter(|(path, _)| is_production_source(path))
+        .filter(|(path, _)| is_production_source_with(path, excludes))
         .cloned()
         .collect();
     let python: Vec<&str> = production
@@ -1672,20 +1693,42 @@ pub fn repository_sources(root: &Path, limit: Option<u64>) -> Result<Vec<(String
     Ok(files)
 }
 
-fn base_sources(root: &Path, reference: &str) -> Result<Vec<(String, String)>, CheckError> {
-    let directory = tempfile::Builder::new()
-        .prefix("loki-slop-")
-        .tempdir()
-        .map_err(|e| CheckError::os(&e, None))?;
-    let base = directory.path().join("base");
+fn base_sources(root: &Path, reference: &str, excludes: &[String]) -> Result<Vec<(String, String)>, CheckError> {
     let commit = git_output(
         root,
         &["rev-parse", "--verify", &format!("{reference}^{{commit}}")],
         Deadline::none(),
         None,
     )?;
-    git::materialize_base(root, String::from_utf8_lossy(&commit).trim(), &base, Deadline::none())?;
-    repository_sources(&base, None)
+    let commit = String::from_utf8_lossy(&commit).trim().to_string();
+    let skipped = |relative: &str| relative.split('/').any(|p| SKIP_DIRECTORIES.contains(&p));
+    let listing = git_output(root, &["ls-tree", "-r", "-z", &commit], Deadline::none(), None)?;
+    let mut candidates: Vec<(String, String)> = Vec::new();
+    for row in listing.split(|&b| b == 0).filter(|r| !r.is_empty()) {
+        let tab = row.iter().position(|&b| b == b'\t').unwrap_or(row.len());
+        let meta = String::from_utf8_lossy(&row[..tab]);
+        let parts: Vec<&str> = meta.split_whitespace().collect();
+        if parts.len() != 3 || parts[1] != "blob" || !["100644", "100755"].contains(&parts[0]) {
+            continue;
+        }
+        let name = String::from_utf8_lossy(&row[(tab + 1).min(row.len())..]).into_owned();
+        if !skipped(&name) && is_production_source_with(&name, excludes) {
+            candidates.push((name, parts[2].to_string()));
+        }
+    }
+    candidates.sort_by(|a, b| path_order(&a.0, &b.0));
+    let oids: Vec<String> = candidates.iter().map(|(_, oid)| oid.clone()).collect();
+    let sizes = git::blob_sizes(root, &oids, Deadline::none())?;
+    let eligible: Vec<&str> = candidates
+        .iter()
+        .filter(|(_, oid)| sizes.get(oid).copied().unwrap_or(usize::MAX) <= 1024 * 1024)
+        .map(|(name, _)| name.as_str())
+        .collect();
+    let texts = git::texts_at(root, &commit, &eligible, Deadline::none())?;
+    Ok(eligible
+        .into_iter()
+        .filter_map(|name| texts.get(name).map(|text| (name.to_string(), text.clone())))
+        .collect())
 }
 
 fn report_text(report: &Value, top: usize) -> String {
@@ -1834,15 +1877,20 @@ pub fn slop_command(
     as_json: bool,
     top: i64,
 ) -> Result<i32, CheckError> {
-    crate::config::slop_block(config).map_err(CheckError::Value)?;
+    let excludes = crate::config::slop_excludes(config).map_err(CheckError::Value)?;
     let policy = config
         .get("slop")
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let current = slop_measure(root, &repository_sources(root, None)?, Deadline::none())?;
+    let current = slop_measure_with(root, &repository_sources(root, None)?, &excludes, Deadline::none())?;
     let previous = match base.filter(|b| !b.is_empty()) {
-        Some(base) => Some(slop_measure(root, &base_sources(root, base)?, Deadline::none())?),
+        Some(base) => Some(slop_measure_with(
+            root,
+            &base_sources(root, base, &excludes)?,
+            &excludes,
+            Deadline::none(),
+        )?),
         None => None,
     };
     let index = current["index"].as_i64().unwrap_or(0);
@@ -2091,11 +2139,22 @@ fn written_cycle_notes(
 
 /// Hotspots, clones and cycles an edit introduces, against committed text.
 pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Result<Vec<String>, CheckError> {
+    written_slop_with(root, targets, &[], deadline)
+}
+
+/// [`written_slop`] honoring `slop.exclude` glob patterns from `.loki/loki.json`.
+pub fn written_slop_with(
+    root: &Path,
+    targets: &[PathBuf],
+    excludes: &[String],
+    deadline: Deadline,
+) -> Result<Vec<String>, CheckError> {
     let root = resolve(root);
     let names: Vec<String> = targets
         .iter()
         .filter(|p| p.is_file() && slop_language(&p.to_string_lossy()).is_some())
         .filter_map(|p| p.strip_prefix(&root).ok().map(|r| r.to_string_lossy().into_owned()))
+        .filter(|name| is_production_source_with(name, excludes))
         .collect();
     if names.is_empty() {
         return Ok(vec![]);
@@ -2103,7 +2162,10 @@ pub fn written_slop(root: &Path, targets: &[PathBuf], deadline: Deadline) -> Res
     let (before, after) = load_written_texts(&root, &names, deadline)?;
     let mut notes = written_complexity_notes(&root, &names, &before, &after, deadline)?;
     let repository = match repository_sources(&root, Some(SLOP_WRITE_BUDGET)) {
-        Ok(files) => files,
+        Ok(files) => files
+            .into_iter()
+            .filter(|(p, _)| is_production_source_with(p, excludes))
+            .collect::<Vec<_>>(),
         Err(CheckError::Value(_)) => return Ok(notes),
         Err(other) => return Err(other),
     };
@@ -2135,5 +2197,19 @@ mod tests {
         let mut paths = vec!["a.py", "a/b.py", "a-b.py"];
         paths.sort_by(|a, b| path_order(a, b));
         assert_eq!(paths, ["a/b.py", "a-b.py", "a.py"]);
+    }
+
+    #[test]
+    fn loki_slop_excludes_fixtures_and_configured_globs() {
+        // Fixtures stay included for hygiene/security checks, but excluded from slop production metrics.
+        assert!(slop_included("crates/cli/fixtures/gen.mjs"));
+        assert!(!is_production_source_with("crates/cli/fixtures/gen.mjs", &[]));
+        assert!(!is_production_source_with("src/__fixtures__/sample.ts", &[]));
+        assert!(!is_production_source_with("pkg/testdata/case.go", &[]));
+        assert!(is_production_source_with("crates/cli/src/main.rs", &[]));
+        let excludes = vec!["packages/generated/**".to_string(), "*.snap.js".to_string()];
+        assert!(!slop_included_with("packages/generated/a.ts", &excludes));
+        assert!(!slop_included_with("foo.snap.js", &excludes));
+        assert!(slop_included_with("crates/cli/src/main.rs", &excludes));
     }
 }
