@@ -739,7 +739,7 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "loki-guardrails"
-version = "0.2.2"
+version = "0.2.4"
 dependencies = [
  "fancy-regex",
  "flate2",
