@@ -1,0 +1,5 @@
+{"version": 2, "width": 94, "height": 12, "timestamp": 1795497491, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.029862, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· Shell guard: redirect bypassing write checks blocked\u001b[0m\r\n\r\n"]
+[0.531341, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Bash\u001b[0m echo \"x = 2\" > app.py\r\n"]
+[1.192091, "o", "\r\n\u001b[31m\u001b[1m✗ blocked\u001b[0m\r\n"]
+[1.194021, "o", "  \u001b[31mloki: shell redirect into app.py bypasses write checks; use file edit tools for source \u001b[0m\r\n  \u001b[31mand configuration files\u001b[0m\r\n"]

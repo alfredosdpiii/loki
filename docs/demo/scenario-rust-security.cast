@@ -1,0 +1,6 @@
+{"version": 2, "width": 94, "height": 16, "timestamp": 1795497464, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.02867, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· Rust security: format! SQL injection & disabled TLS\u001b[0m\r\n\r\n"]
+[0.530171, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Write\u001b[0m src/db.rs\r\n"]
+[0.531475, "o", "\u001b[2m    pub async fn load(pool: &Pool, user: &str) {\u001b[0m\r\n\u001b[2m        let _ = sqlx::query(&format!(\"SELECT * FROM users WHERE name = '{}'\", user))\u001b[0m\r\n\u001b[2m            .execute(pool).await;\u001b[0m\r\n\u001b[2m        let _ = reqwest::Client::builder()\u001b[0m\r\n\u001b[2m            .danger_accept_invalid_certs(true).build();\u001b[0m\r\n\u001b[2m    }\u001b[0m\r\n"]
+[1.205389, "o", "\r\n\u001b[31m\u001b[1m✗ blocked before write\u001b[0m\r\n"]
+[1.207287, "o", "  \u001b[31msrc/db.rs:5: loki/tls-verification: TLS certificate verification disabled; trust the \u001b[0m\r\n  \u001b[31mneeded CA instead of turning verification off\u001b[0m\r\n  \u001b[31msrc/db.rs:2: loki/sql-injection: SQL injection: query text built by concatenation or \u001b[0m\r\n  \u001b[31minterpolation; use parameterized placeholders\u001b[0m\r\n"]

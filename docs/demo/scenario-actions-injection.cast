@@ -1,0 +1,6 @@
+{"version": 2, "width": 94, "height": 16, "timestamp": 1795497480, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.031248, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· GitHub Actions: untrusted event field in run step\u001b[0m\r\n\r\n"]
+[0.533258, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Write\u001b[0m .github/workflows/triage.yml\r\n"]
+[0.534573, "o", "\u001b[2m    name: Triage\u001b[0m\r\n\u001b[2m    on: issues\u001b[0m\r\n\u001b[2m    jobs:\u001b[0m\r\n\u001b[2m      label:\u001b[0m\r\n\u001b[2m        runs-on: ubuntu-latest\u001b[0m\r\n\u001b[2m        steps:\u001b[0m\r\n\u001b[2m          - run: echo \"Title: ${{ github.event.issue.title }}\"\u001b[0m\r\n"]
+[1.211382, "o", "\r\n\u001b[31m\u001b[1m✗ blocked before write\u001b[0m\r\n"]
+[1.213347, "o", "  \u001b[31m.github/workflows/triage.yml:7: loki/actions-injection: script injection: untrusted \u001b[0m\r\n  \u001b[31mGitHub event field interpolated into a run step; pass it through env and quote it\u001b[0m\r\n"]

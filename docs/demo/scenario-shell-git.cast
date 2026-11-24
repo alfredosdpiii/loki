@@ -1,0 +1,5 @@
+{"version": 2, "width": 94, "height": 12, "timestamp": 1795497487, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.038655, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· Shell guard: destructive Git command blocked\u001b[0m\r\n\r\n"]
+[0.54043, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Bash\u001b[0m git reset --hard\r\n"]
+[1.206014, "o", "\r\n\u001b[31m\u001b[1m✗ blocked\u001b[0m\r\n"]
+[1.207837, "o", "  \u001b[31mloki: blocked destructive Git command `git reset --hard`: it can discard uncommitted work \u001b[0m\r\n  \u001b[31mor rewrite history; ask the user to run it\u001b[0m\r\n"]

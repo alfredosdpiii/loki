@@ -1,0 +1,6 @@
+{"version": 2, "width": 94, "height": 13, "timestamp": 1795497495, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.029815, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· Policy protection: editing .loki/loki.json blocked\u001b[0m\r\n\r\n"]
+[0.531444, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Write\u001b[0m .loki/loki.json\r\n"]
+[0.532935, "o", "\u001b[2m    {\"rule_packs\": []}\u001b[0m\r\n"]
+[1.180991, "o", "\r\n\u001b[31m\u001b[1m✗ blocked before write\u001b[0m\r\n"]
+[1.182581, "o", "  \u001b[31mloki: protected file: .loki/loki.json (set LOKI_ALLOW_PROTECTED=1 to override)\u001b[0m\r\n"]

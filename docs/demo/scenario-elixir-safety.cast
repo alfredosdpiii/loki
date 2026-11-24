@@ -1,0 +1,6 @@
+{"version": 2, "width": 94, "height": 15, "timestamp": 1795497476, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.033409, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· Elixir safety: structural DateTime sort\u001b[0m\r\n\r\n"]
+[0.536065, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Write\u001b[0m lib/events.ex\r\n"]
+[0.537491, "o", "\u001b[2m    defmodule Events do\u001b[0m\r\n\u001b[2m      def latest(items) do\u001b[0m\r\n\u001b[2m        Enum.sort_by(items, & &1.inserted_at)\u001b[0m\r\n\u001b[2m      end\u001b[0m\r\n\u001b[2m    end\u001b[0m\r\n"]
+[1.207454, "o", "\r\n\u001b[31m\u001b[1m✗ blocked before write\u001b[0m\r\n"]
+[1.209064, "o", "  \u001b[31mlib/events.ex:3: loki/structural-date-sort: structural comparison: DateTime/Date values \u001b[0m\r\n  \u001b[31msorted with plain term ordering; pass DateTime (or {:desc, DateTime}) as the sorter\u001b[0m\r\n"]

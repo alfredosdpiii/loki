@@ -187,6 +187,70 @@ Missing analyzers are reported as `NOT CHECKED`, never as clean, and
 `LOKI_STRICT=1` turns them into failures. The [reference](https://github.com/alfredosdpiii/loki/blob/main/docs/reference.md)
 documents every rule, threshold and limitation.
 
+## Scenarios where Loki fires
+
+Every GIF below is real output from `loki` (`docs/demo/record-scenarios.sh`).
+
+### 1. Python security: SQL injection, SSRF & unsafe `yaml.load`
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-python-security.gif" alt="Loki blocking Python SQL injection, SSRF and unsafe yaml.load before write" width="820">
+</div>
+
+### 2. Rust security: `format!` SQL injection & disabled TLS
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-rust-security.gif" alt="Loki blocking Rust format! SQL injection and danger_accept_invalid_certs before write" width="820">
+</div>
+
+### 3. Rust anti-slop & safety: `todo!()`, unflushed `BufWriter`, unchecked index & missing `SAFETY`
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-rust-safety.gif" alt="Loki blocking Rust todo!(), unflushed BufWriter, unchecked get_unchecked and missing SAFETY comment" width="820">
+</div>
+
+### 4. Python anti-slop: tautological tests & silent `except: pass`
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-python-antislop.gif" alt="Loki blocking Python tautological test assertion and silent except: pass" width="820">
+</div>
+
+### 5. Elixir safety: structural `DateTime` sort
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-elixir-safety.gif" alt="Loki blocking Elixir structural DateTime sort" width="820">
+</div>
+
+### 6. GitHub Actions: untrusted script injection
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-actions-injection.gif" alt="Loki blocking untrusted GitHub Actions event interpolation in run step" width="820">
+</div>
+
+### 7. Any file: unresolved merge-conflict markers
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-conflict-marker.gif" alt="Loki blocking unresolved merge-conflict markers" width="820">
+</div>
+
+### 8. Shell guard: destructive Git command blocked
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-shell-git.gif" alt="Loki blocking git reset --hard" width="820">
+</div>
+
+### 9. Shell guard: shell redirect write-bypass blocked
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-shell-bypass.gif" alt="Loki blocking shell redirect into app.py that bypasses write hooks" width="820">
+</div>
+
+### 10. Policy protection: tampering with `.loki/loki.json` blocked
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-policy-tamper.gif" alt="Loki blocking edits to protected .loki/loki.json policy file" width="820">
+</div>
+
 ## Oxlint + landmines + anti-slop
 
 For TypeScript and JavaScript repositories, `loki init` installs both
@@ -217,10 +281,13 @@ The four `landmines` plugins block common AI-agent shortcuts at `"error"` level:
 On every write (`"hygiene": "on"` by default), Loki runs two local readability
 and error-handling checks over the lines the edit added against `HEAD`:
 
-- **[codehygiene](https://github.com/brianbell-x/codehygiene)** (vendored MIT
-  ternary model in `.loki/vendor/codehygiene`, requires NumPy via Loki's Python,
-  `--python`, or `uv`'s offline cache). Default `on` catches `swallowed_error`,
-  `noisy_comment`, `duplicate_block` and `special_casing`.
+- **[codehygiene](https://github.com/brianbell-x/codehygiene)** (1.58-bit
+  ternary model compiled in and executed in-process in pure Rust — no Python or
+  NumPy required). Default `on` catches `swallowed_error` (with Python `except`
+  structural filtering so dict fallbacks like `d.get(k) or []` and handlers that
+  record errors aren't flagged), `noisy_comment`, `duplicate_block` (move-aware
+  for 3+ line refactors) and `special_casing`. Scoring is windowed around
+  changed hunks and parallelized across cores.
 - **[nits](https://github.com/jkomyno/nits)** (tree-sitter rules for Python,
   TypeScript, JavaScript and Rust, pinned to a commit and run only from local
   Python or `uv`'s offline cache; never downloaded at hook time). Default `on`
@@ -265,8 +332,17 @@ hotspot src/discounts.ts:1 discount CC 17, 15 SLOC, mass 65.8
 Complexity is exact for Python, TypeScript/JavaScript, Go and Elixir using each
 language's own parser. It is approximated structurally for Rust, Java, Kotlin, C#,
 C/C++, Swift, Scala, PHP and Ruby. Clones are detected on normalized tokens, so
-renamed copies count. `--base` compares against a revision, and `max_index` or
-`max_index_increase` can gate CI.
+renamed copies count. Test and fixture directories (`fixtures`, `__fixtures__`,
+`testdata`) are excluded from production slop metrics automatically, and
+`slop.exclude` adds repo-specific globs. `--base` compares against a revision
+without hitting a repo-size ceiling, and `max_index` or `max_index_increase` can
+gate CI.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-slop.gif" alt="loki slop reporting complexity hotspots, token-normalized clones and import cycles, then verifying the refactor drops the index from 55 to 0 with --base HEAD" width="820">
+<br>
+<sub>Real CLI output from <a href="https://github.com/alfredosdpiii/loki/blob/main/docs/demo/slop.sh">docs/demo/slop.sh</a>.</sub>
+</div>
 
 ## Configuration
 
@@ -279,7 +355,7 @@ an agent can't loosen it mid-session:
   "shell_commands": [
     {"command": "npm test", "cwd": ".", "inputs": ["package.json", "package-lock.json"]}
   ],
-  "slop": {"max_index": 40, "max_index_increase": 2, "block": false},
+  "slop": {"max_index": 40, "max_index_increase": 2, "block": false, "exclude": ["generated/**"]},
   "elixir_security": {"sobelow": {"block": "high", "warn": "medium"}}
 }
 ```
@@ -288,6 +364,7 @@ an agent can't loosen it mid-session:
 | --- | --- | --- |
 | `typescript_check` | on when `tsconfig.json` exists | `false` disables it; `true` makes setup problems block |
 | `slop.block` | `false` | Turns new hotspots, clones and cycles from advice into failures |
+| `slop.exclude` | `[]` | Glob patterns excluded from `loki slop` and write-time slop checks (in addition to tests and `fixtures/`/`testdata/`) |
 | `hygiene` | `"on"` | `"off"` disables it; `"all"` adds layout, naming and lower-precision nits rules |
 | `LOKI_HYGIENE` | unset | `off`, `on` or `all`; overrides `hygiene` |
 | `shell_commands` | none | Exact, reviewed shell commands the shell guard admits (enable the guard with `loki init --shell-guard`) |
@@ -334,4 +411,6 @@ agg docs/demo/hygiene.cast docs/demo/hygiene.gif
 
 asciinema rec --cols 96 --rows 34 --overwrite -c "bash docs/demo/landmines.sh" docs/demo/landmines.cast
 agg docs/demo/landmines.cast docs/demo/landmines.gif
+
+bash docs/demo/record-scenarios.sh
 ```

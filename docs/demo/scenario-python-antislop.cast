@@ -1,0 +1,6 @@
+{"version": 2, "width": 94, "height": 20, "timestamp": 1795497472, "env": {"SHELL": "/usr/bin/bash", "TERM": "dumb"}}
+[0.039923, "o", "\u001b[2J\u001b[H\u001b[36m\u001b[1mLoki\u001b[0m \u001b[2m· Python anti-slop: tautological test & silent except: pass\u001b[0m\r\n\r\n"]
+[0.54171, "o", "\u001b[35m\u001b[1magent\u001b[0m \u001b[2m→ Write\u001b[0m tests/test_auth.py\r\n"]
+[0.543421, "o", "\u001b[2m    def test_parse_token(raw):\u001b[0m\r\n\u001b[2m        assert parse_token(raw) == parse_token(raw)\u001b[0m\r\n\u001b[2m    \u001b[0m\r\n\u001b[2m    def cleanup(path):\u001b[0m\r\n\u001b[2m        try:\u001b[0m\r\n\u001b[2m            remove(path)\u001b[0m\r\n\u001b[2m        except Exception:\u001b[0m\r\n\u001b[2m            pass\u001b[0m\r\n"]
+[1.275092, "o", "\r\n\u001b[31m\u001b[1m✗ blocked before write\u001b[0m\r\n"]
+[1.276559, "o", "  \u001b[31mtests/test_auth.py:2: loki/tautological-test: tautological assertion: the expected value \u001b[0m\r\n  \u001b[31mis computed by the same call as the result, so the test always passes\u001b[0m\r\n  \u001b[31mtests/test_auth.py:7: loki/bare-except: swallowed exception: bare or broad except block \u001b[0m\r\n  \u001b[31msilently discards errors; catch a specific exception and handle or re-raise it\u001b[0m\r\n"]
