@@ -40,6 +40,20 @@
           }
         ]
       }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "R=\"$(git rev-parse --show-toplevel)\"; [ -f \"$R/.loki/loki.json\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.json 2>/dev/null || [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.json 2>/dev/null)\" ] || { printf '{}\\n'; exit 0; }; loki context --root \"$R\" --event PreInvocation --host agy || { printf '{}\\n'; exit 0; }",
+        "timeout": 5
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "R=\"$(git rev-parse --show-toplevel)\"; [ -f \"$R/.loki/loki.json\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.json 2>/dev/null || [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.json 2>/dev/null)\" ] || { printf '{}\\n'; exit 0; }; loki context --root \"$R\" --event PostInvocation --host agy || { printf '{}\\n'; exit 0; }",
+        "timeout": 5
+      }
     ]
   }
 }

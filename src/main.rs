@@ -62,7 +62,7 @@ const USAGES: &[(&str, &str)] = &[
     ("daemon", "usage: loki daemon [-h] {serve,start,stop,status}"),
 ];
 
-const DEFAULT_USAGE: &str = "usage: loki context [-h] [--root ROOT]\n                    [--event {SessionStart,UserPromptSubmit}]\n                    [--host {agy,ultron}]";
+const DEFAULT_USAGE: &str = "usage: loki context [-h] [--root ROOT]\n                    [--event {SessionStart,UserPromptSubmit,PreInvocation,PostInvocation}]\n                    [--host {agy,ultron}]";
 
 fn usage(command: &str) -> &'static str {
     USAGES
@@ -141,7 +141,7 @@ const FORMAT_CHOICES: &[&str] = &["text", "json"];
 const PREVIEW_CHOICES: &[&str] = &["pi", "omp", "ultron"];
 const LEVEL_CHOICES: &[&str] = &["on", "all"];
 const TIER_CHOICES: &[&str] = &["fast", "project", "deep"];
-const EVENT_CHOICES: &[&str] = &["SessionStart", "UserPromptSubmit"];
+const EVENT_CHOICES: &[&str] = &["SessionStart", "UserPromptSubmit", "PreInvocation", "PostInvocation"];
 const HOST_CHOICES: &[&str] = &["agy", "ultron"];
 
 const GUARD_OPTIONS: &[(&str, Kind)] = &[
@@ -595,9 +595,45 @@ fn root_of(args: &Args) -> PathBuf {
     resolve(Path::new(args.root.as_deref().unwrap_or(".")))
 }
 
+fn read_optional_stdin_json() -> Option<Value> {
+    let mut raw = Vec::new();
+    std::io::stdin().take(4 * 1024 * 1024).read_to_end(&mut raw).ok()?;
+    let text = std::str::from_utf8(&raw).ok()?.trim();
+    if text.is_empty() {
+        return None;
+    }
+    serde_json::from_str(text).ok()
+}
+
+fn agy_invocation_context(root: &Path, event: &str) -> ExitCode {
+    let payload = read_optional_stdin_json();
+    let conv_id = loki::agy::conversation_id(payload.as_ref());
+    let drained = if event == "PreInvocation" {
+        loki::agy::drain_pre_invocation(root, conv_id.as_deref())
+    } else {
+        loki::agy::drain_post_invocation(root, conv_id.as_deref())
+    };
+    let output = match drained {
+        Some(text) if event == "PostInvocation" => json!({
+            "injectSteps": [{"systemMessage": {"systemMessage": text}}],
+            "terminationBehavior": "force_continue"
+        }),
+        Some(text) => json!({
+            "injectSteps": [{"systemMessage": {"systemMessage": text}}]
+        }),
+        None => json!({}),
+    };
+    println!("{}", py::dumps(&output));
+    ExitCode::SUCCESS
+}
+
 fn context(args: &Args) -> ExitCode {
     let root = root_of(args);
     let host = args.get("--host");
+    let event = args.get("--event").unwrap_or("SessionStart");
+    if host == Some("agy") && matches!(event, "PreInvocation" | "PostInvocation") {
+        return agy_invocation_context(&root, event);
+    }
     let loaded = config::load_config(&root).map_err(|e| match e {
         config::ConfigError::Invalid(m) | config::ConfigError::Guard(_, m) => m,
     });
@@ -609,7 +645,7 @@ fn context(args: &Args) -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             let mut output = json!({"hookSpecificOutput": {
-                "hookEventName": args.get("--event").unwrap_or("SessionStart"),
+                "hookEventName": event,
                 "additionalContext": text,
             }});
             if host.is_some()
@@ -647,8 +683,13 @@ fn read_stdin_json(what: &str) -> Result<Value, CheckError> {
 }
 
 /// The protect/hook body of a `--harness` or `hook` run: what blocks and what is only reported.
-fn check(args: &Args, root: &Path, config: &config::Config) -> Result<Report, CheckError> {
-    let deadline = Deadline::after(20.0);
+fn check(
+    args: &Args,
+    root: &Path,
+    config: &config::Config,
+    conversation_id: &mut Option<String>,
+) -> Result<Report, CheckError> {
+    let deadline = Deadline::hook();
     let mut warnings: Vec<String> = Vec::new();
     let harness = args.get("--harness");
     if args.get("--format") == Some("json") && harness.is_some() {
@@ -657,6 +698,7 @@ fn check(args: &Args, root: &Path, config: &config::Config) -> Result<Report, Ch
     let (paths, payload) = match harness {
         Some(harness) => {
             let payload = read_stdin_json("hook")?;
+            *conversation_id = loki::agy::conversation_id(Some(&payload));
             (loki::harness_paths(&payload, harness)?, Some(payload))
         }
         None => (run::file_paths(&args.all("--file"))?, None),
@@ -681,6 +723,7 @@ fn check(args: &Args, root: &Path, config: &config::Config) -> Result<Report, Ch
 fn guard(args: &Args) -> ExitCode {
     let root = root_of(args);
     let harness = args.get("--harness");
+    let mut conversation_id = None;
     let checked = run::load(&root)
         .inspect_err(|error| run::failure_evidence(error, "invalid-policy"))
         .and_then(|config| {
@@ -695,9 +738,26 @@ fn guard(args: &Args) -> ExitCode {
                 };
                 run::protect_with(&root, &config, &args.all("--file"), preview.zip(payload.as_ref()))
             } else {
-                check(args, &root, &config).inspect_err(|error| run::failure_evidence(error, "invalid-input"))
+                check(args, &root, &config, &mut conversation_id)
+                    .inspect_err(|error| run::failure_evidence(error, "invalid-input"))
             }
         });
+    if harness == Some("agy") && args.command == "hook" {
+        match &checked {
+            Ok(report) => loki::agy::record_post_tool(
+                &root,
+                conversation_id.as_deref(),
+                &report.blocking,
+                &report.warnings,
+            ),
+            Err(error) => loki::agy::record_post_tool(
+                &root,
+                conversation_id.as_deref(),
+                &[format!("loki: {}", error.describe())],
+                &[],
+            ),
+        }
+    }
     let (status, stdout, stderr) = rendered(
         &args.command,
         checked,

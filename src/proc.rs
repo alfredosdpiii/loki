@@ -6,8 +6,9 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 pub const COMMAND_TIMEOUT: f64 = 120.0;
+pub const DEFAULT_HOOK_TIMEOUT: f64 = 20.0;
 
-/// A hook's overall deadline: `time.monotonic() + 20`, or none.
+/// A hook's overall deadline: `time.monotonic() + 20` (or `LOKI_HOOK_TIMEOUT`), or none.
 #[derive(Clone, Copy, Debug)]
 pub struct Deadline(pub Option<Instant>);
 
@@ -18,6 +19,25 @@ impl Deadline {
 
     pub fn after(seconds: f64) -> Deadline {
         Deadline(Some(Instant::now() + Duration::from_secs_f64(seconds)))
+    }
+
+    /// Hook deadline: `LOKI_HOOK_TIMEOUT` seconds (clamped to `5..=120`), else `20s`.
+    pub fn hook() -> Deadline {
+        let seconds = std::env::var("LOKI_HOOK_TIMEOUT")
+            .ok()
+            .and_then(|v| v.trim().parse::<f64>().ok())
+            .filter(|v| v.is_finite())
+            .map_or(DEFAULT_HOOK_TIMEOUT, |v| v.clamp(5.0, COMMAND_TIMEOUT));
+        Deadline::after(seconds)
+    }
+
+    /// Cap this deadline to at most `seconds` from now so one slow check cannot starve faster peers.
+    pub fn capped(self, seconds: f64) -> Deadline {
+        let cap = Instant::now() + Duration::from_secs_f64(seconds.max(0.0));
+        match self.0 {
+            None => Deadline(Some(cap)),
+            Some(at) => Deadline(Some(at.min(cap))),
+        }
     }
 
     /// `command_timeout`: seconds left, at most 120.

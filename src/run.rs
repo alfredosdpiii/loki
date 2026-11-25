@@ -122,7 +122,7 @@ pub fn protect_with(
     preview: Option<Preview>,
 ) -> Result<Report, CheckError> {
     let checked = || -> Result<Report, CheckError> {
-        let deadline = crate::proc::Deadline::after(20.0);
+        let deadline = crate::proc::Deadline::hook();
         let paths = file_paths(files)?;
         crate::evidence::targets(&paths);
         let mut warnings = Vec::new();
@@ -229,6 +229,80 @@ fn check_targets(
     Ok(messages)
 }
 
+struct StageOut {
+    messages: Result<Vec<String>, CheckError>,
+    warnings: Vec<String>,
+    evidence: Option<crate::evidence::Evidence>,
+}
+
+fn run_stage(
+    recording: bool,
+    f: impl FnOnce(&mut Vec<String>) -> Result<Vec<String>, CheckError>,
+) -> StageOut {
+    if recording {
+        crate::evidence::start();
+    }
+    let mut warnings = Vec::new();
+    let messages = f(&mut warnings);
+    StageOut {
+        messages,
+        warnings,
+        evidence: crate::evidence::take(),
+    }
+}
+
+fn apply_stage(out: StageOut, messages: &mut Vec<String>, warnings: &mut Vec<String>) -> Result<(), CheckError> {
+    if let Some(ev) = out.evidence {
+        crate::evidence::merge(ev);
+    }
+    warnings.extend(out.warnings);
+    messages.extend(out.messages?);
+    Ok(())
+}
+
+fn run_parallel_hook_checks(
+    root: &Path,
+    config: &Config,
+    targets: &[PathBuf],
+    python: Option<&str>,
+    deadline: crate::proc::Deadline,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<String>, CheckError> {
+    let recording = crate::evidence::active();
+    let run_ts = has_typescript_target(targets);
+    let ts_deadline = deadline.capped(12.0);
+    let stages = std::thread::scope(|s| {
+        let ts = run_ts.then(|| {
+            s.spawn(move || run_stage(recording, |w| crate::typescript::typescript_findings(root, config, ts_deadline, w)))
+        });
+        let slop = s.spawn(move || {
+            run_stage(recording, |w| {
+                let mut m = Vec::new();
+                collect_written_slop(root, config, targets, deadline, &mut m, w)?;
+                Ok(m)
+            })
+        });
+        let hyg = s.spawn(move || {
+            run_stage(recording, |w| {
+                collect_written_hygiene(root, config, targets, w);
+                Ok(Vec::new())
+            })
+        });
+        let tgt = s.spawn(move || run_stage(recording, |w| check_targets(root, config, targets, python, deadline, w)));
+        [
+            ts.map(|h| h.join().expect("typescript hook thread")),
+            Some(slop.join().expect("slop hook thread")),
+            Some(hyg.join().expect("hygiene hook thread")),
+            Some(tgt.join().expect("targets hook thread")),
+        ]
+    });
+    let mut messages = Vec::new();
+    for stage in stages.into_iter().flatten() {
+        apply_stage(stage, &mut messages, warnings)?;
+    }
+    Ok(messages)
+}
+
 /// `hook`'s check of written files: protected paths, then (when none is protected) the write guardrails, the
 /// TypeScript checks, written slop and each file's analyzers. `python` is `--python`.
 pub fn hook_violations(
@@ -251,15 +325,10 @@ pub fn hook_violations(
         deadline,
         Some(&mut *warnings),
     )?);
-    if messages.is_empty() && has_typescript_target(&targets) {
-        messages.extend(crate::typescript::typescript_findings(
-            root, config, deadline, warnings,
-        )?);
-    }
     if messages.is_empty() {
-        collect_written_slop(root, config, &targets, deadline, &mut messages, warnings)?;
-        collect_written_hygiene(root, config, &targets, warnings);
-        messages.extend(check_targets(root, config, &targets, python, deadline, warnings)?);
+        messages.extend(run_parallel_hook_checks(
+            root, config, &targets, python, deadline, warnings,
+        )?);
     }
     Ok(messages)
 }
@@ -278,7 +347,7 @@ pub fn hook(root: &Path, files: &[String], python: Option<&str>) -> Result<Repor
                 &config,
                 &paths,
                 python,
-                crate::proc::Deadline::after(20.0),
+                crate::proc::Deadline::hook(),
                 &mut warnings,
             )
         })

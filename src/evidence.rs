@@ -34,6 +34,20 @@ pub fn active() -> bool {
     ACTIVE.with(|active| active.borrow().is_some())
 }
 
+/// Merge evidence collected on a worker thread into this thread's active recorder.
+pub fn merge(other: Evidence) {
+    ACTIVE.with(|active| {
+        if let Some(evidence) = active.borrow_mut().as_mut() {
+            for policy in other.policies {
+                if !evidence.policies.contains(&policy) {
+                    evidence.policies.push(policy);
+                }
+            }
+            evidence.findings.extend(other.findings);
+        }
+    });
+}
+
 /// `evidence_policy`: a policy file the check read (`raw` none: absent), once.
 pub fn policy(source: &str, path: &str, raw: Option<&[u8]>, base: Option<&str>) {
     ACTIVE.with(|active| {

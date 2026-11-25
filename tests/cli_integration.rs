@@ -599,3 +599,137 @@ fn hook_runs_hygiene_for_every_harness() {
         );
     }
 }
+
+#[test]
+fn agy_post_tool_spool_drains_on_pre_and_post_invocation() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    std::fs::write(root.join("app.py"), "def ok() -> int:\n    return 1\n").unwrap();
+    let init = Command::new(loki_bin())
+        .args(["init", "--dir", root.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "init"]);
+
+    // Verify agy-hooks.json wires PreInvocation and PostInvocation.
+    let agy_cfg: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join(".agents/hooks.json")).unwrap()).unwrap();
+    assert!(agy_cfg["loki"]["PreInvocation"].is_array());
+    assert!(agy_cfg["loki"]["PostInvocation"].is_array());
+
+    // Write a blocking secret via PostToolUse (simulating an edit that slipped through).
+    std::fs::write(
+        root.join("app.py"),
+        "KEY = \"sk_live_51Hq8TzK2m9XbV4dLpQ7rW3nY6cF0aJ\"\n",
+    )
+    .unwrap();
+
+    let run_with_home = |args: &[&str], payload: &serde_json::Value| {
+        use std::io::Write;
+        let mut child = Command::new(loki_bin())
+            .args(args)
+            .env("HOME", home.path())
+            .env("LOKI_DAEMON", "0")
+            .env("LOKI_HOOK_TIMEOUT", "25")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(payload.to_string().as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    };
+
+    let root_s = root.to_str().unwrap();
+    let conv_id = "conv-agy-test-123";
+
+    // 1. PostToolUse returns {} and spools the blocking finding.
+    let post = run_with_home(
+        &["--root", root_s, "hook", "--harness", "agy"],
+        &serde_json::json!({
+            "conversationId": conv_id,
+            "cwd": root,
+            "toolCall": {"name": "write_file", "args": {"Path": root.join("app.py")}}
+        }),
+    );
+    assert!(post.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&post.stdout).unwrap(),
+        serde_json::json!({})
+    );
+
+    // 2. PreInvocation drains the spool into injectSteps.systemMessage.
+    let pre_inv = run_with_home(
+        &["context", "--root", root_s, "--event", "PreInvocation", "--host", "agy"],
+        &serde_json::json!({ "conversationId": conv_id }),
+    );
+    assert!(pre_inv.status.success());
+    let pre_json: serde_json::Value = serde_json::from_slice(&pre_inv.stdout).unwrap();
+    let msg = pre_json["injectSteps"][0]["systemMessage"]["systemMessage"]
+        .as_str()
+        .unwrap();
+    assert!(msg.contains("loki/secret"), "got: {msg}");
+
+    // Second PreInvocation without new edits is empty.
+    let pre_inv2 = run_with_home(
+        &["context", "--root", root_s, "--event", "PreInvocation", "--host", "agy"],
+        &serde_json::json!({ "conversationId": conv_id }),
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&pre_inv2.stdout).unwrap(),
+        serde_json::json!({})
+    );
+
+    // 3. PostInvocation sees unresolved blocking failure and forces continuation once.
+    let post_inv = run_with_home(
+        &["context", "--root", root_s, "--event", "PostInvocation", "--host", "agy"],
+        &serde_json::json!({ "conversationId": conv_id }),
+    );
+    let post_inv_json: serde_json::Value = serde_json::from_slice(&post_inv.stdout).unwrap();
+    assert_eq!(post_inv_json["terminationBehavior"], "force_continue");
+    assert!(
+        post_inv_json["injectSteps"][0]["systemMessage"]["systemMessage"]
+            .as_str()
+            .unwrap()
+            .contains("loki/secret")
+    );
+
+    // Second PostInvocation does not infinite-loop.
+    let post_inv2 = run_with_home(
+        &["context", "--root", root_s, "--event", "PostInvocation", "--host", "agy"],
+        &serde_json::json!({ "conversationId": conv_id }),
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&post_inv2.stdout).unwrap(),
+        serde_json::json!({})
+    );
+
+    // 4. Clean edit clears any unresolved state.
+    std::fs::write(root.join("app.py"), "def ok() -> int:\n    return 2\n").unwrap();
+    let clean_post = run_with_home(
+        &["--root", root_s, "hook", "--harness", "agy"],
+        &serde_json::json!({
+            "conversationId": conv_id,
+            "cwd": root,
+            "toolCall": {"name": "write_file", "args": {"Path": root.join("app.py")}}
+        }),
+    );
+    assert!(clean_post.status.success());
+    let post_inv3 = run_with_home(
+        &["context", "--root", root_s, "--event", "PostInvocation", "--host", "agy"],
+        &serde_json::json!({ "conversationId": conv_id }),
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&post_inv3.stdout).unwrap(),
+        serde_json::json!({})
+    );
+}

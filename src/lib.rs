@@ -7,6 +7,7 @@
 //! `shell-writes` and `explain`. Python source is parsed by CPython (`pyast`), as
 //! loki.py does.
 
+pub mod agy;
 pub mod analyzers;
 pub mod apply;
 pub mod auto_setup;
