@@ -584,7 +584,8 @@ fn extract_shell_call<'a>(payload: &'a Value, harness: &str) -> Result<(&'a str,
 fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckError> {
     let names: &[&str] = match harness {
         "agy" => &["run_command"],
-        "claude" | "codex" => &["Bash"],
+        "claude" => &["Bash"],
+        "codex" => &["Bash", "exec_command", "shell"],
         "factory" => &["Execute"],
         _ => &["bash", "Bash"],
     };
@@ -592,8 +593,18 @@ fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckEr
     if !names.contains(&name) {
         return Err(invalid("unexpected shell tool name"));
     }
-    const FIELDS: [&str; 13] = [
+    const FIELDS: [&str; 24] = [
         "command",
+        "cmd",
+        "workdir",
+        "login",
+        "tty",
+        "yield_time_ms",
+        "max_output_tokens",
+        "sandbox_permissions",
+        "justification",
+        "shell",
+        "dangerouslyDisableSandbox",
         "description",
         "timeout",
         "run_in_background",
@@ -603,6 +614,7 @@ fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckEr
         "fireAndForget",
         "CommandLine",
         "WaitMsBeforeAsync",
+        "NotificationTimeoutSeconds",
         "IsDaemon",
         "BypassSandbox",
         "toolSummary",
@@ -616,16 +628,29 @@ fn validate_shell_envelope(payload: &Value, harness: &str) -> Result<(), CheckEr
 /// Extract the command JSON value from a shell hook envelope.
 pub fn shell_command<'a>(payload: &'a Value, harness: &str) -> Result<&'a Value, CheckError> {
     let (_, input) = extract_shell_call(payload, harness)?;
-    let key = if harness == "agy" { "CommandLine" } else { "command" };
-    Ok(input.get(key).unwrap_or(&Value::Null))
+    let value = if harness == "agy" {
+        input.get("CommandLine")
+    } else if harness == "codex" {
+        input.get("command").or_else(|| input.get("cmd"))
+    } else {
+        input.get("command")
+    };
+    Ok(value.unwrap_or(&Value::Null))
 }
 
 fn raw_shell_cwd<'a>(payload: &'a Value, harness: &str) -> Option<&'a str> {
-    let raw = payload.get("cwd").or_else(|| {
-        (harness == "agy")
-            .then(|| payload.get("workspacePaths").and_then(Value::as_array).and_then(|a| a.first()))
-            .flatten()
-    });
+    let raw = payload
+        .get("cwd")
+        .or_else(|| {
+            (harness == "agy")
+                .then(|| payload.get("workspacePaths").and_then(Value::as_array).and_then(|a| a.first()))
+                .flatten()
+        })
+        .or_else(|| {
+            (harness == "codex")
+                .then(|| payload.get("tool_input").and_then(|v| v.get("workdir")))
+                .flatten()
+        });
     raw.and_then(Value::as_str).filter(|d| !d.is_empty() && !d.contains('\0'))
 }
 

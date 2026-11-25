@@ -164,6 +164,22 @@ fn has_typescript_target(targets: &[PathBuf]) -> bool {
     })
 }
 
+fn collect_written_hygiene(root: &Path, config: &Config, targets: &[PathBuf], warnings: &mut Vec<String>) {
+    let env_level = std::env::var(crate::hygiene::HYGIENE_ENV).ok();
+    let level = crate::hygiene::level(env_level.as_deref(), config);
+    if level == crate::hygiene::Level::Off {
+        return;
+    }
+    let relatives: Vec<String> = targets
+        .iter()
+        .filter_map(|p| p.strip_prefix(root).ok().map(|r| r.to_string_lossy().into_owned()))
+        .collect();
+    if relatives.is_empty() {
+        return;
+    }
+    warnings.extend(crate::hygiene::written(root, &relatives, level));
+}
+
 fn collect_written_slop(
     root: &Path,
     config: &Config,
@@ -242,6 +258,7 @@ pub fn hook_violations(
     }
     if messages.is_empty() {
         collect_written_slop(root, config, &targets, deadline, &mut messages, warnings)?;
+        collect_written_hygiene(root, config, &targets, warnings);
         messages.extend(check_targets(root, config, &targets, python, deadline, warnings)?);
     }
     Ok(messages)

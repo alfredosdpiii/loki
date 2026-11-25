@@ -167,9 +167,32 @@ function handleToolResultOutcome(api: ExtensionApi, value: Record<string, unknow
   return { content: [...content, { type: "text", text: diagnostic }], ...(failed ? { isError: true } : {}) };
 }
 
+function isShellToolEvent(value: unknown, phase: string): value is Record<string, unknown> & { toolName: "bash" | "Bash" } {
+  return phase === "tool_call" && isRecord(value) && (value.toolName === "bash" || value.toolName === "Bash");
+}
+
+function runShellWritesCheck(
+  root: string,
+  value: Record<string, unknown> & { toolName: "bash" | "Bash" },
+  cwd: unknown,
+  previewHost: "pi" | "omp",
+): CheckOutcome {
+  try {
+    if (typeof cwd !== "string") throw new Error("loki: missing handler cwd");
+    const input = JSON.stringify({ cwd, tool_name: value.toolName, tool_input: value.input });
+    return runChecker(root, ["shell-writes", "--harness", previewHost], 15_000, input);
+  } catch (error) {
+    return { failed: true, text: errorMessage(error) };
+  }
+}
+
 export function installGuard(api: ExtensionApi, root: string, extract: (toolName: string, input: unknown, cwd: string) => string[], previewHost: "pi" | "omp" = "pi") {
   for (const phase of ["tool_call", "tool_result"]) {
     api.on(phase, async (value, ctx) => {
+      if (isShellToolEvent(value, phase)) {
+        if (skipOffBranch(api, root)) return;
+        return handleToolCallOutcome(api, runShellWritesCheck(root, value, ctx?.cwd, previewHost));
+      }
       if (!isWriteToolEvent(value, phase) || skipOffBranch(api, root)) return;
       const outcome = runGuardCheck(root, phase, value, ctx?.cwd, extract, previewHost);
       return phase === "tool_call" ? handleToolCallOutcome(api, outcome) : handleToolResultOutcome(api, value, outcome);

@@ -526,17 +526,14 @@ const SHELL_REGISTRATION: &str = r#"  api.on("tool_call", async (event, ctx) => 
 fn is_shell_guard_entry(entry: &Value) -> bool {
     matches!(
         entry.get("matcher").and_then(Value::as_str),
-        Some("Bash" | "Execute" | "run_command")
+        Some("Bash" | "Bash|exec_command|shell" | "Execute" | "run_command")
     ) && entry
         .get("hooks")
         .and_then(Value::as_array)
         .is_some_and(|handlers| {
             handlers.iter().any(|handler| {
-                handler
-                    .get("command")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .contains(" shell --harness ")
+                let cmd = handler.get("command").and_then(Value::as_str).unwrap_or("");
+                cmd.contains(" shell --harness ") || cmd.contains(" shell-writes --harness ")
             })
         })
 }
@@ -599,6 +596,7 @@ fn install_harness_shell_guard(
     let matcher = match harness {
         "factory" => "Execute",
         "agy" => "run_command",
+        "codex" => "Bash|exec_command|shell",
         _ => "Bash",
     };
     entries.push(json!({
@@ -660,7 +658,7 @@ fn managed_fallback(operation: &str, harness: &str) -> &'static str {
         return "{ printf '%s\\n' 'loki: hook command failed' >&2; exit 2; }";
     }
     match operation {
-        "protect" | "shell" => {
+        "protect" | "shell" | "shell-writes" => {
             "{ printf '%s\\n' '{\"decision\":\"deny\",\"reason\":\"loki: hook command failed\"}'; exit 0; }"
         }
         "hook" => "{ printf '%s\\n' 'loki: hook command failed' >&2; printf '{}\\n'; exit 0; }",
@@ -680,7 +678,7 @@ fn rewrite_hook_handler(
     if !command.contains(".loki/loki.json") {
         return Ok(());
     }
-    let operations: Vec<&str> = ["context", "protect", "hook", "shell"]
+    let operations: Vec<&str> = ["context", "protect", "hook", "shell", "shell-writes"]
         .into_iter()
         .filter(|name| command.contains(&format!(" {name} --")))
         .collect();

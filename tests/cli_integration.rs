@@ -374,3 +374,228 @@ fn slop_and_hygiene_json_run_cleanly() {
     let parsed: serde_json::Value = serde_json::from_slice(&hyg.stdout).unwrap();
     assert_eq!(parsed["findings"].as_array().unwrap().len(), 0);
 }
+
+#[test]
+fn init_installs_strict_policy_and_shell_writes_for_every_harness() {
+    let parent = tempfile::tempdir().unwrap();
+    let root = parent.path().join("repo");
+    let managed = parent.path().join("managed");
+    std::fs::create_dir_all(&root).unwrap();
+    git(&root, &["init", "-q"]);
+
+    let out = Command::new(loki_bin())
+        .args(["init", "--dir", root.to_str().unwrap()])
+        .output()
+        .expect("loki init runs");
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+
+    let policy: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(root.join(".loki/loki.json")).unwrap()).unwrap();
+    assert_eq!(policy["slop"]["block"], true, "init must enable strict slop.block by default");
+
+    for (rel, harness, ptr) in [
+        (".claude/settings.json", "claude", "/hooks/PreToolUse"),
+        (".codex/hooks.json", "codex", "/hooks/PreToolUse"),
+        (".agents/hooks.json", "agy", "/loki/PreToolUse"),
+        (".factory/hooks.json", "factory", "/PreToolUse"),
+    ] {
+        let doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(root.join(rel)).unwrap()).unwrap();
+        let entries = doc.pointer(ptr).unwrap().as_array().unwrap();
+        assert_eq!(entries.len(), 2, "{rel} should have protect + shell-writes");
+        let joined = doc.to_string();
+        assert!(
+            joined.contains(&format!("shell-writes --harness {harness}")),
+            "{rel} missing shell-writes for {harness}"
+        );
+    }
+
+    for rel in [".pi/extensions/loki.ts", ".loki/loki-shim.ts"] {
+        let shim = std::fs::read_to_string(root.join(rel)).unwrap();
+        assert!(shim.contains("shell-writes"), "{rel} missing shell-writes guard");
+    }
+
+    // Managed-dir rewrite must also handle the default shell-writes entries cleanly.
+    let managed_out = Command::new(loki_bin())
+        .args([
+            "init",
+            "--dir",
+            root.to_str().unwrap(),
+            "--managed-dir",
+            managed.to_str().unwrap(),
+        ])
+        .output()
+        .expect("loki init --managed-dir runs");
+    assert!(
+        managed_out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&managed_out.stderr)
+    );
+}
+
+#[test]
+fn shell_writes_blocks_bypasses_and_allows_reads_for_every_harness() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    let init = Command::new(loki_bin())
+        .args(["init", "--minimal", "--dir", root.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "init"]);
+    let root_s = root.to_str().unwrap();
+
+    let blocked_cmds = [
+        "echo 'x = 1' > app.py",
+        "cat <<'EOF' > app.py\nx = 1\nEOF",
+        "sed -i 's/a/b/' app.py",
+        "echo x | tee app.py",
+    ];
+    let allowed_cmds = ["git status", "pytest -q"];
+
+    for (harness, tool_name) in [
+        ("claude", "Bash"),
+        ("codex", "Bash"),
+        ("factory", "Execute"),
+        ("pi", "bash"),
+        ("omp", "bash"),
+    ] {
+        for cmd in blocked_cmds {
+            let out = run_with_stdin(
+                &["--root", root_s, "shell-writes", "--harness", harness],
+                &serde_json::json!({
+                    "cwd": root,
+                    "tool_name": tool_name,
+                    "tool_input": { "command": cmd }
+                }),
+            );
+            assert_eq!(
+                out.status.code(),
+                Some(2),
+                "{harness} must block `{cmd}`, stderr: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+        }
+        for cmd in allowed_cmds {
+            let out = run_with_stdin(
+                &["--root", root_s, "shell-writes", "--harness", harness],
+                &serde_json::json!({
+                    "cwd": root,
+                    "tool_name": tool_name,
+                    "tool_input": { "command": cmd }
+                }),
+            );
+            assert!(
+                out.status.success(),
+                "{harness} must allow `{cmd}`, stderr: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+        }
+    }
+
+    // Codex exec_command uses `cmd` and `workdir`.
+    let codex_exec_deny = run_with_stdin(
+        &["--root", root_s, "shell-writes", "--harness", "codex"],
+        &serde_json::json!({
+            "tool_name": "exec_command",
+            "tool_input": { "cmd": "echo 'x = 1' > app.py", "workdir": root }
+        }),
+    );
+    assert_eq!(codex_exec_deny.status.code(), Some(2));
+    let codex_exec_ok = run_with_stdin(
+        &["--root", root_s, "shell-writes", "--harness", "codex"],
+        &serde_json::json!({
+            "tool_name": "exec_command",
+            "tool_input": { "cmd": "pytest -q", "workdir": root }
+        }),
+    );
+    assert!(codex_exec_ok.status.success());
+
+    // Antigravity (agy) uses toolCall.args.CommandLine and returns JSON decision on exit 0.
+    let agy_deny = run_with_stdin(
+        &["--root", root_s, "shell-writes", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "run_command",
+                "args": {
+                    "CommandLine": "echo 'x = 1' > app.py",
+                    "NotificationTimeoutSeconds": 30
+                }
+            }
+        }),
+    );
+    assert!(agy_deny.status.success());
+    let agy_deny_json: serde_json::Value = serde_json::from_slice(&agy_deny.stdout).unwrap();
+    assert_eq!(agy_deny_json["decision"], "deny");
+
+    let agy_allow = run_with_stdin(
+        &["--root", root_s, "shell-writes", "--harness", "agy"],
+        &serde_json::json!({
+            "cwd": root,
+            "toolCall": {
+                "name": "run_command",
+                "args": {
+                    "CommandLine": "pytest -q",
+                    "NotificationTimeoutSeconds": 30
+                }
+            }
+        }),
+    );
+    assert!(agy_allow.status.success());
+    let agy_allow_json: serde_json::Value = serde_json::from_slice(&agy_allow.stdout).unwrap();
+    assert_eq!(agy_allow_json["decision"], "allow");
+}
+
+#[test]
+fn hook_runs_hygiene_for_every_harness() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    std::fs::write(root.join("app.py"), "def ok() -> int:\n    return 1\n").unwrap();
+    let init = Command::new(loki_bin())
+        .args(["init", "--minimal", "--dir", root.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "init"]);
+
+    // Add a swallowed-error pattern that triggers codehygiene on post-write hook.
+    std::fs::write(
+        root.join("app.py"),
+        "def ok(x: int) -> int:\n    try:\n        return int(x)\n    except Exception:\n        pass\n    return 0\n",
+    )
+    .unwrap();
+
+    let root_s = root.to_str().unwrap();
+    for (harness, payload) in [
+        (
+            "claude",
+            serde_json::json!({"cwd": root, "tool_name": "Write", "tool_input": {"file_path": "app.py"}}),
+        ),
+        (
+            "codex",
+            serde_json::json!({"cwd": root, "tool_name": "Write", "tool_input": {"file_path": "app.py"}}),
+        ),
+        (
+            "factory",
+            serde_json::json!({"cwd": root, "tool_name": "Create", "tool_input": {"file_path": "app.py"}}),
+        ),
+        (
+            "agy",
+            serde_json::json!({"cwd": root, "toolCall": {"name": "write_file", "args": {"Path": root.join("app.py")}}}),
+        ),
+    ] {
+        let out = run_with_stdin(&["--root", root_s, "hook", "--harness", harness], &payload);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let combined = format!("{stdout}\n{stderr}");
+        assert!(
+            combined.contains("hygiene") || combined.contains("swallowed") || combined.contains("loki/"),
+            "{harness} hook should report hygiene/anti-slop findings, got stdout={stdout} stderr={stderr}"
+        );
+    }
+}

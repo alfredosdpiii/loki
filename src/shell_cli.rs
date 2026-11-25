@@ -12,7 +12,7 @@ const COMMANDS: [&str; 3] = ["shell", "shell-writes", "explain"];
 fn usage(command: &str) -> &'static str {
     match command {
         "shell" => "usage: loki shell [-h] --harness {agy,claude,codex,factory,omp,pi} [--record]",
-        "shell-writes" => "usage: loki shell-writes [-h] [--harness {ultron}]",
+        "shell-writes" => "usage: loki shell-writes [-h] [--harness {agy,claude,codex,factory,omp,pi,ultron}]",
         _ => "usage: loki explain [-h] [--limit LIMIT]",
     }
 }
@@ -83,7 +83,7 @@ fn parse_option(
     let choices: &[&str] = if command == "shell" {
         &["agy", "claude", "codex", "factory", "omp", "pi"]
     } else {
-        &["ultron"]
+        &["agy", "claude", "codex", "factory", "omp", "pi", "ultron"]
     };
     match (command, item) {
         ("shell" | "shell-writes", "--harness") => {
@@ -183,6 +183,20 @@ pub fn dispatch(argv: &[String]) -> Option<ExitCode> {
     Some(match parsed.command.as_str() {
         "explain" => run_explain(parsed.limit),
         "shell" => run_shell(&parsed.root, &parsed.command, parsed.harness),
-        _ => report(read_payload().and_then(|payload| shell::shell_writes(&parsed.root, &payload, Path::new(".")))),
+        _ => {
+            let result = read_payload().and_then(|payload| match parsed.harness.as_deref() {
+                Some(h) if h != "ultron" => {
+                    let cwd = shell::shell_cwd(&payload, h, &parsed.root)?;
+                    let cmd = shell::shell_command(&payload, h)?;
+                    shell::shell_writes_violation(cmd, &parsed.root, &cwd, &cwd)
+                }
+                _ => shell::shell_writes(&parsed.root, &payload, Path::new(".")),
+            });
+            if parsed.harness.as_deref() == Some("agy") {
+                report_agy_shell(result)
+            } else {
+                report(result)
+            }
+        }
     })
 }

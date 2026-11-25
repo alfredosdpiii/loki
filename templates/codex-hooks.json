@@ -10,6 +10,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Bash|exec_command|shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "R=\"$(git rev-parse --show-toplevel)\"; [ -f \"$R/.loki/loki.json\" ] || git -C \"$R\" cat-file -e HEAD:.loki/loki.json 2>/dev/null || [ -z \"$(git -C \"$R\" rev-list -1 --all -- .loki/loki.json 2>/dev/null)\" ] || { printf '%s\\n' 'loki: .loki/loki.json is not on this branch; Loki did not check this' >&2; exit 0; }; loki --root \"$R\" shell-writes --harness codex || { printf '%s\\n' 'loki: shell write blocked' >&2; exit 2; }",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "SessionStart": [
