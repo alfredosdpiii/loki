@@ -11,40 +11,24 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.11", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
         with:
-          python-version: ${{ matrix.python }}
-      - name: Install lint tools
-        run: python -m pip install ruff==0.15.2
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
       - name: Configure Git identity for fixture commits
         run: |
           git config --global user.name "Loki CI"
           git config --global user.email "ci@example.invalid"
-      - name: Lint
-        run: |
-          ruff check --config templates/.ruff.toml loki.py tests benchmarks
-          ruff format --check loki.py tests benchmarks
+      - name: Clippy
+        run: cargo clippy --all-targets --locked
       - name: Test
-        run: python -m unittest discover -s tests -t .
-
-  package:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
-      - name: Build
-        run: uv build
-      - name: Install the wheel and run it
+        run: cargo test --locked -- --test-threads=4
+      - name: Build release and dogfood slop check
         run: |
-          uv venv /tmp/clean
-          uv pip install --python /tmp/clean dist/*.whl
-          /tmp/clean/bin/loki --version
-          git init -q /tmp/repo
-          /tmp/clean/bin/loki init --dir /tmp/repo
-          cmp /tmp/repo/.loki/loki.py loki.py
+          cargo build --release --locked
+          ./target/release/loki --version
+          ./target/release/loki --root . slop
