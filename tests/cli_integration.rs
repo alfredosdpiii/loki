@@ -94,6 +94,47 @@ fn run_with_stdin(args: &[&str], payload: &serde_json::Value) -> std::process::O
 }
 
 #[test]
+fn protect_refuses_hygiene_note_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    let init = Command::new(loki_bin())
+        .args(["init", "--minimal", "--dir", root.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "init"]);
+    let content = [
+        "function load(path) {",
+        "  try {",
+        "    return read(path)",
+        "  } catch (error) {",
+        "    return null",
+        "  }",
+        "}",
+        "module.exports = { load }",
+    ]
+    .join("\n");
+    let payload = serde_json::json!({
+        "cwd": root,
+        "tool_name": "Write",
+        "tool_input": {"file_path": "load.js", "content": content}
+    });
+    let args = ["--root", root.to_str().unwrap(), "protect", "--harness", "claude"];
+
+    let first = run_with_stdin(&args, &payload);
+    let refusal = String::from_utf8_lossy(&first.stderr);
+    assert_eq!(first.status.code(), Some(2), "stderr: {refusal}");
+    assert!(refusal.contains("load.js:4: loki/"), "stderr: {refusal}");
+
+    let second = run_with_stdin(&args, &payload);
+    let report = String::from_utf8_lossy(&second.stdout);
+    assert_eq!(second.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&second.stderr));
+    assert!(report.contains("load.js:4: loki/"), "stdout: {report}");
+}
+
+#[test]
 fn agy_hooks_context_protect_hook_and_shell() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();

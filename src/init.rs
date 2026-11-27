@@ -425,7 +425,7 @@ fn install_agent_hooks(target: &Path) -> Result<(), InitError> {
     install_shims(target)
 }
 
-fn js_install_command(target: &Path) -> &'static str {
+pub(crate) fn js_install_command(target: &Path) -> &'static str {
     let has = |name: &str| target.join(name).exists();
     if has("bun.lock") || has("bun.lockb") {
         "bun add -d oxlint @oxlint/plugins"

@@ -521,14 +521,21 @@ fn exact_int(v: &Value) -> Option<i64> {
 fn write_oxlint_workspace(
     work: &Path,
     changes: &[(String, String, String)],
+    landmines: Option<&Path>,
 ) -> Result<(PathBuf, Vec<OxlintFile>), CheckError> {
     let os = |e: std::io::Error| CheckError::os(&e, None);
     let config = work.join("config.json");
-    let rules: Map<String, Value> = JS_PREVIEW_RULES
+    let mut rules: Map<String, Value> = JS_PREVIEW_RULES
         .iter()
         .map(|r| (r.to_string(), json!("error")))
         .collect();
-    let document = json!({"plugins": ["jest", "vitest"], "categories": {"correctness": "off"}, "rules": rules});
+    let plugins = landmines.map_or_else(Vec::new, |dir| landmine_config(dir, &mut rules));
+    let document = json!({
+        "plugins": ["jest", "vitest"],
+        "jsPlugins": plugins,
+        "categories": {"correctness": "off"},
+        "rules": rules,
+    });
     std::fs::write(&config, py::dumps(&document)).map_err(os)?;
     let mut files: Vec<OxlintFile> = Vec::new();
     for (index, (relative, old, new)) in changes.iter().enumerate() {
@@ -616,7 +623,11 @@ fn collect_oxlint_violations(
     Ok(violations)
 }
 
-fn parse_oxlint_report(result: &proc::Output, expected_files: usize) -> Result<Vec<Value>, CheckError> {
+fn parse_oxlint_report(
+    result: &proc::Output,
+    expected_files: usize,
+    expected_rules: usize,
+) -> Result<Vec<Value>, CheckError> {
     if !(result.code == 0 || result.code == 1) || !py::strip(&proc::text(&result.stderr)).is_empty() {
         return Err(invalid("Oxlint preview failed or reported incomplete coverage"));
     }
@@ -625,7 +636,7 @@ fn parse_oxlint_report(result: &proc::Output, expected_files: usize) -> Result<V
         serde_json::from_str(&stdout).map_err(|e| CheckError::Value(pyjson::error_text(&stdout, &e)))?;
     let complete = report.is_object()
         && exact_int(&report["number_of_files"]) == Some(expected_files as i64)
-        && exact_int(&report["number_of_rules"]) == Some(JS_PREVIEW_RULES.len() as i64)
+        && exact_int(&report["number_of_rules"]) == Some(expected_rules as i64)
         && report["diagnostics"].is_array();
     if !complete {
         return Err(invalid("invalid or incomplete Oxlint preview report"));
@@ -635,6 +646,64 @@ fn parse_oxlint_report(result: &proc::Output, expected_files: usize) -> Result<V
         return Err(invalid("Oxlint preview status disagrees with diagnostics"));
     }
     Ok(diagnostics)
+}
+
+/// Hygiene and nits notes on the lines a write adds: the first time a note is seen it blocks, after that it is
+/// advisory, since the model's kinds also fire on code that is fine.
+fn preview_hygiene(
+    root: &Path,
+    config: &config::Config,
+    changes: &[rules::Change],
+    deadline: proc::Deadline,
+    violations: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) {
+    let level = hygiene::level(std::env::var(hygiene::HYGIENE_ENV).ok().as_deref(), config);
+    let (gaps, notes): (Vec<String>, Vec<String>) = hygiene::previewed(changes, level, deadline)
+        .into_iter()
+        .partition(|note| note.starts_with(run::NOT_CHECKED));
+    let (fresh, repeated) = hygiene::first_refusals(root, notes, deadline);
+    if !fresh.is_empty() {
+        violations.extend(fresh);
+        violations.push(HYGIENE_RETRY.into());
+    }
+    warnings.extend(repeated.into_iter().chain(gaps));
+}
+
+const HYGIENE_RETRY: &str = "Fix each note above; a wrong one passes on retry if you say why.";
+
+/// The landmines plugins `loki init` installs, run in the preview when present. The structure plugin is left out:
+/// its rules read the file's real location, which the preview's copies do not have.
+const LANDMINE_PLUGINS: [&str; 3] = ["testing", "style", "types"];
+const LANDMINE_RULES: [&str; 6] = [
+    "landmines-testing/no-fixed-sleep",
+    "landmines-testing/no-flake-masking",
+    "landmines-testing/no-test-doubles",
+    "landmines-testing/no-unsignaled-poll",
+    "landmines-style/no-comments",
+    "landmines-types/no-explicit-return-types",
+];
+
+fn landmines_dir(root: &Path) -> Option<PathBuf> {
+    let dir = root.join(".loki/oxlint/landmines");
+    dir.join("plugins").is_dir().then_some(dir)
+}
+
+fn landmine_config(dir: &Path, rules: &mut Map<String, Value>) -> Vec<Value> {
+    rules.extend(
+        LANDMINE_RULES
+            .iter()
+            .map(|rule| (rule.to_string(), json!("error"))),
+    );
+    let comments = json!(["error", {"allow": ["WARNING", "SAFETY"]}]);
+    rules.insert("landmines-style/no-comments".into(), comments);
+    LANDMINE_PLUGINS
+        .iter()
+        .map(|plugin| {
+            let specifier = dir.join(format!("plugins/{plugin}.ts"));
+            json!({"name": format!("landmines-{plugin}"), "specifier": specifier})
+        })
+        .collect()
 }
 
 /// Oxlint's preview rules over before and after copies; net-new findings block.
@@ -651,7 +720,9 @@ fn preview_oxlint(
         .tempdir()
         .map_err(|e| CheckError::os(&e, None))?;
     let work = directory.path();
-    let (config, files) = write_oxlint_workspace(work, changes)?;
+    let landmines = landmines_dir(root);
+
+    let (config, files) = write_oxlint_workspace(work, changes, landmines.as_deref())?;
     let mut command: Vec<String> = vec![
         resolve(Path::new(&binary)).to_string_lossy().into_owned(),
         "-c".into(),
@@ -665,7 +736,8 @@ fn preview_oxlint(
     ];
     command.extend(files.iter().map(|(name, _)| work.join(name).to_string_lossy().into_owned()));
     let result = proc::run(&command, work, None, &[], deadline.timeout()?)?;
-    let diagnostics = parse_oxlint_report(&result, files.len())?;
+    let rules = JS_PREVIEW_RULES.len() + landmines.map_or(0, |_| LANDMINE_RULES.len());
+    let diagnostics = parse_oxlint_report(&result, files.len(), rules)?;
     collect_oxlint_violations(&diagnostics, &files)
 }
 
@@ -686,6 +758,14 @@ fn run_javascript_preview(
     match preview_oxlint(root, changes, deadline) {
         Ok(found) => {
             violations.extend(found);
+            Ok(())
+        }
+        Err(error) if recoverable(&error) && landmines_dir(root).is_some() => {
+            violations.push(format!(
+                "loki: the landmines checks could not run ({}); install them with `{}`",
+                error.message(),
+                init::js_install_command(root)
+            ));
             Ok(())
         }
         Err(error) if recoverable(&error) => {
@@ -745,6 +825,7 @@ pub fn preview_violations(
         previewed = true;
         violations.extend(rules::content_rule_violations(&changes, false)?);
         violations.extend(hook::preview_ruff(root, &changes, deadline)?);
+        preview_hygiene(root, config, &changes, deadline, &mut violations, warnings);
         if javascript {
             run_javascript_preview(root, config, &changes, deadline, &mut violations)?;
         }

@@ -653,6 +653,82 @@ fn against(
         return vec![];
     }
 
+    score_active(&active, level, nits_launchers, deadline)
+}
+
+/// Notes on the lines each previewed change `(name, before, after)` adds, then a `NOT CHECKED` line for each checker
+/// that could not run. Moved blocks are not told apart from new code here.
+pub fn previewed(
+    changes: &[(String, String, String)],
+    level: Level,
+    deadline: Deadline,
+) -> Vec<String> {
+    if level == Level::Off {
+        return vec![];
+    }
+    let active: Vec<Active> = changes
+        .iter()
+        .filter(|(name, ..)| checked(name))
+        .filter_map(|(name, before, after)| {
+            let added = added_lines(before, after);
+            (!added.is_empty()).then(|| (name.as_str(), after.clone(), added, HashSet::new()))
+        })
+        .collect();
+    if active.is_empty() {
+        return vec![];
+    }
+    score_active(&active, level, &nits::launchers(), deadline)
+}
+
+/// A note without its line number, so the same finding still matches after the lines above it move.
+fn refusal_key(note: &str) -> String {
+    let Some((head, rest)) = note.split_once(": loki/") else {
+        return note.to_string();
+    };
+    let name = head.rsplit_once(':').map_or(head, |(name, _)| name);
+    format!("{name}: loki/{rest}")
+}
+
+/// Splits `notes` into those refused for the first time, recorded in the Git directory's `loki-hygiene-refused`,
+/// and those refused before, which no longer block. Outside a Git repository nothing is remembered, so no note blocks.
+// ponytail: the record only grows; prune it when it gets large enough to slow a write.
+pub fn first_refusals(
+    root: &Path,
+    notes: Vec<String>,
+    deadline: Deadline,
+) -> (Vec<String>, Vec<String>) {
+    let Ok(git_dir) = git_output(root, &["rev-parse", "--absolute-git-dir"], deadline, None) else {
+        return (vec![], notes);
+    };
+    let record = Path::new(String::from_utf8_lossy(&git_dir).trim()).join("loki-hygiene-refused");
+    let text = std::fs::read_to_string(&record).unwrap_or_default();
+    let known: HashSet<&str> = text.lines().collect();
+
+    let (repeated, fresh): (Vec<String>, Vec<String>) = notes
+        .into_iter()
+        .partition(|note| known.contains(refusal_key(note).as_str()));
+    let added: String = fresh.iter().map(|note| refusal_key(note) + "\n").collect();
+    let saved = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&record)
+        .and_then(|mut file| file.write_all(added.as_bytes()));
+    if saved.is_err() {
+        return (vec![], fresh.into_iter().chain(repeated).collect());
+    }
+    (fresh, repeated)
+}
+
+type Active<'a> = (&'a str, String, HashSet<usize>, HashSet<usize>);
+
+/// The notes on each active file's added lines (`(name, text, added, moved)`), then a `NOT CHECKED` line for each
+/// checker that could not run.
+fn score_active(
+    active: &[Active],
+    level: Level,
+    nits_launchers: &[Vec<String>],
+    deadline: Deadline,
+) -> Vec<String> {
     let mut gaps = Vec::new();
     let active_sources: Vec<(&str, String)> = active.iter().map(|(n, a, _, _)| (*n, a.clone())).collect();
     // nits first: it answers in a fraction of a second, the model can take most of the deadline.
