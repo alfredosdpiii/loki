@@ -92,6 +92,86 @@ Erosion at 0.097 vs 0.559 and Verbosity at 0.111 vs 0.158.
 All 36 problems in this run are Python on Codex 0.159.2. Full scores and raw
 `result.json` are posted on `SprocketLab/slop-code-bench#55`.
 
+#### Before and after Loki on the same problem
+
+On `dag_execution` checkpoint 3 with `gpt-6.1-sol` at `medium` effort on Codex
+0.159.2, an unconstrained run produced 17 functions over CC 10 with erosion
+0.681 and a max CC of 53. With Loki Strict, erosion dropped to 0.029, zero
+functions exceeded CC 10, and the 92-line `evaluate()` monolith became a
+16-line CC 2 dispatch table with small helpers:
+
+| Metric on `dag_execution` checkpoint 3 | Without Loki | With Loki Strict |
+| --- | ---: | ---: |
+| Checkpoint erosion | 0.681 | **0.029** |
+| Functions with CC > 10 | 17 / 84 | **0 / 148** |
+| Max function CC | 53 | **10** |
+| Longest top function | 92 lines | **24 lines** |
+
+Without Loki (`pipeline.py:754`, CC 53, 92 lines, excerpt):
+
+```python
+def evaluate(self, node: Node, gate: bool = False):
+    kind, args = node.kind, node.args
+    if kind == "literal":
+        return self.interpolate(args[0]) if isinstance(args[0], str) else args[0]
+    if kind == "ref":
+        return self.reference(args[0])
+    if kind == "var":
+        name = args[0]
+        if name in self.variables:
+            return self.variables[name]
+        if name in ("stdout", "stderr", "exit_code", "exitcode", "code"):
+            return Stream(getattr(self, {"exitcode": "exit_code", "code": "exit_code"}.get(name, name)))
+        if name == "output":
+            return str(self.cwd)
+        if name == "params":
+            return self.params
+        raise PipeError(f"undefined variable {name}")
+    if kind == "attribute":
+        value = self.evaluate(args[0], gate)
+        if not isinstance(value, dict) or args[1] not in value:
+            raise PipeError(f"undefined attribute {args[1]}")
+        return value[args[1]]
+    if kind == "index":
+        value, index = (self.evaluate(x, gate) for x in args)
+        if type(index) is not int or not isinstance(value, (list, str)):
+            raise PipeError("array index must be an int")
+        # ... continues 60+ more lines for unary, binary, call
+```
+
+With Loki Strict (`pipeline_runner.py:969`, CC 2, 16 lines + small helpers):
+
+```python
+def evaluate(self, expr):
+    kind = expr[0]
+    handlers = {
+        "literal": self.literal,
+        "ref": self.ref_value,
+        "var": self.variable,
+        "member": self.member,
+        "list": self.list_value,
+        "index": self.index,
+        "unary": self.unary,
+        "binary": self.binary,
+        "call": self.call,
+    }
+    if kind not in handlers:
+        raise InvalidPipe(f"Unknown expression {kind}")
+    return handlers[kind](expr)
+
+def variable(self, expr):
+    name = expr[1]
+    if name in self.variables:
+        return self.variables[name]
+    if name == "params":
+        return self.params
+    if name in {"stdout", "stderr", "exit_code", "exitcode", "code"}:
+        return getattr(self, "exit_code" if name in {"exitcode", "code"} else name)
+    if name in {"output", "workspace"}:
+        return self.reference(name)
+    raise InvalidPipe(f"Undefined variable {name}")
+```
+
 ### Head-to-head vs Interlinked CLI
 
 Head to head with [Interlinked CLI](https://github.com/QuentinCody/interlinked-cli)
