@@ -2,11 +2,12 @@
 
 # Loki
 
-**Deterministic guardrails for AI coding agents.**
+**Deterministic write-time code quality and anti-slop enforcement for AI coding agents.**
 
-Loki checks every edit your agent makes with real analyzers and precise rules. It
-blocks the dangerous ones before the file changes, tells the agent exactly what
-to fix, and does all of this without calling a model.
+Loki sits between your coding agent and disk. Before an edit writes, it runs real
+analyzers, structural complexity and duplication gates, a local code-hygiene
+model, and security rules over the proposed file. Bad writes are refused with
+the exact diagnostic before the file changes, without calling an LLM.
 
 ![Rust](https://img.shields.io/badge/rust-2024%20edition-dea584?logo=rust&logoColor=white)
 ![Single binary](https://img.shields.io/badge/install-single%20binary-2ea44f)
@@ -21,30 +22,77 @@ to fix, and does all of this without calling a model.
 
 ## Why Loki
 
-- **It stops problems before they land.** Content rules, Ruff and a full
-  TypeScript type check run on the proposed file before the write. XSS, leaked
-  keys and broken callers never reach disk.
+- **It stops code rot and bugs before they land.** Structural slop gates
+  (`slop.block: true` by default), Ruff, Oxlint with `landmines`, a TypeScript
+  type check, `codehygiene`, `nits`, and security rules run on the proposed file
+  before the write. Complexity hotspots, clones, swallowed errors, XSS, leaked
+  keys, and broken callers are refused before reaching disk.
+- **It closes the shell-write loophole.** Agents with shell access often route
+  around file-edit hooks by writing source files through redirects like
+  `cat <<EOF > app.py`. Loki blocks shell file writes across all supported
+  harnesses by default.
 - **It only complains about what the edit changed.** Findings are compared
   against the committed file by rule and source line. Existing debt and shifted
   lines pass, so agents aren't blocked by code they didn't touch.
-- **It uses real analyzers.** mypy, `tsc`, golangci-lint, Clippy, Credo and
-  Sobelow run on every write, all net-new. Twenty-six tool-free rules cover
+- **It uses real analyzers.** mypy, `tsc`, Oxlint, golangci-lint, Clippy, Credo,
+  and Sobelow run on every write, all net-new. Twenty-six tool-free rules cover
   what linters miss: SSRF, open redirects, request-trusted authorization, shell
   `-c` injection, ReDoS, zip slip, prototype pollution, GitHub Actions
-  injection and more.
-- **It's fast when it matters.** A per-repository daemon keeps the TypeScript
-  checker, `dmypy`, `codehygiene`, `nits` and build caches warm. A TypeScript
-  check takes about 40 ms warm instead of 500 ms.
-- **It catches code hygiene and nits on added lines.** Every write runs the
-  vendored [codehygiene](https://github.com/brianbell-x/codehygiene) model
-  alongside [nits](https://github.com/jkomyno/nits) tree-sitter rules, catching
-  swallowed errors, empty-success fallbacks, noisy comments, duplicate blocks
-  and special-casing without complaining about untouched code.
-- **It measures structural sloppiness too.** `loki slop` scores complexity,
-  duplication and import cycles in six languages and flags new hotspots as the
-  agent writes them.
+  injection, and more.
+- **It stays fast on every edit.** Hook stages run in parallel with capped time
+  budgets, and a per-repository daemon keeps the TypeScript checker, `dmypy`,
+  `codehygiene`, `nits`, and build caches warm. A TypeScript check takes about
+  40 ms warm instead of 500 ms.
+- **It enforces code hygiene and structural simplicity.** Every write runs the
+  compiled-in [codehygiene](https://github.com/brianbell-x/codehygiene) model,
+  [nits](https://github.com/jkomyno/nits) tree-sitter rules, and `loki slop`
+  complexity, clone, and import-cycle checks. First-time hygiene findings and
+  new complexity hotspots block the write instead of piling up across turns.
 
-## How it compares
+## Benchmarks
+
+### SlopCodeBench (`gpt-6.1-sol` medium)
+
+Evaluated on [SlopCodeBench](https://github.com/SprocketLab/slop-code-bench)
+across 36 Python problems and 196 checkpoints with `gpt-6.1-sol` at `medium`
+reasoning effort on `codex 0.159.2`. Model, effort, agent binary, and the
+unmodified `just-solve` prompt matched the published leaderboard run, with zero
+benchmark-specific rules or thresholds. The only addition was Loki strict write
+hooks with `slop.block: true`, hygiene checks, and `shell-writes`.
+
+| Metric | Direction | Published baseline | Codex + Loki Strict | Change |
+| --- | --- | ---: | ---: | ---: |
+| Strict Solve | Higher is better | 14.80% | **15.82%** | **+1.02 pp** |
+| Iso Solve | Higher is better | 29.08% | **31.63%** | **+2.55 pp** |
+| Cost / checkpoint | Lower is better | $0.91 | **$0.38** | **-58%** |
+| Erosion | Lower is better | 0.7040 | **0.0969** | **-86.2%, 7.3x lower** |
+| Verbosity | Lower is better | 0.2180 | **0.1113** | **-48.9%** |
+
+Mean functions over CC 10 stayed at 0.51 per checkpoint with a median of 0.
+Total spend across all 196 checkpoints was $75.11, with a median of $0.32 per
+checkpoint. Checkpoint pass rates reached 85.1% on core tests at 134/196, 86.2%
+on regressions, and 90.8% on error handling.
+
+Against the published `just-solve` leaderboard:
+
+| Model | Harness | Strict Solve | Iso Solve | $/CKPT | Erosion | Verbosity |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| #1 GPT 5.6 SOL (XHigh) | Codex 0.145.0 | 14.29% | 32.14% | $3.84 | 0.658 | 0.376 |
+| #2 GPT 6 Astra (XHigh) | Codex 0.153.3 | 16.33% | 31.63% | $3.87 | 0.559 | 0.158 |
+| **GPT 6.1 SOL (Medium) + Loki** | **Codex 0.159.2** | **15.82%** | **31.63%** | **$0.38** | **0.097** | **0.111** |
+| #3 Opus 5.5 (Medium) | Claude Code 2.1.280 | 14.29% | 29.59% | $0.99 | 0.700 | 0.347 |
+| #4 GPT 6 Astra (Medium) | Codex 0.159.2 | 14.80% | 29.08% | $1.33 | 0.701 | 0.229 |
+| #5 GPT 6.1 SOL (Medium) | Codex 0.159.2 | 14.80% | 29.08% | $0.91 | 0.704 | 0.218 |
+
+Starting from the 5th-place model, Loki tied #2 GPT 6 Astra (XHigh) on Iso Solve
+at 31.63%, sat one checkpoint behind on Strict Solve at 15.82% vs 16.33%, cost
+10x less at $0.38 vs $3.87 per checkpoint, and beat every published model on
+Erosion at 0.097 vs 0.559 and Verbosity at 0.111 vs 0.158.
+
+All 36 problems in this run are Python on Codex 0.159.2. Full scores and raw
+`result.json` are posted on `SprocketLab/slop-code-bench#55`.
+
+### Head-to-head vs Interlinked CLI
 
 Head to head with [Interlinked CLI](https://github.com/QuentinCody/interlinked-cli)
 (`82307ea`), both installed as Claude Code hooks. Each ran in a fresh sandboxed
@@ -106,20 +154,20 @@ CI check. Existing configuration files are left alone.
 ```bash
 git add .loki .agents/hooks.json .claude .codex .factory .pi .omp .ruff.toml .oxlintrc.json \
   .golangci.yml .github/workflows/loki.yml
-git commit -m "Add Loki guardrails"
+git commit -m "Add Loki"
 ```
 
 **4. Use your agent as usual.** On every edit:
 
-- **Blocked before the write:** dangerous edits are refused with the exact finding
-  (XSS, leaked keys, injection, a type error that breaks a caller, edits to Loki's
-  own files), and the agent fixes them.
-- **Reported after the write:** findings from mypy, `tsc`, golangci-lint, Clippy,
-  Credo and Sobelow go back to the agent, along with `codehygiene` and `nits`
-  notes on added lines. Only what the edit introduced counts; existing debt
-  stays quiet.
-- **Advisory:** new complexity hotspots, copied code and import cycles, unless you
-  make them blocking.
+- **Blocked before the write:** dangerous edits (XSS, leaked keys, injection,
+  edits to Loki's own files), TypeScript type errors, `landmines` Oxlint
+  findings (and missing `oxlint` on TypeScript writes), new structural slop
+  hotspots, clones, and import cycles (`slop.block: true`), first-time
+  `codehygiene` and `nits` findings on added lines, and shell commands that try
+  to write source files via redirects.
+- **Reported after the write:** net-new findings from mypy, `tsc`,
+  golangci-lint, Clippy, Credo, and Sobelow, along with repeated hygiene notes.
+  Only what the edit introduced counts; existing debt stays quiet.
 
 The first edit starts a background daemon that keeps analyzers warm.
 
@@ -151,23 +199,25 @@ covers each host in detail.
 ```mermaid
 flowchart LR
     A[Agent proposes a write] --> B{Pre-write}
-    B -->|path, policy, secrets,<br/>security rules, Ruff,<br/>TypeScript types| C[Deny with the exact finding]
+    B -->|path, policy, secrets,<br/>security rules, Ruff,<br/>Oxlint + landmines, tsc,<br/>slop, hygiene + nits| C[Deny with the exact finding]
     B -->|clean| D[File is written]
     D --> E{Post-write}
     E -->|mypy, golangci-lint, Clippy,<br/>Credo, Sobelow, Oxlint| F[Report net-new findings]
-    E -->|codehygiene + nits,<br/>slop hotspots & clones| G[Notes on added lines]
+    E -->|repeated hygiene notes| G[Advisory notes on added lines]
     H[(Warm daemon)] -. keeps tsc, dmypy,<br/>codehygiene & nits warm .-> B
     H -.-> E
 ```
 
 1. **Before the write,** Loki reconstructs the file the agent is about to
-   produce. It checks the path against protected policy, runs the tool-free
-   content rules, and, where supported, runs Ruff and a TypeScript type check on
-   the proposed content. A denial carries the precise diagnostic.
-2. **After the write,** the language's analyzers run on what actually landed.
-   New findings go back to the agent, while existing debt stays quiet.
+   produce. It runs protected-path checks, tool-free security rules, Ruff,
+   Oxlint with `landmines`, a TypeScript type check, structural slop gates, and
+   first-hit `codehygiene` and `nits` checks in parallel with capped budgets. A
+   denial carries the exact diagnostic. Shell commands that write source files
+   through redirects are refused by `shell-writes`.
+2. **After the write,** the language's analyzers run on what landed. New
+   findings go back to the agent, while existing debt stays quiet.
 3. **In CI,** `scan` repeats the checks against a base revision, including test
-   integrity, dependency policy and lockfile consistency.
+   integrity, dependency policy, and lockfile consistency.
 
 Loki blocks its own policy files, hook registration and CI workflow from agent
 edits, so an agent can't switch it off.
@@ -258,6 +308,8 @@ For TypeScript and JavaScript repositories, `loki init` installs both
 [interfere-inc/landmines](https://github.com/interfere-inc/landmines) directly
 into `.loki/oxlint/` and wires them into `.oxlintrc.json`. Both plugins are
 vendored with zero extra npm dependencies beyond `oxlint` and `@oxlint/plugins`.
+When installed, `landmines` plugins run in the pre-write Oxlint preview, and a
+missing `oxlint` refuses TypeScript writes instead of passing them unchecked.
 
 The four `landmines` plugins block common AI-agent shortcuts at `"error"` level:
 
@@ -279,15 +331,17 @@ The four `landmines` plugins block common AI-agent shortcuts at `"error"` level:
 ## Code hygiene & nits
 
 On every write (`"hygiene": "on"` by default), Loki runs two local readability
-and error-handling checks over the lines the edit added against `HEAD`:
+and error-handling checks over the lines the edit adds. New findings refuse the
+write the first time they appear, tracked in `.git/loki-hygiene-refused` without
+line numbers; if the agent repeats the same finding, it becomes advisory.
 
 - **[codehygiene](https://github.com/brianbell-x/codehygiene)** (1.58-bit
-  ternary model compiled in and executed in-process in pure Rust — no Python or
-  NumPy required). Default `on` catches `swallowed_error` (with Python `except`
-  structural filtering so dict fallbacks like `d.get(k) or []` and handlers that
-  record errors aren't flagged), `noisy_comment`, `duplicate_block` (move-aware
-  for 3+ line refactors) and `special_casing`. Scoring is windowed around
-  changed hunks and parallelized across cores.
+  ternary model compiled in and executed in-process in pure Rust, with no Python
+  or NumPy required). Default `on` catches `swallowed_error` (with Python
+  `except` structural filtering so dict fallbacks like `d.get(k) or []` and
+  handlers that record errors aren't flagged), `noisy_comment`,
+  `duplicate_block` (move-aware for 3+ line refactors), and `special_casing`.
+  Scoring is windowed around changed hunks and parallelized across cores.
 - **[nits](https://github.com/jkomyno/nits)** (tree-sitter rules for Python,
   TypeScript, JavaScript and Rust, pinned to a commit and run only from local
   Python or `uv`'s offline cache; never downloaded at hook time). Default `on`
@@ -334,9 +388,10 @@ language's own parser. It is approximated structurally for Rust, Java, Kotlin, C
 C/C++, Swift, Scala, PHP and Ruby. Clones are detected on normalized tokens, so
 renamed copies count. Test and fixture directories (`fixtures`, `__fixtures__`,
 `testdata`) are excluded from production slop metrics automatically, and
-`slop.exclude` adds repo-specific globs. `--base` compares against a revision
-without hitting a repo-size ceiling, and `max_index` or `max_index_increase` can
-gate CI.
+`slop.exclude` adds repo-specific globs. `loki init` sets `slop.block: true` by
+default so new hotspots, clones, and import cycles block writes right away.
+`--base` compares against a revision without hitting a repo-size ceiling, and
+`max_index` or `max_index_increase` can gate CI.
 
 <div align="center">
 <img src="https://raw.githubusercontent.com/alfredosdpiii/loki/main/docs/demo/scenario-slop.gif" alt="loki slop reporting complexity hotspots, token-normalized clones and import cycles, then verifying the refactor drops the index from 55 to 0 with --base HEAD" width="820">
@@ -355,7 +410,7 @@ an agent can't loosen it mid-session:
   "shell_commands": [
     {"command": "npm test", "cwd": ".", "inputs": ["package.json", "package-lock.json"]}
   ],
-  "slop": {"max_index": 40, "max_index_increase": 2, "block": false, "exclude": ["generated/**"]},
+  "slop": {"block": true, "max_index": 40, "max_index_increase": 2, "exclude": ["generated/**"]},
   "elixir_security": {"sobelow": {"block": "high", "warn": "medium"}}
 }
 ```
@@ -363,11 +418,11 @@ an agent can't loosen it mid-session:
 | Setting | Default | Effect |
 | --- | --- | --- |
 | `typescript_check` | on when `tsconfig.json` exists | `false` disables it; `true` makes setup problems block |
-| `slop.block` | `false` | Turns new hotspots, clones and cycles from advice into failures |
+| `slop.block` | `true` from `loki init` (`false` if omitted) | Blocks writes that introduce new complexity hotspots, clones, or import cycles |
 | `slop.exclude` | `[]` | Glob patterns excluded from `loki slop` and write-time slop checks (in addition to tests and `fixtures/`/`testdata/`) |
 | `hygiene` | `"on"` | `"off"` disables it; `"all"` adds layout, naming and lower-precision nits rules |
 | `LOKI_HYGIENE` | unset | `off`, `on` or `all`; overrides `hygiene` |
-| `shell_commands` | none | Exact, reviewed shell commands the shell guard admits (enable the guard with `loki init --shell-guard`) |
+| `shell_commands` | none | Exact, reviewed shell commands admitted when `--shell-guard` is enabled (blocks inline-interpreter writes too; `shell-writes` blocks shell file redirects by default) |
 | `LOKI_STRICT=1` | off | Missing analyzers fail instead of reporting `NOT CHECKED` |
 | `LOKI_PYTHON=<path>` | active venv or conda env, then `.venv` | The project's interpreter, asked whether a new import exists (`--python` on `hook`, `protect` and `scan`) |
 | `LOKI_DAEMON=0` | on | Runs every hook in-process |
@@ -376,7 +431,7 @@ an agent can't loosen it mid-session:
 
 | Agent | Integration |
 | --- | --- |
-| Antigravity (`agy`) | `.agents/hooks.json` hooks |
+| Antigravity (`agy`) | `.agents/hooks.json` hooks with Pre/PostInvocation diagnostic spool |
 | Claude Code | `.claude/settings.json` hooks |
 | Codex | `.codex/hooks.json` hooks |
 | Factory Droid | `.factory/hooks.json` hooks |
